@@ -16,6 +16,7 @@ import UI from './ui.html';
 import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
+import { skins } from './skins.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -128,11 +129,25 @@ async function handleAsk(req, env) {
   }
 }
 
-// The page, with the deployment's name filled in.
+// The page, with the deployment's name, copy and skin filled in. Config text
+// is escaped; skin markup comes from worker/skins.js, which is trusted code.
+const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 function page(env) {
   const { config } = getDeployment(env);
-  const name = env.APP_NAME || config.name || 'socrata-agent';
-  return UI.replaceAll('{{APP_NAME}}', name.replace(/[<>&"]/g, ''));
+  const ui = config.ui || {};
+  const skinName = skins[ui.skin] ? ui.skin : 'plain';
+  const skin = skins[skinName];
+  const fill = {
+    APP_NAME: esc(env.APP_NAME || config.name || 'socrata-agent'),
+    SKIN: skinName,
+    TAGLINE: esc(ui.tagline),
+    LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
+    FOOTER_NOTE: esc(ui.footerNote),
+    MARK: skin.mark,
+    FONTS: skin.fonts,
+    FAVICON: skin.favicon,
+  };
+  return UI.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
 }
 
 export default {

@@ -156,12 +156,16 @@ email header. See [docs/extending.md](docs/extending.md) and
 
 ## Siren
 
+![Siren answering "who decided to allow a kennel at 111 Pennsylvania Ave?"](docs/siren-screenshot.png)
+
 The public deployment is **Siren**, at
 [jason-edelman.org/ask-siren](https://jason-edelman.org/ask-siren/). The name
 does three jobs: Norfolk is the Mermaid City; the greater siren is a salamander
 of Virginia's coastal-plain swamps; and a siren is an alarm. Its config is
 `deployments/siren.config.js`, and `[env.siren]` in `wrangler.toml` routes the
-path. A Worker route runs before the site's Custom Domain, so only
+path, and `ui` gives it its own skin (`worker/skins.js`): blackwater greens,
+spatterdock gold, a greater-siren mark, and the tagline *Sings only what the
+records say*. Other deployments keep the plain page. A Worker route runs before the site's Custom Domain, so only
 `/ask-siren` reaches this Worker; the rest of the site is untouched.
 
 ```bash
