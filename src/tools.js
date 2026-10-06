@@ -3,13 +3,14 @@
 
 import { blockReport, lookupAddress, searchLegislation } from './block.js';
 import { soqlString } from './socrata.js';
+import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
   function: { name, description, parameters: { type: 'object', properties, required, additionalProperties: false } },
 });
 
-export function toolsFor(city) {
+export function toolsFor(city, plugins = []) {
   const tools = [
     T('search_datasets', `Search ${city.name}'s open data catalog by keyword. Returns dataset ids, names and descriptions.`, {
       query: { type: 'string', description: 'Keywords, e.g. "trees", "building permits".' },
@@ -45,6 +46,11 @@ export function toolsFor(city) {
         body: { type: 'string', description: 'Optional: part of the body\'s name, e.g. "Planning".' },
       })
     );
+  }
+  const core = new Set(tools.map((t) => t.function.name));
+  for (const def of pluginToolDefs(plugins, city)) {
+    if (core.has(def.function.name)) throw new Error(`Plugin "${def.function.name}" would replace a core tool.`);
+    tools.push(def);
   }
   return tools;
 }
@@ -101,7 +107,10 @@ export async function runTool(ctx, name, args) {
         agenda: r.agenda_link?.url,
       }));
     }
-    default:
-      throw new Error(`Unknown tool ${name}`);
+    default: {
+      const plugin = pluginsFor(ctx.plugins, city).find((p) => p.name === name);
+      if (!plugin) throw new Error(`Unknown tool ${name}`);
+      return plugin.run(pluginContext(ctx), args);
+    }
   }
 }

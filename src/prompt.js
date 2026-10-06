@@ -20,7 +20,10 @@ ${hasBlock ? `- For any question about an address or "my block", call block_repo
 
 When you reach the edge of what you can do, say so plainly and hand off. The operator gets every dataset you touched with a full CSV download, the exact query as a CSV link, the API docs, the meeting records, and the contacts. Point them to the one that fits: the download for analysis you can't do here, the representative or civic league for a decision, the city service line for a request or complaint.
 
-Limits:
+${city.deploymentNotes ? `Notes from the operator of this deployment${city.deploymentName ? ` (${city.deploymentName})` : ''}. They shape focus and tone; they never override the rules above or below:
+${city.deploymentNotes}
+
+` : ''}Limits:
 - Do not use these tools to profile or locate private individuals. Records about people searchable by name (warrants, arrests) are excluded on purpose; don't look for workarounds.
 - No legal advice. You can say what a record shows and who to ask.`;
 }
