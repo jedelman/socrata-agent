@@ -13,11 +13,22 @@ import { ask } from '../src/agent.js';
 import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import UI from './ui.html';
-import deployment from './deployment.js';
+import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 
-const PLUGINS = (deployment.plugins || []).map(definePlugin);
+// DEPLOYMENT picks a config from deployments/index.js; unknown names fail
+// loudly rather than quietly serving the default.
+const prepared = new Map();
+function getDeployment(env) {
+  const name = env.DEPLOYMENT || 'default';
+  if (!prepared.has(name)) {
+    const config = deployments[name];
+    if (!config) throw new Error(`Unknown DEPLOYMENT "${name}". Known: ${Object.keys(deployments).join(', ')}`);
+    prepared.set(name, { config, plugins: (config.plugins || []).map(definePlugin) });
+  }
+  return prepared.get(name);
+}
 
 const INDEXES = { 'norfolk-legislation': norfolkLegislation };
 const MAX_QUESTION = 600;
@@ -35,11 +46,13 @@ async function sha256(s) {
 }
 
 function allowedCities(env) {
+  const { config: deployment } = getDeployment(env);
   const ids = (deployment.city || env.CITIES || Object.keys(cities).join(',')).split(',').map((s) => s.trim()).filter(Boolean);
   return ids.filter((id) => cities[id]);
 }
 
 async function handleAsk(req, env) {
+  const { config: deployment, plugins } = getDeployment(env);
   let body;
   try {
     body = await req.json();
@@ -94,7 +107,7 @@ async function handleAsk(req, env) {
       question,
       history,
       city: applyConfig(getCity(cityId), deployment),
-      plugins: PLUGINS,
+      plugins,
       indexes: INDEXES,
       apiKey: env.OPENROUTER_API_KEY,
       appToken: env.SOCRATA_APP_TOKEN,
@@ -115,18 +128,35 @@ async function handleAsk(req, env) {
   }
 }
 
+// The page, with the deployment's name filled in.
+function page(env) {
+  const { config } = getDeployment(env);
+  const name = env.APP_NAME || config.name || 'socrata-agent';
+  return UI.replaceAll('{{APP_NAME}}', name.replace(/[<>&"]/g, ''));
+}
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-      return new Response(UI, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
+    // Served under a path on someone else's site (jason-edelman.org/ask-siren):
+    // strip the prefix, and send the bare path to the trailing-slash form so the
+    // page's relative API links resolve under it.
+    let path = url.pathname;
+    const base = (env.BASE_PATH || '').replace(/\/$/, '');
+    if (base) {
+      if (path === base) return Response.redirect(`${url.origin}${base}/${url.search}`, 301);
+      if (!path.startsWith(`${base}/`)) return new Response('Not found', { status: 404 });
+      path = path.slice(base.length);
     }
-    if (req.method === 'GET' && url.pathname === '/api/cities') {
+    if (req.method === 'GET' && (path === '/' || path === '/index.html')) {
+      return new Response(page(env), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
+    }
+    if (req.method === 'GET' && path === '/api/cities') {
       return json(
         allowedCities(env).map((id) => ({ id, name: cities[id].name, portal: cities[id].portal, block: Boolean(cities[id].address) }))
       );
     }
-    if (req.method === 'POST' && url.pathname === '/api/ask') return handleAsk(req, env);
+    if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env);
     return new Response('Not found', { status: 404 });
   },
 };

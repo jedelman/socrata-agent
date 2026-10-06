@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>What's on my block?</title>
+<title>{{APP_NAME}}: what's on my block?</title>
 <meta name="description" content="Ask your city's open data what's happening at an address, and who decided it. Every answer shows the queries behind it.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231f5f4a'/><path d='M8 22V12l8-5 8 5v10h-5v-6h-6v6z' fill='white'/></svg>">
 <style>
@@ -26,6 +26,8 @@ a { color: var(--accent); }
 .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
 header h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); line-height: 1.15; margin: 8px 0 6px; letter-spacing: -0.01em; }
 header p { margin: 0 0 16px; color: var(--muted); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { font-weight: 700; letter-spacing: .02em; color: var(--accent); }
 .city { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: .95rem; }
 select, textarea, button { font: inherit; color: inherit; }
 select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
@@ -70,7 +72,7 @@ footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1p
 <body>
 <div class="wrap">
   <header>
-    <label class="city">City <select id="city" aria-label="City"></select></label>
+    <div class="top"><span class="brand">{{APP_NAME}}</span><label class="city">City <select id="city" aria-label="City"></select></label></div>
     <h1>What's on my block, and who decided it?</h1>
     <p id="intro">Ask about an address, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.</p>
   </header>
@@ -105,7 +107,7 @@ let cities = [];
 
 async function loadCities() {
   try {
-    cities = await (await fetch('/api/cities')).json();
+    cities = await (await fetch('api/cities')).json();
   } catch { cities = [{ id: 'norfolk', name: 'Norfolk, VA', block: true }]; }
   $('#city').innerHTML = cities.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   setCity();
@@ -156,7 +158,7 @@ $('#f').addEventListener('submit', async (e) => {
   $('#go').disabled = true;
   const a = turn.querySelector('.a');
   try {
-    const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
+    const res = await fetch('api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
     const data = await res.json();
     if (!res.ok) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
     history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });

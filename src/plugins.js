@@ -43,7 +43,13 @@ export function tracedHttp(trace, fetchImpl) {
       if (!/^https:\/\//.test(url)) throw new Error('Plugins may only fetch https URLs.');
       // Some public servers (FEMA's flood maps among them) refuse requests with
       // no User-Agent, which is what Cloudflare Workers send by default.
-      const res = await doFetch(url, { headers: { 'User-Agent': USER_AGENT, ...(info?.headers || {}) } });
+      const init = { headers: { 'User-Agent': USER_AGENT, ...(info?.headers || {}) } };
+      let res = await doFetch(url, init);
+      // One retry on a server error: FEMA's map service times out now and then.
+      if (res.status >= 500) {
+        await new Promise((r) => setTimeout(r, info?.retryDelayMs ?? 1000));
+        res = await doFetch(url, init);
+      }
       const body = await res.text();
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
       const result = parse(body);

@@ -134,3 +134,14 @@ test('sponge_site_screen serves the prebuilt screen with provenance', async () =
   const swales = await checkPlugin(screenPlugin, { city: norfolk, args: { intervention: 'bioswale', civic_league: 'crossroads' }, respond });
   assert.ok(swales.result.streets.every((s) => /crossroads/i.test(s.civic_league)));
 });
+
+test('plugin HTTP retries a server error once, inside one traced step', async () => {
+  let calls = 0;
+  const trace = new Trace();
+  const http = tracedHttp(trace, async () => (++calls === 1 ? new Response('busy', { status: 504 }) : new Response('{"ok":1}')));
+  assert.deepEqual(await http.json('https://hazards.fema.gov/x', { tool: 'fema', retryDelayMs: 0 }), { ok: 1 });
+  assert.equal(calls, 2);
+  assert.equal(trace.steps.length, 1);
+  const always = tracedHttp(new Trace(), async () => new Response('down', { status: 503 }));
+  await assert.rejects(always.json('https://hazards.fema.gov/x', { retryDelayMs: 0 }), /HTTP 503/);
+});

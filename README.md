@@ -154,6 +154,23 @@ per verified person. The Worker checks the signed token; it never trusts the
 email header. See [docs/extending.md](docs/extending.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Siren
+
+The public deployment is **Siren**, at
+[jason-edelman.org/ask-siren](https://jason-edelman.org/ask-siren/). The name
+does three jobs: Norfolk is the Mermaid City; the greater siren is a salamander
+of Virginia's coastal-plain swamps; and a siren is an alarm. Its config is
+`deployments/siren.config.js`, and `[env.siren]` in `wrangler.toml` routes the
+path. A Worker route runs before the site's Custom Domain, so only
+`/ask-siren` reaches this Worker; the rest of the site is untouched.
+
+```bash
+npx wrangler kv namespace create LIMITS --env siren   # paste the id into [[env.siren.kv_namespaces]]
+npx wrangler secret put OPENROUTER_API_KEY --env siren
+npx wrangler secret put IP_SALT --env siren
+npx wrangler deploy --env siren
+```
+
 ## Deploy the web app
 
 ```bash
