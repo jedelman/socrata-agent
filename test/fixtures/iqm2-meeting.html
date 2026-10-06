@@ -1,0 +1,1053 @@
+
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml"  xml:lang="en" lang="en">
+<head id="HeadMain"><title>
+	2026/08/25 06:00 PM City Council Formal Session - Web Outline - City of Norfolk, VA
+</title><meta http-equiv="X-UA-Compatible" content="IE=9" />
+
+    <!-- this fixes a minor rendering issue with tables on the ipad -->
+    <meta content="width=device-width, initial-scale=1.0;" name="viewport" />
+
+    <!-- Agency specific meta tags -->
+    <META NAME='ROBOTS' CONTENT='NOINDEX, NOFOLLOW' />
+<meta name='google-site-verification' content='v8iNp5ToI5384_S9_Exw0F10KJ__b35Fs7jqvTvb0TY' />
+<meta name='msvalidate.01' content='8C654B10898A718CB62BCB19E52589CD' />
+
+
+    <!-- open search discovery -->
+    <link rel="search" type="application/opensearchdescription+xml" href="/Services/GetFederatedSearch.aspx" title="IQM2 search" />
+
+    <!-- Icon -->
+    <link href="/favicon.ico?v=2018" rel="icon" />
+
+    <!-- CSS Links -->
+    <link type="text/css" href="/App_Themes/Main.css?v=86" rel="Stylesheet" /><link type="text/css" href="/lib/jquery-ui.css" rel="stylesheet" />
+ 
+  <script>
+      !function () { var a, b, c, d = window, e = document, f = arguments, g = "script", h = ["config", "track", "trackForm", "trackClick", "identify", "visit", "push", "call"], i = function () { var a, b = this, c = function (a) { b[a] = function () { return b._e.push([a].concat(Array.prototype.slice.call(arguments, 0))), b } }; for (b._e = [], a = 0; a < h.length; a++) c(h[a]) }; for (d.__woo = d.__woo || {}, a = 0; a < f.length; a++) d.__woo[f[a]] = d[f[a]] = d[f[a]] || new i; b = e.createElement(g), b.async = 1, b.src = "//static.woopra.com/js/w.js", c = e.getElementsByTagName(g)[0], c.parentNode.insertBefore(b, c) }("woopra");
+
+      woopra.config({
+          domain: "iqm2.com",
+          cookie_name:"accelaTracker"
+      });
+      woopra.track("mp_pv", {
+          domain: window.location.hostname,
+          title: document.title,
+          url: window.location.href,
+          uri: window.location.pathname,
+          hash: window.location.hash,
+          error: null
+      });
+  </script>
+    <!-- IQM2 Scripts -->
+    <script type="text/javascript" src="/lib/jquery.js"></script>
+    <script type="text/javascript" language="javascript" src="/App_Themes/Global.js?v=8_10_48"></script>
+    <script type="text/javascript" src="/lib/MinuteTraq.PopupWindow.js"></script>
+    <script type="text/javascript" src="/lib/jquery-ui.js"></script>
+    <link href="https://unpkg.com/video.js@7.21.1/dist/video-js.css" rel="stylesheet" /><link href="/Scripts/videojs-live-dvr/videojs-dvrseekbar.css" rel="stylesheet" />
+    <script src="https://unpkg.com/video.js@7.21.1/dist/video.js"></script>
+    <script src='https://unpkg.com/videojs-flash@2.1.0/dist/videojs-flash.min.js'></script>
+    <script src="https://unpkg.com/videojs-contrib-hls/dist/videojs-contrib-hls.js"></script>
+    <script src="/Scripts/videojs-live-dvr/videojs-dvrseekbar.min.js"></script>
+    <script type='text/javascript' src='/Scripts/player.js'></script>
+    <script type="text/javascript" src="/Scripts/js.cookie-2.0.3.min.js"></script>
+    <!-- RSS Feeds (Site) -->
+    
+
+    <!-- Generated CSS Link -->
+    
+  
+    <!-- External CSS / Script Links -->
+    <link type='text/css' href='/Lib/GetCustomCSS.ashx?timestamp=638375502470000000' rel='Stylesheet' /><link type='text/css' href='/Citizens/GetImage.aspx?ID=1010' rel='Stylesheet' /><script type='text/javascript' src='/Citizens/GetImage.aspx?ID=1011'></script>
+    
+   
+    <!--[if IE 7]>
+	   <style type="text/css">
+        .Section H2 { display:inline;}
+        .RowTop div { display:inline;}
+   </style>
+	
+	<![endif]-->
+    
+    <script type="text/javascript" src="/Lib/MinuteTraq.Search.js?v=8_10_66"></script>
+    
+    <script type="text/javascript">
+        
+        // configure tracker
+        
+        $(function () {
+            
+            
+            FixFooterPosition();
+            $(window).on('resize', FixFooterPosition);
+
+            var h = $("#Banner").height();
+            //  var w = $("body").width();
+
+            var sCoords = "0,0,5000," + h;
+
+            $("#lnkBanner").attr("coords", sCoords);
+            var hideTopBanner = Cookies.get('hideTopBanner');
+            var appStyles = {display:'block'};
+            if (hideTopBanner) {
+                appStyles.display = 'none';
+            }
+            $('#topbarAppBanner').css(appStyles);
+            $('.close-topbar-app-banner').bind('click', function () {
+                $('#topbarAppBanner').css('display', 'none');
+                Cookies.set('hideTopBanner', true);
+            });
+            $('.link-wrapper-banner').bind('click', function () {
+                woopra.track('portal-wegovern-banner', {
+                    agency: Cookies.get('AgencyName'),
+                    username: Cookies.get('WebUserName')
+                });
+                return true;
+            });
+        });
+
+        function FixFooterPosition() {
+            //hack for the footer, display at bottom of screen if page is short
+            if ($("form").height() < $(window).height() - 100) {
+                $("#Footer").css("position", "absolute");
+                $("#Footer").css("bottom", "0");
+            }
+            else {
+                $("#Footer").css("position", "");
+            }
+        }
+
+    </script>
+    <style type="text/css" media="screen">
+        #topbarAppBanner {
+            min-height: 40px;
+            z-index: 1000;
+        }
+        .top-banner-app-inner{
+            margin-top: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+            height: 40px;
+            border: 1px solid rgba(10,10,10,.5);
+            box-shadow: 0px 0px 16px 0px #303030;
+            background-color: #456ca7;
+        }
+        .close-topbar-app-banner {
+            position: absolute;
+            display: block;
+            top: 25px;
+            right: 5%;
+            font-size: 1em;
+            color: #e3e3e3
+        }
+        .app-link{
+            display: block;
+            margin: 0 auto;
+            width: 40%;
+        }
+        .wegovern-banner-logo {
+            left: 22px;
+            position: relative;
+            padding-top: 1px;
+        }
+
+        @media screen and (max-width: 981px ){
+            .inside-banner-link {
+                position: relative;
+                top: -15px;
+                left: 30px;
+                color: #e3e3e3;
+                white-space: nowrap;
+            }
+        }
+        @media screen and (min-width: 1595px){
+            .inside-banner-link {
+                position: relative;
+                top: -15px;
+                left: 30px;
+                color: #e3e3e3;
+                white-space: nowrap;
+            }
+        }
+        @media screen and (max-width: 1594px){
+            .inside-banner-link {
+                position: relative;
+                top: -30px;
+                left: 75px;
+                color: #e3e3e3;
+                white-space: nowrap;
+            }
+        }
+        @media screen and (min-width:1100px){
+            .app-link{
+                display: block;
+                margin: 0 auto;
+                width: 40%;
+            }
+            .close-topbar-app-banner {
+                right: 5%;
+            }
+        }
+        @media screen and (max-width:1099px){
+            .app-link {
+                display: block;
+                margin: 0 auto;
+                width: 65%;
+            }
+            .close-topbar-app-banner {
+                right: 5%;
+            }
+            .inside-banner-link {
+                position: relative;
+                top: -15px;
+                left: 30px;
+                color: #e3e3e3;
+                white-space: nowrap;
+            }
+        }
+    </style>
+    
+
+    <!-- Page Level Header Stuff -->
+    
+
+    <!-- JQuery & UI -->
+    <link type="text/css" href="/lib/jquery-ui.css" rel="stylesheet" />
+	<script type="text/javascript" src="/lib/jquery-ui.js"></script>
+	<script type="text/javascript" src="/lib/jquery.caret.js"></script>
+
+    <script type="text/javascript" src="/lib/MinuteTraq.UserComment.js"></script>
+    
+    <script type="text/javascript">
+        
+        function showSpeakerSignup(meetingid) 
+        {
+            PopupWindowShow("/Citizens/SpeakerSignup.aspx?ID=" + meetingid);
+        }
+        
+        $(function () {
+           
+            $('.tracked').bind('click', function () {
+                var $link = $(this);
+
+                if (woopra) {
+                    woopra.track("download", {
+                        url: window.location.href,
+                        type: $link.attr('data-type')
+                    });
+                }
+            });
+            $(".ShowMoreSpeakersButton").click(function ()
+            {
+                var link = $(this);
+                link.css("display", "none");
+                var hidden = link.parent().find(".HiddenSpeakers");
+                hidden.slideDown();
+                return false;
+            });
+
+            $(".ShowFewerSpeakersButton").click(function () {
+                var link = $(this);
+                var hidden = link.parent().parent().find(".HiddenSpeakers");
+                hidden.slideUp();
+
+                var showMoreLink = link.parent().parent().find(".ShowMoreSpeakersButton");
+                showMoreLink.css("display", "");
+                return false;
+            });
+        });
+
+      
+    </script>
+    <style>
+        a.lastClicked {
+            background-color: khaki;
+            color: #000;
+        }
+        #MeetingDetail * {
+            max-width:685px;
+        }
+    </style>
+    <meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
+    <meta http-equiv="EXPIRES" content="0">
+</head>
+
+<body id="MainLayout">
+    
+    <form method="post" action="./Detail_Meeting.aspx?ID=4441" id="aspnetForm" enctype="multipart/form-data">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="CWCLK94AVGY2aiEVtqq/DqwWhDn91SdM9KPkznmPfSY/lcC49/CDikYZJt0jUIbyBiPtdwL8WbIA0F3ks3/VXpJzCfzwUZgiKOAB7T8OOKv7v/as9SgS68GB1LPRpvcKhEsZxgqsgpIGKCHo7Fa1bO5xyGmB7HD8chUBj09f6wMTidcDxb/eDe7vj5LsgurqDwdS9bG2wwCL90zPFgcaPg==" />
+
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="1BACF619" />
+<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="Qx2P9AwQK6gs8z25gQO8roCBck9l2yR2rJih2Zzjy9YMnvUv67s/9hAmrnU+rVrsFDwNkh4/8VRVqG0ZnxQw4vuzvyIdI9tQ3pJAlZaWMVnTfANqrqGs1jo5y3/uqFSVh2+c463wkN1UgeUj8xzgcsMdOP2Bp9pyKnJCE1kARmHeZNeVZsOeRRaIHmcHIQfq4BdN/UAFpg/WE+vQqlpT5BwS3amoj9LSdY282CPjXtB6Bke2UCebvsFOE3aNIVpGnhsNIeMD6mH6SD792NgGK6hmld/25SmNhOfaR0fQBQmuCYb9K1fVpRtMoTaKo+Cj" />
+        <div style="display: none">
+            <input type="submit" name="ctl00$btnRefreshPageAfterLogin" value="Button" id="btnRefreshPageAfterLogin" class="btnRefreshPage" />
+            <input name="ctl00$hfShowPopupOnLoad" type="hidden" id="hfShowPopupOnLoad" class="hfShowPopup" />
+        </div>
+        <span id="lblScript"></span>
+  
+    <div id="MainWindow">
+    
+            <div id="Banner" role="banner"  >
+                <img usemap="#bannerMap" src="/Citizens/GetImage.aspx?ID=1012&TimeStamp=638375502470000000" alt="IQM2 Meeting Portal" />
+                <map name="bannerMap">
+                    <area href="/Citizens/Default.aspx" id="lnkBanner" shape="rect" alt="Home" Target="_self" />
+                </map>
+
+                <div id="LogoHeaderTextHolder">
+                    
+                                                                       
+                </div>
+            </div>
+            
+            <div id="ToolStrip" role="navigation" aria-label="site">
+                <div id="Tabs">
+                    <div class="Shadow"></div>
+                    <a href="https://www.norfolk.gov/" id="lnkMainSite" class="Tab LeftTab"><div><span>&laquo;Back to Main Site</span></div></a>
+                    <a href="/Citizens/default.aspx" class="Tab NormalTab"><div><span id="tabWelcome">Welcome</span></div></a>
+                    <a href="/Citizens/calendar.aspx" class="Tab NormalTab"><div><span id="tabMeetings">Meetings</span></div></a>                
+                    <a href="/Citizens/" style="display:none" class="Tab NormalTab"><div dropdown="Browse"><span>Browse</span></div></a>
+                                        
+                    <a href="/Citizens/Media.aspx" id="lnkMedia" class="Tab NormalTab"><div><span id="tabMedia">Media</span></div></a>                    
+                    <a href="/Citizens/LegalNotice.aspx" id="lnkNotices" class="Tab NormalTab"><div id="tabNotices"><span>Notices</span></div></a>                                        
+                    <a href="/Citizens/Board" class="Tab NormalTab"><div><span id="tabContactUs">Boards+</span></div></a>                                                        
+                </div>
+                <div id="TopExtraBoxTransparentBG"></div>
+                <div id="TopExtraBox">  
+                    <div id="TopLine">
+                        
+                     <a href="../MasterPages/#" id="lnkLogin" onclick="javascript:return PopupWindowShow(&#39;/Citizens/Login.aspx&#39;);">Log in</a><span id="spnThatOneStupidBar"> | </span><a href="mailto:support@granicus.com" id="lnkHelp">Help</a>                                                  
+                    </div> 
+                    <div id="BottomLine">                       
+                          
+                    </div>                            
+                   <input name="ctl00$txtQuickSearch" type="text" id="txtQuickSearch" value="Search" title="Search" />
+                   <input type="image" name="ctl00$btnQuickSearch" id="btnQuickSearch" alt="Search" src="/Lib/images/search.png" style="cursor:pointer" />                   
+                </div>     
+            </div>
+                     
+            <table class="LayoutTable" role="presentation">
+                <tr>
+                    <td id="tdLeftPanel" class="LeftPanel">
+                        
+                        <div role="navigation" aria-label="Meeting Group">
+                            
+                        </div>
+                        
+                        <div class="DetailBox">
+                            <img src="/Citizens/images/Print.gif" border="0" alt="Print" />
+                            <a href="/Citizens/Detail_Meeting.aspx?ID=4441&Print=Yes" id="lnkPrint" class="PrintButton" target="_blank">Print This Page</a>                           
+                        </div>
+                        
+                        
+                                                
+                       <!-- <div class="QuickLink">
+                            <img src="/Lib/buttonexample.png" alt="Quick Link 1" />
+                            <a href="#">Quick Link #1</a>
+                        </div>
+                        <div class="QuickLink">
+                            <img src="/Lib/buttonexample.png" alt="Quick Link 2"  />
+                            <a href="#">Quick Link #2</a>
+                        </div>     -->
+                                      
+                    </td>
+
+                    <td id="MainContentHolder">
+                        <div style="width:100%;height:100%;position:relative;margin:0;padding:0;border:0;">
+                            <div id="MainContentLeftShadow">                           
+                            </div>   
+                          
+                            <div class="MainContentPlaceholder" role="main">
+                                
+                                
+
+    <style>
+        a.lastClicked {
+            background-color: khaki;
+            color: #000;
+        }
+    </style>
+    <script>
+        $('#divOutlineScroller a').click(function (e) {
+            $('a.lastClicked').removeClass('lastClicked');
+            $(e.currentTarget).addClass('lastClicked');
+        });
+    </script>
+    
+
+    <div       
+        >        
+        <div id="CC" style="background: Black; color: White; display:none;"></div>
+           
+        <div id="ContentPlaceholder1_pnlStart">
+	
+            <table border="0" width="100%" id="table1" cellpadding="5" role="presentation">
+                <tr>
+                    <td colspan="2" align="center" class="MeetingHeading">
+                        <span id="ContentPlaceholder1_lblMeetingGroup">City Council</span><br />
+                        <span id="ContentPlaceholder1_lblMeetingType">Formal Session</span><br />
+                        <span id="ContentPlaceholder1_lblMeetingDate">8/25/2026 6:00 PM</span>
+                        <br /> 11th floor Council Chamber<div class='MeetingAddress'>City Hall&nbsp;&nbsp;&nbsp;810 Union Street&nbsp;&nbsp;&nbsp;Norfolk, VA  23510</div>
+                       
+                        <span id="ContentPlaceholder1_lblMeetingStatus"></span>
+                        <input type="hidden" name="ctl00$ContentPlaceholder1$txtMeetingID" id="ContentPlaceholder1_txtMeetingID" value="4441" />
+                        <input type="hidden" name="ctl00$ContentPlaceholder1$txtMinutesID" id="ContentPlaceholder1_txtMinutesID" value="2856" />
+                        <input type="hidden" name="ctl00$ContentPlaceholder1$txtAgendaID" id="ContentPlaceholder1_txtAgendaID" />
+                        <input type="hidden" name="ctl00$ContentPlaceholder1$txtFileFormat" id="ContentPlaceholder1_txtFileFormat" value="pdf" />
+                    </td>
+                </tr>
+                <tr>
+                    <td style="text-align:center">
+                        
+                    </td>
+                </tr>
+                <tr id="ContentPlaceholder1_trMeetingDetail">
+		<td id="ContentPlaceholder1_tdMainContent" align="left" valign="top" colspan="2" role="main" class=""> 
+                        <div id="ContentPlaceholder1_pnlDownloads" class="MeetingDownloads">
+			
+                            <strong>Downloads:</strong><br />
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            <br />
+                            <img id="ContentPlaceholder1_imgPublicMinutesFile" src="images/PublicMinutes.jpg" />
+                            <a id="ContentPlaceholder1_hlPublicMinutesFile" class="Link" data-type="minutes" href="FileOpen.aspx?Type=15&amp;ID=2856&amp;Inline=True" target="_blank">Summary</a>
+                            <img id="ContentPlaceholder1_imgFullMinutesFile" src="images/FullMinutes.jpg" />
+                            <a id="ContentPlaceholder1_hlFullMinutesFile" class="Link" data-type="minutes_package" href="FileOpen.aspx?Type=12&amp;ID=2856&amp;Inline=True" target="_blank">Minutes</a>
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                        
+		</div>
+                        
+                        <span id="ContentPlaceholder1_lblOutline"><table id='MeetingDetail' class='MeetingDetail' cellpadding='0' cellspacing='0'>
+<tr><td class='Num'><strong>I. </strong></td><td class='Title' colspan='10'><strong>A CITIZEN WHO WISHES TO ADDRESS COUNCIL CONCERNING A CONSENT, REGULAR OR PUBLIC HEARING MATTER ON THE AGENDA, OR NEW BUSINESS (HELD ON THE FIRST MEETING OF THE MONTH) SHOULD REGISTER TO SPEAK WITH THE CITY CLERK BY 3:00PM THE DAY OF THE MEETING BY CALLING (757) 664-4253 OR EMAILING CCOUNCIL@NORFOLK.GOV.</strong></td></tr>
+
+<tr><td class='Num'><strong>II. </strong></td><td class='Title' colspan='10'><a target='_top' class='Link'  href='Detail_Motion.aspx?Frame=&MeetingID=4441&MinutesID=2856&MediaPosition=&ID=35899&Type=70&CssClass= style='cursor: hand'><strong>Moment of Silence</strong></a></td></tr>
+<tr><td></td><td class='Comments' colspan='10'><div><p style="margin:0pt"><span style="font-family:Calibri; font-size:12pt">Followed by the Pledge of Allegiance.</span></p></div></td></tr>
+
+<tr><td class='Num'><strong>III. </strong></td><td class='Title' colspan='10'><strong>Call to Order</strong></td></tr>
+
+<tr><td></td><td class='Num'>1. </td><td class='Title' colspan='9'>Roll Call</td></tr>
+
+<tr><td class='Num'><strong>IV. </strong></td><td class='Title' colspan='10'><a target='_top' class='Link'  href='Detail_Motion.aspx?Frame=&MeetingID=4441&MinutesID=2856&MediaPosition=&ID=35902&Type=70&CssClass= style='cursor: hand'><strong>Approval of Minutes</strong></a></td></tr>
+<tr><td></td><td class='Comments' colspan='10'><div><p style="margin:0pt"><span style="font-family:Calibri; font-size:12pt">Approve the Minutes of the previous City Council Meeting.</span></p></div></td></tr>
+
+<tr><td class='Num'><strong>V. </strong></td><td class='Title' colspan='10'><strong>Closed Session Resolution</strong></td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_Motion.aspx?Frame=&MeetingID=4441&MinutesID=2856&MediaPosition=&ID=35904&Type=60&CssClass= style='cursor: hand'>A Resolution certifying a closed meeting of the council of the City of Norfolk in accordance with the provisions of the Virginia Freedom of Information Act.</a></td></tr>
+
+<tr><td class='Num'><strong>VI. </strong></td><td class='Title' colspan='10'><strong>PUBLIC HEARINGS</strong></td></tr>
+
+<tr><td></td><td class='Num'>1. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, on the application of COVA BREWING COMPANY to Rezone Property Located at 9519 and 9523 22nd Bay Street From R-C (Residential Coastal) and Conditional C-R (Regional Commercial) District to C-C (Community Commercial) District.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5834&CssClass='>Ordinance No.  50450 : An Ordinance to Rezone Property Located at 9519 and 9523 22nd Bay Street From R-C (Residential Coastal) and Conditional C-R (Regional Commercial) District to C-C (Community Commercial) District.</a></td></tr>
+<tr><td></td><td></td><td class='Comments' colspan='9'><div><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">The applicant, Scott Bateman, 151 E. Evans Street, was present to answer any questions relative to this matter.</span></p></div></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25488&MeetingID=4441'>Exhibit A to Ordinance-Preliminary Subdivision Plat</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25204&MeetingID=4441'>Overview Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25205&MeetingID=4441'>Location Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25206&MeetingID=4441'>Zoning Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25207&MeetingID=4441'>FLU Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25211&MeetingID=4441'>Application</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25210&MeetingID=4441'>Mailing_list</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25227&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25212&MeetingID=4441'>Letter from Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25342&MeetingID=4441'>Rezoning Affidavit</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25568&MeetingID=4441'>Affidavit Rezoning COVA</a></td></tr>
+
+<tr><td></td><td class='Num'>2. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, on the application of MEOWKINS for a rezoning from Conditional C-C (Community Commercial) and PCO-Riverview (Pedestrian Commercial Overlay - Riverview) District to Conditional C-C (Community - Commercial) and PCO-Riverview (Pedestrian Commercial Overlay - Riverview) District and  a Conditional Use Permit to Authorize the Operation of a Kennel on Property Located at 111 Pennsylvania Avenue.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5832&CssClass='>Ordinance No.  50451 : An Ordinance to Rezone Property Located at 111 Pennsylvania Avenue From Conditional C-C (Community Commercial) and PCO-Riverview (Pedestrian Commercial Overlay - Riverview) District to Conditional C-C (Community - Commercial) and PCO-Riverview (Pedestrian Commercial Overlay - Riverview) District.</a></td></tr>
+<tr><td></td><td></td><td class='Comments' colspan='9'><div><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">The applicant, Blake Sablatura, 602 E. Bayview Boulevard, was present to answer any questions relative to this matter.</span></p></div></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25213&MeetingID=4441'>Overview Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25214&MeetingID=4441'>Location Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25215&MeetingID=4441'>Zoning Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25216&MeetingID=4441'>FLU Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=24864&MeetingID=4441'>Application_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25217&MeetingID=4441'>Mailing_list</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25218&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25219&MeetingID=4441'>Email of support from RBA_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25300&MeetingID=4441'>Email of Support from Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25341&MeetingID=4441'>Rezoning Affidavit</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25567&MeetingID=4441'>Affidavit Rezoning Meowkins</a></td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5833&CssClass='>Ordinance No.  50452 : An Ordinance Granting a Conditional Use Permit to Authorize the Operation of a Kennel on Property Located at 111 Pennsylvania Avenue.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25228&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25220&MeetingID=4441'>Overview Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25221&MeetingID=4441'>Location Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25222&MeetingID=4441'>Zoning Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25223&MeetingID=4441'>FLU Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=24865&MeetingID=4441'>Application CUP</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25224&MeetingID=4441'>Mailing_list</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25225&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25302&MeetingID=4441'>Email of Support from Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25226&MeetingID=4441'>Email of support from RBA_Redacted</a></td></tr>
+
+<tr><td></td><td class='Num'>3. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, to hear comments on an Ordinance Approving and Authorizing the City Manager to Execute a Facility Use and Lease Agreement with the Virginia Opera Association, Inc., for the Use and Lease of Certain Portions of the Harrison Opera House Located at 160 W. Virginia Beach Boulevard.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5936&CssClass='>Ordinance No.  50453 : An Ordinance Approving and Authorizing the City Manager to Execute a Facility Use and Lease Agreement with the Virginia Opera Association, Inc., for the Use and Lease of Certain Portions of the Harrison Opera House Located at 160 W. Virginia Beach Boulevard.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25481&MeetingID=4441'>EXHIBIT A to Ordinance-Amended  Restated Lease-VOA @ HOH 160 W. VB Blvd-v.8 Clean</a></td></tr>
+
+<tr><td></td><td class='Num'>4. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, to hear comments on  an Ordinance Reauthorizing the Issuance and Sale by the City of Norfolk, Virginia, of General Obligation Notes on a Revolving Credit Line Basis.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5942&CssClass='>Ordinance No.  50454 : An Ordinance Reauthorizing the Issuance and Sale by the City of Norfolk, Virginia, of General Obligation Notes on a Revolving Credit Line Basis</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25570&MeetingID=4441'>Affidavit Revolving Credit</a></td></tr>
+
+<tr><td></td><td class='Num'>5. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, to hear comments on  an Ordinance Authorizing the Issuance and Sale of Storm Water system Revenue Bonds by the City of Norfolk, Virginia.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5940&CssClass='>Ordinance No.  50455 : An Ordinance Authorizing the Issuance and Sale of Storm Water system Revenue Bonds by the City of Norfolk, Virginia.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25564&MeetingID=4441'>Affidavit Stormwater bonds</a></td></tr>
+
+<tr><td></td><td class='Num'>6. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, to hear comments on an Ordinance Authorizing the Issuance and Sale by the City of Norfolk, Virginia, of Wastewater System Revenue Bonds for Wastewater Improvements.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5941&CssClass='>Ordinance No.  50456 : An Ordinance Authorizing the Issuance and Sale by the City of Norfolk, Virginia, of Wastewater System Revenue Bonds for Wastewater Improvements.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25565&MeetingID=4441'>Affidavit Wastewater bonds</a></td></tr>
+
+<tr><td></td><td class='Num'>7. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, to hear comments on an Ordinance Authorizing the Issuance and Sale by the City of Norfolk, Virginia, of Up to $200,000,000 in General Obligation Bonds for Capital Improvement Program Projects. </td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5943&CssClass='>Ordinance No.  50457 : An Ordinance Authorizing the Issuance and Sale by the City of Norfolk, Virginia, of Up to $200,000,000 in General Obligation Bonds for Capital Improvement Program Projects</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25566&MeetingID=4441'>Affidavit General Bonds for CIP</a></td></tr>
+
+<tr><td></td><td class='Num'>8. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, to hear comments on an Ordinance Approving a Lease Agreement with Azalea Little League, Incorporated and Fleet Park Little League, Inc. For the Lease of City-Owned Property Located at 1147 and 1176 Pineridge Road.</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5939&CssClass='>Ordinance No.  50458 : An Ordinance Approving a Lease Agreement With Azalea Little League, Incorporated and Fleet Park Little League, Inc. For the Lease of City-Owned Property Located at 1147 and 1176 Pineridge Road.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25485&MeetingID=4441'>Exhibit A to Ordinance - Lease</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25563&MeetingID=4441'>Affidavit Azalea Little League</a></td></tr>
+
+<tr><td></td><td class='Num'>9. </td><td class='Title' colspan='9'>Public Hearing scheduled this day, pursuant to State Law, on the application of the CITY PLANNING COMMISSION, for a Zoning Ordinance Text Amendment to create a new section in Article 5 defining development standards for renovations, additions, and site improvements for existing development; to revise and relocate regulations for screening and neighborhood protection; to establish regulations for refuse container placement and screening; to revise other sections to incorporate changes in state la</td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5871&CssClass='>Ordinance No.  50459 : An Ordinance to Amend Articles 3, 4, and 5 of the Norfolk Zoning Ordinance so as to Define Development Standards for Renovations, Additions, and Site Improvements for Existing Development; to Delete, Revise and Relocate Regulations for Screening and Neighborhood Protection; to Establish Regulations for Refuse Container Placement and Screening; and to Correct Clerical Errors.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25490&MeetingID=4441'>Exhibit A to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25491&MeetingID=4441'>Exhibit B to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25492&MeetingID=4441'>Exhibit C to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25493&MeetingID=4441'>Exhibit D to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25494&MeetingID=4441'>Exhibit E to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25495&MeetingID=4441'>Exhibit F to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25496&MeetingID=4441'>Exhibit G to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25497&MeetingID=4441'>Exhibit H to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25498&MeetingID=4441'>Exhibit I to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25499&MeetingID=4441'>Exhibit J to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25500&MeetingID=4441'>Exhibit K to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>l. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25501&MeetingID=4441'>Exhibit L to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>m. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25502&MeetingID=4441'>Exhibit M to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>n. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25503&MeetingID=4441'>Exhibit N to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>o. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25504&MeetingID=4441'>Exhibit O to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>p. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25505&MeetingID=4441'>Exhibit P to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>q. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25506&MeetingID=4441'>Exhibit Q to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>r. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25507&MeetingID=4441'>Exhibit R to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>s. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25448&MeetingID=4441'>Proposed Text Phase I 070926 FULL REDLINE</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>t. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25447&MeetingID=4441'>Proposed Text Phase I 070926 CHANGES ACCEPTED</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>u. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25449&MeetingID=4441'>Development Standards Cleanup List of Revisions 070926 Staff Recommendation</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>v. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25562&MeetingID=4441'>Affidavit Zoning Text Amendment City Planning Commission</a></td></tr>
+
+<tr><td></td><td class='Num'></td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5948&CssClass='>Ordinance No.  50460 : An Ordinance to Amend Sections of the Norfolk Zoning Ordinance so as to Incorporate Changes in State Law Related to Manufactured Homes, Minimum Requirements for Residential Parking, and Temporary Support Structures for Small Cell Facilities.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25511&MeetingID=4441'>Exhibit A to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25512&MeetingID=4441'>Exhibit B to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25513&MeetingID=4441'>Exhibit C to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25514&MeetingID=4441'>Exhibit D to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25515&MeetingID=4441'>Exhibit E to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25516&MeetingID=4441'>Exhibit F to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25517&MeetingID=4441'>Exhibit G to Ordinance</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25508&MeetingID=4441'>Proposed Text Phase I 070926 CHANGES ACCEPTED</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25509&MeetingID=4441'>Proposed Text Phase I 070926 FULL REDLINE</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25510&MeetingID=4441'>Development Standards Cleanup List of Revisions 070926 Staff Recommendation</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25569&MeetingID=4441'>Affidavit Zoning Manufactured Homes, Parking, Support Structures</a></td></tr>
+
+<tr><td class='Num'><strong>VII. </strong></td><td class='Title' colspan='10'><a target='_top' class='Link'  href='Detail_Motion.aspx?Frame=&MeetingID=4441&MinutesID=2856&MediaPosition=&ID=35998&Type=100&CssClass= style='cursor: hand'><strong>Consent Agenda</strong></a></td></tr>
+
+<tr><td></td><td class='Num'>1. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5843&CssClass='>Ordinance No.  50461 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit (Vacation Rental) on Property Located at 9570 19th Bay Street.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25442&MeetingID=4441'>Exhibit A - Conceptual Site Plan</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25426&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25427&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25428&MeetingID=4441'>Locaiton map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25429&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25430&MeetingID=4441'>FLU map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25431&MeetingID=4441'>STR Map - 1 mile</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25432&MeetingID=4441'>STR Map - 500 feet</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=24874&MeetingID=4441'>Application_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25433&MeetingID=4441'>Mailing Labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25434&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>l. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25435&MeetingID=4441'>Letter from Civic League_Redacted</a></td></tr>
+
+<tr><td></td><td class='Num'>2. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5875&CssClass='>Ordinance No.  50462 : An Ordinance Granting a Conditional Use Permit to Authorize the Operation of a Theater with the Sale of Alcoholic Beverages for On-Premises Consumption at an Establishment Named "Generic Theater" at Premises Numbered 7001 Granby Street.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25445&MeetingID=4441'>Exhibit A</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25444&MeetingID=4441'>Exhibit B</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25389&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25390&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25391&MeetingID=4441'>Location map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25392&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25393&MeetingID=4441'>FLU Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25394&MeetingID=4441'>ABC Map - 1 mile buffer</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25174&MeetingID=4441'>Application</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25395&MeetingID=4441'>Mailing Labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25396&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>l. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25397&MeetingID=4441'>Letter from Civic League_Redacted</a></td></tr>
+
+<tr><td></td><td class='Num'>3. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5876&CssClass='>Ordinance No.  50463 : An Ordinance Granting a Conditional Use Permit to Authorize Short-Term Rental Units (Vacation Rental) on Property Located at 7715 Castleton Place.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25450&MeetingID=4441'>Exhibit A - Conceptual Site Plan</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25398&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25399&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25400&MeetingID=4441'>Location map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25401&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25402&MeetingID=4441'>FLU map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25403&MeetingID=4441'>STR Map - 1 Mile</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25404&MeetingID=4441'>STR Map - 500 feet</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25175&MeetingID=4441'>Application_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25405&MeetingID=4441'>Mailing Labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25406&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>l. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25407&MeetingID=4441'>Letter from Civic League_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>m. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25463&MeetingID=4441'>Letter of Opposition_Redacted</a></td></tr>
+
+<tr><td></td><td class='Num'>4. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5877&CssClass='>Ordinance No.  50464 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit (Vacation Rental) on Property Located at 9284 Rippard Avenue.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25460&MeetingID=4441'>EXHIBIT A - Site Plan</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25408&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25409&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25410&MeetingID=4441'>Location map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25411&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25412&MeetingID=4441'>FLU map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25413&MeetingID=4441'>STR Map - 1 Mile</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25414&MeetingID=4441'>STR map - 500 feet</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25178&MeetingID=4441'>Application</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25415&MeetingID=4441'>Mailing Labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25416&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td class='Num'>5. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5922&CssClass='>Ordinance No.  50465 : An Ordinance Granting Malek1125, LLC Permission to Encroach into the Right-of-Way at 442 Granby Street With a Canopy Sign.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25465&MeetingID=4441'>Exhibit A To Ordinance - Encroachment</a></td></tr>
+
+<tr><td></td><td class='Num'>6. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5930&CssClass='>Ordinance No.  50466 : An Ordinance Granting CCB Railyard, LLC Permission to Encroach Into the Rights-of-Way of W. 25th Street and Hampton Boulevard at 1200, 1221 and 1225 W. 25th Street With Lighting, a Sun-Shade, a Stairwell and Awnings.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25472&MeetingID=4441'>Exhibit A to Ordinance - Encroachments</a></td></tr>
+
+<tr><td></td><td class='Num'>7. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5932&CssClass='>Ordinance No.  50467 : An Ordinance Granting Curated By Monica LLC Permission To Encroach Into The Right-of-Way At 419 W. 21st Street With A Blade Sign</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25474&MeetingID=4441'>Exhibit A to Ordinance - Sign</a></td></tr>
+
+<tr><td></td><td class='Num'>8. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5938&CssClass='>Ordinance No.  50468 : An Ordinance Granting 1517 Colley Avenue, LLC Permission to Encroach Into the Right-of-Way at 1509 Colley Avenue With a Portion of the Existing Building, Signs Including Lights, Stoop Platform and Concrete Ramp.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25483&MeetingID=4441'>Exhibit A to Ordinance - Encroachment</a></td></tr>
+
+<tr><td></td><td class='Num'>9. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5904&CssClass='>Ordinance No.  50469 : An Ordinance Approving the Transfer of Certain Hampton Roads Sanitation District Improvement of Sewer Facilities to the City of Norfolk Located WIthin and Along McNeal Avenue; and Authorizing the City Manager to Enter Into an Appropriate Transfer Agreement.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25347&MeetingID=4441'>Exhibit A to Ordinance - Agreement</a></td></tr>
+
+<tr><td></td><td class='Num'>10. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5935&CssClass='>Ordinance No.  50470 : An Ordinance Directing the City Treasurer to Issue a Refund to Capreit Residential Management, LLC Based Upon the Excess Payment of Its Business License Tax for Tax Years 2022 Through 2026.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25478&MeetingID=4441'>Attachment A- Certification</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25479&MeetingID=4441'>Attachment B- Summary</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25480&MeetingID=4441'>Attachment C- Interest</a></td></tr>
+
+<tr><td></td><td class='Num'>11. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5931&CssClass='>Ordinance No.  50471 : An Ordinance Approving a Right of Entry Permitting First United Presbyterian Church to Go Upon and Use City-Owned Property Located Adjacent to 746 E. 29th Street for Church-Related Special Event Parking.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25473&MeetingID=4441'>Exhibit A to Ordinance - ROE</a></td></tr>
+
+<tr><td></td><td class='Num'>12. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5926&CssClass='>Ordinance No.  50472 : An Ordinance Approving a Right of Entry Agreement with the Virginia Department of Environmental Quality for Air Quality Monitoring Equipment in the Lamberts Point Area of the City.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25469&MeetingID=4441'>Ordinance Exhibit A</a></td></tr>
+
+<tr><td></td><td class='Num'>13. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5879&CssClass='>Ordinance No.  50473 : An Ordinance Amending a Development Certificate Previously Granted (Ordinance No. 50277), with Waivers, to Permit Renovations to Expand the Existing Building on Property Located at 480 E. Plume Street and 421 E. City Hall Avenue.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25436&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25437&MeetingID=4441'>Location map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25438&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25439&MeetingID=4441'>FLU map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25180&MeetingID=4441'>Application_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25440&MeetingID=4441'>Mailing Labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25441&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25486&MeetingID=4441'>Exhibit A</a></td></tr>
+
+<tr><td></td><td class='Num'>14. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5874&CssClass='>Ordinance No.  50474 : An Ordinance Granting Conditional Use Permits to Authorize the Operation of a Restaurant with Extended Hours and the Sale of Alcoholic Beverages for On-Premises Consumption at an Establishment Named "University Pizza" at Premises Numbered 5006 and 5008 Colley Avenue and 799 51st Street.</a></td></tr>
+<tr><td></td><td></td><td class='Comments' colspan='9'><div><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">The applicant, Bryant Vickery, 5008 Colley Avenue, was present to answer any questions relative to this matter.</span></p></div></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25451&MeetingID=4441'>Exhibit A</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25452&MeetingID=4441'>Exhibit B, Floorplan</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25382&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25383&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25171&MeetingID=4441'>Location Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25384&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25385&MeetingID=4441'>FLU map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25386&MeetingID=4441'>ABC Map - 1 mile buffer</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25173&MeetingID=4441'>Application Restaurant</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25172&MeetingID=4441'>Application Off Premises</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25387&MeetingID=4441'>Mailing Labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>l. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25388&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>m. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25446&MeetingID=4441'>Letter from Civic League_Redacted</a></td></tr>
+
+<tr><td></td><td class='Num'>15. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5873&CssClass='>Ordinance No.  50475 : An Ordinance Granting Conditional Use Permits to Authorize the Operation of a Restaurant with Extended Hours and the Sale of Alcoholic Beverages for On-Premises and Off-Premises Consumption at an Establishment Named "Shake Shack" at Premises Numbered 1400 Monticello Avenue.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25443&MeetingID=4441'>Exhibit A - Description of Operations</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25373&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25374&MeetingID=4441'>Overview Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25375&MeetingID=4441'>Location Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25376&MeetingID=4441'>Zoning map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25377&MeetingID=4441'>FLU map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25378&MeetingID=4441'>ABC Map - 1 mile buffer</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25169&MeetingID=4441'>Application Restaurant with Extended Hours</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25170&MeetingID=4441'>Application - Sale of Alcohol Off Premise</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25379&MeetingID=4441'>Mailing labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25380&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>l. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25381&MeetingID=4441'>Email from Applicant to Civic League_Redacted</a></td></tr>
+
+<tr><td></td><td class='Num'>16. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5872&CssClass='>Ordinance No.  50476 : An Ordinance Granting a Conditional Use Permit to Authorize the Construction of Two Additional Dwelling Units on Property Located at 1211-1213 W. Ocean View Avenue.</a></td></tr>
+<tr><td></td><td></td><td class='Comments' colspan='9'><div><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">The manager for REIF Inc., Joshua Waldron, 2724 Robert Monette Lane, Virginia Beach, was present to answer any questions relative to this matter.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">The applicant, Keith Kulow, 9578 26</span><span style="font-family:Aptos; font-size:8pt; vertical-align:super">th</span><span style="font-family:Aptos; font-size:12pt; vertical-align:baseline"> Bay Street, was present to answer any questions relative to this matter.</span></p><p style="margin:0pt"><span style="font-family:Calibri; font-size:12pt; vertical-align:baseline">&#xa0;</span></p></div></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25453&MeetingID=4441'>Exhibit A</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25454&MeetingID=4441'>Exhibit B</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25366&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25367&MeetingID=4441'>Overview map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25368&MeetingID=4441'>Location map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25369&MeetingID=4441'>Zoning Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25370&MeetingID=4441'>FLU Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25168&MeetingID=4441'>Application_Redacted</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25371&MeetingID=4441'>Mailing labels</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25372&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td class='Num'>17. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5946&CssClass='>Ordinance No.  50477 : An Ordinance Approving and Authorizing the City Manager to Execute a Memorandum of Understanding by and Between the City of Norfolk and Norfolk State University for Coordination of Efforts to Manage Overflow Public Parking for the 2026 Norfolk State University Football Season.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25487&MeetingID=4441'>Exhibit A to Ordinance-MOU NSU Football Parking MacArthur South Garage-v.1</a></td></tr>
+
+<tr><td></td><td class='Num'>18. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_Communication.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=1057&CssClass='>A Letter transmitting from the General Registrar an Abstract of Votes cast in the 2026 August Republican Primary held on August 4, 2026, pursuant to Section 24.2-675 of the Code of Virginia.</a></td></tr>
+
+<tr><td></td><td class='Num'>19. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5966&CssClass='>Ordinance No.  50478 : An Ordinance Approving a Right of Entry Authorizing Queen Street Baptist Church to Go Upon and Use City-Owned Property Located at 698 Saint Pauls Boulevard For a Community Event on September 12, 2026.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25572&MeetingID=4441'>Exhibit A to Ordinance - ROE</a></td></tr>
+
+<tr><td class='Num'><strong>VIII. </strong></td><td class='Title' colspan='10'><strong>Regular Agenda</strong></td></tr>
+
+<tr><td></td><td class='Num'>1. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5842&CssClass='>Ordinance No.  50479 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit (Homestay) on Property Located at 1432 Norcova Avenue.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25252&MeetingID=4441'>EXHIBIT A - Site Plan</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25192&MeetingID=4441'>Conditional Use Permit Review Standards</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25193&MeetingID=4441'>Overview Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>d. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25194&MeetingID=4441'>Location Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>e. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25195&MeetingID=4441'>Zoning Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>f. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25196&MeetingID=4441'>FLU Map</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>g. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25197&MeetingID=4441'>STR Map - 1 Mile</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>h. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25198&MeetingID=4441'>STR Map - 500 Feet</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>i. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=24873&MeetingID=4441'>Application</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>j. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25199&MeetingID=4441'>Mailing_list</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>k. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25201&MeetingID=4441'>Letter to Civic League</a></td></tr>
+
+<tr><td></td><td class='Num'>2. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5927&CssClass='>Ordinance No.  50480 : An Ordinance Amending the FY2027 Annual Appropriations Ordinance (No. 50363) to Appropriate $963,678 from the Virginia Department of Transportation for the 25th Street Sidewalk Extension Project UPC 129602; Providing $240,920 as the Local Share; and Amending the FY2027 Budget Consistent with the Same.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25470&MeetingID=4441'>Exhibit A- VDOT Standard Project Administration Agreement UPC 129602</a></td></tr>
+
+<tr><td></td><td class='Num'>3. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5928&CssClass='>Ordinance No.  50481 : An Ordinance Amending the FY2027 Annual Appropriations Ordinance (No. 50363) to Appropriate $2,070,768 from the Virginia Department of Transportation for Tidewater Drive Sidewalks Phase 1 Project UPC 129597; Providing $517,692 as the Local Share; and Amending the FY2027 Budget Consistent With the Same.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25471&MeetingID=4441'>Exhibit A- VDOT Standard Project Administration Agreement UPC 129597</a></td></tr>
+
+<tr><td></td><td class='Num'>4. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5929&CssClass='>Ordinance No.  50482 : An Ordinance Amending the FY2027 Annual Appropriations Ordinance (No. 50363) to Appropriate $1,920,689 from the Virginia Department of Transportation for Tidewater Drive Sidewalks Phase 2 Project UPC 129594; Providing $480,172 as the Local Share; and Amending the FY2027 Budget Consistent with the Same.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25484&MeetingID=4441'>Exhibit A- VDOT Standard Project Administration Agreement UPC 129594</a></td></tr>
+
+<tr><td></td><td class='Num'>5. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5933&CssClass='>Ordinance No.  50483 : An Ordinance Amending Section 14(uu) of the FY2027 Annual Appropriations Ordinance (No. 50363) Regarding Virginia Department of Transportation Project UPC 119276 to Change the Grant Program Source of Funds; and Amending the FY2027 Budget Consistent With the Same.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25475&MeetingID=4441'>Attachment A- Tracked Changes Section 14uu</a></td></tr>
+
+<tr><td></td><td class='Num'>6. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5937&CssClass='>Ordinance No.  50484 : An Ordinance Amending the FY2027 Annual Appropriations Ordinance (No. 50363) to Appropriate an Additional $30,248 in Grant Funds From the Virginia Crisis Intervention Team Coalition to Support the Norfolk Crisis Intervention Team Program; and Amending the FY2027 Budget Consistent With the Same.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25482&MeetingID=4441'>Exhibit A- Addendum 1 and MOA</a></td></tr>
+
+<tr><td></td><td class='Num'>7. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5934&CssClass='>Ordinance No.  50485 : An Ordinance Amending Section 14(c) of the FY2027 Annual Appropriations Ordinance (No. 50363) to Appropriate a Total of $75,000 from the Virginia Department of Criminal Justice Services for One Paralegal and One Part-Time Intake Advocate for the Norfolk Commonwealth's Attorney's Office Pursuant to the Grant Terms and Conditions; and Amending the FY2027 Budget Consistent with the Same.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25476&MeetingID=4441'>Exhibit A - June 24, 2026 letter, SOGA, etc</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25477&MeetingID=4441'>Attachment A- Tracked Changes Section 14c</a></td></tr>
+
+<tr><td></td><td class='Num'>8. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5947&CssClass='>Ordinance No.  50486 : An Ordinance Amending Section 1 of the FY2027 Annual Appropriations Ordinance (No. 50363) to Appropriate Funds to Provide One-Time 2% Bonuses for Social Services Employees and Juvenile Detention Center Employees; and Amending the FY2027 Budget Consistent with the same.</a></td></tr>
+
+<tr><td></td><td class='Num'>9. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5949&CssClass='>Ordinance No.  50487 : An Ordinance Approving and Authorizing the City Manager to Execute a Cooperation Agreement by and Between the City of Norfolk and the Economic Development Authority of the City of Norfolk (the "Authority") to Enable the Authority to Complete Site Readiness Testing at the Property Owned by City of Norfolk and Known as Military Circle.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25519&MeetingID=4441'>Exhibit A to Ordinance-Cooperation Agreement-VBRSP Grant FY26-v.3</a></td></tr>
+
+<tr><td></td><td class='Num'>10. </td><td class='Title' colspan='9'><a target='_top' class='Link'  href='Detail_LegiFile.aspx?Frame=&MeetingID=4441&MediaPosition=&ID=5967&CssClass='>Ordinance No.  50488 : The Second Ordinance Amending and Reordaining the Fiscal Year 2027 Compensation Plan Ordinance and Exhibits (Ordinance No. 50,415, Effective July 1, 2026) to Amend its Section 2 in Its Entirety so as to  Increase the Minimum Annual Salaries of Family Services Worker I Positions to Fifty Five Thousand Dollars ($55,000); to  Amend its Exhibit Three in Its Entirety so as to Add New Position Titles and Change the Job Codes, Title Names, and Grades Associated with Multiple Existing Position Titles; to Amend its Exhibit Five in Its Entirety so as to Remove Pay Steps from a Portion of its Fire-Rescue Plan; and to Amend its Exhibit Seven in Its Entirety so as to Add a Position Title with Job Code and adjust Various Grades and Ranges within its Commonwealth’s Attorney Pay Plan.</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>a. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25576&MeetingID=4441'>Exhibit 3 -  Alpha Listing FY2027 2nd Amendment Clean 8.11.2026</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>b. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25577&MeetingID=4441'>Exhibit 5  - Public Safety Pay Plans FY 2027</a></td></tr>
+
+<tr><td></td><td></td><td class='Num'>c. </td><td class='Title' colspan='8'><a target='_blank' class='Link'  href='FileOpen.aspx?Type=4&ID=25578&MeetingID=4441'>Exhibit 7 - Constitutional Pay Plans, Tables and  -2nd Amend as of 8.12.2026 v 2.0</a></td></tr>
+
+<tr><td class='Num'><strong>IX. </strong></td><td class='Title' colspan='10'><a target='_top' class='Link'  href='Detail_Motion.aspx?Frame=&MeetingID=4441&MinutesID=2856&MediaPosition=&ID=36155&Type=70&CssClass= style='cursor: hand'><strong>New Business</strong></a></td></tr>
+<tr><td></td><td class='Comments' colspan='10'><div><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Bridget Toole, 1500 Kerry Avenue, spoke regarding assistance for the unhoused.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Antoinette Kennon, 5633 Gregory Court, Portsmouth, spoke regarding concerns about Sentara Norfolk General Hospital.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Dennis Wolterding, 2220 Pretty Lake Avenue, spoke about East Beach Farmers Market parking.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Tiara Lassiter, 3055 Sewells Point Road, spoke regarding issues with flooding.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Alton Robinson, 1213 Brambleton Avenue, spoke regarding uplifting the community and thanked the City for supporting the Park Place Reunion.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Samuel Wallace, 888 Magazine Lane, spoke regarding Flock Cameras.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt">Alex O’Laughlin, 327 W. 25</span><span style="font-family:Aptos; font-size:8pt; vertical-align:super">th</span><span style="font-family:Aptos; font-size:12pt; vertical-align:baseline"> Street, spoke regarding Flock Cameras.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt; vertical-align:baseline">Henry Reed, 3317 Montana Avenue, spoke regarding Flock Cameras.</span></p><p style="margin:0pt"><span style="font-family:Aptos; font-size:12pt; vertical-align:baseline">Gabe Harrell, 618 Raleigh Avenue, spoke regarding environmental concerns.</span></p></div></td></tr>
+
+<tr><td class='Num'><strong>X. </strong></td><td class='Title' colspan='10'><strong>Adjournment</strong></td></tr>
+
+</table>
+</span>
+                    </td>
+	</tr>
+	
+            </table>
+        
+</div>
+        
+        
+        <br />
+        <hr class="Dotted" />
+        <br />
+    </div>
+    
+    <!-- Dialog Definition (Do Not Display in Page) -->
+    <div style="display: none;">
+    
+        <div id="UserComment" class="UserComment">
+            <input type="hidden" id="ItemID" />
+            <input type="hidden" id="ItemType" />
+            <table><tr><td colspan="2" style="text-align: center;"><textarea rows="10" cols="10"></textarea></td></tr>
+            <tr>
+                <td class="Status"><img src='/Lib/Images/ui-anim_basic_16x16.gif' alt='Loading' />&nbsp;&nbsp;Loading - Please Wait...</td>
+                <td class="Help"><a href="#" onclick="javascript: ShowHelp(); return false;"><img src="images/Help.png" alt="Help" /></a></td>
+            </tr></table>            
+        </div>
+        
+        <div id="frmHelp">
+            <p><strong>Shortcut Keys:</strong></p>
+            <p><strong>Alt + S</strong> - Save</p>
+            <p><strong>Ctrl + S</strong> - Save (may not be compatible in all browsers)</p>
+            <p><strong>Alt + C</strong> - Save and Close</p>
+            <p><strong>Ctrl + Enter</strong> - Save and Close</p>
+            <p><strong>Escape</strong> - Closes the form (same as Cancel)</p>
+            <p><strong>Alt + Up Arrow</strong> - Previous Item (Saves if changed)</p>
+            <p><strong>Alt + Down Arrow</strong> - Next Item (Saves if changed)</p>
+        </div>
+    
+    </div>
+
+   
+    
+                            </div>
+                        </div>                                                           
+                    </td>
+                </tr>               
+            </table>                                
+        </div>
+        
+    <div id="Footer" role="contentinfo">
+        <br />
+        <span id="lblPoweredBy">***Due to a technical glitch, please choose List rather than calendar to view upcoming meetings***</span>
+    </div>
+
+    <!-- Analytics Stuff (Start) *********************************** -->
+<script async src='https://www.googletagmanager.com/gtag/js?id=116882683'></script>
+  <script>
+   window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+  gtag('config', '116882683');</script>
+<!-- Analytics Stuff (End)   *********************************** -->
+    <!-- Analytics Stuff (Start) *********************************** -->
+<script async src='https://www.googletagmanager.com/gtag/js?id=UA-70364301-2'></script>
+  <script>
+   window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+  gtag('config', 'UA-70364301-2');</script>
+<!-- Analytics Stuff (End)   *********************************** -->
+    
+        <!-- Popup Menus -->
+        <div id="mnuBrowse" class="PopupMenu" dropdown="Browse">
+            <ul>
+                <li><a href="#">Legislative Files</a></li>
+                <li><a href="#">Legal Notices</a></li>
+                <li><a href="#">Some other Sort of Thing</a></li>
+            </ul>
+        </div>
+
+    
+
+<script type="text/javascript">
+//<![CDATA[
+$(document).ready(function(){woopra.identify({ email:"", name:"Anonymous User", agency:"NorfolkCityVA", userlogin:"Anonymous"}).push(); })//]]>
+</script>
+</form>
+</body>
+</html>
+
+

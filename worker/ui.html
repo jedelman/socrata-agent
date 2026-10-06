@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What's on my block?</title>
+<meta name="description" content="Ask your city's open data what's happening at an address, and who decided it. Every answer shows the queries behind it.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231f5f4a'/><path d='M8 22V12l8-5 8 5v10h-5v-6h-6v6z' fill='white'/></svg>">
+<style>
+:root {
+  --bg: #f7f6f2; --surface: #ffffff; --ink: #1d1d1b; --muted: #5d5d57; --line: #dedcd4;
+  --accent: #1f5f4a; --accent-ink: #ffffff; --soft: #e8efe9; --warn: #8a4b00; --warn-bg: #fff3e0;
+  --code: #f1efe8; --radius: 10px;
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141513; --surface: #1c1d1a; --ink: #ecebe5; --muted: #a3a29b; --line: #34352f;
+    --accent: #7cc4a6; --accent-ink: #0e1a15; --soft: #20302a; --warn: #f0b46a; --warn-bg: #2e2416; --code: #25261f;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font); }
+a { color: var(--accent); }
+.wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+header h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); line-height: 1.15; margin: 8px 0 6px; letter-spacing: -0.01em; }
+header p { margin: 0 0 16px; color: var(--muted); }
+.city { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: .95rem; }
+select, textarea, button { font: inherit; color: inherit; }
+select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+form { display: flex; gap: 8px; align-items: flex-end; margin-top: 16px; }
+textarea { flex: 1; min-height: 52px; max-height: 200px; resize: vertical; padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid var(--line); background: var(--surface); }
+textarea:focus, select:focus, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.ask { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--radius); padding: 13px 18px; font-weight: 600; cursor: pointer; }
+button.ask:disabled { opacity: .55; cursor: progress; }
+.examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.examples button { background: var(--soft); border: 1px solid transparent; color: var(--ink); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: .92rem; }
+.examples button:hover { border-color: var(--accent); }
+.turn { margin-top: 28px; }
+.q { font-weight: 600; margin-bottom: 8px; }
+.a { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 18px 14px; }
+.a .answer { overflow-wrap: anywhere; }
+.a .answer table { border-collapse: collapse; width: 100%; font-size: .93rem; display: block; overflow-x: auto; }
+.a .answer th, .a .answer td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+.a code { font-family: var(--mono); font-size: .86em; background: var(--code); padding: 1px 4px; border-radius: 4px; }
+details { border-top: 1px solid var(--line); padding: 10px 0 2px; }
+summary { cursor: pointer; font-weight: 600; }
+summary small { font-weight: 400; color: var(--muted); }
+ul.plain { list-style: none; padding: 0; margin: 8px 0; }
+ul.plain li { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+ul.plain li:last-child { border-bottom: 0; }
+.role { color: var(--muted); font-size: .9rem; display: block; }
+.links { font-size: .93rem; }
+.links a { margin-right: 10px; white-space: nowrap; }
+ol.trace { padding-left: 22px; font-size: .9rem; }
+ol.trace li { margin: 8px 0; }
+ol.trace code { display: block; white-space: pre-wrap; word-break: break-word; margin: 4px 0; padding: 6px 8px; }
+.meta { color: var(--muted); font-size: .85rem; margin-top: 10px; }
+.notice { background: var(--warn-bg); color: var(--warn); border-radius: 8px; padding: 10px 12px; margin: 12px 0 4px; font-size: .93rem; }
+.loading { color: var(--muted); }
+.loading::after { content: ""; display: inline-block; width: 1em; animation: dots 1.4s steps(4) infinite; overflow: hidden; vertical-align: bottom; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+@media (prefers-reduced-motion: reduce) { .loading::after { animation: none; content: "…"; } }
+footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (max-width: 520px) { form { flex-direction: column; align-items: stretch; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <label class="city">City <select id="city" aria-label="City"></select></label>
+    <h1>What's on my block, and who decided it?</h1>
+    <p id="intro">Ask about an address, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.</p>
+  </header>
+
+  <form id="f">
+    <textarea id="q" name="q" placeholder="e.g. What's going on at 111 Pennsylvania Ave?" maxlength="600" required aria-label="Your question"></textarea>
+    <button class="ask" id="go" type="submit">Ask</button>
+  </form>
+  <div class="examples" id="examples" aria-label="Example questions"></div>
+
+  <main id="log" aria-live="polite"></main>
+
+  <footer>
+    <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
+    <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script>
+const EXAMPLES = {
+  norfolk: ["What's on my block? 810 Union St", 'Who decided to allow a kennel at 111 Pennsylvania Ave?', 'What public meetings are coming up in the next two weeks?'],
+  seattle: ['What datasets does Seattle publish about building permits?', 'How many building permits were issued in Seattle last month?'],
+  chicago: ['How many pothole complaints did Chicago get in the last 30 days?', 'Which community areas had the most 311 rodent complaints this year?'],
+};
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || '')) : `<p>${esc(s)}</p>`);
+let history = [];
+let cities = [];
+
+async function loadCities() {
+  try {
+    cities = await (await fetch('/api/cities')).json();
+  } catch { cities = [{ id: 'norfolk', name: 'Norfolk, VA', block: true }]; }
+  $('#city').innerHTML = cities.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  setCity();
+}
+function setCity() {
+  const c = cities.find((x) => x.id === $('#city').value) || cities[0];
+  $('#intro').textContent = c?.block
+    ? `Ask about an address in ${c.name}, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.`
+    : `Ask about anything in ${c?.name}'s open data. (Address and "who decided" lookups are Norfolk-only for now.) Every answer lists the queries behind it and the data to download.`;
+  $('#examples').innerHTML = (EXAMPLES[c?.id] || []).map((e) => `<button type="button">${esc(e)}</button>`).join('');
+  history = [];
+}
+$('#city').addEventListener('change', () => { $('#log').innerHTML = ''; setCity(); });
+$('#examples').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { $('#q').value = e.target.textContent; $('#f').requestSubmit(); } });
+$('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f').requestSubmit(); } });
+
+function renderResources(r) {
+  const parts = [];
+  if (r.contacts?.length) {
+    parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${esc(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
+  }
+  if (r.records?.length) {
+    parts.push(`<details><summary>Public records <small>(${r.records.length})</small></summary><ul class="plain">${r.records.map((x) => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
+  }
+  if (r.datasets?.length) {
+    parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${esc(d.page)}" target="_blank" rel="noopener">dataset page</a><a href="${esc(d.csv)}">full CSV</a>${(d.queries || []).map((q, i) => `<a href="${esc(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${esc(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
+  }
+  if (r.links?.length) {
+    parts.push(`<details><summary>Go further</summary><ul class="plain">${r.links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></li>`).join('')}</ul></details>`);
+  }
+  return parts.join('');
+}
+function renderTrace(t) {
+  if (!t?.length) return '';
+  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${esc(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
+}
+
+$('#f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = $('#q').value.trim();
+  if (!question) return;
+  const city = $('#city').value;
+  const turn = document.createElement('section');
+  turn.className = 'turn';
+  turn.innerHTML = `<div class="q">${esc(question)}</div><div class="a"><p class="loading">Looking it up. This usually takes 10 to 30 seconds</p></div>`;
+  $('#log').prepend(turn);
+  $('#q').value = '';
+  $('#go').disabled = true;
+  const a = turn.querySelector('.a');
+  try {
+    const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
+    const data = await res.json();
+    if (!res.ok) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
+    history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });
+    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
+  } catch (err) {
+    a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
+  } finally {
+    $('#go').disabled = false;
+  }
+});
+loadCities();
+</script>
+</body>
+</html>

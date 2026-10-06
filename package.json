@@ -1,0 +1,31 @@
+{
+  "name": "socrata-agent",
+  "version": "0.1.0",
+  "description": "Ask a city's Socrata open data what's on your block, and who decided it. Every answer carries the queries behind it.",
+  "type": "module",
+  "license": "MIT",
+  "repository": "github:jedelman/socrata-agent",
+  "bin": {
+    "socrata-agent": "bin/socrata-agent.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "data",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "build:norfolk": "node scripts/build-norfolk-legislation.js",
+    "compare": "node scripts/compare-models.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.147.0"
+  }
+}
