@@ -7,6 +7,9 @@ import { parseArgs } from 'node:util';
 import { cities, getCity } from '../src/cities/index.js';
 import { ask, createContext, DEFAULT_MODEL } from '../src/agent.js';
 import { toolsFor, runTool } from '../src/tools.js';
+import { applyConfig, definePlugin } from '../src/plugins.js';
+import { pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
 
 const HELP = `socrata-agent: ask a city's open data what's on your block, and who decided it.
 
@@ -15,6 +18,10 @@ Usage
   socrata-agent tool <name> '<json args>' [--city norfolk]
   socrata-agent tools [--city norfolk]
   socrata-agent cities
+
+Options
+  --city <id|domain>   norfolk (default), seattle, chicago, or any Socrata domain
+  --config <file>      a deployment config (plugins, notes, contacts); see deployments/
 
 Examples
   socrata-agent ask "What's going on at 111 Pennsylvania Ave?"
@@ -43,12 +50,21 @@ async function loadIndexes(city) {
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    city: { type: 'string', default: 'norfolk' },
+    city: { type: 'string' },
+    config: { type: 'string' },
     model: { type: 'string' },
     json: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
 });
+
+async function loadDeployment() {
+  if (!values.config) return { city: getCity(values.city || 'norfolk'), plugins: [], model: undefined };
+  const mod = await import(pathToFileURL(resolve(values.config)).href);
+  const config = mod.default || {};
+  const city = applyConfig(getCity(values.city || config.city || 'norfolk'), config);
+  return { city, plugins: (config.plugins || []).map(definePlugin), model: config.model };
+}
 
 const [cmd, ...rest] = positionals;
 if (!cmd || values.help) {
@@ -64,26 +80,27 @@ try {
     }
     console.log('\nAny other Socrata domain also works in generic mode: --city data.example.gov');
   } else if (cmd === 'tools') {
-    const city = getCity(values.city);
-    for (const t of toolsFor(city)) console.log(`${t.function.name}\n  ${t.function.description}\n  args: ${JSON.stringify(t.function.parameters.properties)}\n`);
+    const { city, plugins } = await loadDeployment();
+    for (const t of toolsFor(city, plugins)) console.log(`${t.function.name}\n  ${t.function.description}\n  args: ${JSON.stringify(t.function.parameters.properties)}\n`);
   } else if (cmd === 'tool') {
     const [name, json = '{}'] = rest;
-    const city = getCity(values.city);
-    if (!toolsFor(city).some((t) => t.function.name === name)) throw new Error(`${city.name} has no tool "${name}". Run: socrata-agent tools --city ${city.id}`);
-    const ctx = createContext({ city, indexes: await loadIndexes(city), appToken: process.env.SOCRATA_APP_TOKEN });
+    const { city, plugins } = await loadDeployment();
+    if (!toolsFor(city, plugins).some((t) => t.function.name === name)) throw new Error(`${city.name} has no tool "${name}". Run: socrata-agent tools --city ${city.id}${values.config ? ` --config ${values.config}` : ''}`);
+    const ctx = createContext({ city, indexes: await loadIndexes(city), appToken: process.env.SOCRATA_APP_TOKEN, plugins });
     const result = await runTool(ctx, name, JSON.parse(json));
     console.log(JSON.stringify({ result, trace: ctx.trace.toJSON(), resources: ctx.resources.toJSON() }, null, 2));
   } else if (cmd === 'ask') {
     const question = rest.join(' ').trim();
     if (!question) throw new Error('ask needs a question');
-    const city = getCity(values.city);
+    const { city, plugins, model: configModel } = await loadDeployment();
     const out = await ask({
       question,
       city,
+      plugins,
       indexes: await loadIndexes(city),
       apiKey: process.env.OPENROUTER_API_KEY,
       appToken: process.env.SOCRATA_APP_TOKEN,
-      model: values.model || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL,
+      model: values.model || configModel || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL,
       onEvent: (e) => {
         if (values.json) return;
         if (e.type === 'tool') console.error(`  → ${e.name} ${JSON.stringify(e.args)}`);

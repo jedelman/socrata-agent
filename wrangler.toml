@@ -20,6 +20,12 @@ MAX_TOKENS = "1200"
 # binding = "LIMITS"
 # id = "<paste id>"
 
+# Optional: put Cloudflare Access in front and count limits per person.
+# Set both, and the Worker refuses any request without a valid Access token:
+# ACCESS_TEAM_DOMAIN = "yourteam.cloudflareaccess.com"
+# ACCESS_AUD = "<application audience tag from the Access dashboard>"
+# PER_USER_DAILY = "40"
+
 # Secrets (never in this file):
 #   npx wrangler secret put OPENROUTER_API_KEY
 #   npx wrangler secret put IP_SALT            # any random string

@@ -22,6 +22,12 @@ SA tool describe_dataset '{"dataset_id":"v6vf-nfxy"}' --city chicago
 SA tool query_dataset '{"dataset_id":"v6vf-nfxy","soql":"SELECT sr_type, count(*) AS n GROUP BY sr_type ORDER BY n DESC"}' --city chicago
 ```
 
+Add `--config deployments/<file>.config.js` to load a deployment's plugins and
+notes. For example, `--config deployments/sponge-city-norfolk.config.js` adds
+`water_on_my_block` (flood zone, flood claims by cause in the tract, stormwater
+upkeep, trees, the nearest working tide gauge) and `sponge_site_screen` (ranked
+sites for rain gardens, bioswales and trees; a screen, not a design).
+
 Cities: `norfolk` (block report and legislation), `seattle`, `chicago`, or any
 Socrata domain such as `--city data.example.gov` (search, describe, query only).
 

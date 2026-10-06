@@ -116,6 +116,44 @@ draft minutes are flagged.
   name suggests records searchable by personal name. The agent will not look
   people up.
 
+## Make it your group's own
+
+A campaign or nonprofit can run its own copy with its own tools, focus and model
+budget, then send what works back upstream. Two pieces:
+
+- **A deployment config** in `deployments/` adds plugins, contacts, links,
+  exclusions and focus notes. It can't remove exclusions or switch off the
+  trace or the voice check.
+- **Plugin tools** in `plugins/` get a traced context and never a raw `fetch`.
+  `test/conformance.js` checks them before they are merged.
+
+The worked example is a Norfolk sponge-city deployment. Its plugin,
+`water_on_my_block`, returns, for any address:
+
+- the FEMA flood zone at the parcel and the evacuation zone;
+- flood insurance claims in the census tract, by cause (rain versus tide);
+- stormwater inspections and work orders in the civic league;
+- tree removals versus plantings;
+- the nearest tide gauge that is still reporting.
+
+```bash
+node bin/socrata-agent.js ask "Does my block flood?" --config deployments/sponge-city-norfolk.config.js
+```
+
+The deployment also carries a city-wide **sponge-city screen**: where rain
+gardens, bioswales and trees would do the most good. It ranks city-owned vacant
+lots by recorded flooding, rain-caused flood claims, tree loss and income, then
+checks the top candidates on five things: flood zone, storm surge, soils, nearby
+drains, and existing stormwater projects. Bioswale candidates are ranked by
+street. Read the [report](docs/sponge-screen-norfolk.md); rebuild it with
+`node scripts/build-sponge-screen.js` (about 680 traced queries). The
+`sponge_site_screen` plugin serves the results to the agent.
+
+For groups, the web app can sit behind Cloudflare Access, which counts limits
+per verified person. The Worker checks the signed token; it never trusts the
+email header. See [docs/extending.md](docs/extending.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Deploy the web app
 
 ```bash

@@ -17,7 +17,7 @@ generic mode.
   dataset or from city pages verified on a stated date. Never invent a contact.
 - **No people-finding.** Warrants and arrests are excluded per city, and
   name-pattern exclusions apply everywhere. Don't add tools that search people
-  by name.
+  by name, in core or in plugins. See CONTRIBUTING.md.
 - **Verify against the live portal.** Dataset ids, field names and status codes
   in a city profile must be checked live, with the date noted in a comment.
 
@@ -28,11 +28,22 @@ generic mode.
     executors; `block.js` is the block report and legislation matching;
     `socrata.js` is the SODA client; `adapters/iqm2.js` parses Norfolk's
     meeting portal; `cities/` holds the profiles.
+- `src/plugins.js` defines plugin tools and deployment configs. Plugins get a
+  traced context (`ctx.socrata`, `ctx.http`, `ctx.lookupAddress`), never a raw
+  fetch; `test/conformance.js` enforces it. Configs can add but not remove
+  exclusions.
+- `plugins/` holds plugin tools; `deployments/` holds configs (the sponge-city
+  example is the reference).
+- `worker/access.js` verifies Cloudflare Access JWTs for per-person limits.
+  Never trust the plain email header.
 - `bin/socrata-agent.js` is the CLI (`ask` with your own key; `tool` with no key).
 - `worker/` is the Cloudflare chat app (`index.js` plus `ui.html`).
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
+- `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
+  built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
+  It only ever carries public owners' names (city, NRHA, EDA).
 
 ## Checks before pushing
 

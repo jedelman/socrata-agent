@@ -1,6 +1,8 @@
 // Cloudflare Worker: the public chat app. The operator's OpenRouter key lives
 // in a secret; every visitor shares it, so every request is limited:
 //   - per visitor (hashed IP) per day      PER_IP_DAILY       default 20
+//   - or, behind Cloudflare Access, per person (verified email) per day
+//                                          PER_USER_DAILY     default 40
 //   - for everyone per day, in dollars     DAILY_BUDGET_USD   default 2
 //   - per question: length, history, tool steps, output tokens
 // Limits are counted in KV (binding LIMITS). KV is eventually consistent, so a
@@ -11,6 +13,11 @@ import { ask } from '../src/agent.js';
 import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import UI from './ui.html';
+import deployment from './deployment.js';
+import { applyConfig, definePlugin } from '../src/plugins.js';
+import { verifyAccess } from './access.js';
+
+const PLUGINS = (deployment.plugins || []).map(definePlugin);
 
 const INDEXES = { 'norfolk-legislation': norfolkLegislation };
 const MAX_QUESTION = 600;
@@ -28,7 +35,7 @@ async function sha256(s) {
 }
 
 function allowedCities(env) {
-  const ids = (env.CITIES || Object.keys(cities).join(',')).split(',').map((s) => s.trim()).filter(Boolean);
+  const ids = (deployment.city || env.CITIES || Object.keys(cities).join(',')).split(',').map((s) => s.trim()).filter(Boolean);
   return ids.filter((id) => cities[id]);
 }
 
@@ -56,15 +63,25 @@ async function handleAsk(req, env) {
   }
   if (!env.OPENROUTER_API_KEY) return json({ error: 'This site is not configured yet (no model key).' }, 503);
   const day = today();
-  const perIp = Number(env.PER_IP_DAILY || 20);
   const budget = Number(env.DAILY_BUDGET_USD || 2);
-  let ipKey;
-  if (kv) {
+  // Behind Cloudflare Access, count per verified person; otherwise per hashed IP.
+  let who;
+  if (env.ACCESS_TEAM_DOMAIN) {
+    try {
+      const { email } = await verifyAccess(req, env);
+      who = { key: `user:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${email}`)).slice(0, 32)}`, limit: Number(env.PER_USER_DAILY || 40), kind: 'person' };
+    } catch (err) {
+      return json({ error: 'Sign in through this site\'s access page first.', detail: err.message }, 401);
+    }
+  } else {
     const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
-    ipKey = `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${ip}`)).slice(0, 32)}`;
+    who = { key: `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${ip}`)).slice(0, 32)}`, limit: Number(env.PER_IP_DAILY || 20), kind: 'visitor' };
+  }
+  const ipKey = who.key;
+  if (kv) {
     const [used, spent] = await Promise.all([kv.get(ipKey), kv.get(`spend:${day}`)]);
-    if (Number(used || 0) >= perIp) {
-      return json({ error: `You've asked ${perIp} questions today, the limit for this free site. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: 'visitor' }, 429);
+    if (Number(used || 0) >= who.limit) {
+      return json({ error: `You've asked ${who.limit} questions today, the limit for this site. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
     }
     if (Number(spent || 0) / 1e6 >= budget) {
       return json({ error: "Today's shared budget for this free site is used up. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.", limit: 'budget' }, 503);
@@ -76,11 +93,12 @@ async function handleAsk(req, env) {
     const out = await ask({
       question,
       history,
-      city: getCity(cityId),
+      city: applyConfig(getCity(cityId), deployment),
+      plugins: PLUGINS,
       indexes: INDEXES,
       apiKey: env.OPENROUTER_API_KEY,
       appToken: env.SOCRATA_APP_TOKEN,
-      model: env.MODEL,
+      model: env.MODEL || deployment.model,
       maxSteps: Number(env.MAX_STEPS || 6),
       maxTokens: Number(env.MAX_TOKENS || 1200),
       referer: new URL(req.url).origin,

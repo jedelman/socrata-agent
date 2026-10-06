@@ -26,6 +26,9 @@ export default {
       streetName: 'street_name',
       parcel: 'gpin',
       ward: 'ward_district',
+      lat: 'parcel_centroid_latitude',
+      lon: 'parcel_centroid_longitude',
+      tract: 'census_tract_number',
     },
     // Facts about the place, returned as-is.
     facts: [

@@ -12,6 +12,8 @@
     "bin",
     "src",
     "data",
+    "plugins",
+    "deployments",
     "README.md",
     "LICENSE"
   ],

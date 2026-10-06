@@ -8,19 +8,21 @@ import { Iqm2 } from './adapters/iqm2.js';
 import { toolsFor, runTool } from './tools.js';
 import { systemPrompt } from './prompt.js';
 import { voiceViolations, REWRITE_INSTRUCTION } from './voice.js';
+import { tracedHttp } from './plugins.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 const OPENROUTER = 'https://openrouter.ai/api/v1/chat/completions';
 const RESULT_CHARS = 16000;
 
-export function createContext({ city, indexes = {}, appToken, fetchImpl }) {
+export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [] }) {
   const trace = new Trace();
   const resources = new Resources();
   const socrata = new Socrata({ city, trace, resources, appToken, fetchImpl });
   const iqm2 = city.meetings?.kind === 'iqm2' ? new Iqm2({ base: city.meetings.iqm2, trace, resources, fetchImpl }) : null;
   for (const c of city.contacts || []) resources.addContact({ ...c, source: 'city profile' });
   for (const l of city.links || []) resources.addLink(l);
-  return { city, indexes, trace, resources, socrata, iqm2 };
+  const http = tracedHttp(trace, fetchImpl);
+  return { city, indexes, trace, resources, socrata, iqm2, http, plugins };
 }
 
 async function complete({ apiKey, model, messages, tools, maxTokens, fetchImpl, referer }) {
@@ -55,11 +57,12 @@ export async function ask({
   maxTokens = 1500,
   fetchImpl,
   referer,
+  plugins = [],
   onEvent = () => {},
 }) {
   if (!apiKey) throw new Error('No OpenRouter API key. Set OPENROUTER_API_KEY.');
-  const ctx = createContext({ city, indexes, appToken, fetchImpl });
-  const tools = toolsFor(city);
+  const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
+  const tools = toolsFor(city, plugins);
   const messages = [
     { role: 'system', content: systemPrompt(city, new Date().toISOString().slice(0, 10)) },
     ...history.map((m) => ({ role: m.role, content: String(m.content) })),

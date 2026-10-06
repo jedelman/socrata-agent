@@ -76,6 +76,8 @@ export async function lookupAddress(ctx, input) {
       number: chosen[cfg.fields.number],
       ward: chosen[cfg.fields.ward],
       hundred_block: `${Math.floor(Number(chosen[cfg.fields.number]) / 100) * 100} block of ${chosen[cfg.fields.street]}`,
+      ...(cfg.fields.lat ? { lat: Number(chosen[cfg.fields.lat]), lon: Number(chosen[cfg.fields.lon]) } : {}),
+      ...(cfg.fields.tract ? { census_tract: chosen[cfg.fields.tract] } : {}),
       facts: pick(chosen, cfg.facts),
     },
     contacts,
