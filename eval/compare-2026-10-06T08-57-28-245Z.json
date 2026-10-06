@@ -1,0 +1,1709 @@
+[
+  {
+    "model": "google/gemini-3.8-flash",
+    "city": "norfolk",
+    "q": "What's on my block? I live at 810 Union St.",
+    "ms": 20749,
+    "answer": "I found the following on file for 810 Union Street and your block:\n\n### The Address\nI see 810 Union Street recorded as the parcel address for Norfolk City Hall (Parcel ID: 1437047621), located in",
+    "voice": {
+      "ok": true,
+      "rewritten": true,
+      "violations": []
+    },
+    "cost": 0.02094,
+    "steps": 1,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '810' AND upper(full_street_name) like '%UNION%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'810'%20AND%20upper(full_street_name)%20like%20'%25UNION%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 143
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1437047621' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 102
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1437047621' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 128
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 125
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 117
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1437047621' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 124
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1437047621' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 102
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'UNION' AND ward = 4 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'UNION'%20AND%20ward%20%3D%204%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 114
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'UNION STREET' AND street_number >= 800 AND street_number < 900 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'UNION%20STREET'%20AND%20street_number%20%3E%3D%20800%20AND%20street_number%20%3C%20900%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 116
+      },
+      {
+        "n": 10,
+        "tool": "block report (count)",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 112
+      },
+      {
+        "n": 11,
+        "tool": "block report (count)",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 103
+      },
+      {
+        "n": 12,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'UNION' AND ward = 4) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'UNION'%20AND%20ward%20%3D%204)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 89
+      },
+      {
+        "n": 13,
+        "tool": "block report (count)",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 109
+      }
+    ]
+  },
+  {
+    "model": "google/gemini-3.8-flash",
+    "city": "norfolk",
+    "q": "Who decided to allow a kennel at 111 Pennsylvania Ave, and did anyone vote against it?",
+    "ms": 8336,
+    "answer": "Norfolk City Council decided to allow the kennel by adopting Ordinance No. 50452 on August 25, 2026. The department listed as bringing the item is Planning.\n\nI found no votes against it in either body that considered the application:\n\n- **City Council** (August 25, 2026): Adopted unanimously (*status: Adopted*). \n  - **Ayes:** Kenneth Cooper Alexander, Carlos J. Clanton, Courtney R. Doyle, Mamie B. Johnson, Jeremy D. McGee, John E. Paige, Thomas R. Smigiel Jr., and Martin A. Thomas Jr.\n  - **Nays:** None recorded.\n  - *Note:* The vote record is from draft minutes.\n\n- **Planning Commission** (June 25, 2026): Recommended approval unanimously (*result: APPROVAL RECOMMENDED [UNANIMOUS]*).\n  - **Ayes:** Kim Sudderth, Scott Bateman, Larry Pendleton, Jeffrey F. Wells, Jake Young, and Theresa Whibley.\n  - **Nays:** None recorded.\n  - **Absent:** Lelia Vann.\n  - *Note:* The vote record is from draft minutes.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.00878325,
+    "steps": 2,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '111' AND upper(full_street_name) like '%PENNSYLVANIA%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'111'%20AND%20upper(full_street_name)%20like%20'%25PENNSYLVANIA%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 147
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1438184218' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 4,
+        "ms": 96
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1438184218' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 199
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 246
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 224
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1438184218' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 254
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1438184218' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 244
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'PENNSYLVANIA' AND ward = 2 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 240
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'PENNSYLVANIA AVENUE' AND street_number >= 100 AND street_number < 200 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'PENNSYLVANIA%20AVENUE'%20AND%20street_number%20%3E%3D%20100%20AND%20street_number%20%3C%20200%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 1,
+        "ms": 186
+      },
+      {
+        "n": 10,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'PENNSYLVANIA' AND ward = 2) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 107
+      },
+      {
+        "n": 11,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5833",
+        "ok": true,
+        "rows": null,
+        "ms": 1042
+      }
+    ]
+  },
+  {
+    "model": "google/gemini-3.8-flash",
+    "city": "norfolk",
+    "q": "What's going on at 1234 Gwaltney Way?",
+    "ms": 17648,
+    "answer": "I found no record of **1234 Gwaltney Way** in the city's address system, and I found no street named \"Gwaltney\" in the Norfolk Master Address List. \n\nI also found no matching city council legislation or public meeting records mentioning \"Gwaltney.\"\n\nCould you check the spelling of the street name or provide a neighboring cross street? If this property is located in a neighboring city (such as Virginia Beach, Chesapeake, Portsmouth, or Suffolk), it would not appear in Norfolk's open data records.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.015477000000000001,
+    "steps": 8,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 139
+      },
+      {
+        "n": 2,
+        "tool": "search datasets",
+        "soql": "q=Gwaltney",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=10&q=Gwaltney",
+        "ok": true,
+        "rows": 0,
+        "ms": 58
+      },
+      {
+        "n": 3,
+        "tool": "search datasets",
+        "soql": "q=address",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=10&q=address",
+        "ok": true,
+        "rows": 10,
+        "ms": 83
+      },
+      {
+        "n": 4,
+        "tool": "describe dataset",
+        "dataset": "jagz-9a37",
+        "url": "https://data.norfolk.gov/api/views/jagz-9a37.json",
+        "ok": true,
+        "rows": null,
+        "ms": 130
+      },
+      {
+        "n": 5,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT full_address, address_status WHERE upper(full_street_name) LIKE '%GWALTNEY%' LIMIT 50",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20full_address%2C%20address_status%20WHERE%20upper(full_street_name)%20LIKE%20'%25GWALTNEY%25'%20LIMIT%2050",
+        "ok": true,
+        "rows": 0,
+        "ms": 522
+      },
+      {
+        "n": 6,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT full_address, address_status WHERE upper(full_street_name) LIKE '%GWALT%' LIMIT 50",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20full_address%2C%20address_status%20WHERE%20upper(full_street_name)%20LIKE%20'%25GWALT%25'%20LIMIT%2050",
+        "ok": true,
+        "rows": 0,
+        "ms": 172
+      }
+    ]
+  },
+  {
+    "model": "google/gemini-3.8-flash",
+    "city": "chicago",
+    "q": "How many pothole complaints did Chicago get in the last 30 days?",
+    "ms": 83205,
+    "answer": "In the Chicago 311 Service Requests dataset (`v6vf-nfxy`), I found two request types for potholes: **\"Pothole in Street Complaint\"** and **\"Alley Pothole Complaint\"**.\n\nBetween September 6, 2026, and October 6, 2026 (the last 30 days), my query returned a total of **4,693** pothole complaints:\n\n- **Pothole in Street Complaint:** 3,591 records\n- **Alley Pothole Complaint:** 1,102 records\n\n### Status breakdown\n- **Pothole in Street Complaint:**\n  - `status: Open` — 2,489\n  - `status: Completed` — 1,102\n- **Alley Pothole Complaint:**\n  - `status: Open` — 859\n  - `status: Completed` — 243\n\n### Duplicate flags\nThe records indicate that out of the 4,693 total requests:\n- `duplicate: false` — 2,964\n- `duplicate: true` — 1,729\n\nThe latest record found in this query has a `created_date` of 2026-10-05T14:29:51.000. You can review the exact query trace and download options below.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.024123000000000002,
+    "steps": 8,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "search datasets",
+        "soql": "q=pothole service requests",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=pothole+service+requests",
+        "ok": true,
+        "rows": 3,
+        "ms": 378
+      },
+      {
+        "n": 2,
+        "tool": "search datasets",
+        "soql": "q=311 service requests",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=311+service+requests",
+        "ok": true,
+        "rows": 10,
+        "ms": 78
+      },
+      {
+        "n": 3,
+        "tool": "describe dataset",
+        "dataset": "v6vf-nfxy",
+        "url": "https://data.cityofchicago.org/api/views/v6vf-nfxy.json",
+        "ok": true,
+        "rows": null,
+        "ms": 330
+      },
+      {
+        "n": 4,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, count(*) AS n WHERE sr_type LIKE '%Pothole%' OR sr_type LIKE '%pothole%' GROUP BY sr_type LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20count(*)%20AS%20n%20WHERE%20sr_type%20LIKE%20'%25Pothole%25'%20OR%20sr_type%20LIKE%20'%25pothole%25'%20GROUP%20BY%20sr_type%20LIMIT%20100",
+        "ok": true,
+        "rows": 2,
+        "ms": 54935
+      },
+      {
+        "n": 5,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT max(created_date) AS max_date, min(created_date) AS min_date LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20max(created_date)%20AS%20max_date%2C%20min(created_date)%20AS%20min_date%20LIMIT%20100",
+        "ok": true,
+        "rows": 1,
+        "ms": 263
+      },
+      {
+        "n": 6,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, count(*) AS total WHERE (sr_type = 'Pothole in Street Complaint' OR sr_type = 'Alley Pothole Complaint') AND created_date >= '2026-09-06T00:00:00.000' GROUP BY sr_type LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20count(*)%20AS%20total%20WHERE%20(sr_type%20%3D%20'Pothole%20in%20Street%20Complaint'%20OR%20sr_type%20%3D%20'Alley%20Pothole%20Complaint')%20AND%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00.000'%20GROUP%20BY%20sr_type%20LIMIT%20100",
+        "ok": true,
+        "rows": 2,
+        "ms": 1574
+      },
+      {
+        "n": 7,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, status, count(*) AS total WHERE (sr_type = 'Pothole in Street Complaint' OR sr_type = 'Alley Pothole Complaint') AND created_date >= '2026-09-06T00:00:00.000' GROUP BY sr_type, status ORDER BY sr_type, total DESC LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20status%2C%20count(*)%20AS%20total%20WHERE%20(sr_type%20%3D%20'Pothole%20in%20Street%20Complaint'%20OR%20sr_type%20%3D%20'Alley%20Pothole%20Complaint')%20AND%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00.000'%20GROUP%20BY%20sr_type%2C%20status%20ORDER%20BY%20sr_type%2C%20total%20DESC%20LIMIT%20100",
+        "ok": true,
+        "rows": 4,
+        "ms": 1198
+      },
+      {
+        "n": 8,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT duplicate, count(*) AS total WHERE (sr_type = 'Pothole in Street Complaint' OR sr_type = 'Alley Pothole Complaint') AND created_date >= '2026-09-06T00:00:00.000' GROUP BY duplicate LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20duplicate%2C%20count(*)%20AS%20total%20WHERE%20(sr_type%20%3D%20'Pothole%20in%20Street%20Complaint'%20OR%20sr_type%20%3D%20'Alley%20Pothole%20Complaint')%20AND%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00.000'%20GROUP%20BY%20duplicate%20LIMIT%20100",
+        "ok": true,
+        "rows": 2,
+        "ms": 499
+      }
+    ]
+  },
+  {
+    "model": "openai/gpt-5.6-luna",
+    "city": "norfolk",
+    "q": "What's on my block? I live at 810 Union St.",
+    "ms": 10750,
+    "answer": "I found the following for **810 Union Street** and the surrounding block:\n\n**Right-of-way work on the same hundred block**\n\n- **26-3483:** “Lane, and shoulder closure,” contractor **Burns & McDonnell**, from **September 14, 2026, through October 14, 2026**.\n- **26-3537:** “Lane, and sidewalk closure,” contractor **Southside Network Authority**, from **September 14, 2026, through December 31, 2026**.\n- **26-3536:** Communications cable aerial and underground installation by **Southside Network Authority**, from **September 14, 2026, through December 31, 2026**.\n- Hauling permits for **JRS Contracting Company Inc** also appear for periods ending **October 5, 2026**, and earlier dates.\n\n**Street work orders**\n\nThe report found **2 open work orders** on Union Street within Ward 4. One shown is:\n\n- **26-007269:** “Limb / Tree Down,” task “Removal,” status **“New Work Order,”** created **February 12, 2026**.\n\nOther Union Street work orders shown have status **“Complete,”** including crosswalk striping, sign replacement, traffic-pole repair, and stump grinding.\n\n**Permits and reviews on your parcel**\n\nThe parcel report found **177 permits** and **86 plan reviews**. Recent permit records include:\n\n- Electrical permit **E26-02256**, status **“Issued,”** dated **August 13, 2026**.\n- Zoning permit **ZP26-01176**, status **“Issued,”** dated **May 5, 2026**.\n- Several records with status **“Abandoned,” “Cancelled,”** or **“Withdrawn.”**\n\nThe report also found a zoning review for **STR25-00064** with status **“Approved,”** and a plan review for **ZP25-00384** with status **“Pending.”**\n\n**Complaints, code cases, and inspections**\n\n- I found **6 complaints** on the parcel. The records show statuses **“Closed,” “Closed - Unfounded,”** and **“Closed - Completed w/Notes.”**\n- I found **6 Neighborhood Quality Code Enforcement Cases**, matching those complaints.\n- I found no violations recorded for the parcel.\n- The inspections report found **281 inspections**, including one zoning-final inspection with status **“Pending.”**\n\n**Public meeting records**\n\nI found two City Council agenda records naming **810 Union Street**:\n\n- **Ordinance No. 49934**, concerning a lease agreement with **Truist Bank** for an ATM in Norfolk City Hall, listed for **April 29, 2025**.\n- **Ordinance No. 49637**, concerning the same type of lease agreement, listed for **June 25, 2024**.\n\nI found no same-block agenda matches beyond those exact-address records. The report does not show who decided these items; the legislation records would be needed for vote details.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.00263651,
+    "steps": 1,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '810' AND upper(full_street_name) like '%UNION%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'810'%20AND%20upper(full_street_name)%20like%20'%25UNION%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 560
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1437047621' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 183
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1437047621' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 142
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 219
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 238
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1437047621' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 217
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1437047621' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 374
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'UNION' AND ward = 4 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'UNION'%20AND%20ward%20%3D%204%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 231
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'UNION STREET' AND street_number >= 800 AND street_number < 900 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'UNION%20STREET'%20AND%20street_number%20%3E%3D%20800%20AND%20street_number%20%3C%20900%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 204
+      },
+      {
+        "n": 10,
+        "tool": "block report (count)",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 93
+      },
+      {
+        "n": 11,
+        "tool": "block report (count)",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 112
+      },
+      {
+        "n": 12,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'UNION' AND ward = 4) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'UNION'%20AND%20ward%20%3D%204)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 118
+      },
+      {
+        "n": 13,
+        "tool": "block report (count)",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 116
+      }
+    ]
+  },
+  {
+    "model": "openai/gpt-5.6-luna",
+    "city": "norfolk",
+    "q": "Who decided to allow a kennel at 111 Pennsylvania Ave, and did anyone vote against it?",
+    "ms": 7024,
+    "answer": "The kennel was authorized by **Ordinance No. 50452**, a conditional use permit for **111 Pennsylvania Avenue**. The record names the **Planning Department** and shows the ordinance as **“Adopted” on August 25, 2026**.\n\nThe **Planning Commission** recommended approval on June 25, 2026. The draft minutes record a **unanimous** result:\n\n- **Ayes:** Kim Sudderth, Scott Bateman, Larry Pendleton, Jeffrey F. Wells, Jake Young, and Theresa Whibley\n- **Nays:** None recorded\n- **Absent:** Lelia Vann\n\nThe **City Council** then adopted it unanimously on August 25, 2026:\n\n- **Ayes:** Kenneth Cooper Alexander, Carlos J. Clanton, Courtney R. Doyle, Mamie B. Johnson, Jeremy D. McGee, John E. Paige, Thomas R. Smigiel Jr., and Martin A. Thomas Jr.\n- **Nays:** None recorded\n- **Abstentions:** None recorded\n- **Absences:** None recorded\n\nThe vote record is from **draft minutes**.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.001282,
+    "steps": 2,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '111' AND upper(full_street_name) like '%PENNSYLVANIA%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'111'%20AND%20upper(full_street_name)%20like%20'%25PENNSYLVANIA%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 143
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1438184218' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 4,
+        "ms": 89
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1438184218' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 221
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 251
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 219
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1438184218' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 124
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1438184218' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 129
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'PENNSYLVANIA' AND ward = 2 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 251
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'PENNSYLVANIA AVENUE' AND street_number >= 100 AND street_number < 200 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'PENNSYLVANIA%20AVENUE'%20AND%20street_number%20%3E%3D%20100%20AND%20street_number%20%3C%20200%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 1,
+        "ms": 228
+      },
+      {
+        "n": 10,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'PENNSYLVANIA' AND ward = 2) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 98
+      },
+      {
+        "n": 11,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5833",
+        "ok": true,
+        "rows": null,
+        "ms": 255
+      }
+    ]
+  },
+  {
+    "model": "openai/gpt-5.6-luna",
+    "city": "norfolk",
+    "q": "What's going on at 1234 Gwaltney Way?",
+    "ms": 2824,
+    "answer": "I found no address with that number on Gwaltney Way in the city records, so I couldn’t retrieve a block report.\n\nPlease check the street name or house number and send the corrected address.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.00016706000000000002,
+    "steps": 1,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 213
+      }
+    ]
+  },
+  {
+    "model": "openai/gpt-5.6-luna",
+    "city": "chicago",
+    "q": "How many pothole complaints did Chicago get in the last 30 days?",
+    "ms": 27369,
+    "answer": "I found **4,625 pothole complaints** created in the 30-day window from **September 7 through October 6, 2026**:\n\n- **3,539** — “Pothole in Street Complaint”\n- **1,086** — “Alley Pothole Complaint”",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.00206193,
+    "steps": 4,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "search datasets",
+        "soql": "q=pothole complaints",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=pothole+complaints",
+        "ok": true,
+        "rows": 0,
+        "ms": 415
+      },
+      {
+        "n": 2,
+        "tool": "search datasets",
+        "soql": "q=311 service requests",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=311+service+requests",
+        "ok": true,
+        "rows": 10,
+        "ms": 75
+      },
+      {
+        "n": 3,
+        "tool": "describe dataset",
+        "dataset": "v6vf-nfxy",
+        "url": "https://data.cityofchicago.org/api/views/v6vf-nfxy.json",
+        "ok": true,
+        "rows": null,
+        "ms": 462
+      },
+      {
+        "n": 4,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, count(*) AS complaints WHERE created_date >= '2026-09-07T00:00:00' AND created_date < '2026-10-07T00:00:00' AND (lower(sr_type) LIKE '%pothole%' OR lower(sr_type) LIKE '%pot hole%') GROUP BY sr_type ORDER BY complaints DESC LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20count(*)%20AS%20complaints%20WHERE%20created_date%20%3E%3D%20'2026-09-07T00%3A00%3A00'%20AND%20created_date%20%3C%20'2026-10-07T00%3A00%3A00'%20AND%20(lower(sr_type)%20LIKE%20'%25pothole%25'%20OR%20lower(sr_type)%20LIKE%20'%25pot%20hole%25')%20GROUP%20BY%20sr_type%20ORDER%20BY%20complaints%20DESC%20LIMIT%20100",
+        "ok": true,
+        "rows": 2,
+        "ms": 12832
+      }
+    ]
+  },
+  {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "city": "norfolk",
+    "q": "What's on my block? I live at 810 Union St.",
+    "ms": 35917,
+    "answer": "**810 Union Street** — the records I found describe this address as Norfolk City Hall. Parcel 1437047621, Ward 4, superward 7, planning district PD 59 – Downtown.\n\n**Right now**\n\nI found two work orders on Union Street in Ward 4 still open, both Parks & Recreation urban forestry:\n- 26-007269, \"Limb / Tree Down,\" task Removal — status \"New Work Order,\" created 2026-02-12 (about 8 months ago).\n- 23-018023, \"Damaged Tree,\" task Removal — status \"New Work Order,\" created 2023-06-09 (about 3 years 4 months ago).\n\nThe work order dataset carries no house numbers, so those matched on Union Street within Ward 4, not this parcel specifically.\n\nI found one plan review still open: RVW-119714, a zoning review tied to ZP25-00384, status \"Pending,\" due date 2025-07-31. I found one inspection, INS-0029547-18, \"Zoning – Final,\" status \"Pending.\"\n\n**Right-of-way work on your hundred block**\n\nI found several permits naming street number 810 on Union Street. The active ones I see:\n- 26-3537 — Closure, lane and sidewalk closure, Southside Network Authority, 2026-09-14 to 2026-12-31.\n- 26-3536 — Right of way, communications cable aerial and underground install, Southside Network Authority, same dates.\n- 26-3483 — Closure, lane and shoulder closure, Burns & McDonnell, 2026-09-14 to 2026-10-14.\n- 26-3675 — Hauling oversize (single), JRS Contracting Company Inc, 2026-09-28 to 2026-10-05.\n\nI also found a run of earlier hauling permits from JRS Contracting during July–September 2026 and a one-day sidewalk promotion permit from the Norfolk Department of Transportation on 2026-05-15.\n\n**This parcel**\n\n- Permits: I found 177 on record. The ten most recent include ZP26-02022, POD26-0021 and B26-02412, all applied 2026-08-22 with status \"Abandoned\"; E26-02256 electrical, status \"Issued,\" 2026-08-13; B26-01884 building, \"Cancelled,\" 2026-06-29; D26-0113 demolition, \"Cancelled,\" 2026-06-10; and ZP26-01176 zoning, \"Issued,\" 2026-05-05.\n- Plan reviews: I found 86 on record, most \"Approved.\"\n- Complaints and code enforcement cases: I found 6, all closed. The most recent is C26-04324, Environmental / Wetlands Complaint, closed 2026-05-27 as \"Closed – Completed w/Notes.\"",
+    "voice": {
+      "ok": true,
+      "rewritten": true,
+      "violations": []
+    },
+    "cost": 0.0057046062,
+    "steps": 5,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '810' AND upper(full_street_name) like '%UNION%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'810'%20AND%20upper(full_street_name)%20like%20'%25UNION%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 364
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1437047621' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 163
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1437047621' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 125
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 227
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 147
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1437047621' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 541
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1437047621' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 397
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'UNION' AND ward = 4 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'UNION'%20AND%20ward%20%3D%204%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 249
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'UNION STREET' AND street_number >= 800 AND street_number < 900 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'UNION%20STREET'%20AND%20street_number%20%3E%3D%20800%20AND%20street_number%20%3C%20900%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 311
+      },
+      {
+        "n": 10,
+        "tool": "block report (count)",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 94
+      },
+      {
+        "n": 11,
+        "tool": "block report (count)",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 152
+      },
+      {
+        "n": 12,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'UNION' AND ward = 4) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'UNION'%20AND%20ward%20%3D%204)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 94
+      },
+      {
+        "n": 13,
+        "tool": "block report (count)",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 127
+      },
+      {
+        "n": 14,
+        "tool": "describe dataset",
+        "dataset": "qzfe-wj25",
+        "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+        "ok": true,
+        "rows": null,
+        "ms": 234
+      },
+      {
+        "n": 15,
+        "tool": "query",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, street, ward, department, problem_description, primary_task_description, status_description, created_datetime, start_date FROM qzfe-wj25 WHERE street = 'UNION' AND (status_code < 800 OR status_code = 941) ORDER BY created_datetime DESC LIMIT 50",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20street%2C%20ward%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20start_date%20FROM%20qzfe-wj25%20WHERE%20street%20%3D%20'UNION'%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2050",
+        "ok": false,
+        "rows": null,
+        "ms": 73,
+        "error": "HTTP 400: Could not parse SoQL query \"SELECT work_order_number, street, ward, department, problem_description, primary_task_description, status_description, created_datetime, start_date FROM qzfe-wj25 WHERE street = 'UNION' AND (status_code < 800 OR status_code = 941) ORDER BY created_datetime DESC LIMIT 50\" at line 1 character 154: Expected a table identifier, but got `qzfe'"
+      },
+      {
+        "n": 16,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5246",
+        "ok": true,
+        "rows": null,
+        "ms": 1071
+      },
+      {
+        "n": 17,
+        "tool": "query",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, street, ward, department, problem_description, primary_task_description, status_description, created_datetime, start_date WHERE street = 'UNION' AND (status_code < 800 OR status_code = 941) ORDER BY created_datetime DESC LIMIT 50",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20street%2C%20ward%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20start_date%20WHERE%20street%20%3D%20'UNION'%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2050",
+        "ok": true,
+        "rows": 2,
+        "ms": 116
+      },
+      {
+        "n": 18,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4802",
+        "ok": true,
+        "rows": null,
+        "ms": 373
+      }
+    ]
+  },
+  {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "city": "norfolk",
+    "q": "Who decided to allow a kennel at 111 Pennsylvania Ave, and did anyone vote against it?",
+    "ms": 12573,
+    "answer": "**The kennel was allowed by City Council, and nobody voted against it.**\n\nThe record is Ordinance No. 50452, \"An Ordinance Granting a Conditional Use Permit to Authorize the Operation of a Kennel on Property Located at 111 Pennsylvania Avenue.\" It is recorded with status: **Adopted**, status date Aug 25, 2026. The department I see named on it is **Planning**.\n\nTwo bodies acted on it:\n\n- **Planning Commission, June 25, 2026** — result: \"APPROVAL RECOMMENDED [UNANIMOUS]\". Ayes: Kim Sudderth, Scott Bateman, Larry Pendleton, Jeffrey F. Wells, Jake Young, Theresa Whibley. No nays, no abstentions. Lelia Vann is listed as absent.\n- **City Council, Aug 25, 2026** — result: \"ADOPTED [UNANIMOUS]\". Ayes: Kenneth Cooper Alexander, Carlos J. Clanton, Courtney R. Doyle, Mamie B. Johnson, Jeremy D. McGee, John E. Paige, Thomas R. Smigiel Jr., Martin A. Thomas Jr. No nays, no abstentions, no absences listed.\n\nSo I found no vote against it in either body — both were unanimous, and the only non-vote is the Planning Commission absence noted above. Both vote records come from minutes marked **draft**, so they can still change.\n\nTwo related records on the same parcel and same meetings:\n\n- **Ordinance No. 50451**, a rezoning of the same property (Conditional C-C and PCO-Riverview to Conditional C-C and PCO-Riverview), also adopted Aug 25, 2026 and also unanimous at both bodies. That record notes: \"The applicant, Blake Sablatura, 602 E. Bayview Boulevard, was present to answer any questions relative to this matter.\" The kennel ordinance itself names no applicant.\n- Earlier, the city-wide rules for kennels in this overlay district changed: **Ordinance No. 50368** (Council May 19, 2026) amended the zoning table to allow \"Kennel\" in the PCO-Riverview district by conditional use permit only.\n\nOne caution: the city's permit records for 111 Pennsylvania Avenue also show **ZP26-00591**, a zoning permit with status: Pending (application date Feb 27, 2026), and **B26-02679**, a building permit with status: Documents Submitted (applied Sep 22, 2026), with zoning and plan reviews still Pending with due dates in October 2026. Those statuses don't tell me whether the kennel is operating — if you want to know that, the Planning department is the contact I see recorded for the kennel ordinance.\n\nThe trace, meeting records and contacts (including Council member Courtney Doyle for ward 2 and the Colonial Place and Riverview civic league) are attached below.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.0013780494000000003,
+    "steps": 2,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '111' AND upper(full_street_name) like '%PENNSYLVANIA%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'111'%20AND%20upper(full_street_name)%20like%20'%25PENNSYLVANIA%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 519
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1438184218' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 4,
+        "ms": 183
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1438184218' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 223
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 199
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 233
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1438184218' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 224
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1438184218' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 234
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'PENNSYLVANIA' AND ward = 2 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 163
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'PENNSYLVANIA AVENUE' AND street_number >= 100 AND street_number < 200 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'PENNSYLVANIA%20AVENUE'%20AND%20street_number%20%3E%3D%20100%20AND%20street_number%20%3C%20200%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 1,
+        "ms": 259
+      },
+      {
+        "n": 10,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'PENNSYLVANIA' AND ward = 2) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 150
+      },
+      {
+        "n": 11,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5833",
+        "ok": true,
+        "rows": null,
+        "ms": 1088
+      },
+      {
+        "n": 12,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5832",
+        "ok": true,
+        "rows": null,
+        "ms": 406
+      }
+    ]
+  },
+  {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "city": "norfolk",
+    "q": "What's going on at 1234 Gwaltney Way?",
+    "ms": 25401,
+    "answer": "I couldn't find anything at 1234 Gwaltney Way, because I found no address by that name in the city's records.\n\nHere's what my searches returned:\n\n- A block report for \"1234 Gwaltney Way\" came back with no match and no nearby candidates.\n- Direct address lookups for \"1234 Gwaltney Way,\" \"1234 Gwaltney Way, Norfolk, VA,\" and \"1234 Gwaltney Wy\" each found no address with that number on that street.\n- A search of city legislation records for \"Gwaltney\" found no matches.\n\nI also checked the city's Master Address List directly. I found no street named Gwaltney at all. The closest street names my query turned up are Galt Street (no \"wney\"), and — among streets ending in \"Way\" — Galveston Way, Geneva Way, and Walsingham Way. I found no listing of any house number 1234 on a street with the suffix \"Way.\"\n\nSo either the street name or the number may be different from what I searched. If you can confirm the spelling of the street, or give me the nearest cross street or the ZIP code, I'll run it again.\n\nA couple of things to check in the meantime:\n\n- The Norfolk Master Address List classifies each address as Active, Pending, or Historical. If the address is new construction or recently renumbered, it may show as Pending, or the number may have changed. Staff who maintain that list are in the Department of Information Technology, which is the department the dataset names.\n- For an official confirmation of a mailing or 911 address, the city service line (Norfolk Cares) is the contact to use — it's in the contacts below.\n\nThe trace and downloads below show exactly what I searched.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.0026839349999999997,
+    "steps": 8,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 210
+      },
+      {
+        "n": 2,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 158
+      },
+      {
+        "n": 3,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 127
+      },
+      {
+        "n": 4,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 157
+      },
+      {
+        "n": 5,
+        "tool": "search datasets",
+        "soql": "q=street names addresses parcel",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=10&q=street+names+addresses+parcel",
+        "ok": true,
+        "rows": 10,
+        "ms": 273
+      },
+      {
+        "n": 6,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 126
+      },
+      {
+        "n": 7,
+        "tool": "describe dataset",
+        "dataset": "jagz-9a37",
+        "url": "https://data.norfolk.gov/api/views/jagz-9a37.json",
+        "ok": true,
+        "rows": null,
+        "ms": 114
+      },
+      {
+        "n": 8,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT * WHERE street_name LIKE '%GWALT%' LIMIT 20",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20*%20WHERE%20street_name%20LIKE%20'%25GWALT%25'%20LIMIT%2020",
+        "ok": true,
+        "rows": 0,
+        "ms": 116
+      },
+      {
+        "n": 9,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT DISTINCT street_name, street_suffix WHERE street_name LIKE '%GW%' ORDER BY street_name LIMIT 100",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20DISTINCT%20street_name%2C%20street_suffix%20WHERE%20street_name%20LIKE%20'%25GW%25'%20ORDER%20BY%20street_name%20LIMIT%20100",
+        "ok": true,
+        "rows": 5,
+        "ms": 990
+      },
+      {
+        "n": 10,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT DISTINCT street_name, street_suffix WHERE street_name LIKE '%WALT%' OR street_name LIKE '%WALN%' OR street_name LIKE '%ALTNEY%' ORDER BY street_name LIMIT 100",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20DISTINCT%20street_name%2C%20street_suffix%20WHERE%20street_name%20LIKE%20'%25WALT%25'%20OR%20street_name%20LIKE%20'%25WALN%25'%20OR%20street_name%20LIKE%20'%25ALTNEY%25'%20ORDER%20BY%20street_name%20LIMIT%20100",
+        "ok": true,
+        "rows": 5,
+        "ms": 161
+      },
+      {
+        "n": 11,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT DISTINCT street_name, street_suffix WHERE street_suffix = 'WAY' ORDER BY street_name LIMIT 200",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20DISTINCT%20street_name%2C%20street_suffix%20WHERE%20street_suffix%20%3D%20'WAY'%20ORDER%20BY%20street_name%20LIMIT%20200",
+        "ok": true,
+        "rows": 26,
+        "ms": 136
+      },
+      {
+        "n": 12,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT DISTINCT street_name, street_suffix WHERE street_name LIKE '%GWALTNEY%' OR street_name LIKE '%GWAL%' OR street_name LIKE '%GALT%' ORDER BY street_name LIMIT 100",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20DISTINCT%20street_name%2C%20street_suffix%20WHERE%20street_name%20LIKE%20'%25GWALTNEY%25'%20OR%20street_name%20LIKE%20'%25GWAL%25'%20OR%20street_name%20LIKE%20'%25GALT%25'%20ORDER%20BY%20street_name%20LIMIT%20100",
+        "ok": true,
+        "rows": 1,
+        "ms": 130
+      },
+      {
+        "n": 13,
+        "tool": "query",
+        "dataset": "jagz-9a37",
+        "soql": "SELECT full_address, address_status, zip_code WHERE house_number = 1234 AND street_suffix = 'WAY' ORDER BY street_name LIMIT 100",
+        "url": "https://data.norfolk.gov/resource/jagz-9a37.json?$query=SELECT%20full_address%2C%20address_status%2C%20zip_code%20WHERE%20house_number%20%3D%201234%20AND%20street_suffix%20%3D%20'WAY'%20ORDER%20BY%20street_name%20LIMIT%20100",
+        "ok": true,
+        "rows": 0,
+        "ms": 134
+      }
+    ]
+  },
+  {
+    "model": "deepseek/deepseek-v4.1-flash",
+    "city": "chicago",
+    "q": "How many pothole complaints did Chicago get in the last 30 days?",
+    "ms": 32030,
+    "answer": "**4,693 pothole service requests** in the 311 data, for records created 2026-09-06 through 2026-10-05 (the most recent one I found is dated 2026-10-05 at 14:26).\n\nSplit by the type the city records:\n\n| Request type | Count | Status: Open | Status: Completed |\n|---|---|---|---|\n| Pothole in Street Complaint | 3,591 | 2,489 | 1,102 |\n| Alley Pothole Complaint | 1,102 | 859 | 243 |\n\nTwo notes on that number:\n\n- The dataset has a column flagging duplicates. Of these, 1,729 are marked duplicate = true (1,363 street, 366 alley), leaving 2,964 marked duplicate = false.\n- I used a 30-day window from today, 2026-10-06, back to 2026-09-06.\n\nStatuses are quoted as the city records them (\"Open\", \"Completed\"); I found no explanation in the dataset of what each status means in practice. If you need the counts for a different window, per ward, or broken out by closing time, the full download and the query link are in the trace below. For a specific street or address, the city service line can check the request directly.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.0022164608,
+    "steps": 5,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "search datasets",
+        "soql": "q=pothole complaints",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=pothole+complaints",
+        "ok": true,
+        "rows": 0,
+        "ms": 222
+      },
+      {
+        "n": 2,
+        "tool": "search datasets",
+        "soql": "q=pot hole 311 service requests",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=pot+hole+311+service+requests",
+        "ok": true,
+        "rows": 10,
+        "ms": 96
+      },
+      {
+        "n": 3,
+        "tool": "describe dataset",
+        "dataset": "v6vf-nfxy",
+        "url": "https://data.cityofchicago.org/api/views/v6vf-nfxy.json",
+        "ok": true,
+        "rows": null,
+        "ms": 139
+      },
+      {
+        "n": 4,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, count(*) AS n WHERE created_date >= '2026-09-06T00:00:00' AND (upper(sr_type) LIKE '%POTHOLE%' OR upper(sr_type) LIKE '%POT HOLE%') GROUP BY sr_type ORDER BY n DESC LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20count(*)%20AS%20n%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20(upper(sr_type)%20LIKE%20'%25POTHOLE%25'%20OR%20upper(sr_type)%20LIKE%20'%25POT%20HOLE%25')%20GROUP%20BY%20sr_type%20ORDER%20BY%20n%20DESC%20LIMIT%20100",
+        "ok": true,
+        "rows": 2,
+        "ms": 11193
+      },
+      {
+        "n": 5,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, status, count(*) AS n WHERE created_date >= '2026-09-06T00:00:00' AND created_date < '2026-10-07T00:00:00' AND (upper(sr_type) LIKE '%POTHOLE%' OR upper(sr_type) LIKE '%POT HOLE%') GROUP BY sr_type, status ORDER BY n DESC LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20status%2C%20count(*)%20AS%20n%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20created_date%20%3C%20'2026-10-07T00%3A00%3A00'%20AND%20(upper(sr_type)%20LIKE%20'%25POTHOLE%25'%20OR%20upper(sr_type)%20LIKE%20'%25POT%20HOLE%25')%20GROUP%20BY%20sr_type%2C%20status%20ORDER%20BY%20n%20DESC%20LIMIT%20100",
+        "ok": true,
+        "rows": 4,
+        "ms": 4969
+      },
+      {
+        "n": 6,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT max(created_date) AS latest WHERE created_date >= '2026-09-06T00:00:00' AND (upper(sr_type) LIKE '%POTHOLE%' OR upper(sr_type) LIKE '%POT HOLE%') LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20max(created_date)%20AS%20latest%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20(upper(sr_type)%20LIKE%20'%25POTHOLE%25'%20OR%20upper(sr_type)%20LIKE%20'%25POT%20HOLE%25')%20LIMIT%20100",
+        "ok": true,
+        "rows": 1,
+        "ms": 114
+      },
+      {
+        "n": 7,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, duplicate, count(*) AS n WHERE created_date >= '2026-09-06T00:00:00' AND (upper(sr_type) LIKE '%POTHOLE%' OR upper(sr_type) LIKE '%POT HOLE%') GROUP BY sr_type, duplicate LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20duplicate%2C%20count(*)%20AS%20n%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20(upper(sr_type)%20LIKE%20'%25POTHOLE%25'%20OR%20upper(sr_type)%20LIKE%20'%25POT%20HOLE%25')%20GROUP%20BY%20sr_type%2C%20duplicate%20LIMIT%20100",
+        "ok": true,
+        "rows": 4,
+        "ms": 953
+      }
+    ]
+  },
+  {
+    "model": "anthropic/claude-sonnet-5.5",
+    "city": "norfolk",
+    "q": "What's on my block? I live at 810 Union St.",
+    "ms": 12566,
+    "answer": "The records I found list 810 Union Street as Norfolk City Hall. The two council ordinances below name it that way, so what follows is mostly activity at City Hall and on its block. You're in Ward 4 (Council member John E. \"JP\" Paige) and Superward 7 (Carlos J. Clanton). The contacts are below.\n\n**Street work in the right of way (this hundred block of Union St)**\n- I see three permits that are still running as of today:\n  - 26-3483 is a lane and shoulder closure by Burns & McDonnell, Sept 14 to Oct 14, 2026.\n  - 26-3537 is a lane and sidewalk closure by Southside Network Authority, Sept 14 to Dec 31, 2026.\n  - 26-3536 is a communications cable install by Southside Network Authority, Sept 14 to Dec 31, 2026.\n- I also found a series of weekly oversize hauling permits for JRS Contracting Company Inc. The latest, 26-3675, ran Sept 28 to Oct 5, so it appears to have ended yesterday.\n\n**Work orders (this street in Ward 4; these records have no house numbers)**\n- The report counts 2 open work orders but showed me only 10 of the results, and I can see just one of the open ones. It is 26-007269, \"Limb / Tree Down\" (Forestry), status: New Work Order. It was created Feb 12, 2026, which is about 236 days ago. I found no end date on it.\n- The other recent ones I can see are traffic signs, striping and crosswalk work. All have status: Complete.\n\n**Permits (this parcel)**\n- I found 177 permits on this parcel and the report showed the 10 newest.\n- Several from July and August 2026 have status: Abandoned. These are a zoning permit, a portable storage unit permit and two building permits.\n- An electrical permit (E26-02256) has status: Issued (Aug 13, 2026).\n- A demolition permit (D26-0113) has status: Cancelled.\n- I can't tell from the records why these were abandoned or cancelled.\n\n**Complaints and violations (this parcel)**\n- I found 6 complaints, all closed. The latest two are from May 2026: a wetlands complaint (status: Closed - Completed w/Notes) and a trash and debris complaint (status: Closed - Unfounded).\n- I found no violations on this parcel.\n\n**Council votes naming this address**\n- Ordinance No. 49934 (City Council, April 29, 2025) approved a lease with Truist Bank for an ATM inside City Hall. An earlier ordinance, No. 49637 (June 25, 2024), has the same title.\n- I haven't read the vote records. I can pull who voted how if you want.\n\n**Where to go from here**\n- For the street closures or the tree work order, use the city service line.\n- For anything you want decided or changed, contact Council member Paige. His link is in the contacts below.\n- The trace and downloads below have the full lists, including the older permits and inspections.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.039335999999999996,
+    "steps": 1,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '810' AND upper(full_street_name) like '%UNION%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'810'%20AND%20upper(full_street_name)%20like%20'%25UNION%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 272
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1437047621' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 122
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1437047621' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 118
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 108
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1437047621' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 111
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1437047621' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 117
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1437047621' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1437047621'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 112
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'UNION' AND ward = 4 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'UNION'%20AND%20ward%20%3D%204%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 95
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'UNION STREET' AND street_number >= 800 AND street_number < 900 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'UNION%20STREET'%20AND%20street_number%20%3E%3D%20800%20AND%20street_number%20%3C%20900%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 224
+      },
+      {
+        "n": 10,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'UNION' AND ward = 4) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'UNION'%20AND%20ward%20%3D%204)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 111
+      },
+      {
+        "n": 11,
+        "tool": "block report (count)",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 146
+      },
+      {
+        "n": 12,
+        "tool": "block report (count)",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 109
+      },
+      {
+        "n": 13,
+        "tool": "block report (count)",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT count(*) AS n WHERE gpin = '1437047621' LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20gpin%20%3D%20'1437047621'%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 119
+      }
+    ]
+  },
+  {
+    "model": "anthropic/claude-sonnet-5.5",
+    "city": "norfolk",
+    "q": "Who decided to allow a kennel at 111 Pennsylvania Ave, and did anyone vote against it?",
+    "ms": 9969,
+    "answer": "Nobody voted against it. The record I found shows Ordinance No. 50452, \"Granting a Conditional Use Permit to Authorize the Operation of a Kennel on Property Located at 111 Pennsylvania Avenue.\" Its status is Adopted, dated Aug 25, 2026. The Planning department brought it. Both votes below come from draft minutes.\n\n**Planning Commission, Jun 25, 2026 (public hearing)**\n- Result: \"APPROVAL RECOMMENDED [UNANIMOUS]\". This was a recommendation to Council.\n- Ayes: Kim Sudderth, Scott Bateman, Larry Pendleton, Jeffrey F. Wells, Jake Young, Theresa Whibley.\n- Nays: none recorded.\n- Absent: Lelia Vann.\n\n**City Council, Aug 25, 2026 (formal session)**\n- Result: \"ADOPTED [UNANIMOUS]\".\n- Ayes: Kenneth Cooper Alexander, Carlos J. Clanton, Courtney R. Doyle, Mamie B. Johnson, Jeremy D. McGee, John E. Paige, Thomas R. Smigiel Jr., Martin A. Thomas Jr.\n- Nays, abstentions and absences: none recorded.\n\nI also found a related item, Ordinance No. 50451. It rezones the same property from conditional C-C and PCO-Riverview to conditional C-C and PCO-Riverview. It went to the same two meetings, but I didn't read its vote record.\n\nFor the permits on this parcel, I found a zoning permit, ZP26-00591, with status: Pending. I can't tell from the records whether it relates to the kennel. I also found a building permit, B26-02679, with status: Documents Submitted. I didn't query what either permit covers.\n\nTo ask about the decision, the contacts below include Ward 2 Councilmember Courtney Doyle and the Colonial Place and Riverview civic league president.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.042704,
+    "steps": 2,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '111' AND upper(full_street_name) like '%PENNSYLVANIA%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'111'%20AND%20upper(full_street_name)%20like%20'%25PENNSYLVANIA%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 1,
+        "ms": 128
+      },
+      {
+        "n": 2,
+        "tool": "block report",
+        "dataset": "fahm-yuh4",
+        "soql": "SELECT permit_number, type, work_type, status, application_date, issue_date, finaled_date, project_cost WHERE gpin = '1438184218' ORDER BY application_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/fahm-yuh4.json?$query=SELECT%20permit_number%2C%20type%2C%20work_type%2C%20status%2C%20application_date%2C%20issue_date%2C%20finaled_date%2C%20project_cost%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20application_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 4,
+        "ms": 140
+      },
+      {
+        "n": 3,
+        "tool": "block report",
+        "dataset": "dhk3-hr4y",
+        "soql": "SELECT review_number, permit_or_land_use_application, type, status, due_date, completed_date WHERE gpin = '1438184218' ORDER BY review_number DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/dhk3-hr4y.json?$query=SELECT%20review_number%2C%20permit_or_land_use_application%2C%20type%2C%20status%2C%20due_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20review_number%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 6,
+        "ms": 111
+      },
+      {
+        "n": 4,
+        "tool": "block report",
+        "dataset": "m9m3-wk2s",
+        "soql": "SELECT complaint_id, type, subtype, status, created_date, closed_date, department_responsible WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/m9m3-wk2s.json?$query=SELECT%20complaint_id%2C%20type%2C%20subtype%2C%20status%2C%20created_date%2C%20closed_date%2C%20department_responsible%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 121
+      },
+      {
+        "n": 5,
+        "tool": "block report",
+        "dataset": "agip-sqwc",
+        "soql": "SELECT violation_id, ordinance, status, department, created_date, corrected_date WHERE gpin = '1438184218' ORDER BY created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/agip-sqwc.json?$query=SELECT%20violation_id%2C%20ordinance%2C%20status%2C%20department%2C%20created_date%2C%20corrected_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 131
+      },
+      {
+        "n": 6,
+        "tool": "block report",
+        "dataset": "mxtv-99gh",
+        "soql": "SELECT complaint_type, complaint_subtype, complaint_status, violation_ordinance, violation_status, complaint_created_date WHERE gpin = '1438184218' ORDER BY complaint_created_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mxtv-99gh.json?$query=SELECT%20complaint_type%2C%20complaint_subtype%2C%20complaint_status%2C%20violation_ordinance%2C%20violation_status%2C%20complaint_created_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20complaint_created_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 118
+      },
+      {
+        "n": 7,
+        "tool": "block report",
+        "dataset": "ihzr-5x5n",
+        "soql": "SELECT inspection_number, type, status, permit_number, complaint_number, requested_date, completed_date WHERE gpin = '1438184218' ORDER BY requested_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/ihzr-5x5n.json?$query=SELECT%20inspection_number%2C%20type%2C%20status%2C%20permit_number%2C%20complaint_number%2C%20requested_date%2C%20completed_date%20WHERE%20gpin%20%3D%20'1438184218'%20ORDER%20BY%20requested_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 0,
+        "ms": 115
+      },
+      {
+        "n": 8,
+        "tool": "block report",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT work_order_number, area, department, problem_description, primary_task_description, status_description, created_datetime, end_date WHERE street = 'PENNSYLVANIA' AND ward = 2 ORDER BY created_datetime DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20work_order_number%2C%20area%2C%20department%2C%20problem_description%2C%20primary_task_description%2C%20status_description%2C%20created_datetime%2C%20end_date%20WHERE%20street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202%20ORDER%20BY%20created_datetime%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 10,
+        "ms": 107
+      },
+      {
+        "n": 9,
+        "tool": "block report",
+        "dataset": "mi4h-8pn3",
+        "soql": "SELECT permit_number, type, permit_kind, street_number, street, contractor, start_date, end_date WHERE upper(street) = 'PENNSYLVANIA AVENUE' AND street_number >= 100 AND street_number < 200 ORDER BY start_date DESC LIMIT 10",
+        "url": "https://data.norfolk.gov/resource/mi4h-8pn3.json?$query=SELECT%20permit_number%2C%20type%2C%20permit_kind%2C%20street_number%2C%20street%2C%20contractor%2C%20start_date%2C%20end_date%20WHERE%20upper(street)%20%3D%20'PENNSYLVANIA%20AVENUE'%20AND%20street_number%20%3E%3D%20100%20AND%20street_number%20%3C%20200%20ORDER%20BY%20start_date%20DESC%20LIMIT%2010",
+        "ok": true,
+        "rows": 1,
+        "ms": 119
+      },
+      {
+        "n": 10,
+        "tool": "block report (open count)",
+        "dataset": "qzfe-wj25",
+        "soql": "SELECT count(*) AS n WHERE (street = 'PENNSYLVANIA' AND ward = 2) AND (status_code < 800 OR status_code = 941) LIMIT 1",
+        "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20(street%20%3D%20'PENNSYLVANIA'%20AND%20ward%20%3D%202)%20AND%20(status_code%20%3C%20800%20OR%20status_code%20%3D%20941)%20LIMIT%201",
+        "ok": true,
+        "rows": 1,
+        "ms": 115
+      },
+      {
+        "n": 11,
+        "tool": "read legislative record",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5833",
+        "ok": true,
+        "rows": null,
+        "ms": 320
+      }
+    ]
+  },
+  {
+    "model": "anthropic/claude-sonnet-5.5",
+    "city": "norfolk",
+    "q": "What's going on at 1234 Gwaltney Way?",
+    "ms": 8199,
+    "answer": "I found no address matching \"1234 Gwaltney Way\". I checked in two places, the block report and the address lookup, and both came back empty with no similar addresses suggested. I also searched meeting agenda titles for \"Gwaltney\" and found nothing.\n\nThis could mean a typo in the street name or number. It could also mean the address isn't in the city's records under that spelling. I can't tell which from these results.\n\n- Can you check the spelling, or tell me a nearby cross street? If you have a different house number or street suffix (Street, Road, Avenue), I'll try that.\n- If you aren't sure the address is in Norfolk, the city service line can confirm it.\n\nOnce I have an address that matches, I'll look up permits, complaints, work orders and agenda items for the parcel and its block.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.020718,
+    "steps": 2,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 130
+      },
+      {
+        "n": 2,
+        "tool": "look up address",
+        "dataset": "ere7-kake",
+        "soql": "SELECT * WHERE house_number = '1234' AND upper(full_street_name) like '%GWALTNEY%' LIMIT 25",
+        "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20*%20WHERE%20house_number%20%3D%20'1234'%20AND%20upper(full_street_name)%20like%20'%25GWALTNEY%25'%20LIMIT%2025",
+        "ok": true,
+        "rows": 0,
+        "ms": 128
+      }
+    ]
+  },
+  {
+    "model": "anthropic/claude-sonnet-5.5",
+    "city": "chicago",
+    "q": "How many pothole complaints did Chicago get in the last 30 days?",
+    "ms": 337783,
+    "answer": "I found 4,693 pothole complaints in the 311 data for the 30 days from 2026-09-06 through 2026-10-05, the latest I see in the data.\n\n| Type | Total | Marked duplicate | Not marked duplicate |\n|---|---|---|---|\n| Pothole in Street Complaint | 3,591 | 1,363 | 2,228 |\n| Alley Pothole Complaint | 1,102 | 366 | 736 |\n| **Both** | **4,693** | **1,729** | **2,964** |\n\nThe city's 311 data has a \"duplicate\" flag on each request. If you only want requests not flagged as duplicates, I found 2,964. I don't know how the city decides which requests to flag.\n\nI counted only the two request types with \"pothole\" in their names. I didn't check whether other request types cover potholes. The latest request I see is from 2026-10-05, so the data may not yet include everything from the last day or so.\n\nThe trace below has the exact queries. The CSV download has the full 311 dataset if you want to break the numbers down by ward or by day.",
+    "voice": {
+      "ok": true,
+      "rewritten": false,
+      "violations": []
+    },
+    "cost": 0.06500600000000001,
+    "steps": 5,
+    "trace": [
+      {
+        "n": 1,
+        "tool": "search datasets",
+        "soql": "q=pothole 311 service requests",
+        "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.cityofchicago.org&only=dataset&limit=10&q=pothole+311+service+requests",
+        "ok": true,
+        "rows": 10,
+        "ms": 312
+      },
+      {
+        "n": 2,
+        "tool": "describe dataset",
+        "dataset": "v6vf-nfxy",
+        "url": "https://data.cityofchicago.org/api/views/v6vf-nfxy.json",
+        "ok": true,
+        "rows": null,
+        "ms": 331
+      },
+      {
+        "n": 3,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, sr_short_code, count(*) AS n WHERE created_date >= '2026-09-06T00:00:00' AND upper(sr_type) LIKE '%POT%' GROUP BY sr_type, sr_short_code LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20sr_short_code%2C%20count(*)%20AS%20n%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20upper(sr_type)%20LIKE%20'%25POT%25'%20GROUP%20BY%20sr_type%2C%20sr_short_code%20LIMIT%20100",
+        "ok": false,
+        "rows": null,
+        "ms": 300678,
+        "error": "fetch failed"
+      },
+      {
+        "n": 4,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_type, sr_short_code, count(*) AS n WHERE created_date >= '2026-09-06T00:00:00' AND upper(sr_type) LIKE '%POT%' GROUP BY sr_type, sr_short_code LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_type%2C%20sr_short_code%2C%20count(*)%20AS%20n%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20upper(sr_type)%20LIKE%20'%25POT%25'%20GROUP%20BY%20sr_type%2C%20sr_short_code%20LIMIT%20100",
+        "ok": true,
+        "rows": 2,
+        "ms": 20982
+      },
+      {
+        "n": 5,
+        "tool": "query",
+        "dataset": "v6vf-nfxy",
+        "soql": "SELECT sr_short_code, duplicate, count(*) AS n, min(created_date) AS first_created, max(created_date) AS last_created WHERE created_date >= '2026-09-06T00:00:00' AND sr_short_code in ('PHB','PHF') GROUP BY sr_short_code, duplicate LIMIT 100",
+        "url": "https://data.cityofchicago.org/resource/v6vf-nfxy.json?$query=SELECT%20sr_short_code%2C%20duplicate%2C%20count(*)%20AS%20n%2C%20min(created_date)%20AS%20first_created%2C%20max(created_date)%20AS%20last_created%20WHERE%20created_date%20%3E%3D%20'2026-09-06T00%3A00%3A00'%20AND%20sr_short_code%20in%20('PHB'%2C'PHF')%20GROUP%20BY%20sr_short_code%2C%20duplicate%20LIMIT%20100",
+        "ok": true,
+        "rows": 4,
+        "ms": 1756
+      }
+    ]
+  }
+]
