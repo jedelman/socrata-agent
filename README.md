@@ -140,6 +140,15 @@ The worked example is a Norfolk sponge-city deployment. Its plugin,
 node bin/socrata-agent.js ask "Does my block flood?" --config deployments/sponge-city-norfolk.config.js
 ```
 
+The deployment also carries a city-wide **sponge-city screen**: where rain
+gardens, bioswales and trees would do the most good. It ranks city-owned vacant
+lots by recorded flooding, rain-caused flood claims, tree loss and income, then
+checks the top candidates on five things: flood zone, storm surge, soils, nearby
+drains, and existing stormwater projects. Bioswale candidates are ranked by
+street. Read the [report](docs/sponge-screen-norfolk.md); rebuild it with
+`node scripts/build-sponge-screen.js` (about 680 traced queries). The
+`sponge_site_screen` plugin serves the results to the agent.
+
 For groups, the web app can sit behind Cloudflare Access, which counts limits
 per verified person. The Worker checks the signed token; it never trusts the
 email header. See [docs/extending.md](docs/extending.md) and

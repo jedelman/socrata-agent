@@ -41,6 +41,9 @@ generic mode.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
+- `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
+  built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
+  It only ever carries public owners' names (city, NRHA, EDA).
 
 ## Checks before pushing
 

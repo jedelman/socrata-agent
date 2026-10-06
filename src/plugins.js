@@ -4,7 +4,8 @@
 // A plugin tool is { name, description, parameters, cities?, run(ctx, args) }.
 // `run` gets a context with:
 //   ctx.city, ctx.socrata (traced), ctx.resources, ctx.lookupAddress(address),
-//   ctx.http.json(url, info) / ctx.http.text(url, info)  (traced)
+//   ctx.http.json(url, info) / ctx.http.text(url, info)  (traced),
+//   ctx.cite({ tool, url, rows, note })  (a traced step with no request)
 // It never gets a raw fetch. The voice check, dataset exclusions and the
 // trace stay in core, so a plugin or a custom prompt can't turn them off.
 // test/conformance.js checks a plugin against fakes before it is upstreamed.
@@ -61,6 +62,10 @@ export function pluginContext(ctx) {
     resources: ctx.resources,
     http: ctx.http,
     lookupAddress: (address) => lookupAddress(ctx, address),
+    // Record a step that didn't hit the network, such as reading a prebuilt
+    // file, so the trace still shows where an answer came from.
+    cite: ({ tool, url, rows = null, note }) =>
+      ctx.trace.record({ tool, url, ...(note ? { soql: note } : {}) }, async () => ({ result: null, rows })),
   });
 }
 

@@ -120,3 +120,17 @@ test('plugin HTTP identifies itself and is traced', async () => {
   assert.equal(trace.steps[0].tool, 'fema');
   await assert.rejects(http.json('http://insecure.example/x'), /only fetch https/);
 });
+
+test('sponge_site_screen serves the prebuilt screen with provenance', async () => {
+  const { default: screenPlugin } = await import('../plugins/sponge-site-screen.js');
+  const { result, trace, resources } = await checkPlugin(screenPlugin, { city: norfolk, args: { intervention: 'rain_garden', limit: 5, include_ruled_out: true }, respond });
+  assert.match(result.built_by, /not a City of Norfolk analysis/);
+  assert.ok(result.sites.length > 0 && result.sites.every((s) => s.verdict.ok));
+  assert.ok(result.ruled_out.every((s) => !s.verdict.ok));
+  assert.equal(trace[0].tool, 'read sponge-city screen');
+  assert.match(trace[0].soql, /from \d+ queries/);
+  assert.ok(resources.links.some((l) => l.url.endsWith('docs/sponge-screen-norfolk.md')));
+  for (const s of result.sites) assert.match(s.owner, /^(City Of Norfolk|Norfolk Redevelopment|Economic Dev)/i);
+  const swales = await checkPlugin(screenPlugin, { city: norfolk, args: { intervention: 'bioswale', civic_league: 'crossroads' }, respond });
+  assert.ok(swales.result.streets.every((s) => /crossroads/i.test(s.civic_league)));
+});
