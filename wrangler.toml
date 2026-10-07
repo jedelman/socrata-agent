@@ -30,3 +30,31 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put OPENROUTER_API_KEY
 #   npx wrangler secret put IP_SALT            # any random string
 #   npx wrangler secret put SOCRATA_APP_TOKEN  # optional
+
+# Siren: the public deployment at jason-edelman.org/ask-siren.
+# A route runs before the site's Custom Domain, so only this path reaches this
+# Worker; the rest of jason-edelman.org is untouched.
+#   npx wrangler kv namespace create LIMITS --env siren   # paste the id below
+#   npx wrangler secret put OPENROUTER_API_KEY --env siren
+#   npx wrangler secret put IP_SALT --env siren
+#   npx wrangler deploy --env siren
+[env.siren]
+name = "siren"
+account_id = "543fde7feabd0af945bfae926ceea7ad"
+routes = [
+  { pattern = "jason-edelman.org/ask-siren", zone_name = "jason-edelman.org" },
+  { pattern = "jason-edelman.org/ask-siren/*", zone_name = "jason-edelman.org" },
+]
+
+[env.siren.vars]
+DEPLOYMENT = "siren"
+BASE_PATH = "/ask-siren"
+MODEL = "openai/gpt-5.6-luna"
+PER_IP_DAILY = "20"
+DAILY_BUDGET_USD = "2"
+MAX_STEPS = "6"
+MAX_TOKENS = "1200"
+
+# [[env.siren.kv_namespaces]]
+# binding = "LIMITS"
+# id = "<paste id>"

@@ -43,7 +43,13 @@ export function tracedHttp(trace, fetchImpl) {
       if (!/^https:\/\//.test(url)) throw new Error('Plugins may only fetch https URLs.');
       // Some public servers (FEMA's flood maps among them) refuse requests with
       // no User-Agent, which is what Cloudflare Workers send by default.
-      const res = await doFetch(url, { headers: { 'User-Agent': USER_AGENT, ...(info?.headers || {}) } });
+      const init = { headers: { 'User-Agent': USER_AGENT, ...(info?.headers || {}) } };
+      let res = await doFetch(url, init);
+      // One retry on a server error: FEMA's map service times out now and then.
+      if (res.status >= 500) {
+        await new Promise((r) => setTimeout(r, info?.retryDelayMs ?? 1000));
+        res = await doFetch(url, init);
+      }
       const body = await res.text();
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${body.slice(0, 200)}`);
       const result = parse(body);
@@ -58,7 +64,13 @@ export function tracedHttp(trace, fetchImpl) {
 export function pluginContext(ctx) {
   return Object.freeze({
     city: ctx.city,
-    socrata: ctx.socrata,
+    // A plugin's dataset `name` is a display label only: the real name is
+    // always looked up for the exclusion check.
+    socrata: Object.freeze({
+      query: (id, soql, opts = {}) => ctx.socrata.query(id, soql, { tool: opts.tool, label: opts.name }),
+      describe: (id) => ctx.socrata.describe(id),
+      searchCatalog: (q, limit) => ctx.socrata.searchCatalog(q, limit),
+    }),
     resources: ctx.resources,
     http: ctx.http,
     lookupAddress: (address) => lookupAddress(ctx, address),

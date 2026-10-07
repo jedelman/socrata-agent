@@ -33,8 +33,10 @@ OPENROUTER_API_KEY=... node bin/socrata-agent.js ask "Does my street flood?" --c
 node bin/socrata-agent.js tool water_on_my_block '{"address":"111 Pennsylvania Ave"}' --config deployments/our-group.config.js
 ```
 
-For the web app, point `worker/deployment.js` at your file and deploy. A
-deployment's `city` takes precedence over the `CITIES` setting.
+For the web app, add your file to `deployments/index.js` and set the Worker's
+`DEPLOYMENT` var to its name (see `[env.siren]` in `wrangler.toml` for a full
+example, including serving under a path on an existing site with `BASE_PATH`).
+A deployment's `city` takes precedence over the `CITIES` setting.
 
 **What a config can do:** add tools, contacts, links and exclusions, and give
 the agent focus notes. Notes go into the prompt *after* the rules, marked as
