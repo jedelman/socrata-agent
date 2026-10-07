@@ -64,7 +64,13 @@ export function tracedHttp(trace, fetchImpl) {
 export function pluginContext(ctx) {
   return Object.freeze({
     city: ctx.city,
-    socrata: ctx.socrata,
+    // A plugin's dataset `name` is a display label only: the real name is
+    // always looked up for the exclusion check.
+    socrata: Object.freeze({
+      query: (id, soql, opts = {}) => ctx.socrata.query(id, soql, { tool: opts.tool, label: opts.name }),
+      describe: (id) => ctx.socrata.describe(id),
+      searchCatalog: (q, limit) => ctx.socrata.searchCatalog(q, limit),
+    }),
     resources: ctx.resources,
     http: ctx.http,
     lookupAddress: (address) => lookupAddress(ctx, address),

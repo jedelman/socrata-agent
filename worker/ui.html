@@ -169,8 +169,8 @@ html[data-skin="siren"] {
   </footer>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
 <script>
 const LOADING = document.documentElement.dataset.loading || 'Looking it up. This usually takes 10 to 30 seconds';
 const EXAMPLES = {
@@ -180,6 +180,8 @@ const EXAMPLES = {
 };
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+// Links come from city data, configs and plugins: allow only web links.
+const link = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '#');
 const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || '')) : `<p>${esc(s)}</p>`);
 let history = [];
 let cities = [];
@@ -206,22 +208,22 @@ $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKe
 function renderResources(r) {
   const parts = [];
   if (r.contacts?.length) {
-    parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${esc(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
+    parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${link(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
   if (r.records?.length) {
-    parts.push(`<details><summary>Public records <small>(${r.records.length})</small></summary><ul class="plain">${r.records.map((x) => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
+    parts.push(`<details><summary>Public records <small>(${r.records.length})</small></summary><ul class="plain">${r.records.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
   }
   if (r.datasets?.length) {
-    parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${esc(d.page)}" target="_blank" rel="noopener">dataset page</a><a href="${esc(d.csv)}">full CSV</a>${(d.queries || []).map((q, i) => `<a href="${esc(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${esc(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
+    parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${link(d.page)}" target="_blank" rel="noopener">dataset page</a><a href="${link(d.csv)}">full CSV</a>${(d.queries || []).map((q, i) => `<a href="${link(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${link(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
   }
   if (r.links?.length) {
-    parts.push(`<details><summary>Go further</summary><ul class="plain">${r.links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></li>`).join('')}</ul></details>`);
+    parts.push(`<details><summary>Go further</summary><ul class="plain">${r.links.map((l) => `<li><a href="${link(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></li>`).join('')}</ul></details>`);
   }
   return parts.join('');
 }
 function renderTrace(t) {
   if (!t?.length) return '';
-  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${esc(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
+  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
 }
 
 $('#f').addEventListener('submit', async (e) => {

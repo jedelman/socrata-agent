@@ -17,6 +17,7 @@ import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
+import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -52,7 +53,7 @@ function allowedCities(env) {
   return ids.filter((id) => cities[id]);
 }
 
-async function handleAsk(req, env) {
+async function handleAsk(req, env, ctx) {
   const { config: deployment, plugins } = getDeployment(env);
   let body;
   try {
@@ -77,32 +78,35 @@ async function handleAsk(req, env) {
   }
   if (!env.OPENROUTER_API_KEY) return json({ error: 'This site is not configured yet (no model key).' }, 503);
   const day = today();
-  const budget = Number(env.DAILY_BUDGET_USD || 2);
+  const budget = setting(env.DAILY_BUDGET_USD, 2);
   // Behind Cloudflare Access, count per verified person; otherwise per hashed IP.
   let who;
   if (env.ACCESS_TEAM_DOMAIN) {
     try {
       const { email } = await verifyAccess(req, env);
-      who = { key: `user:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${email}`)).slice(0, 32)}`, limit: Number(env.PER_USER_DAILY || 40), kind: 'person' };
+      who = { key: `user:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${email}`)).slice(0, 32)}`, limit: setting(env.PER_USER_DAILY, 40), kind: 'person' };
     } catch (err) {
       return json({ error: 'Sign in through this site\'s access page first.', detail: err.message }, 401);
     }
   } else {
-    const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
-    who = { key: `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${ip}`)).slice(0, 32)}`, limit: Number(env.PER_IP_DAILY || 20), kind: 'visitor' };
+    const id = visitorId(req.headers.get('CF-Connecting-IP'));
+    who = { key: `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${id}`)).slice(0, 32)}`, limit: setting(env.PER_IP_DAILY, 20), kind: 'visitor' };
   }
   const ipKey = who.key;
   if (kv) {
-    const [used, spent] = await Promise.all([kv.get(ipKey), kv.get(`spend:${day}`)]);
+    const [used, spent] = await Promise.all([kv.get(ipKey), spentToday(kv, day)]);
     if (Number(used || 0) >= who.limit) {
       return json({ error: `You've asked ${who.limit} questions today, the limit for this site. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
     }
-    if (Number(spent || 0) / 1e6 >= budget) {
+    if (spent >= budget) {
       return json({ error: "Today's shared budget for this free site is used up. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.", limit: 'budget' }, 503);
     }
     await kv.put(ipKey, String(Number(used || 0) + 1), { expirationTtl: 172800 });
   }
 
+  // Every paid call is counted as it happens, so spend is recorded even when a
+  // later step fails or the visitor leaves; the write runs after the response.
+  let cost = 0;
   try {
     const out = await ask({
       question,
@@ -113,19 +117,23 @@ async function handleAsk(req, env) {
       apiKey: env.OPENROUTER_API_KEY,
       appToken: env.SOCRATA_APP_TOKEN,
       model: env.MODEL || deployment.model,
-      maxSteps: Number(env.MAX_STEPS || 6),
-      maxTokens: Number(env.MAX_TOKENS || 1200),
+      maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
+      maxTokens: setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
       referer: new URL(req.url).origin,
+      onCost: (usd) => {
+        cost += usd;
+      },
     });
-    if (kv && out.cost) {
-      const key = `spend:${day}`;
-      const spent = Number((await kv.get(key)) || 0);
-      await kv.put(key, String(spent + Math.round(out.cost * 1e6)), { expirationTtl: 172800 });
-    }
     return json({ city: cityId, ...out });
   } catch (err) {
     console.error(err);
     return json({ error: 'Something went wrong answering that. Try again, or rephrase.', detail: String(err.message || err).slice(0, 300) }, 502);
+  } finally {
+    if (kv && cost) {
+      const write = recordSpend(kv, day, cost).catch((err) => console.error('recording spend failed', err));
+      if (ctx?.waitUntil) ctx.waitUntil(write);
+      else await write;
+    }
   }
 }
 
@@ -151,7 +159,7 @@ function page(env) {
 }
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
     // Served under a path on someone else's site (jason-edelman.org/ask-siren):
     // strip the prefix, and send the bare path to the trailing-slash form so the
@@ -171,7 +179,7 @@ export default {
         allowedCities(env).map((id) => ({ id, name: cities[id].name, portal: cities[id].portal, block: Boolean(cities[id].address) }))
       );
     }
-    if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env);
+    if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     return new Response('Not found', { status: 404 });
   },
 };
