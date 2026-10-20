@@ -59,8 +59,11 @@ export async function ask({
   referer,
   plugins = [],
   onEvent = () => {},
+  onCost = () => {},
 }) {
   if (!apiKey) throw new Error('No OpenRouter API key. Set OPENROUTER_API_KEY.');
+  // A bad setting must never make the tool loop unbounded.
+  maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
   const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
   const tools = toolsFor(city, plugins);
   const messages = [
@@ -76,6 +79,7 @@ export async function ask({
     const lastStep = steps >= maxSteps;
     const data = await complete({ apiKey, model, messages, tools: lastStep ? undefined : tools, maxTokens, fetchImpl, referer });
     cost += data.usage?.cost || 0;
+    onCost(data.usage?.cost || 0);
     const msg = data.choices?.[0]?.message || {};
     const calls = msg.tool_calls || [];
     if (!calls.length || lastStep) {
@@ -116,6 +120,7 @@ export async function ask({
       referer,
     });
     cost += data.usage?.cost || 0;
+    onCost(data.usage?.cost || 0);
     const fixed = (data.choices?.[0]?.message?.content || '').trim();
     if (fixed) {
       answer = fixed;

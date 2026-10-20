@@ -13,11 +13,24 @@ import { ask } from '../src/agent.js';
 import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import UI from './ui.html';
-import deployment from './deployment.js';
+import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
+import { skins } from './skins.js';
+import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 
-const PLUGINS = (deployment.plugins || []).map(definePlugin);
+// DEPLOYMENT picks a config from deployments/index.js; unknown names fail
+// loudly rather than quietly serving the default.
+const prepared = new Map();
+function getDeployment(env) {
+  const name = env.DEPLOYMENT || 'default';
+  if (!prepared.has(name)) {
+    const config = deployments[name];
+    if (!config) throw new Error(`Unknown DEPLOYMENT "${name}". Known: ${Object.keys(deployments).join(', ')}`);
+    prepared.set(name, { config, plugins: (config.plugins || []).map(definePlugin) });
+  }
+  return prepared.get(name);
+}
 
 const INDEXES = { 'norfolk-legislation': norfolkLegislation };
 const MAX_QUESTION = 600;
@@ -35,11 +48,13 @@ async function sha256(s) {
 }
 
 function allowedCities(env) {
+  const { config: deployment } = getDeployment(env);
   const ids = (deployment.city || env.CITIES || Object.keys(cities).join(',')).split(',').map((s) => s.trim()).filter(Boolean);
   return ids.filter((id) => cities[id]);
 }
 
-async function handleAsk(req, env) {
+async function handleAsk(req, env, ctx) {
+  const { config: deployment, plugins } = getDeployment(env);
   let body;
   try {
     body = await req.json();
@@ -63,70 +78,108 @@ async function handleAsk(req, env) {
   }
   if (!env.OPENROUTER_API_KEY) return json({ error: 'This site is not configured yet (no model key).' }, 503);
   const day = today();
-  const budget = Number(env.DAILY_BUDGET_USD || 2);
+  const budget = setting(env.DAILY_BUDGET_USD, 2);
   // Behind Cloudflare Access, count per verified person; otherwise per hashed IP.
   let who;
   if (env.ACCESS_TEAM_DOMAIN) {
     try {
       const { email } = await verifyAccess(req, env);
-      who = { key: `user:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${email}`)).slice(0, 32)}`, limit: Number(env.PER_USER_DAILY || 40), kind: 'person' };
+      who = { key: `user:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${email}`)).slice(0, 32)}`, limit: setting(env.PER_USER_DAILY, 40), kind: 'person' };
     } catch (err) {
       return json({ error: 'Sign in through this site\'s access page first.', detail: err.message }, 401);
     }
   } else {
-    const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
-    who = { key: `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${ip}`)).slice(0, 32)}`, limit: Number(env.PER_IP_DAILY || 20), kind: 'visitor' };
+    const id = visitorId(req.headers.get('CF-Connecting-IP'));
+    who = { key: `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${id}`)).slice(0, 32)}`, limit: setting(env.PER_IP_DAILY, 20), kind: 'visitor' };
   }
   const ipKey = who.key;
   if (kv) {
-    const [used, spent] = await Promise.all([kv.get(ipKey), kv.get(`spend:${day}`)]);
+    const [used, spent] = await Promise.all([kv.get(ipKey), spentToday(kv, day)]);
     if (Number(used || 0) >= who.limit) {
       return json({ error: `You've asked ${who.limit} questions today, the limit for this site. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
     }
-    if (Number(spent || 0) / 1e6 >= budget) {
+    if (spent >= budget) {
       return json({ error: "Today's shared budget for this free site is used up. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.", limit: 'budget' }, 503);
     }
     await kv.put(ipKey, String(Number(used || 0) + 1), { expirationTtl: 172800 });
   }
 
+  // Every paid call is counted as it happens, so spend is recorded even when a
+  // later step fails or the visitor leaves; the write runs after the response.
+  let cost = 0;
   try {
     const out = await ask({
       question,
       history,
       city: applyConfig(getCity(cityId), deployment),
-      plugins: PLUGINS,
+      plugins,
       indexes: INDEXES,
       apiKey: env.OPENROUTER_API_KEY,
       appToken: env.SOCRATA_APP_TOKEN,
       model: env.MODEL || deployment.model,
-      maxSteps: Number(env.MAX_STEPS || 6),
-      maxTokens: Number(env.MAX_TOKENS || 1200),
+      maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
+      maxTokens: setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
       referer: new URL(req.url).origin,
+      onCost: (usd) => {
+        cost += usd;
+      },
     });
-    if (kv && out.cost) {
-      const key = `spend:${day}`;
-      const spent = Number((await kv.get(key)) || 0);
-      await kv.put(key, String(spent + Math.round(out.cost * 1e6)), { expirationTtl: 172800 });
-    }
     return json({ city: cityId, ...out });
   } catch (err) {
     console.error(err);
     return json({ error: 'Something went wrong answering that. Try again, or rephrase.', detail: String(err.message || err).slice(0, 300) }, 502);
+  } finally {
+    if (kv && cost) {
+      const write = recordSpend(kv, day, cost).catch((err) => console.error('recording spend failed', err));
+      if (ctx?.waitUntil) ctx.waitUntil(write);
+      else await write;
+    }
   }
 }
 
+// The page, with the deployment's name, copy and skin filled in. Config text
+// is escaped; skin markup comes from worker/skins.js, which is trusted code.
+const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function page(env) {
+  const { config } = getDeployment(env);
+  const ui = config.ui || {};
+  const skinName = skins[ui.skin] ? ui.skin : 'plain';
+  const skin = skins[skinName];
+  const fill = {
+    APP_NAME: esc(env.APP_NAME || config.name || 'socrata-agent'),
+    SKIN: skinName,
+    TAGLINE: esc(ui.tagline),
+    LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
+    FOOTER_NOTE: esc(ui.footerNote),
+    MARK: skin.mark,
+    FONTS: skin.fonts,
+    FAVICON: skin.favicon,
+  };
+  return UI.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
+}
+
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const url = new URL(req.url);
-    if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-      return new Response(UI, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
+    // Served under a path on someone else's site (jason-edelman.org/ask-siren):
+    // strip the prefix, and send the bare path to the trailing-slash form so the
+    // page's relative API links resolve under it.
+    let path = url.pathname;
+    const base = (env.BASE_PATH || '').replace(/\/$/, '');
+    if (base) {
+      if (path === base) return Response.redirect(`${url.origin}${base}/${url.search}`, 301);
+      if (!path.startsWith(`${base}/`)) return new Response('Not found', { status: 404 });
+      path = path.slice(base.length);
     }
-    if (req.method === 'GET' && url.pathname === '/api/cities') {
+    if (req.method === 'GET' && (path === '/' || path === '/index.html')) {
+      return new Response(page(env), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
+    }
+    if (req.method === 'GET' && path === '/api/cities') {
       return json(
         allowedCities(env).map((id) => ({ id, name: cities[id].name, portal: cities[id].portal, block: Boolean(cities[id].address) }))
       );
     }
-    if (req.method === 'POST' && url.pathname === '/api/ask') return handleAsk(req, env);
+    if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     return new Response('Not found', { status: 404 });
   },
 };

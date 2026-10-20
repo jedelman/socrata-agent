@@ -142,8 +142,11 @@ export default definePlugin({
 
     const leagueName = await league;
     const leagueFound = typeof leagueName === 'string';
+    // A failed lookup is an error, not an empty result: say so, don't report "I found no records".
+    const leagueError = leagueName?.error ? { error: `The civic league lookup failed: ${leagueName.error}` } : null;
 
     const stormwater = settle(async () => {
+      if (leagueError) return leagueError;
       if (!a.facts.civic_league) return { error: 'The address record names no civic league for this parcel, so I did not look up league-level stormwater records.' };
       if (!leagueFound) return { error: `I found no stormwater records under a civic league matching "${a.facts.civic_league}" in ward ${ward}.` };
       const [inspections, orders, openOnStreet] = await Promise.all([
@@ -173,6 +176,7 @@ export default definePlugin({
     });
 
     const trees = settle(async () => {
+      if (leagueError) return leagueError;
       if (!leagueFound) return { error: a.facts.civic_league ? `I found no work orders under a civic league matching "${a.facts.civic_league}".` : 'The address record names no civic league for this parcel.' };
       const rows = await ctx.socrata.query(
         'qzfe-wj25',

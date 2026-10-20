@@ -17,14 +17,31 @@ export function datasetLinks(city, id) {
   };
 }
 
+// Blank out string literals so keyword checks and LIMIT handling only see
+// SoQL, never user text ('limit 1', 'from the river').
+export function stripLiterals(soql) {
+  return soql.replace(/'(?:[^']|'')*'/g, (m) => `'${' '.repeat(m.length - 2)}'`);
+}
+
+// One query reads one dataset. SoQL can reach others with
+// `UNION ... FROM @abcd-1234`, which would skip the exclusion check and
+// leave the second dataset out of the trace and the resources list.
+export function checkSingleDataset(soql) {
+  const code = stripLiterals(soql);
+  if (/@[a-z0-9]{4}-[a-z0-9]{4}/i.test(code) || /\b(union|from|join)\b/i.test(code)) {
+    throw new Error('A query can read only its own dataset: no FROM, UNION, JOIN or @dataset references. Query each dataset separately.');
+  }
+}
+
 // Give every query a LIMIT, and cap it, so one question can't pull a whole
 // dataset through the model. Operators who want everything get the CSV link.
+// Only the trailing LIMIT counts, and it's rewritten in place.
 export function clampLimit(soql) {
-  const m = soql.match(/\blimit\s+(\d+)\s*(offset\s+\d+\s*)?$/i);
-  if (!m) return `${soql.trim()} LIMIT ${DEFAULT_LIMIT}`;
-  const n = Number(m[1]);
-  if (n <= MAX_LIMIT) return soql.trim();
-  return soql.trim().replace(/\blimit\s+\d+/i, `LIMIT ${MAX_LIMIT}`);
+  const q = soql.trim();
+  const m = stripLiterals(q).match(/\blimit\s+(\d+)(\s+offset\s+\d+)?\s*$/i);
+  if (!m) return `${q} LIMIT ${DEFAULT_LIMIT}`;
+  if (Number(m[1]) <= MAX_LIMIT) return q;
+  return `${q.slice(0, m.index)}LIMIT ${MAX_LIMIT}${m[2] || ''}`;
 }
 
 export class Socrata {
@@ -37,8 +54,9 @@ export class Socrata {
     this.names = new Map();
   }
 
-  // Name-pattern exclusions need the dataset's name; look it up once if the
-  // caller didn't supply it, so querying by bare id can't skip the check.
+  // Name-pattern exclusions need the dataset's name. Core callers pass the
+  // name they already know; plugins never can (pluginContext drops it), so a
+  // plugin can't label an excluded dataset as something harmless.
   async datasetName(id, name) {
     if (name) return name;
     if (this.names.has(id)) return this.names.get(id);
@@ -118,11 +136,16 @@ export class Socrata {
     };
   }
 
-  // Run a SoQL query. `name` is optional and only used for the resources list.
-  async query(id, soql, { tool = 'query', name } = {}) {
+  // Run a SoQL query. `name` (trusted core callers only) is the dataset's real
+  // name, used for the exclusion check and the resources list. `label` is
+  // display-only and never trusted.
+  async query(id, soql, { tool = 'query', name, label } = {}) {
     checkId(id);
+    checkSingleDataset(soql);
     if (this.isExcluded(id, name)) throw new Error(this.excludedReason(id));
-    if (this.isExcluded(id, await this.datasetName(id, name))) throw new Error(this.excludedReason(id));
+    const realName = await this.datasetName(id, name);
+    if (this.isExcluded(id, realName)) throw new Error(this.excludedReason(id));
+    name = name || realName || label;
     const q = clampLimit(soql);
     const json = `https://${this.city.domain}/resource/${id}.json?$query=${encodeURIComponent(q)}`;
     const csv = `https://${this.city.domain}/resource/${id}.csv?$query=${encodeURIComponent(q)}`;
