@@ -1,7 +1,8 @@
 # Co-agency: bring your own agent (plan, 2026-10-20)
 
-Status: plan only. Nothing here is built. Jason liked the architecture
-(2026-10-20); the cross-project version is in
+Status: plan only. Nothing here is built. **Decided (Jason, 2026-10-20):
+co-agency becomes Siren's main surface**, and the hosted chat becomes the
+fallback. The cross-project version is in
 `claude-memory/patterns/bring-your-own-agent.md`.
 
 ## The idea
@@ -20,8 +21,12 @@ Gemini, claude.ai, free tiers included), and Siren keeps its judgment in code.
 Siren's side needs no model. The tools already run without one
 (`socrata-agent tool block_report '{"address":"810 Union St"}'` takes no key),
 and its judgment is already in code: `voice.js`, the exclusions,
-`Trace.record`. Inference moves to the person's own tier. The hosted chat stays
-as an optional fallback.
+`Trace.record`. Inference moves to the person's own tier. The hosted chat
+becomes the fallback.
+
+Because this is the main surface, **the code-written summary has to stand on
+its own.** Most people will see Siren only as their own agent quoting it, or
+as the page at the same URL.
 
 ## Shape
 
@@ -61,16 +66,17 @@ something Siren offers, not something it can enforce. Say so in the docs.
 
 - Which free agents will fetch a URL they built themselves. Some fetch tools
   only open URLs the user pasted or that came back from a search. If an agent
-  won't fetch, it can still print the link for the person to open.
+  won't fetch, it can still print the link for the person to open. The test
+  for it is variant B of `open-source-cities/experiments/magic-link-test/`
+  (a fetch probe with code words, so a made-up fetch shows). Built, not run.
 - Which free tiers allow a custom MCP connector. MCP would be the richer
   protocol for asking back.
 - How well agents relay a summary marked "quote as written."
 
 ## Open questions (Jason's)
 
-1. Is the person's agent Siren's main surface, with the hosted chat as the
-   fallback, or the reverse? If it's the main one, the template summary has to
-   stand on its own.
+1. ~~Main surface or fallback?~~ Decided 2026-10-20: co-agency is the main
+   surface.
 2. Rate limits: reads are cheap and cacheable, and agent traffic comes from
    the providers' shared servers. Is a per-IP limit useful here, or only a
    global one?
