@@ -10,7 +10,10 @@ function stripQuoted(text) {
   return text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`]*`/g, ' ')
-    .replace(/"[^"\n]*"|“[^”\n]*”/g, ' ')
+    // A quotation opens at the start or after space/brackets, so an inch mark
+    // (6") can't swallow the sentences that follow it.
+    .replace(/(^|[\s(\[])"[^"\n]*"(?=$|[\s.,;:!?)\]])/g, '$1 ')
+    .replace(/“[^”\n]*”/g, ' ')
     .replace(/^>.*$/gm, ' ');
 }
 
