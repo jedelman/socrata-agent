@@ -69,7 +69,25 @@ ol.trace code { display: block; white-space: pre-wrap; word-break: break-word; m
 footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 16px; }
 @media (max-width: 520px) { form { flex-direction: column; align-items: stretch; } }
 .brand { text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
-.tagline:empty, .footer-note:empty { display: none; }
+.tagline:empty, .footer-note:empty, .badge:empty { display: none; }
+.badge { display: inline-block; margin-top: 6px; font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid currentColor; border-radius: 999px; padding: 2px 10px; opacity: .9; }
+[hidden] { display: none !important; }
+.gate { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-top: 16px; }
+.gate h2 { margin: 0 0 6px; font-size: 1.25rem; }
+.gate h3 { margin: 22px 0 6px; font-size: 1.05rem; }
+.gate p { margin: 6px 0; }
+.gate form { flex-wrap: wrap; }
+.gate input, .gate textarea { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.gate input:focus, .gate textarea:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gate #code { flex: 1; min-width: 12ch; font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.gate .fields { display: grid; gap: 8px; width: 100%; }
+.gate .fields textarea { min-height: 64px; }
+.gate .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.gate .msg { font-size: .93rem; }
+.gate .msg.ok { color: var(--accent); }
+.gate .fine { color: var(--muted); font-size: .88rem; }
+[data-skin="siren"] .gate h2, [data-skin="siren"] .gate h3 { font-family: var(--display); font-weight: 600; }
 .mark { display: none; }
 
 /* ── Siren: blackwater at dusk ─────────────────────────────────────────
@@ -147,12 +165,35 @@ html[data-skin="siren"] {
 <div class="wrap">
   <header class="masthead">
     <div class="top">
-      <div class="brandblock"><a class="brand" href="./">{{MARK}}<span class="brand-name">{{APP_NAME}}</span></a><p class="tagline">{{TAGLINE}}</p></div>
+      <div class="brandblock"><a class="brand" href="./">{{MARK}}<span class="brand-name">{{APP_NAME}}</span></a><p class="tagline">{{TAGLINE}}</p><span class="badge">{{BADGE}}</span></div>
       <label class="city">City <select id="city" aria-label="City"></select></label>
     </div>
     <h1>What's on my block, and who decided it?</h1>
     <p id="intro">Ask about an address, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.</p>
   </header>
+
+  <section class="gate" id="gate" hidden aria-labelledby="gate-title">
+    <h2 id="gate-title">{{APP_NAME}} is in a private pre-alpha</h2>
+    <p>If someone gave you an invite code, enter it here.</p>
+    <form id="redeem" autocomplete="off">
+      <input id="code" name="code" placeholder="SIREN-XXXXX-XXXXX" aria-label="Invite code" maxlength="40" required>
+      <button class="ask" type="submit">Enter</button>
+    </form>
+    <p class="msg" id="redeem-msg" role="status"></p>
+    <h3>No code? Join the waitlist</h3>
+    <form id="wl">
+      <div class="fields">
+        <input id="wl-email" name="email" type="email" placeholder="Email" aria-label="Email" maxlength="254" required autocomplete="email">
+        <input id="wl-name" name="name" placeholder="Name (optional)" aria-label="Name (optional)" maxlength="120" autocomplete="name">
+        <input id="wl-org" name="org" placeholder="Organization or civic league (optional)" aria-label="Organization (optional)" maxlength="160" autocomplete="organization">
+        <textarea id="wl-note" name="note" placeholder="What would you ask {{APP_NAME}}? (optional)" aria-label="What would you ask? (optional)" maxlength="600"></textarea>
+        <div class="hp" aria-hidden="true"><label>Website <input id="wl-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div><button class="ask" type="submit">Join the waitlist</button></div>
+      </div>
+    </form>
+    <p class="msg" id="wl-msg" role="status"></p>
+    <p class="fine">We use your email only to tell you about {{APP_NAME}}: when you're invited, and what changes. It is never sold or shared. To be removed, reply to any message from us.</p>
+  </section>
 
   <form id="f">
     <textarea id="q" name="q" placeholder="e.g. What's going on at 111 Pennsylvania Ave?" maxlength="600" required aria-label="Your question"></textarea>
@@ -164,6 +205,7 @@ html[data-skin="siren"] {
 
   <footer>
     <p class="footer-note">{{FOOTER_NOTE}}</p>
+    <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
     <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
     <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
   </footer>
@@ -226,6 +268,49 @@ function renderTrace(t) {
   return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
 }
 
+function showGate(on) {
+  $('#gate').hidden = !on;
+  $('#f').hidden = on;
+  $('#examples').hidden = on;
+  if (on) $('#code').focus();
+}
+async function loadSession() {
+  try {
+    const s = await (await fetch('api/session', { cache: 'no-store' })).json();
+    showGate(Boolean(s.invite_required && !s.invited));
+  } catch { /* the ask call reports any problem */ }
+}
+async function postJson(path, body) {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  return { res, data };
+}
+$('#redeem').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#redeem-msg');
+  msg.className = 'msg'; msg.textContent = 'Checking…';
+  try {
+    const { res, data } = await postJson('api/redeem', { code: $('#code').value });
+    if (!res.ok) { msg.textContent = data.error || 'That code didn\'t work.'; return; }
+    msg.textContent = '';
+    showGate(false);
+    $('#q').focus();
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
+$('#wl').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#wl-msg');
+  msg.className = 'msg'; msg.textContent = 'Adding you…';
+  const body = { email: $('#wl-email').value, name: $('#wl-name').value, org: $('#wl-org').value, note: $('#wl-note').value, website: $('#wl-website').value };
+  try {
+    const { res, data } = await postJson('api/waitlist', body);
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong. Try again.'; return; }
+    msg.className = 'msg ok'; msg.textContent = "You're on the list. We'll be in touch when there's room.";
+    $('#wl').reset();
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
+
 $('#f').addEventListener('submit', async (e) => {
   e.preventDefault();
   const question = $('#q').value.trim();
@@ -241,6 +326,7 @@ $('#f').addEventListener('submit', async (e) => {
   try {
     const res = await fetch('api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
     const data = await res.json();
+    if (res.status === 401 && data.gate === 'invite') { turn.remove(); showGate(true); return; }
     if (!res.ok) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
     history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });
     a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
@@ -251,6 +337,7 @@ $('#f').addEventListener('submit', async (e) => {
   }
 });
 loadCities();
+loadSession();
 </script>
 </body>
 </html>

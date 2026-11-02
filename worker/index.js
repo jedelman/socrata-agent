@@ -18,6 +18,7 @@ import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
+import { currentInvite, redeem, joinWaitlist, sessionCookie } from './invites.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -41,10 +42,22 @@ const json = (body, status = 200, headers = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers } });
 
 const today = () => new Date().toISOString().slice(0, 10);
+const inviteOnly = (env) => env.INVITE_REQUIRED === 'true';
+const basePath = (env) => (env.BASE_PATH || '').replace(/\/$/, '');
+
+// The API takes JSON only. Browsers can't send a cross-site JSON POST without
+// a CORS preflight this Worker never answers, which closes off cross-site
+// requests that would spend a visitor's invite.
+const isJson = (req) => (req.headers.get('Content-Type') || '').toLowerCase().startsWith('application/json');
 
 async function sha256(s) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// A visitor's hashed identity for rate limits; never stored unhashed.
+async function visitorHash(req, env) {
+  return (await sha256(`${env.IP_SALT || 'socrata-agent'}:${visitorId(req.headers.get('CF-Connecting-IP'))}`)).slice(0, 32);
 }
 
 function allowedCities(env) {
@@ -79,7 +92,8 @@ async function handleAsk(req, env, ctx) {
   if (!env.OPENROUTER_API_KEY) return json({ error: 'This site is not configured yet (no model key).' }, 503);
   const day = today();
   const budget = setting(env.DAILY_BUDGET_USD, 2);
-  // Behind Cloudflare Access, count per verified person; otherwise per hashed IP.
+  // Behind Cloudflare Access, count per verified person; in invite-only mode,
+  // per invite; otherwise per hashed IP.
   let who;
   if (env.ACCESS_TEAM_DOMAIN) {
     try {
@@ -88,15 +102,20 @@ async function handleAsk(req, env, ctx) {
     } catch (err) {
       return json({ error: 'Sign in through this site\'s access page first.', detail: err.message }, 401);
     }
+  } else if (inviteOnly(env)) {
+    if (!env.INVITE_SECRET) return json({ error: 'This site is not configured yet (invites are not set up).' }, 503);
+    const invite = kv && (await currentInvite(req, env, kv));
+    if (!invite) return json({ error: 'Siren is invite-only for now. Enter your invite code, or join the waitlist.', gate: 'invite' }, 401);
+    who = { key: `inv-day:${day}:${invite.hash.slice(0, 32)}`, limit: setting(env.PER_INVITE_DAILY, 30), kind: 'invite' };
   } else {
-    const id = visitorId(req.headers.get('CF-Connecting-IP'));
-    who = { key: `ip:${day}:${(await sha256(`${env.IP_SALT || 'socrata-agent'}:${id}`)).slice(0, 32)}`, limit: setting(env.PER_IP_DAILY, 20), kind: 'visitor' };
+    who = { key: `ip:${day}:${await visitorHash(req, env)}`, limit: setting(env.PER_IP_DAILY, 20), kind: 'visitor' };
   }
   const ipKey = who.key;
   if (kv) {
     const [used, spent] = await Promise.all([kv.get(ipKey), spentToday(kv, day)]);
     if (Number(used || 0) >= who.limit) {
-      return json({ error: `You've asked ${who.limit} questions today, the limit for this site. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
+      const whose = who.kind === 'invite' ? 'this invite' : 'this site';
+      return json({ error: `You've asked ${who.limit} questions today, the limit for ${whose}. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
     }
     if (spent >= budget) {
       return json({ error: "Today's shared budget for this free site is used up. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.", limit: 'budget' }, 503);
@@ -137,6 +156,41 @@ async function handleAsk(req, env, ctx) {
   }
 }
 
+// What the page needs to decide whether to show the invite gate.
+async function handleSession(req, env) {
+  const invited = inviteOnly(env) && env.LIMITS && env.INVITE_SECRET ? Boolean(await currentInvite(req, env, env.LIMITS)) : false;
+  return json({ invite_required: inviteOnly(env), invited, waitlist: inviteOnly(env) }, 200, { 'Cache-Control': 'no-store' });
+}
+
+async function handleRedeem(req, env) {
+  if (!inviteOnly(env)) return json({ error: 'This site does not use invites.' }, 404);
+  if (!env.LIMITS) return json({ error: 'This site is not configured yet (no storage).' }, 503);
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'Send JSON: {"code": "..."}' }, 400);
+  }
+  const out = await redeem({ code: body?.code, env, kv: env.LIMITS, visitor: await visitorHash(req, env) });
+  if (!out.ok) return json({ error: out.error }, out.status);
+  return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
+}
+
+async function handleWaitlist(req, env) {
+  if (!inviteOnly(env)) return json({ error: 'This site has no waitlist.' }, 404);
+  if (!env.LIMITS) return json({ error: 'This site is not configured yet (no storage).' }, 503);
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'Send JSON: {"email": "..."}' }, 400);
+  }
+  const { config } = getDeployment(env);
+  const out = await joinWaitlist({ body, kv: env.LIMITS, visitor: await visitorHash(req, env), source: config.name || 'socrata-agent' });
+  if (!out.ok) return json({ error: out.error }, out.status);
+  return json({ ok: true }, 200, { 'Cache-Control': 'no-store' });
+}
+
 // The page, with the deployment's name, copy and skin filled in. Config text
 // is escaped; skin markup comes from worker/skins.js, which is trusted code.
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -151,6 +205,7 @@ function page(env) {
     TAGLINE: esc(ui.tagline),
     LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
     FOOTER_NOTE: esc(ui.footerNote),
+    BADGE: esc(ui.badge),
     MARK: skin.mark,
     FONTS: skin.fonts,
     FAVICON: skin.favicon,
@@ -165,7 +220,7 @@ export default {
     // strip the prefix, and send the bare path to the trailing-slash form so the
     // page's relative API links resolve under it.
     let path = url.pathname;
-    const base = (env.BASE_PATH || '').replace(/\/$/, '');
+    const base = basePath(env);
     if (base) {
       if (path === base) return Response.redirect(`${url.origin}${base}/${url.search}`, 301);
       if (!path.startsWith(`${base}/`)) return new Response('Not found', { status: 404 });
@@ -179,7 +234,11 @@ export default {
         allowedCities(env).map((id) => ({ id, name: cities[id].name, portal: cities[id].portal, block: Boolean(cities[id].address) }))
       );
     }
+    if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
+    if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
+    if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
+    if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     return new Response('Not found', { status: 404 });
   },
 };

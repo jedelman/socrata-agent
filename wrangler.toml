@@ -37,7 +37,11 @@ MAX_TOKENS = "1200"
 #   npx wrangler kv namespace create LIMITS --env siren   # paste the id below
 #   npx wrangler secret put OPENROUTER_API_KEY --env siren
 #   npx wrangler secret put IP_SALT --env siren
+#   npx wrangler secret put INVITE_SECRET --env siren   # any long random string
 #   npx wrangler deploy --env siren
+# Pre-alpha: invite-only, with a waitlist. Make codes with
+#   node scripts/invites.js create --label "who it's for" --uses 5
+# and export the waitlist with `node scripts/invites.js waitlist > waitlist.csv`.
 [env.siren]
 name = "siren"
 account_id = "543fde7feabd0af945bfae926ceea7ad"
@@ -54,6 +58,8 @@ PER_IP_DAILY = "20"
 DAILY_BUDGET_USD = "2"
 MAX_STEPS = "6"
 MAX_TOKENS = "1200"
+INVITE_REQUIRED = "true"
+PER_INVITE_DAILY = "30"
 
 # [[env.siren.kv_namespaces]]
 # binding = "LIMITS"

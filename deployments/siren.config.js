@@ -20,6 +20,7 @@ export default {
     tagline: 'Sings only what the records say.',
     loading: 'Wading through the records. This usually takes 10 to 30 seconds',
     footerNote: "Named for Norfolk's mermaids, the greater siren of Virginia's coastal-plain swamps, and the alarm.",
+    badge: 'Pre-alpha · invite only',
   },
   contacts: [],
   links: [
