@@ -163,3 +163,55 @@ test('pricing: cache rates, and Haiku 5.5 prompts over 100k tokens on the long c
     { name: 'a', description: 'd', input_schema: { type: 'object', properties: {} } },
   ]);
 });
+
+test('a response cut off at max_tokens never runs its half-written tool call; one retry with more room', async () => {
+  const truncated = msg([{ type: 'tool_use', id: 'toolu_cut', name: 'block_report', input: { address: '810 Un' } }], 'max_tokens');
+  const { fetchImpl, requests } = mockApi([truncated, msg([{ type: 'text', text: 'I found nothing at 810 Union St.' }], 'end_turn')]);
+  const out = await ask({ question: '810 Union St?', city: getCity('norfolk'), apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl });
+  assert.equal(out.answer, 'I found nothing at 810 Union St.');
+  assert.equal(out.steps, 0, 'no tool ran');
+  assert.equal(out.trace.length, 0, 'no query traced');
+  assert.equal(requests[1].body.max_tokens, 16000);
+  assert.ok(!JSON.stringify(requests[1].body.messages).includes('toolu_cut'), 'the cut-off turn was not sent back');
+  assert.ok(Math.abs(out.cost - 2 * ((1000 * 0.1 + 200 * 0.5) / 1e6)) < 1e-12, 'both attempts counted');
+});
+
+test('cut off twice: an honest answer, never an empty one', async () => {
+  const { fetchImpl } = mockApi([msg([{ type: 'thinking', thinking: '', signature: 's' }], 'max_tokens')]);
+  const out = await ask({ question: 'q', city: getCity('norfolk'), apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl });
+  assert.match(out.answer, /^I ran out of room/);
+});
+
+test('empty turns in the history are dropped, and the stable prefix carries a cache breakpoint', async () => {
+  const { fetchImpl, requests } = mockApi([msg([{ type: 'text', text: 'I found it.' }], 'end_turn')]);
+  await ask({
+    question: 'q2', city: getCity('norfolk'), apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl,
+    history: [{ role: 'user', content: 'q1' }, { role: 'assistant', content: '  ' }],
+  });
+  const { messages, system } = requests[0].body;
+  assert.ok(messages.every((m) => typeof m.content !== 'string' || m.content.trim()), 'no empty turns');
+  assert.deepEqual(system[0].cache_control, { type: 'ephemeral' });
+});
+
+test('environment headers (ANTHROPIC_CUSTOM_HEADERS) never reach the request or replace the key', async () => {
+  const saved = process.env.ANTHROPIC_CUSTOM_HEADERS;
+  process.env.ANTHROPIC_CUSTOM_HEADERS = 'Authorization: Bearer someone-elses-token\nX-Gw: leak';
+  const { fetchImpl, requests } = mockApi([msg([{ type: 'text', text: 'I found it.' }], 'end_turn')]);
+  try {
+    await ask({ question: 'q', city: getCity('norfolk'), apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl });
+  } finally {
+    if (saved === undefined) delete process.env.ANTHROPIC_CUSTOM_HEADERS;
+    else process.env.ANTHROPIC_CUSTOM_HEADERS = saved;
+  }
+  const h = requests[0].headers;
+  assert.equal(h.get('authorization'), `Bearer ${KEY}`);
+  assert.equal(h.get('x-gw'), null);
+});
+
+test('inside Claude Code, SIREN_ANTHROPIC_API_KEY wins over ANTHROPIC_API_KEY; OpenRouter models never get either', async () => {
+  const { apiKeyFromEnv } = await import('../src/agent.js');
+  const env = { ANTHROPIC_API_KEY: 'claude-code-own', SIREN_ANTHROPIC_API_KEY: 'siren', OPENROUTER_API_KEY: 'or' };
+  assert.equal(apiKeyFromEnv('claude-haiku-5-5', env), 'siren');
+  assert.equal(apiKeyFromEnv('claude-haiku-5-5', { ANTHROPIC_API_KEY: 'a' }), 'a');
+  assert.equal(apiKeyFromEnv('openai/gpt-5.6-luna', env), 'or');
+});

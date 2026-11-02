@@ -25,6 +25,7 @@ export const PRICES = {
   'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
   // Possible server-side fallback targets for Sonnet 5.5 / Opus 5.5 refusals.
   // Cache rates unknown here, so priced at the full input rate (never under).
+  'claude-sonnet-5': { input: 2, output: 10, cacheRead: 2, cacheWrite: 2.5 },
   'claude-opus-5': { input: 5, output: 25, cacheRead: 5, cacheWrite: 6.25 },
   'claude-opus-4-8': { input: 5, output: 25, cacheRead: 5, cacheWrite: 6.25 },
 };
@@ -36,6 +37,26 @@ const FALLBACK_MODELS = new Set(['claude-sonnet-5-5', 'claude-opus-5-5']);
 
 export const isClaudeModel = (model) => /^claude-/.test(String(model || ''));
 const API_BASE = 'https://api.anthropic.com';
+/** Output allowance for Claude models when the caller sets none. Thinking counts toward it. */
+export const CLAUDE_MAX_TOKENS = 8000;
+// Below the SDK's non-streaming limit (it refuses requests it estimates at over 10 minutes).
+const RETRY_MAX_TOKENS = 16000;
+
+// Only these request headers leave the Worker. The SDK also reads settings
+// from the environment (ANTHROPIC_CUSTOM_HEADERS, for one) that could add
+// headers or replace the Authorization header; this wrapper drops anything
+// else, sets the key itself, and refuses any host but api.anthropic.com.
+const SENT_HEADERS = new Set(['accept', 'content-type', 'user-agent', 'anthropic-version', 'anthropic-beta']);
+export function guardedFetch(apiKey, fetchImpl) {
+  return async (url, init = {}) => {
+    const u = String(url instanceof Request ? url.url : url);
+    if (!u.startsWith(`${API_BASE}/`)) throw new Error('Refusing to send the Anthropic key anywhere but api.anthropic.com.');
+    const headers = new Headers();
+    for (const [k, v] of new Headers(init.headers)) if (SENT_HEADERS.has(k) || k.startsWith('x-stainless-')) headers.set(k, v);
+    headers.set('authorization', `Bearer ${apiKey}`);
+    return (fetchImpl || globalThis.fetch)(u, { ...init, headers });
+  };
+}
 
 function priceOne(u, model) {
   const card = PRICES[model] || CEILING;
@@ -77,10 +98,12 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
   // The base URL is pinned: without it the SDK reads ANTHROPIC_BASE_URL from
   // the environment, and inside a Claude Code session (or behind someone
   // else's proxy) that would send this key somewhere other than Anthropic.
-  const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: 2, timeout: 120_000, ...(fetchImpl ? { fetch: fetchImpl } : {}) });
-  // Thinking tokens count toward max_tokens on these models, so leave room
-  // beyond the answer itself.
-  const max_tokens = Math.max(Number(maxTokens) || 0, 8000);
+  // One retry at most: a retried attempt that the API billed would not show
+  // up in usage. The SDK's own non-streaming timeout (sized to max_tokens) applies.
+  const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: 1, fetch: guardedFetch(apiKey, fetchImpl) });
+  // Thinking tokens count toward max_tokens on these models; the caller sets
+  // the allowance (the Worker's MAX_TOKENS_CLAUDE), default CLAUDE_MAX_TOKENS.
+  const max_tokens = Number(maxTokens) > 0 ? Number(maxTokens) : CLAUDE_MAX_TOKENS;
   let system = '';
   let tools = [];
   const messages = [];
@@ -91,42 +114,21 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
     init({ systemPrompt, history, question, toolDefs }) {
       system = systemPrompt;
       tools = toAnthropicTools(toolDefs);
-      for (const m of history) messages.push({ role: m.role, content: String(m.content) });
+      // The API rejects empty turns, so skip any (a client may send one back).
+      for (const m of history) if (String(m.content ?? '').trim()) messages.push({ role: m.role, content: String(m.content) });
       messages.push({ role: 'user', content: question });
     },
 
     async complete({ allowTools = true } = {}) {
-      const params = {
-        model,
-        max_tokens,
-        system: [{ type: 'text', text: system }],
-        messages,
-        cache_control: { type: 'ephemeral' },
-        ...(tools.length ? { tools } : {}),
-        // Tools stay declared (history may contain tool_use blocks); "none"
-        // makes the model answer in text.
-        ...(tools.length && !allowTools ? { tool_choice: { type: 'none' } } : {}),
-        ...(effort ? { output_config: { effort } } : {}),
-      };
-      let res;
-      try {
-        res = FALLBACK_MODELS.has(model)
-          ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
-          : await client.messages.create(params);
-      } catch (err) {
-        // Report status and message only; never the request (it carries the key).
-        const status = err instanceof Anthropic.APIError ? err.status : undefined;
-        throw new Error(`Anthropic ${status ?? 'error'}: ${String(err?.message || err).slice(0, 300)}`);
+      let out = await call(allowTools, max_tokens);
+      // A response cut off at max_tokens may end in a half-written tool call:
+      // never run it. Retry once with more room, then give up honestly.
+      if (out.truncated && max_tokens < RETRY_MAX_TOKENS) {
+        const retry = await call(allowTools, RETRY_MAX_TOKENS);
+        retry.cost += out.cost;
+        out = retry;
       }
-      const cost = priceUsage(res.usage, model);
-      if (res.stop_reason === 'refusal') {
-        last = null;
-        return { text: '', calls: [], cost, refusal: res.stop_details?.category ?? 'unspecified' };
-      }
-      last = { role: 'assistant', content: res.content };
-      const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
-      const calls = allowTools ? res.content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} })) : [];
-      return { text, calls, cost, refusal: null };
+      return out;
     },
 
     appendAssistant() {
@@ -143,4 +145,47 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
       messages.push({ role: 'user', content: text });
     },
   };
+
+  async function call(allowTools, maxTokensNow) {
+    const params = {
+      model,
+      max_tokens: maxTokensNow,
+      // An explicit breakpoint on the stable prefix (tools, then system), and
+      // automatic caching for the growing conversation after it.
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages,
+      cache_control: { type: 'ephemeral' },
+      ...(tools.length ? { tools } : {}),
+      // Tools stay declared (history may contain tool_use blocks); "none"
+      // makes the model answer in text.
+      ...(tools.length && !allowTools ? { tool_choice: { type: 'none' } } : {}),
+      ...(effort ? { output_config: { effort } } : {}),
+    };
+    let res;
+    try {
+      res = FALLBACK_MODELS.has(model)
+        ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
+        : await client.messages.create(params);
+    } catch (err) {
+      // Report status and message only; never the request (it carries the key).
+      const status = err instanceof Anthropic.APIError ? err.status : undefined;
+      throw new Error(`Anthropic ${status ?? 'error'}: ${String(err?.message || err).slice(0, 300)}`);
+    }
+    const cost = priceUsage(res.usage, model);
+    if (res.stop_reason === 'refusal') {
+      last = null;
+      return { text: '', calls: [], cost, refusal: res.stop_details?.category ?? 'unspecified' };
+    }
+    if (res.stop_reason === 'max_tokens') {
+      last = null;
+      return { text: '', calls: [], cost, refusal: null, truncated: true };
+    }
+    last = { role: 'assistant', content: res.content };
+    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    // Run tools only when the model stopped to call them.
+    const calls = allowTools && res.stop_reason === 'tool_use'
+      ? res.content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} }))
+      : [];
+    return { text, calls, cost, refusal: null };
+  }
 }

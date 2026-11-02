@@ -20,6 +20,13 @@ const RESULT_CHARS = 16000;
 export const providerOf = (model) => (isClaudeModel(model) ? 'anthropic' : 'openrouter');
 /** The environment variable that holds the key for a model's provider. */
 export const keyNameFor = (model) => (providerOf(model) === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENROUTER_API_KEY');
+/**
+ * The key for a model from an environment object. Inside a Claude Code
+ * session ANTHROPIC_API_KEY belongs to Claude Code itself, so
+ * SIREN_ANTHROPIC_API_KEY wins when both are set.
+ */
+export const apiKeyFromEnv = (model, env = {}) =>
+  providerOf(model) === 'anthropic' ? env.SIREN_ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY : env.OPENROUTER_API_KEY;
 
 export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [] }) {
   const trace = new Trace();
@@ -47,7 +54,7 @@ export async function ask({
   model = DEFAULT_MODEL,
   appToken,
   maxSteps = 8,
-  maxTokens = 1500,
+  maxTokens,
   effort,
   fetchImpl,
   referer,
@@ -61,7 +68,7 @@ export async function ask({
   const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
   const llm = providerOf(model) === 'anthropic'
     ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl })
-    : openrouterProvider({ apiKey, model, maxTokens, fetchImpl, referer });
+    : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl, referer });
   llm.init({
     systemPrompt: systemPrompt(city, new Date().toISOString().slice(0, 10)),
     history,
@@ -88,7 +95,13 @@ export async function ask({
     }
     if (!out.calls.length || lastStep) {
       answer = out.text;
-      if (!answer && lastStep) answer = 'I ran out of steps before I could answer. The queries I ran are in the trace below.';
+      if (!answer) {
+        answer = out.truncated
+          ? 'I ran out of room before I could finish. The queries I ran are in the trace below.'
+          : lastStep
+            ? 'I ran out of steps before I could answer. The queries I ran are in the trace below.'
+            : "I couldn't put an answer together. The queries I ran are in the trace below.";
+      }
       break;
     }
     steps++;

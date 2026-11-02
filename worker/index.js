@@ -9,7 +9,7 @@
 // burst can overshoot by a few requests; set an OpenRouter key limit as the
 // hard ceiling.
 
-import { ask, keyNameFor } from '../src/agent.js';
+import { ask, keyNameFor, providerOf } from '../src/agent.js';
 import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import UI from './ui.html';
@@ -86,7 +86,7 @@ async function handleAsk(req, env, ctx) {
   const cityId = body.city || allowedCities(env)[0];
   if (!allowedCities(env).includes(cityId)) return json({ error: `This site doesn't serve "${cityId}".` }, 400);
   const history = (Array.isArray(body.history) ? body.history : [])
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
     .slice(-MAX_HISTORY)
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_HISTORY_CHARS) }));
 
@@ -149,7 +149,11 @@ async function handleAsk(req, env, ctx) {
       model,
       effort: env.EFFORT || undefined,
       maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
-      maxTokens: setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
+      // Claude models think before answering, and thinking counts toward the
+      // allowance, so they get their own: MAX_TOKENS_CLAUDE.
+      maxTokens: providerOf(model) === 'anthropic'
+        ? setting(env.MAX_TOKENS_CLAUDE, 8000, { min: 1000, max: 16000 })
+        : setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
       referer: new URL(req.url).origin,
       onCost: (usd) => {
         cost += usd;
@@ -158,7 +162,9 @@ async function handleAsk(req, env, ctx) {
     return json({ city: cityId, ...out });
   } catch (err) {
     console.error(err);
-    return json({ error: 'Something went wrong answering that. Try again, or rephrase.', detail: String(err.message || err).slice(0, 300) }, 502);
+    // The full upstream error goes to the operator's log only; visitors get the gist.
+    const status = String(err?.message || '').match(/^(Anthropic|OpenRouter) (\d{3}|error)/);
+    return json({ error: 'Something went wrong answering that. Try again, or rephrase.', ...(status ? { detail: `${status[1]} ${status[2]}` } : {}) }, 502);
   } finally {
     if (kv && cost) {
       const write = recordSpend(kv, day, cost).catch((err) => console.error('recording spend failed', err));

@@ -195,7 +195,13 @@ Limits, set in `wrangler.toml`:
 | `MAX_STEPS` / `MAX_TOKENS` | 6 / 1200 | Tool rounds and answer length per question |
 | `MODEL` | `openai/gpt-5.6-luna` | The model everyone shares. Ids starting `claude-` (such as `claude-haiku-5-5`) go straight to Anthropic's API with `ANTHROPIC_API_KEY`; anything else goes through OpenRouter |
 | `EFFORT` | model default | For Claude models: `low`, `medium`, `high`, `xhigh` or `max` |
+| `MAX_TOKENS_CLAUDE` | 8000 | Output allowance per call for Claude models (1000–16000). Thinking counts toward it; a call cut off at the limit is retried once at 16000 and its tool calls are never run |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
+
+Claude spend is priced from each response's token usage. The SDK retries a
+failed call once (on rate limits, server errors and timeouts); an attempt the
+API billed but never answered isn't in that usage, so keep the workspace spend
+limit as the backstop.
 
 Without the KV binding the Worker refuses questions rather than run unlimited.
 KV counts are eventually consistent, so a burst can overshoot by a few

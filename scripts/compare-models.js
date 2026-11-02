@@ -2,8 +2,8 @@
 // Run the same questions through several models and save each answer with
 // its trace, voice check, cost and time, for reading side by side. OpenRouter
 // ids use OPENROUTER_API_KEY; claude-* ids go to Anthropic with
-// ANTHROPIC_API_KEY (or SIREN_ANTHROPIC_API_KEY, the name used inside Claude
-// Code sessions, where ANTHROPIC_API_KEY would change Claude Code's own login).
+// SIREN_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY (the first wins; inside Claude
+// Code sessions ANTHROPIC_API_KEY is Claude Code's own).
 // Append @effort to a Claude id to set its effort: claude-haiku-5-5@low.
 //
 //   node scripts/compare-models.js openai/gpt-5.6-luna claude-haiku-5-5@low claude-haiku-5-5@medium
@@ -12,7 +12,7 @@
 // read each answer against its own trace.
 
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-import { ask, keyNameFor } from '../src/agent.js';
+import { ask, apiKeyFromEnv } from '../src/agent.js';
 import { getCity } from '../src/cities/index.js';
 
 const QUESTIONS = [
@@ -36,8 +36,7 @@ const results = await Promise.all(
       const t0 = Date.now();
       try {
         const [id, effort] = model.split('@');
-        const keyName = keyNameFor(id);
-        const apiKey = process.env[keyName] || (keyName === 'ANTHROPIC_API_KEY' ? process.env.SIREN_ANTHROPIC_API_KEY : undefined);
+        const apiKey = apiKeyFromEnv(id, process.env);
         const r = await ask({ question: q, city: getCity(city), indexes: { 'norfolk-legislation': index }, apiKey, model: id, effort });
         out.push({ model, city, q, ms: Date.now() - t0, answer: r.answer, voice: r.voice, cost: r.cost, steps: r.steps, trace: r.trace });
       } catch (err) {

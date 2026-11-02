@@ -5,7 +5,7 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { cities, getCity } from '../src/cities/index.js';
-import { ask, createContext, DEFAULT_MODEL, keyNameFor } from '../src/agent.js';
+import { ask, createContext, DEFAULT_MODEL, apiKeyFromEnv } from '../src/agent.js';
 import { toolsFor, runTool } from '../src/tools.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { pathToFileURL } from 'node:url';
@@ -102,7 +102,7 @@ try {
       city,
       plugins,
       indexes: await loadIndexes(city),
-      apiKey: process.env[keyNameFor(model)],
+      apiKey: apiKeyFromEnv(model, process.env),
       appToken: process.env.SOCRATA_APP_TOKEN,
       model,
       effort: values.effort,
