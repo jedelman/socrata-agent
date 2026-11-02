@@ -5,7 +5,8 @@
 
 import norfolk from './norfolk.js';
 
-const GENERIC_EXCLUDE = [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i];
+// Dataset names that mean records about people, in any city.
+const GENERIC_EXCLUDE = [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i, /delinquent/i, /\btow(ed|ing)\b/i, /parking citation/i, /use of force/i];
 
 export const cities = {
   norfolk,

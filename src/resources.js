@@ -54,7 +54,8 @@ export class Resources {
     if (ds.length) {
       out.push('**Datasets**');
       for (const d of ds) {
-        const parts = [`[page](${d.page})`, `[download CSV](${d.csv})`, `[API docs](${d.docs})`];
+        // Restricted datasets carry no full-table CSV (see Socrata.handoffLinks).
+        const parts = [`[page](${d.page})`, ...(d.csv ? [`[download CSV](${d.csv})`] : []), `[API docs](${d.docs})`];
         d.queries.forEach((q, i) => parts.push(`[these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV](${q})`));
         out.push(`- ${d.name || d.id} (\`${d.id}\`)${d.department ? `, from ${d.department}` : ''}: ${parts.join(' · ')}`);
       }

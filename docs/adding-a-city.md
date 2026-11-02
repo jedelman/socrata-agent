@@ -18,6 +18,12 @@ export default {
   portal: 'https://data.yourcity.gov',
   excluded: [{ id: 'abcd-1234', reason: 'Why this dataset is off limits.' }],
   excludedNamePatterns: [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i],
+  // Plugins and core only; the open-ended tools refuse these.
+  restricted: [{ id: 'efgh-5678', reason: 'Why only a vetted plugin may read it.' }],
+  // Columns that identify private people (owner, plate, contact, applicant).
+  deniedColumns: { 'ijkl-9012': ['owner_name', 'mailing_address'] },
+  // Rows about one household's circumstances, as a SoQL predicate.
+  suppressedRows: { 'mnop-3456': "subtype = 'Something about one household'" },
   contacts: [/* citywide contacts, each verified on the city's own site */],
   links: [/* portal, meeting portal, SoQL docs */],
 };

@@ -2,7 +2,7 @@
 // executors. Which tools a city gets depends on what its profile supports.
 
 import { blockReport, lookupAddress, searchLegislation } from './block.js';
-import { soqlString } from './socrata.js';
+import { soqlString, ACCESS } from './socrata.js';
 import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
 
 const T = (name, description, properties, required = []) => ({
@@ -96,7 +96,7 @@ export async function runTool(ctx, name, args) {
       const rows = await socrata.query(
         city.meetings.noticesDataset,
         `SELECT date_and_time, organization, type, location, meeting_link, agenda_link WHERE ${where} ORDER BY date_and_time LIMIT 50`,
-        { tool: 'upcoming meetings', name: 'Public Meeting Notices' }
+        { access: ACCESS.CORE, tool: 'upcoming meetings', name: 'Public Meeting Notices' }
       );
       return rows.map((r) => ({
         when: r.date_and_time,

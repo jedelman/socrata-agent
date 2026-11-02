@@ -14,7 +14,7 @@
 import { writeFile } from 'node:fs/promises';
 import { Trace } from '../src/trace.js';
 import { Resources } from '../src/resources.js';
-import { Socrata, soqlString } from '../src/socrata.js';
+import { Socrata, soqlString, ACCESS } from '../src/socrata.js';
 import { USER_AGENT } from '../src/plugins.js';
 import norfolk from '../src/cities/norfolk.js';
 import { leagueKey } from '../plugins/water-on-my-block.js';
@@ -142,15 +142,15 @@ const tractPolys = tractFC.features.map((f) => ({ geoid: f.attributes.GEOID20, n
 
 console.error('Fetching city-wide measures…');
 const [addrByLeague, floodByLeague, floodByStreet, forestryByLeague, forestryByStreet, treeMix, nfip, acs, parcelsRaw] = await Promise.all([
-  socrata.query(DS.addresses, 'SELECT civic_league, count(*) AS n GROUP BY civic_league LIMIT 500', { tool: 'addresses per civic league', name: 'Address Information' }),
-  socrata.query(DS.workOrders, "SELECT civic_league, count(*) AS n, min(created_datetime) AS since WHERE area = 'Stormwater' AND problem_description = 'Blockage / Flooding' GROUP BY civic_league LIMIT 500", { tool: 'blockage/flooding work orders per civic league', name: 'Work Orders' }),
-  socrata.query(DS.workOrders, "SELECT civic_league, street, ward, count(*) AS n, sum(case(status_code < 800 OR status_code = 941, 1, true, 0)) AS open, max(created_datetime) AS latest WHERE area = 'Stormwater' AND problem_description = 'Blockage / Flooding' GROUP BY civic_league, street, ward ORDER BY n DESC LIMIT 500", { tool: 'blockage/flooding work orders per street', name: 'Work Orders' }),
-  socrata.query(DS.workOrders, "SELECT civic_league, primary_task_description, count(*) AS n WHERE area = 'Forestry' AND primary_task_description in ('Removal', 'Plantings') GROUP BY civic_league, primary_task_description LIMIT 1000", { tool: 'tree removals and plantings per civic league', name: 'Work Orders' }),
-  socrata.query(DS.workOrders, "SELECT civic_league, street, sum(case(primary_task_description = 'Removal', 1, true, 0)) AS removals, sum(case(primary_task_description = 'Plantings', 1, true, 0)) AS plantings WHERE area = 'Forestry' AND primary_task_description in ('Removal', 'Plantings') GROUP BY civic_league, street ORDER BY removals DESC LIMIT 500", { tool: 'tree removals and plantings per street', name: 'Work Orders' }),
-  socrata.query(DS.trees, "SELECT civic_league, count(*) AS n, sum(case(common_name = 'Crapemyrtle', 1, true, 0)) AS crape GROUP BY civic_league LIMIT 500", { tool: 'tree inventory mix per civic league', name: 'City Tree Inventory' }),
-  socrata.query(DS.nfip, "SELECT census_tract, sum(case(cause_of_damage like '%rainfall%', 1, true, 0)) AS rain, sum(case(cause_of_damage like '%Tidal%', 1, true, 0)) AS tidal, count(*) AS n GROUP BY census_tract LIMIT 500", { tool: 'flood insurance claims by block group, rain vs tide', name: 'FEMA NFIP Claims' }),
-  socrata.query(DS.acs, 'SELECT geoid, median_household_income, households LIMIT 500', { tool: 'median household income per tract', name: 'Norfolk 2020 American Community Survey Five-Year Estimates' }),
-  socrata.query(DS.assessment, `SELECT gpin, lrsn, owner, property_street_number, property_street_direction, property_street_name, property_street_type, acreage, property_class_description WHERE property_class_description in (${VACANT_PUBLIC_CLASSES.map(soqlString).join(', ')}) LIMIT 500`, { tool: 'city-owned vacant parcels (page 1)', name: 'Property Assessment and Sales - FY27' }),
+  socrata.query(DS.addresses, 'SELECT civic_league, count(*) AS n GROUP BY civic_league LIMIT 500', { access: ACCESS.CORE, tool: 'addresses per civic league', name: 'Address Information' }),
+  socrata.query(DS.workOrders, "SELECT civic_league, count(*) AS n, min(created_datetime) AS since WHERE area = 'Stormwater' AND problem_description = 'Blockage / Flooding' GROUP BY civic_league LIMIT 500", { access: ACCESS.CORE, tool: 'blockage/flooding work orders per civic league', name: 'Work Orders' }),
+  socrata.query(DS.workOrders, "SELECT civic_league, street, ward, count(*) AS n, sum(case(status_code < 800 OR status_code = 941, 1, true, 0)) AS open, max(created_datetime) AS latest WHERE area = 'Stormwater' AND problem_description = 'Blockage / Flooding' GROUP BY civic_league, street, ward ORDER BY n DESC LIMIT 500", { access: ACCESS.CORE, tool: 'blockage/flooding work orders per street', name: 'Work Orders' }),
+  socrata.query(DS.workOrders, "SELECT civic_league, primary_task_description, count(*) AS n WHERE area = 'Forestry' AND primary_task_description in ('Removal', 'Plantings') GROUP BY civic_league, primary_task_description LIMIT 1000", { access: ACCESS.CORE, tool: 'tree removals and plantings per civic league', name: 'Work Orders' }),
+  socrata.query(DS.workOrders, "SELECT civic_league, street, sum(case(primary_task_description = 'Removal', 1, true, 0)) AS removals, sum(case(primary_task_description = 'Plantings', 1, true, 0)) AS plantings WHERE area = 'Forestry' AND primary_task_description in ('Removal', 'Plantings') GROUP BY civic_league, street ORDER BY removals DESC LIMIT 500", { access: ACCESS.CORE, tool: 'tree removals and plantings per street', name: 'Work Orders' }),
+  socrata.query(DS.trees, "SELECT civic_league, count(*) AS n, sum(case(common_name = 'Crapemyrtle', 1, true, 0)) AS crape GROUP BY civic_league LIMIT 500", { access: ACCESS.CORE, tool: 'tree inventory mix per civic league', name: 'City Tree Inventory' }),
+  socrata.query(DS.nfip, "SELECT census_tract, sum(case(cause_of_damage like '%rainfall%', 1, true, 0)) AS rain, sum(case(cause_of_damage like '%Tidal%', 1, true, 0)) AS tidal, count(*) AS n GROUP BY census_tract LIMIT 500", { access: ACCESS.CORE, tool: 'flood insurance claims by block group, rain vs tide', name: 'FEMA NFIP Claims' }),
+  socrata.query(DS.acs, 'SELECT geoid, median_household_income, households LIMIT 500', { access: ACCESS.CORE, tool: 'median household income per tract', name: 'Norfolk 2020 American Community Survey Five-Year Estimates' }),
+  socrata.query(DS.assessment, `SELECT gpin, lrsn, owner, property_street_number, property_street_direction, property_street_name, property_street_type, acreage, property_class_description WHERE property_class_description in (${VACANT_PUBLIC_CLASSES.map(soqlString).join(', ')}) LIMIT 500`, { access: ACCESS.CORE, tool: 'city-owned vacant parcels (page 1)', name: 'Property Assessment and Sales - FY27' }),
 ]);
 
 // Aggregates must fit under the client's 500-row cap, or the screen is wrong.
@@ -161,7 +161,7 @@ for (const [label, rows] of Object.entries({ addrByLeague, floodByLeague, forest
 // The 500-row cap is per query; page through the rest of the vacant parcels.
 let parcels = parcelsRaw;
 for (let offset = 500; parcels.length === offset; offset += 500) {
-  const page = await socrata.query(DS.assessment, `SELECT gpin, lrsn, owner, property_street_number, property_street_direction, property_street_name, property_street_type, acreage, property_class_description WHERE property_class_description in (${VACANT_PUBLIC_CLASSES.map(soqlString).join(', ')}) ORDER BY lrsn LIMIT 500 OFFSET ${offset}`, { tool: `city-owned vacant parcels (from ${offset})`, name: 'Property Assessment and Sales - FY27' });
+  const page = await socrata.query(DS.assessment, `SELECT gpin, lrsn, owner, property_street_number, property_street_direction, property_street_name, property_street_type, acreage, property_class_description WHERE property_class_description in (${VACANT_PUBLIC_CLASSES.map(soqlString).join(', ')}) ORDER BY lrsn LIMIT 500 OFFSET ${offset}`, { access: ACCESS.CORE, tool: `city-owned vacant parcels (from ${offset})`, name: 'Property Assessment and Sales - FY27' });
   parcels = parcels.concat(page);
   if (!page.length) break;
 }

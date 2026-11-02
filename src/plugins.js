@@ -11,6 +11,7 @@
 // test/conformance.js checks a plugin against fakes before it is upstreamed.
 
 import { lookupAddress } from './block.js';
+import { ACCESS } from './socrata.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,48}$/;
 export const USER_AGENT = 'socrata-agent (+https://github.com/jedelman/socrata-agent)';
@@ -67,8 +68,9 @@ export function pluginContext(ctx) {
     // A plugin's dataset `name` is a display label only: the real name is
     // always looked up for the exclusion check.
     socrata: Object.freeze({
-      query: (id, soql, opts = {}) => ctx.socrata.query(id, soql, { tool: opts.tool, label: opts.name }),
-      describe: (id) => ctx.socrata.describe(id),
+      // Plugins always run at plugin access: they can't raise it, or name a dataset.
+      query: (id, soql, opts = {}) => ctx.socrata.query(id, soql, { tool: opts.tool, label: opts.name, access: ACCESS.PLUGIN }),
+      describe: (id) => ctx.socrata.describe(id, { access: ACCESS.PLUGIN }),
       searchCatalog: (q, limit) => ctx.socrata.searchCatalog(q, limit),
     }),
     resources: ctx.resources,

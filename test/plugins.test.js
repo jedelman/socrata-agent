@@ -25,6 +25,7 @@ function respond(url) {
   if (url.includes('/resource/uvc6-r75u')) return [{ work_type: 'Drains/Structures Cleaned', asset_type: 'Catch Basin', n: '59' }];
   if (url.includes('/resource/qzfe-wj25') && q.includes("'Forestry'")) return [{ primary_task_description: 'Removal', n: '96' }, { primary_task_description: 'Plantings', n: '19' }];
   if (url.includes('/resource/qzfe-wj25')) return [];
+  if (url.includes('/resource/mgyn-4sni') && q.includes('min(')) return [{ hi: '3.06', lo: '-1.03' }];
   if (url.includes('/resource/mgyn-4sni') && q.includes('max(')) return [{ high: '4.94' }];
   if (url.includes('/resource/mgyn-4sni')) return [{ localtime: recent, lafayette_river: '2.286' }];
   throw new Error(`unexpected request ${url}`);

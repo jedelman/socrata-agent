@@ -74,8 +74,12 @@ Fixes, all in core:
    timestamps, so it passes the 30-day staleness rule. Count a gauge as live
    only if its 7-day range moves.
 
-Until 1–5 land, every safety condition below is enforced only by the prompt,
-and that isn't enough.
+**Status, 2026-11-02:** items 1–6 are done in code (`src/socrata.js`,
+`src/cities/norfolk.js`, `plugins/water-on-my-block.js`), with tests in
+`test/privacy.test.js` and live checks against the portal. Still open:
+interior housing-condition complaints and violations on single-unit rentals
+(they need a join to property class), and the speed-study house numbers
+(`t9wi-yikh` `street_location`), which can't be dropped as a column.
 
 ## 1. Advertise now (works today, once section 0 is done)
 
