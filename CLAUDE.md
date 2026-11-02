@@ -23,8 +23,13 @@ generic mode.
 
 ## Layout
 
-- `src/` runs unchanged in Node and Cloudflare Workers. No runtime dependencies.
-  - `agent.js` is the OpenRouter loop; `tools.js` holds tool schemas and
+- `src/` runs unchanged in Node and Cloudflare Workers. One runtime
+  dependency, by Jason's choice (2026-11-02): the official `@anthropic-ai/sdk`,
+  used only by `providers/anthropic.js`. Add no others without asking.
+  - `agent.js` is the provider-neutral tool loop; `providers/anthropic.js`
+    serves `claude-*` models through the Messages API (pinned to
+    api.anthropic.com; prices in its `PRICES` table; a model with no price is
+    refused) and `providers/openrouter.js` serves everything else; `tools.js` holds tool schemas and
     executors; `block.js` is the block report and legislation matching;
     `socrata.js` is the SODA client; `adapters/iqm2.js` parses Norfolk's
     meeting portal; `cities/` holds the profiles.

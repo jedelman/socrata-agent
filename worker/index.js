@@ -9,7 +9,7 @@
 // burst can overshoot by a few requests; set an OpenRouter key limit as the
 // hard ceiling.
 
-import { ask } from '../src/agent.js';
+import { ask, keyNameFor } from '../src/agent.js';
 import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import UI from './ui.html';
@@ -95,7 +95,9 @@ async function handleAsk(req, env, ctx) {
     // Fail closed: a public deploy without limits would spend the shared key freely.
     return json({ error: 'This site is not configured yet (no usage limits are set up).' }, 503);
   }
-  if (!env.OPENROUTER_API_KEY) return json({ error: 'This site is not configured yet (no model key).' }, 503);
+  const model = env.MODEL || deployment.model;
+  const apiKey = env[keyNameFor(model)];
+  if (!apiKey) return json({ error: 'This site is not configured yet (no model key).' }, 503);
   const day = today();
   const budget = setting(env.DAILY_BUDGET_USD, 2);
   // Behind Cloudflare Access, count per verified person; in invite-only mode,
@@ -142,9 +144,10 @@ async function handleAsk(req, env, ctx) {
       city: applyConfig(getCity(cityId), deployment),
       plugins,
       indexes: INDEXES,
-      apiKey: env.OPENROUTER_API_KEY,
+      apiKey,
       appToken: env.SOCRATA_APP_TOKEN,
-      model: env.MODEL || deployment.model,
+      model,
+      effort: env.EFFORT || undefined,
       maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
       maxTokens: setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
       referer: new URL(req.url).origin,

@@ -180,7 +180,8 @@ npx wrangler deploy --env siren
 ```bash
 npm install
 npx wrangler kv namespace create LIMITS      # paste the id into wrangler.toml and uncomment the block
-npx wrangler secret put OPENROUTER_API_KEY   # use a dedicated key with its own credit limit
+npx wrangler secret put OPENROUTER_API_KEY   # for OpenRouter models; a dedicated key with its own credit limit
+npx wrangler secret put ANTHROPIC_API_KEY    # for claude-* models, e.g. MODEL=claude-haiku-5-5
 npx wrangler secret put IP_SALT              # any random string
 npx wrangler deploy
 ```
@@ -190,14 +191,16 @@ Limits, set in `wrangler.toml`:
 | Setting | Default | What it does |
 |---|---|---|
 | `PER_IP_DAILY` | 20 | Questions per visitor per day. IPs are hashed with `IP_SALT` and never stored raw. |
-| `DAILY_BUDGET_USD` | 2 | Model spend per day across all visitors, read from OpenRouter's reported cost |
+| `DAILY_BUDGET_USD` | 2 | Model spend per day across all visitors: OpenRouter's reported cost, or for Claude models the response's token usage at Anthropic's list prices |
 | `MAX_STEPS` / `MAX_TOKENS` | 6 / 1200 | Tool rounds and answer length per question |
-| `MODEL` | `openai/gpt-5.6-luna` | The model everyone shares |
+| `MODEL` | `openai/gpt-5.6-luna` | The model everyone shares. Ids starting `claude-` (such as `claude-haiku-5-5`) go straight to Anthropic's API with `ANTHROPIC_API_KEY`; anything else goes through OpenRouter |
+| `EFFORT` | model default | For Claude models: `low`, `medium`, `high`, `xhigh` or `max` |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
 
 Without the KV binding the Worker refuses questions rather than run unlimited.
 KV counts are eventually consistent, so a burst can overshoot by a few
-requests: give the OpenRouter key its own credit limit as the hard ceiling.
+requests: give the key its own hard ceiling too (an OpenRouter credit limit, or
+an Anthropic Console workspace spend limit).
 
 For local development, put `ALLOW_UNLIMITED=true` and your key in `.dev.vars`,
 then run `npm run dev`.
@@ -229,10 +232,11 @@ A weekly GitHub Action does this and commits the result.
 
 ```bash
 npm test                   # offline: parsers, voice check, limits, a full agent turn against fakes
-node scripts/compare-models.js openai/gpt-5.6-luna anthropic/claude-sonnet-5.5
+node scripts/compare-models.js openai/gpt-5.6-luna claude-haiku-5-5@low claude-sonnet-5-5
 ```
 
-No runtime dependencies. The same `src/` runs in Node and in Cloudflare Workers.
+One runtime dependency, the official `@anthropic-ai/sdk` for Claude models. The
+same `src/` runs in Node and in Cloudflare Workers.
 
 ## License
 

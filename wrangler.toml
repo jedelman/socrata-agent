@@ -38,6 +38,7 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put OPENROUTER_API_KEY --env siren
 #   npx wrangler secret put IP_SALT --env siren
 #   npx wrangler secret put INVITE_SECRET --env siren   # any long random string
+#   npx wrangler secret put ANTHROPIC_API_KEY --env siren   # if MODEL is a claude-* id
 #   npx wrangler deploy --env siren
 # Pre-alpha: invite-only, with a waitlist. Make codes with
 #   node scripts/invites.js create --label "who it's for" --uses 5
