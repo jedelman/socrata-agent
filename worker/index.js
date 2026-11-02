@@ -18,7 +18,7 @@ import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
-import { currentInvite, redeem, joinWaitlist, sessionCookie } from './invites.js';
+import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -42,7 +42,13 @@ const json = (body, status = 200, headers = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers } });
 
 const today = () => new Date().toISOString().slice(0, 10);
-const inviteOnly = (env) => env.INVITE_REQUIRED === 'true';
+// Cloudflare Access, when configured, takes the place of invites.
+const inviteOnly = (env) => env.INVITE_REQUIRED === 'true' && !env.ACCESS_TEAM_DOMAIN;
+// Invite mode hashes visitors for its rate limits; without a salt those hashes
+// could be reversed, so it fails closed.
+const inviteSetupError = (env) =>
+  !env.LIMITS ? 'This site is not configured yet (invite mode needs the LIMITS storage, even in local dev).'
+    : !env.INVITE_SECRET || !env.IP_SALT ? 'This site is not configured yet (invites are not set up).' : null;
 const basePath = (env) => (env.BASE_PATH || '').replace(/\/$/, '');
 
 // The API takes JSON only. Browsers can't send a cross-site JSON POST without
@@ -103,8 +109,9 @@ async function handleAsk(req, env, ctx) {
       return json({ error: 'Sign in through this site\'s access page first.', detail: err.message }, 401);
     }
   } else if (inviteOnly(env)) {
-    if (!env.INVITE_SECRET) return json({ error: 'This site is not configured yet (invites are not set up).' }, 503);
-    const invite = kv && (await currentInvite(req, env, kv));
+    const setup = inviteSetupError(env);
+    if (setup) return json({ error: setup }, 503);
+    const invite = await currentInvite(req, env, kv);
     if (!invite) return json({ error: 'Siren is invite-only for now. Enter your invite code, or join the waitlist.', gate: 'invite' }, 401);
     who = { key: `inv-day:${day}:${invite.hash.slice(0, 32)}`, limit: setting(env.PER_INVITE_DAILY, 30), kind: 'invite' };
   } else {
@@ -114,8 +121,10 @@ async function handleAsk(req, env, ctx) {
   if (kv) {
     const [used, spent] = await Promise.all([kv.get(ipKey), spentToday(kv, day)]);
     if (Number(used || 0) >= who.limit) {
-      const whose = who.kind === 'invite' ? 'this invite' : 'this site';
-      return json({ error: `You've asked ${who.limit} questions today, the limit for ${whose}. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
+      const used = who.kind === 'invite'
+        ? `This invite has been used for ${who.limit} questions today, its daily limit (shared by everyone using it).`
+        : `You've asked ${who.limit} questions today, the limit for this site.`;
+      return json({ error: `${used} It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.`, limit: who.kind }, 429);
     }
     if (spent >= budget) {
       return json({ error: "Today's shared budget for this free site is used up. It resets at midnight UTC. To keep going now, run socrata-agent on your own computer with your own key.", limit: 'budget' }, 503);
@@ -157,28 +166,44 @@ async function handleAsk(req, env, ctx) {
 }
 
 // What the page needs to decide whether to show the invite gate.
+// While an invite is in use, each visit renews its cookie, so active people
+// never have to redeem again.
 async function handleSession(req, env) {
-  const invited = inviteOnly(env) && env.LIMITS && env.INVITE_SECRET ? Boolean(await currentInvite(req, env, env.LIMITS)) : false;
-  return json({ invite_required: inviteOnly(env), invited, waitlist: inviteOnly(env) }, 200, { 'Cache-Control': 'no-store' });
+  const headers = { 'Cache-Control': 'no-store' };
+  let invited = false;
+  if (inviteOnly(env) && !inviteSetupError(env)) {
+    const invite = await currentInvite(req, env, env.LIMITS);
+    if (invite) {
+      invited = true;
+      headers['Set-Cookie'] = sessionCookie(await signSession(env.INVITE_SECRET, invite.hash), `${basePath(env)}/`);
+    }
+  }
+  return json({ invite_required: inviteOnly(env), invited, waitlist: inviteOnly(env) }, 200, headers);
 }
 
 async function handleRedeem(req, env) {
   if (!inviteOnly(env)) return json({ error: 'This site does not use invites.' }, 404);
-  if (!env.LIMITS) return json({ error: 'This site is not configured yet (no storage).' }, 503);
+  const setup = inviteSetupError(env);
+  if (setup) return json({ error: setup }, 503);
   let body;
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Send JSON: {"code": "..."}' }, 400);
   }
-  const out = await redeem({ code: body?.code, env, kv: env.LIMITS, visitor: await visitorHash(req, env) });
+  const current = (await currentInvite(req, env, env.LIMITS))?.hash || null;
+  const out = await redeem({
+    code: body?.code, env, kv: env.LIMITS, visitor: await visitorHash(req, env), current,
+    maxFailures: setting(env.REDEEM_FAILURES_HOURLY, 30, { min: 1 }),
+  });
   if (!out.ok) return json({ error: out.error }, out.status);
   return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
 }
 
 async function handleWaitlist(req, env) {
   if (!inviteOnly(env)) return json({ error: 'This site has no waitlist.' }, 404);
-  if (!env.LIMITS) return json({ error: 'This site is not configured yet (no storage).' }, 503);
+  const setup = inviteSetupError(env);
+  if (setup) return json({ error: setup }, 503);
   let body;
   try {
     body = await req.json();
@@ -186,10 +211,15 @@ async function handleWaitlist(req, env) {
     return json({ error: 'Send JSON: {"email": "..."}' }, 400);
   }
   const { config } = getDeployment(env);
-  const out = await joinWaitlist({ body, kv: env.LIMITS, visitor: await visitorHash(req, env), source: config.name || 'socrata-agent' });
+  const out = await joinWaitlist({
+    body, kv: env.LIMITS, visitor: await visitorHash(req, env), source: config.name || 'socrata-agent',
+    perDay: setting(env.WAITLIST_PER_VISITOR_DAILY, 50, { min: 1 }),
+  });
   if (!out.ok) return json({ error: out.error }, out.status);
   return json({ ok: true }, 200, { 'Cache-Control': 'no-store' });
 }
+
+const APP_NAME_OF = (env, config) => env.APP_NAME || config.name || 'socrata-agent';
 
 // The page, with the deployment's name, copy and skin filled in. Config text
 // is escaped; skin markup comes from worker/skins.js, which is trusted code.
@@ -206,6 +236,7 @@ function page(env) {
     LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
     FOOTER_NOTE: esc(ui.footerNote),
     BADGE: esc(ui.badge),
+    OPERATOR: esc(ui.operator ? `${APP_NAME_OF(env, config)} is run by ${ui.operator}. ` : ''),
     MARK: skin.mark,
     FONTS: skin.fonts,
     FAVICON: skin.favicon,

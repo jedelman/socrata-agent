@@ -41,7 +41,8 @@ MAX_TOKENS = "1200"
 #   npx wrangler deploy --env siren
 # Pre-alpha: invite-only, with a waitlist. Make codes with
 #   node scripts/invites.js create --label "who it's for" --uses 5
-# and export the waitlist with `node scripts/invites.js waitlist > waitlist.csv`.
+# and export the waitlist with `node scripts/invites.js waitlist > ~/siren-waitlist.csv`
+# (keep it out of this public repository).
 [env.siren]
 name = "siren"
 account_id = "543fde7feabd0af945bfae926ceea7ad"

@@ -121,8 +121,9 @@ export async function currentInvite(req, env, kv) {
 
 // Redemptions are one KV key each (redeemed:<hash>:<uuid>) and counted by
 // listing, like spend: concurrent redemptions can't overwrite each other's
-// count. A listing can lag a few seconds, so a burst may exceed max_uses by
-// a handful; that is acceptable for invite codes.
+// count. KV is eventually consistent, so redemptions made in parallel can all
+// pass the check and exceed max_uses. Treat max_uses as a guide; deleting the
+// invite (revoke) is the hard control. Each browser or device counts as one use.
 async function redemptions(kv, hash) {
   let n = 0;
   let cursor;
@@ -136,29 +137,36 @@ async function redemptions(kv, hash) {
 
 /**
  * Redeem a code. Returns { ok: true, cookie } or { ok: false, status, error }.
- * Attempts are limited per visitor per hour, so codes can't be guessed.
+ * Only failed attempts are counted against a visitor, so a room of people on
+ * one network can all redeem; with ~49-bit codes, `maxFailures` an hour still
+ * makes guessing hopeless. Re-entering a code in a browser already signed in
+ * with it costs no use: it just renews the cookie.
  */
-export async function redeem({ code, env, kv, visitor, now = Date.now() }) {
+export async function redeem({ code, env, kv, visitor, current = null, maxFailures = 30, now = Date.now() }) {
   if (!env.INVITE_SECRET) return { ok: false, status: 503, error: 'Invites are not set up on this site yet.' };
   const hour = new Date(now).toISOString().slice(0, 13);
-  const attemptsKey = `redeem-attempts:${hour}:${visitor}`;
-  const attempts = Number((await kv.get(attemptsKey)) || 0);
-  if (attempts >= 10) return { ok: false, status: 429, error: 'Too many tries. Wait an hour and try again.' };
-  await kv.put(attemptsKey, String(attempts + 1), { expirationTtl: 7200 });
+  const failuresKey = `redeem-failures:${hour}:${visitor}`;
+  const failures = Number((await kv.get(failuresKey)) || 0);
+  if (failures >= maxFailures) return { ok: false, status: 429, error: 'Too many wrong codes from here. Wait an hour and try again.' };
+  const fail = async (status, error) => {
+    await kv.put(failuresKey, String(failures + 1), { expirationTtl: 7200 });
+    return { ok: false, status, error };
+  };
 
   const key = await inviteKey(code);
   const record = key ? await kv.get(key, 'json') : null;
-  if (!record || record.revoked) return { ok: false, status: 403, error: "That code didn't work. Check it, or join the waitlist." };
+  if (!record || record.revoked) return fail(403, "That code didn't work. Check it, or join the waitlist.");
   const hash = key.slice('invite:'.length);
+  if (current === hash) return { ok: true, hash, cookie: await signSession(env.INVITE_SECRET, hash, now) };
   const max = Number(record.max_uses);
   if (Number.isFinite(max) && max > 0 && (await redemptions(kv, hash)) >= max) {
-    return { ok: false, status: 403, error: 'That code has been used up. Ask whoever gave it to you for another, or join the waitlist.' };
+    return fail(403, 'That code has been used up. Ask whoever gave it to you for another, or join the waitlist.');
   }
   await kv.put(`redeemed:${hash}:${crypto.randomUUID()}`, new Date(now).toISOString());
   return { ok: true, hash, cookie: await signSession(env.INVITE_SECRET, hash, now) };
 }
 
-const EMAIL = /^[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[A-Za-z]{2,}$/;
+const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()"',;:]+\.[A-Za-z0-9-]{2,}$/;
 const clip = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
 
 /** Validate a waitlist entry. Returns { entry } or { error }. */
@@ -177,16 +185,33 @@ export function waitlistEntry(body) {
   };
 }
 
-/** Store a waitlist entry, one key per email so a second signup updates the first. */
-export async function joinWaitlist({ body, kv, visitor, source, now = Date.now() }) {
-  const day = new Date(now).toISOString().slice(0, 10);
-  const rateKey = `waitlist-rate:${day}:${visitor}`;
-  const count = Number((await kv.get(rateKey)) || 0);
-  if (count >= 5) return { ok: false, status: 429, error: 'Too many signups from here today. Try again tomorrow.' };
+/**
+ * Store a waitlist entry, one key per email. An email already on the list is
+ * left as it is, so nobody can overwrite someone else's entry, and signing up
+ * twice doesn't count against the visitor's daily limit.
+ */
+export async function joinWaitlist({ body, kv, visitor, source, perDay = 50, now = Date.now() }) {
   const { entry, error, spam } = waitlistEntry(body);
   if (spam) return { ok: true }; // look successful, store nothing
   if (error) return { ok: false, status: 400, error };
-  await kv.put(rateKey, String(count + 1), { expirationTtl: 172800 });
-  await kv.put(`waitlist:${await sha256hex(entry.email)}`, JSON.stringify({ ...entry, source, at: new Date(now).toISOString() }));
+  const key = `waitlist:${await sha256hex(entry.email)}`;
+  if (await kv.get(key)) return { ok: true };
+  const day = new Date(now).toISOString().slice(0, 10);
+  const rateKey = `waitlist-rate:${day}:${visitor}`;
+  const count = Number((await kv.get(rateKey)) || 0);
+  if (count >= perDay) return { ok: false, status: 429, error: 'Too many signups from here today. Try again tomorrow.' };
+  await kv.put(rateKey, String(count + 1), { expirationTtl: 90000 });
+  await kv.put(key, JSON.stringify({ ...entry, source, at: new Date(now).toISOString() }));
   return { ok: true };
+}
+
+/**
+ * One CSV field. A value starting with = + - or @ would run as a formula when
+ * the export is opened in a spreadsheet, and anyone can type one into the
+ * waitlist form; a leading apostrophe keeps it text.
+ */
+export function csvField(v) {
+  let s = String(v ?? '');
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return `"${s.replace(/"/g, '""')}"`;
 }

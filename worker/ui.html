@@ -192,7 +192,7 @@ html[data-skin="siren"] {
       </div>
     </form>
     <p class="msg" id="wl-msg" role="status"></p>
-    <p class="fine">We use your email only to tell you about {{APP_NAME}}: when you're invited, and what changes. It is never sold or shared. To be removed, reply to any message from us.</p>
+    <p class="fine">{{OPERATOR}}We keep what you enter here only to tell you about {{APP_NAME}}: when you're invited, and what changes. It is never sold or shared. Please don't include a home address. To be removed, reply to any message from us.</p>
   </section>
 
   <form id="f">
@@ -296,6 +296,7 @@ $('#redeem').addEventListener('submit', async (e) => {
     msg.textContent = '';
     showGate(false);
     $('#q').focus();
+    if ($('#q').value.trim()) $('#f').requestSubmit();
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
 $('#wl').addEventListener('submit', async (e) => {
@@ -326,7 +327,13 @@ $('#f').addEventListener('submit', async (e) => {
   try {
     const res = await fetch('api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
     const data = await res.json();
-    if (res.status === 401 && data.gate === 'invite') { turn.remove(); showGate(true); return; }
+    if (res.status === 401 && data.gate === 'invite') {
+      turn.remove();
+      $('#q').value = question;
+      showGate(true);
+      $('#redeem-msg').textContent = data.error || '';
+      return;
+    }
     if (!res.ok) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
     history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });
     a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;

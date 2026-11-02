@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newCode, normalizeCode, inviteKey, signSession, verifySession, readCookie, sessionCookie,
-  currentInvite, redeem, waitlistEntry, joinWaitlist,
+  currentInvite, redeem, waitlistEntry, joinWaitlist, csvField,
 } from '../worker/invites.js';
 
 function fakeKV() {
@@ -99,13 +99,30 @@ test('wrong codes are refused, and guessing is limited per visitor', async () =>
   const kv = fakeKV();
   const now = Date.UTC(2026, 10, 2, 12);
   for (let i = 0; i < 10; i++) {
-    const r = await redeem({ code: newCode(), env, kv, visitor: 'guesser', now });
+    const r = await redeem({ code: newCode(), env, kv, visitor: 'guesser', maxFailures: 10, now });
     assert.equal(r.status, 403);
   }
   const code = await addInvite(kv, { label: 'real', max_uses: 5 });
-  const blocked = await redeem({ code, env, kv, visitor: 'guesser', now });
+  const blocked = await redeem({ code, env, kv, visitor: 'guesser', maxFailures: 10, now });
   assert.equal(blocked.status, 429); // even a real code, once over the limit
-  assert.equal((await redeem({ code, env, kv, visitor: 'someone-else', now })).ok, true);
+  assert.equal((await redeem({ code, env, kv, visitor: 'someone-else', maxFailures: 10, now })).ok, true);
+});
+
+test('a room on one network can all redeem: only failures count', async () => {
+  const kv = fakeKV();
+  for (let i = 0; i < 40; i++) {
+    const code = await addInvite(kv, { label: `guest ${i}`, max_uses: 1 });
+    assert.equal((await redeem({ code, env, kv, visitor: 'venue-wifi' })).ok, true, `guest ${i}`);
+  }
+});
+
+test('re-entering a code in a browser already signed in with it costs no use', async () => {
+  const kv = fakeKV();
+  const code = await addInvite(kv, { label: 'one', max_uses: 1 });
+  const first = await redeem({ code, env, kv, visitor: 'v' });
+  const again = await redeem({ code, env, kv, visitor: 'v', current: first.hash });
+  assert.equal(again.ok, true);
+  assert.equal([...kv.store.keys()].filter((k) => k.startsWith('redeemed:')).length, 1);
 });
 
 test('without a secret, invites fail closed', async () => {
@@ -126,13 +143,15 @@ test('the waitlist keeps only what people typed, one entry per email', async () 
   assert.equal(entry.name, 'Ana');
   assert.equal(entry.org.length, 160);
 
+  assert.ok(waitlistEntry({ email: "o'brien@example.org" }).entry, 'apostrophes are valid in emails');
+  assert.ok(waitlistEntry({ email: 'ana@example.xn--p1ai' }).entry, 'punycode TLDs are valid');
   const kv = fakeKV();
   await joinWaitlist({ body: { email: 'ana@example.org', note: 'flooding' }, kv, visitor: 'v', source: 'Siren' });
-  await joinWaitlist({ body: { email: 'ANA@example.org', note: 'trees' }, kv, visitor: 'v', source: 'Siren' });
+  await joinWaitlist({ body: { email: 'ANA@example.org', note: 'trees' }, kv, visitor: 'someone-else', source: 'Siren' });
   const entries = [...kv.store.keys()].filter((k) => k.startsWith('waitlist:'));
   assert.equal(entries.length, 1);
   const saved = JSON.parse(kv.store.get(entries[0]).value);
-  assert.equal(saved.note, 'trees');
+  assert.equal(saved.note, 'flooding', "a second signup can't overwrite the first");
   assert.equal(saved.source, 'Siren');
   assert.ok(!JSON.stringify(saved).includes('"v"'), 'no visitor id stored with the entry');
 });
@@ -141,6 +160,14 @@ test('the honeypot looks successful but stores nothing; signups are rate limited
   const kv = fakeKV();
   assert.deepEqual(await joinWaitlist({ body: { email: 'bot@spam.biz', website: 'x' }, kv, visitor: 'bot', source: 'Siren' }), { ok: true });
   assert.equal([...kv.store.keys()].filter((k) => k.startsWith('waitlist:')).length, 0);
-  for (let i = 0; i < 5; i++) assert.equal((await joinWaitlist({ body: { email: `p${i}@x.org` }, kv, visitor: 'busy', source: 'Siren' })).ok, true);
-  assert.equal((await joinWaitlist({ body: { email: 'p6@x.org' }, kv, visitor: 'busy', source: 'Siren' })).status, 429);
+  for (let i = 0; i < 5; i++) assert.equal((await joinWaitlist({ body: { email: `p${i}@x.org` }, kv, visitor: 'busy', source: 'Siren', perDay: 5 })).ok, true);
+  assert.equal((await joinWaitlist({ body: { email: 'p0@x.org' }, kv, visitor: 'busy', source: 'Siren', perDay: 5 })).ok, true, 'signing up again is free');
+  assert.equal((await joinWaitlist({ body: { email: 'p6@x.org' }, kv, visitor: 'busy', source: 'Siren', perDay: 5 })).status, 429);
+});
+
+test('waitlist export fields never run as spreadsheet formulas', () => {
+  assert.equal(csvField('=HYPERLINK("https://evil.example","x")'), `"'=HYPERLINK(""https://evil.example"",""x"")"`);
+  for (const lead of ['+', '-', '@']) assert.ok(csvField(`${lead}1`).startsWith(`"'${lead}`));
+  assert.equal(csvField('plain'), '"plain"');
+  assert.equal(csvField(null), '""');
 });
