@@ -7,7 +7,12 @@ comes back into the shared project, and what the shared web app runs.
 
 - **City profiles and fixes**, with every dataset id, field name and status code
   checked against the live portal and the date noted.
-- **Plugins** that pass `test/conformance.js` and come with an offline test.
+- **Plugins** that pass `test/conformance.js` (`checkPlugin` on fakes, and
+  `checkPluginFile` on the source) and come with an offline test. Conformance
+  catches mistakes, not malice: a plugin runs with the agent's privileges, so
+  review is the real gate. Plugins read Socrata only through `ctx.socrata`
+  (`ctx.http` refuses Socrata hosts and paths) and import nothing from `src/`
+  but `plugins.js` and `soqlString`.
 - **Adapters** for meeting systems (a Legistar adapter would unlock "who
   decided" for many cities).
 - Bug fixes with a test that fails before the fix.

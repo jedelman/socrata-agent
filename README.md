@@ -6,8 +6,9 @@ It reads a city's Socrata open data portal and its public meeting records, and
 answers in plain language. Every answer comes with:
 
 - **the trace**: every query it ran, in order, with row counts and a link to rerun it,
-- **the data**: each dataset it touched, as a dataset page, a full CSV download,
-  the exact rows it used as CSV, and the API docs,
+- **the data**: each dataset it touched, as a dataset page, the exact rows it
+  used as CSV, the API docs, and a full CSV download where the dataset holds no
+  withheld columns or rows,
 - **the people**: your council members, civic league, state and federal
   representatives, and the city's service line.
 

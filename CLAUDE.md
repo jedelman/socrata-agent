@@ -13,16 +13,22 @@ generic mode.
 - **The trace is written by code.** Every outbound request goes through
   `Trace.record` (`src/trace.js`). Never let model output become the trace.
 - **Hand-off.** Every dataset touched is registered in `Resources` with page,
-  full CSV (except restricted datasets), the exact-query CSV, and API docs. Contacts come from the address
-  dataset or from city pages verified on a stated date. Never invent a contact.
+  the exact-query CSV, API docs, and the full CSV only when no policy applies
+  (restricted, withheld columns or suppressed rows drop it). Contacts come from
+  the address dataset or from city pages verified on a stated date. Never
+  invent a contact.
 - **No people-finding.** Enforced in code by `src/socrata.js` access levels
   (generic for the open-ended tools, plugin, core) and each city profile's
   policy: `excluded` (never queried), `restricted` (plugins and core only, no
   full-table CSV), `deniedColumns` (no select, filter, group, sort or SEARCH
-  outside core; `SELECT *` skips them) and `suppressedRows` (never seen).
-  Don't add tools that search people by name, in core or in plugins, and
-  don't pass `access: 'core'` from anything a model or plugin controls. See
-  CONTRIBUTING.md and docs/capabilities-norfolk.md.
+  outside core; `SELECT *` and `DISTINCT *` skip them; `PERSON_COLUMNS` adds
+  person-named columns in every dataset; a result carrying one is refused)
+  and `suppressedRows` (dropped in a first stage Siren writes, NULL-safe).
+  The SoQL scanner refuses double quotes, comments, pipes and set operators;
+  filtered views are refused below core; profiles are deep-frozen and Socrata
+  snapshots the policy. Don't add tools that search people by name, in core
+  or in plugins, and don't pass `access: 'core'` from anything a model or
+  plugin controls. See CONTRIBUTING.md and docs/capabilities-norfolk.md.
 - **Verify against the live portal.** Dataset ids, field names and status codes
   in a city profile must be checked live, with the date noted in a comment.
 

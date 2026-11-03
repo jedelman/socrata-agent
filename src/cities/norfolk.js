@@ -25,11 +25,12 @@ export default {
     { id: '393b-ph9i', reason: "SWaM Certified Businesses is excluded: it ties owners' ethnicity and mailing addresses, often homes, to sole proprietors." },
     { id: 'p5hy-7rkp', reason: 'Norfolk Cares Center (2020) is excluded: its free-text issue descriptions can name and locate residents.' },
   ],
-  excludedNamePatterns: [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i, /delinquent/i, /\btow(ed|ing)\b/i, /parking citation/i, /use of force/i],
+  excludedNamePatterns: [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i, /delinquent/i, /\btow(ed|ing)\b/i, /parking citation/i, /use of force/i, /relocated vehicle/i, /impound/i],
 
   // Only reviewed plugins and Siren's own code may read these, with the
   // aggregation and suppression done inside the query. The open-ended tools
-  // refuse them, and the hand-off never offers their full-table CSV.
+  // refuse them, and the hand-off never offers their full-table CSV (nor for
+  // any dataset below with withheld columns or suppressed rows).
   restricted: [
     { id: 'suf7-r643', reason: 'FEMA NFIP Claims is available only through water_on_my_block, which reports claims by census tract with small counts suppressed.' },
     { id: 'r7bn-2egr', reason: 'Police Incident Reports is not available to open-ended queries: block-, date- and hour-level rows can point to victims.' },
@@ -73,13 +74,21 @@ export default {
     'bnrb-u445': ['permit_use_group', 'permit_use_group_info', 'permit_description'],
   },
 
-  // Rows that point at one household's circumstances. No level sees them.
+  // Rows that point at one household's circumstances. No level sees them:
+  // Siren's own first query stage drops them (src/socrata.js suppressFirst),
+  // and a NULL subtype is kept. Values checked live 2026-11-02; each count
+  // was confirmed as total minus matched.
   suppressedRows: {
     // Complaints that someone is living in a shed, RV or commercial building, or
-    // that a home is overcrowded (subtype values checked live 2026-11-02).
+    // that a home is overcrowded.
     'm9m3-wk2s': "subtype like 'Residing%' OR subtype = 'Rooming House/Overcrowding'",
     // Gas and fire red tags mark one household's emergency.
     '7fk7-nqxm': "subtype in ('Virginia Natural Gas Red Tag', 'Fire Department Red Tag')",
+    // Code Enforcement Cases carry the same complaint subtypes, plus the
+    // rooming-house and occupancy-limit (IPMC 404) ordinances.
+    'mxtv-99gh':
+      "complaint_subtype like 'Residing%' OR complaint_subtype in ('Rooming House/Overcrowding', 'Fire Department Red Tag', 'Virginia Natural Gas Red Tag') OR violation_ordinance = 'Rooming house' OR violation_ordinance like '404.%Occupancy Limitations'",
+    'agip-sqwc': "ordinance = 'Rooming house' OR ordinance like '404.%Occupancy Limitations'",
   },
 
   // Address in → parcel id, districts, representatives, civic league.

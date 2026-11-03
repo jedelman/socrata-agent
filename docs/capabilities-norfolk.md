@@ -81,6 +81,21 @@ interior housing-condition complaints and violations on single-unit rentals
 (they need a join to property class), and the speed-study house numbers
 (`t9wi-yikh` `street_location`), which can't be dropped as a column.
 
+**Bypass hunt, 2026-11-02/03.** Adversarial agents then attacked those guards
+and confirmed 22 bypasses, several live: `SELECT DISTINCT *`, double-quoted
+strings and comments that hid `owner` from the column check, a `|>` pipeline
+or a single-stage alias (`'x' AS subtype`; SoQL's WHERE sees aliases) that
+defeated row suppression, filtered views (`6tg2-ftte` on 311) that dodged the
+id-keyed policy, plugin `ctx.http` straight to `/resource/`, a mutable city
+profile, `--city data.norfolk.gov` loading no policy, full-table CSVs in the
+hand-off, and Chicago's Relocated Vehicles (plates). All are fixed in code
+with regression tests in `test/privacy.test.js` and re-run live. The same
+hunt found that Code Enforcement Cases (`mxtv-99gh`) and Violations
+(`agip-sqwc`) carry the suppressed subtypes and rooming-house and
+occupancy-limit ordinances; both are now suppressed. It also found that the
+old predicate silently dropped 465 complaints with no subtype; the
+suppression is now NULL-safe.
+
 ## 1. Advertise now (works today, once section 0 is done)
 
 | Capability | Data | Conditions |

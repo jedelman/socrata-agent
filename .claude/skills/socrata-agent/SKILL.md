@@ -41,11 +41,11 @@ Socrata domain such as `--city data.example.gov` (search, describe, query only).
 3. **End with the trace.** List every query from the `trace` arrays you got back,
    in order: tool, dataset id, SoQL, row count, and the `url` so anyone can rerun
    it. Copy them from the JSON; never write a trace from memory.
-4. **Hand off at the edge.** From `resources`, give the dataset page, the full CSV,
-   the "these rows" CSV links, the meeting records, and the contacts that fit
+4. **Hand off at the edge.** From `resources`, give the dataset page, the full CSV
+   (when one is listed: datasets with withheld fields have none), the "these rows" CSV links, the meeting records, and the contacts that fit
    the question.
-5. **No people-finding.** Warrant and arrest data are excluded on purpose. Don't
-   work around it.
+5. **No people-finding.** Warrant and arrest data are excluded on purpose, and
+   columns that identify private people are withheld. Don't work around either.
 
 ## How to work
 
