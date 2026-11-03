@@ -63,6 +63,6 @@ MAX_TOKENS = "1200"
 INVITE_REQUIRED = "true"
 PER_INVITE_DAILY = "30"
 
-# [[env.siren.kv_namespaces]]
-# binding = "LIMITS"
-# id = "<paste id>"
+[[env.siren.kv_namespaces]]
+binding = "LIMITS"
+id = "d4dfe5ca9b814268a1a1abe052287959"
