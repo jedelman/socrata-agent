@@ -15,6 +15,12 @@ export class Resources {
     this.datasets.set(d.id, { ...cur, ...d, queries: cur.queries });
   }
 
+  // Whether the hand-off will show a full-table CSV for this dataset. The model
+  // is told this, so it can't promise a download the operator won't find.
+  hasFullDownload(id) {
+    return Boolean(this.datasets.get(id)?.csv);
+  }
+
   addQuery(id, csvUrl) {
     const d = this.datasets.get(id);
     if (d && !d.queries.includes(csvUrl)) d.queries.push(csvUrl);

@@ -59,7 +59,7 @@ const ROW_CAP = 60;
 
 function capRows(rows) {
   if (!Array.isArray(rows) || rows.length <= ROW_CAP) return rows;
-  return { first_rows: rows.slice(0, ROW_CAP), note: `${rows.length} rows returned; showing ${ROW_CAP}. The operator can download all of them from the resources list.` };
+  return { first_rows: rows.slice(0, ROW_CAP), note: `${rows.length} rows returned; showing ${ROW_CAP}. The "these rows as CSV" link in the resources list has all ${rows.length}.` };
 }
 
 export async function runTool(ctx, name, args) {

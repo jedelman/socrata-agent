@@ -140,7 +140,7 @@ export async function blockReport(ctx, input) {
       const c = await socrata.query(d.id, `SELECT count(*) AS n WHERE ${where} LIMIT 1`, { access: ACCESS.CORE, tool: 'block report (count)', name: d.name });
       total = Number(c[0]?.n ?? rows.length);
     }
-    return { dataset: d.id, name: d.name, matched_on: 'this parcel', total, showing: rows.length, rows };
+    return { dataset: d.id, name: d.name, matched_on: 'this parcel', total, showing: rows.length, full_download: resources.hasFullDownload(d.id), rows };
   });
 
   const street = (city.streetDatasets || []).map(async (d) => {
@@ -150,7 +150,7 @@ export async function blockReport(ctx, input) {
       tool: 'block report',
       name: d.name,
     });
-    const out = { dataset: d.id, name: d.name, matched_on: d.grain, recent: rows };
+    const out = { dataset: d.id, name: d.name, matched_on: d.grain, full_download: resources.hasFullDownload(d.id), recent: rows };
     if (d.openWhere) {
       // Open items are fetched on their own: an old open item can sit far
       // below the most recent rows and would otherwise never be seen.

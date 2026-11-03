@@ -3,6 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createContext } from '../src/agent.js';
+import { blockReport } from '../src/block.js';
+import { systemPrompt } from '../src/prompt.js';
+import { runTool } from '../src/tools.js';
 import { ACCESS, identifiers, isPersonColumn } from '../src/socrata.js';
 import { definePlugin, pluginContext, applyConfig } from '../src/plugins.js';
 import { getCity, cities } from '../src/cities/index.js';
@@ -174,6 +177,28 @@ test('the hand-off never offers a full-table CSV for a dataset with withheld col
   assert.ok(!ds['qva7-tzrf'].csv && !ds['m9m3-wk2s'].csv, 'no full CSV where a policy applies');
   assert.ok(ds['qva7-tzrf'].queries.length, 'the exact-query CSV is still offered');
   assert.ok(ds['qzfe-wj25'].csv, 'a dataset with no policy keeps its full CSV');
+});
+
+test('the model is told which datasets have a full download, matching the hand-off', async () => {
+  const address = { full_address: '810 UNION ST', house_number: '810', full_street_name: 'UNION ST', street_name: 'UNION', gpin: '1437047621', ward_district: '4' };
+  const { ctx } = setup({ rows: (u) => (u.includes('/resource/ere7-kake') ? [address] : []) });
+  const report = await blockReport(ctx, '810 Union St');
+  const said = Object.fromEntries(report.datasets.map((d) => [d.dataset, d.full_download]));
+  assert.equal(said['fahm-yuh4'], false, 'permits withhold a column, so no full download');
+  assert.equal(said['qzfe-wj25'], true, 'work orders have no policy, so a full download');
+  const handoff = Object.fromEntries(ctx.resources.toJSON().datasets.map((d) => [d.id, Boolean(d.csv)]));
+  for (const [id, flag] of Object.entries(said)) assert.equal(flag, handoff[id], id);
+  const prompt = systemPrompt(norfolk, '2026-11-03');
+  assert.match(prompt, /Promise a full download only/);
+  assert.match(prompt, /The trace lists the queries you ran/);
+});
+
+test('a capped query points at the exact-query CSV, not a full download', async () => {
+  const { ctx } = setup({ rows: () => Array.from({ length: 61 }, (_, i) => ({ ward: String(i) })) });
+  const out = await runTool(ctx, 'query_dataset', { dataset_id: 'fahm-yuh4', soql: 'SELECT ward' });
+  assert.equal(out.first_rows.length, 60);
+  assert.match(out.note, /these rows as CSV/);
+  assert.doesNotMatch(out.note, /download/i);
 });
 
 test('plugins: ctx.http refuses Socrata, resources take links only, the city is frozen', async () => {

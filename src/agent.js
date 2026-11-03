@@ -118,7 +118,7 @@ export async function ask({
         isError = true;
         content = JSON.stringify({ error: String(err?.message || err) });
       }
-      if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the full result is in the operator's download links]`;
+      if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
     }
     llm.appendToolResults(results, steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null);
