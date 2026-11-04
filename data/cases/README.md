@@ -7,7 +7,9 @@ Each finding is one claim with its source URL, the exact quote that supports
 it, a stance (`confirms`, `weakens`, `context`, `who_decides`), who found it
 (`found_by`), and the date the quote was last checked (`checked`).
 `npm run verify:cases` re-fetches every source and fails if a quote is gone,
-and a weekly GitHub Action runs it. To add a finding, see CONTRIBUTING.md.
+and a weekly GitHub Action runs it. A source that refuses the machine running
+it (some sites block data-center IPs) only warns while its quote was verified
+within the last 30 days; after that it fails too. To add a finding, see CONTRIBUTING.md.
 
 ## License
 

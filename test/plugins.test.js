@@ -260,3 +260,15 @@ test('case_file serves a record with no address, including the rules', async () 
   const missing = await checkPlugin(caseFile, { city: norfolk, args: { topic: 'nope' }, respond: () => [] });
   assert.match(missing.result.error, /No case file/);
 });
+
+import { judge, STALE_DAYS } from '../scripts/verify-cases.js';
+
+test('the case verifier fails on a missing quote, and on a source unreachable too long', () => {
+  const now = Date.parse('2026-11-04T12:00:00Z');
+  assert.equal(judge({ found: true }), 'ok');
+  assert.equal(judge({ found: false }), 'fail');
+  assert.equal(judge({ found: true, absentOk: false }), 'fail');
+  assert.equal(judge({ unreachable: true, checked: '2026-11-01', now }), 'warn', 'blocked from here, verified recently');
+  assert.equal(judge({ unreachable: true, checked: '2026-09-01', now }), 'fail', `over ${STALE_DAYS} days`);
+  assert.equal(judge({ unreachable: true, now }), 'fail', 'never verified');
+});
