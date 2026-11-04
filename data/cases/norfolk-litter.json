@@ -1,0 +1,146 @@
+{
+  "id": "norfolk-litter",
+  "title": "Does Norfolk prevent litter, or only pick it up?",
+  "summary": "Norfolk and Keep Norfolk Beautiful run some prevention (education, free cigarette receptacles, campaigns, a state litter-prevention grant, and the 2022 Litterati study meant to test prevention on commercial corridors). But prevention is small beside cleanup, no results of the 2022 prevention test were found, Norfolk has not adopted the 5-cent bag tax, and no record was found of enforcing the state rule requiring litter receptacles at gas stations, fast-food restaurants and shopping centers.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "findings": [
+    {
+      "id": "bag-tax",
+      "stance": "confirms",
+      "claim": "Norfolk is not among the localities where Virginia's disposable plastic bag tax applies.",
+      "source": {
+        "title": "Virginia Tax, Disposable Plastic Bag Tax",
+        "url": "https://www.tax.virginia.gov/disposable-plastic-bag-tax"
+      },
+      "quote": "Localities where the disposable plastic bag tax currently applies",
+      "absent": "Norfolk",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "bag-tax-revenue",
+      "stance": "context",
+      "claim": "Virginia law lets a locality adopt a 5-cent bag tax, with revenue for environmental cleanup, education, and mitigating pollution and litter, or reusable bags for SNAP and WIC recipients.",
+      "source": {
+        "title": "Va. Code 58.1-1745",
+        "url": "https://law.lis.virginia.gov/vacode/title58.1/chapter17/section58.1-1745/"
+      },
+      "quote": "environmental cleanup",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "receptacle-rule",
+      "stance": "confirms",
+      "claim": "State regulation requires litter receptacles at gasoline stations, fast-food restaurants, shopping centers, public parking lots and business-district sidewalks: the kinds of places along Norfolk's worst-littered corridors. No record of Norfolk enforcing it was found.",
+      "source": {
+        "title": "9VAC20-190-40, places requiring litter receptacles",
+        "url": "https://law.lis.virginia.gov/admincode/title9/agency20/chapter190/section40/"
+      },
+      "quote": "Sidewalks in business districts",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "knb-receptacles",
+      "stance": "weakens",
+      "claim": "Keep Norfolk Beautiful offers businesses free cigarette receptacles while supplies last, and recycles butts through TerraCycle.",
+      "source": {
+        "title": "City of Norfolk, Keep Norfolk Beautiful: cigarette litter",
+        "url": "https://norfolk.gov/6372"
+      },
+      "quote": "Request a FREE cigarette receptacle while supplies last",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "litterati-purpose",
+      "stance": "weakens",
+      "claim": "The 2022 Litterati project was presented as helping Norfolk develop strategies to prevent litter on commercial corridors. No published results of that prevention work were found.",
+      "source": {
+        "title": "Litterati, The City Fingerprint Project",
+        "url": "https://litterati.org/the-city-fingerprint-project"
+      },
+      "quote": "littering on commercial corridors",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "hrt-stops",
+      "stance": "context",
+      "claim": "Hampton Roads Transit says it can collect trash at only about 7% of its highest-volume stops with passenger amenities; volunteers empty bins through Adopt-A-Stop.",
+      "source": {
+        "title": "Hampton Roads Transit, Adopt-A-Stop",
+        "url": "https://gohrt.com/adopt-a-stop"
+      },
+      "quote": "HRT can collect trash at only around 7%",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "norms",
+      "stance": "context",
+      "claim": "Litter attracts litter: in a classic field experiment, 41% of people littered in a littered setting against 11% in a clean one, so prompt cleanup is partly prevention.",
+      "source": {
+        "title": "Cialdini, Reno & Kallgren (1990), Journal of Personality and Social Psychology",
+        "url": "https://public.websites.umich.edu/~prestos/Consumption/pdfs/Cialdinietal1990.pdf"
+      },
+      "quote": "41% vs. 11%",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "bag-evidence",
+      "stance": "context",
+      "claim": "Across U.S. shoreline cleanups, bag policies cut plastic bags' share of collected items by 25 to 47%.",
+      "source": {
+        "title": "Papp & Oremus (2025), Science",
+        "url": "https://wwals.net/pictures/2025-06-19--plastic-bag-ban-benefits-science/science.adp9274.pdf"
+      },
+      "quote": "lead to a 25 to 47% decrease",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "cigarette-evidence",
+      "stance": "context",
+      "claim": "Keep America Beautiful reports communities in its Cigarette Litter Prevention Program cut cigarette litter by about half, measured locally in the first four to six months. Cigarette butts were about 29% of the items in Norfolk's 2022 survey.",
+      "source": {
+        "title": "Keep America Beautiful, Cigarette Litter Prevention Program results",
+        "url": "https://kab.org/communities-report-prolonged-success-in-reducing-cigarette-butt-litter-2"
+      },
+      "quote": "reduce cigarette litter by half",
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Adopt Virginia's 5-cent bag tax; its revenue is earmarked for litter and pollution work.",
+      "finding": "bag-tax"
+    },
+    {
+      "text": "Enforce the state receptacle rule at gas stations, fast-food restaurants and shopping centers on the hotspot corridors.",
+      "finding": "receptacle-rule"
+    },
+    {
+      "text": "Put serviced cigarette receptacles at business entrances and the busiest bus stops, and measure butt counts before and after.",
+      "finding": "cigarette-evidence"
+    },
+    {
+      "text": "Publish the results of the 2022 Litterati prevention study and resume the Litter Index, last published for 2019.",
+      "finding": "litterati-purpose"
+    }
+  ],
+  "records_to_request": [
+    "The Litterati City Fingerprint final report, contract and cost, and the interventions tested, with dates and places.",
+    "Keep Norfolk Beautiful's budget and staffing, FY2020 to now, and DEQ litter-prevention grant applications and reports.",
+    "How many free cigarette receptacles were given out, and where.",
+    "Any enforcement of 9VAC20-190, and littering, dumping and uncovered-load summonses since 2020, by location.",
+    "Any staff analysis or council briefing on the bag tax (Va. Code 58.1-1745)."
+  ],
+  "pending": [
+    "Keep Norfolk Beautiful's DEQ grant line in the Annual Grants Plans ($35,000 in FY2020-FY2021, $100,000 in FY2025, $80,000 in FY2026, per the researcher); not yet re-checked."
+  ]
+}

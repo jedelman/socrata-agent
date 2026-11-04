@@ -1,0 +1,22 @@
+name: Verify case files
+# Re-fetch every case-file source and check each quote is still there. A
+# source that changes or disappears fails this job; fix the finding (or mark
+# it unverified) rather than letting Siren serve a quote that's gone.
+on:
+  schedule:
+    - cron: '41 10 * * 3' # Wednesdays 10:41 UTC
+  pull_request:
+    paths: ['data/cases/**', 'scripts/verify-cases.js']
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: npm ci
+      - run: npm run verify:cases

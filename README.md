@@ -6,8 +6,9 @@ It reads a city's Socrata open data portal and its public meeting records, and
 answers in plain language. Every answer comes with:
 
 - **the trace**: every query it ran, in order, with row counts and a link to rerun it,
-- **the data**: each dataset it touched, as a dataset page, a full CSV download,
-  the exact rows it used as CSV, and the API docs,
+- **the data**: each dataset it touched, as a dataset page, the exact rows it
+  used as CSV, the API docs, and a full CSV download where the dataset holds no
+  withheld columns or rows,
 - **the people**: your council members, civic league, state and federal
   representatives, and the city's service line.
 
@@ -154,12 +155,34 @@ per verified person. The Worker checks the signed token; it never trusts the
 email header. See [docs/extending.md](docs/extending.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Siren
+
+![Siren answering "who decided to allow a kennel at 111 Pennsylvania Ave?"](docs/siren-screenshot.png)
+
+The public deployment is **Siren**, at
+[jason-edelman.org/ask-siren](https://jason-edelman.org/ask-siren/). The name
+does three jobs: Norfolk is the Mermaid City; the greater siren is a salamander
+of Virginia's coastal-plain swamps; and a siren is an alarm. Its config is
+`deployments/siren.config.js`, and `[env.siren]` in `wrangler.toml` routes the
+path, and `ui` gives it its own skin (`worker/skins.js`): blackwater greens,
+spatterdock gold, a greater-siren mark, and the tagline *Sings only what the
+records say*. Other deployments keep the plain page. A Worker route runs before the site's Custom Domain, so only
+`/ask-siren` reaches this Worker; the rest of the site is untouched.
+
+```bash
+npx wrangler kv namespace create LIMITS --env siren   # paste the id into [[env.siren.kv_namespaces]]
+npx wrangler secret put OPENROUTER_API_KEY --env siren
+npx wrangler secret put IP_SALT --env siren
+npx wrangler deploy --env siren
+```
+
 ## Deploy the web app
 
 ```bash
 npm install
 npx wrangler kv namespace create LIMITS      # paste the id into wrangler.toml and uncomment the block
-npx wrangler secret put OPENROUTER_API_KEY   # use a dedicated key with its own credit limit
+npx wrangler secret put OPENROUTER_API_KEY   # for OpenRouter models; a dedicated key with its own credit limit
+npx wrangler secret put ANTHROPIC_API_KEY    # for claude-* models, e.g. MODEL=claude-haiku-5-5
 npx wrangler secret put IP_SALT              # any random string
 npx wrangler deploy
 ```
@@ -169,14 +192,22 @@ Limits, set in `wrangler.toml`:
 | Setting | Default | What it does |
 |---|---|---|
 | `PER_IP_DAILY` | 20 | Questions per visitor per day. IPs are hashed with `IP_SALT` and never stored raw. |
-| `DAILY_BUDGET_USD` | 2 | Model spend per day across all visitors, read from OpenRouter's reported cost |
+| `DAILY_BUDGET_USD` | 2 | Model spend per day across all visitors: OpenRouter's reported cost, or for Claude models the response's token usage at Anthropic's list prices |
 | `MAX_STEPS` / `MAX_TOKENS` | 6 / 1200 | Tool rounds and answer length per question |
-| `MODEL` | `openai/gpt-5.6-luna` | The model everyone shares |
+| `MODEL` | `openai/gpt-5.6-luna` | The model everyone shares. Ids starting `claude-` (such as `claude-haiku-5-5`) go straight to Anthropic's API with `ANTHROPIC_API_KEY`; anything else goes through OpenRouter |
+| `EFFORT` | model default | For Claude models: `low`, `medium`, `high`, `xhigh` or `max` |
+| `MAX_TOKENS_CLAUDE` | 8000 | Output allowance per call for Claude models (1000–16000). Thinking counts toward it; a call cut off at the limit is retried once at 16000 and its tool calls are never run |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
+
+Claude spend is priced from each response's token usage. The SDK retries a
+failed call once (on rate limits, server errors and timeouts); an attempt the
+API billed but never answered isn't in that usage, so keep the workspace spend
+limit as the backstop.
 
 Without the KV binding the Worker refuses questions rather than run unlimited.
 KV counts are eventually consistent, so a burst can overshoot by a few
-requests: give the OpenRouter key its own credit limit as the hard ceiling.
+requests: give the key its own hard ceiling too (an OpenRouter credit limit, or
+an Anthropic Console workspace spend limit).
 
 For local development, put `ALLOW_UNLIMITED=true` and your key in `.dev.vars`,
 then run `npm run dev`.
@@ -208,10 +239,11 @@ A weekly GitHub Action does this and commits the result.
 
 ```bash
 npm test                   # offline: parsers, voice check, limits, a full agent turn against fakes
-node scripts/compare-models.js openai/gpt-5.6-luna anthropic/claude-sonnet-5.5
+node scripts/compare-models.js openai/gpt-5.6-luna claude-haiku-5-5@low claude-sonnet-5-5
 ```
 
-No runtime dependencies. The same `src/` runs in Node and in Cloudflare Workers.
+One runtime dependency, the official `@anthropic-ai/sdk` for Claude models. The
+same `src/` runs in Node and in Cloudflare Workers.
 
 ## License
 

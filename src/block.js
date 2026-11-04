@@ -3,7 +3,7 @@
 // address dataset and parcel-keyed datasets without code changes.
 
 import { normalizeAddress } from './adapters/iqm2.js';
-import { soqlString } from './socrata.js';
+import { soqlString, ACCESS } from './socrata.js';
 
 const DIRS = new Set(['N', 'S', 'E', 'W', 'NORTH', 'SOUTH', 'EAST', 'WEST']);
 const SUFFIXES = new Set([
@@ -17,9 +17,16 @@ export function addressKey(addr) {
   let words = normalizeAddress(String(addr).split(',')[0]).split(' ');
   while (words.length > 2 && /^(\d{5}(-\d{4})?|VA|NORFOLK)$/.test(words.at(-1))) words = words.slice(0, -1);
   const i = words.findIndex((w) => /^\d+[A-Z]?$/.test(w));
-  if (i < 0) return { num: null, street: words.filter((w) => !DIRS.has(w) && !SUFFIXES.has(w)).join(' ') };
-  const rest = words.slice(i + 1).filter((w) => !DIRS.has(w) && !SUFFIXES.has(w));
-  return { num: words[i], street: rest.join(' ') };
+  return { num: i < 0 ? null : words[i], street: streetCore(i < 0 ? words : words.slice(i + 1)) };
+}
+
+// Strip one trailing suffix and one leading direction, but never the last
+// word: "West Ave" is WEST, not "" (which would match every street).
+function streetCore(words) {
+  const w = words.filter(Boolean);
+  if (w.length > 1 && SUFFIXES.has(w.at(-1))) w.pop();
+  if (w.length > 1 && DIRS.has(w[0])) w.shift();
+  return w.join(' ');
 }
 
 function pick(row, fields) {
@@ -32,21 +39,27 @@ export async function lookupAddress(ctx, input) {
   const { city, socrata, resources } = ctx;
   const cfg = city.address;
   const key = addressKey(input);
-  if (!key.num) return { error: 'I need a house number and street, like "111 Pennsylvania Ave".' };
+  if (!key.num || !key.street) return { error: 'I need a house number and street, like "111 Pennsylvania Ave".' };
   const longest = key.street.split(' ').sort((a, b) => b.length - a.length)[0] || '';
   const rows = await socrata.query(
     cfg.dataset,
     `SELECT * WHERE ${cfg.fields.number} = ${soqlString(key.num)} AND upper(${cfg.fields.street}) like ${soqlString(`%${longest}%`)} LIMIT 25`,
-    { tool: 'look up address', name: cfg.name }
+    { access: ACCESS.CORE, tool: 'look up address', name: cfg.name }
   );
+  // Only an exact street match is used. A near miss (100 East St for "100 West
+  // Ave") goes back as a candidate for the person to confirm, never as the answer.
   const exact = rows.filter((r) => addressKey(r[cfg.fields.full]).street === key.street);
-  const chosen = exact.length === 1 ? exact[0] : rows.length === 1 ? rows[0] : null;
+  const chosen = exact.length === 1 ? exact[0] : null;
   if (!chosen) {
     return {
       searched: input,
       match: null,
       candidates: (exact.length ? exact : rows).slice(0, 10).map((r) => r[cfg.fields.full]),
-      note: rows.length ? 'More than one address matched; ask which one.' : 'I found no address with that number on that street.',
+      note: exact.length > 1
+        ? 'More than one address matched; ask which one.'
+        : rows.length
+          ? 'I found no exact match for that street. These addresses have the same number on a similar street; ask whether one is meant.'
+          : 'I found no address with that number on that street.',
     };
   }
   const contacts = [];
@@ -118,28 +131,31 @@ export async function blockReport(ctx, input) {
   const parcel = (city.parcelDatasets || []).map(async (d) => {
     const where = `${d.parcel} = ${soqlString(a.parcel_id)}`;
     const rows = await socrata.query(d.id, `SELECT ${d.fields.join(', ')} WHERE ${where} ORDER BY ${d.date} DESC LIMIT ${LIMIT}`, {
+      access: ACCESS.CORE,
       tool: 'block report',
       name: d.name,
     });
     let total = rows.length;
     if (rows.length === LIMIT) {
-      const c = await socrata.query(d.id, `SELECT count(*) AS n WHERE ${where} LIMIT 1`, { tool: 'block report (count)', name: d.name });
+      const c = await socrata.query(d.id, `SELECT count(*) AS n WHERE ${where} LIMIT 1`, { access: ACCESS.CORE, tool: 'block report (count)', name: d.name });
       total = Number(c[0]?.n ?? rows.length);
     }
-    return { dataset: d.id, name: d.name, matched_on: 'this parcel', total, showing: rows.length, rows };
+    return { dataset: d.id, name: d.name, matched_on: 'this parcel', total, showing: rows.length, full_download: resources.hasFullDownload(d.id), rows };
   });
 
   const street = (city.streetDatasets || []).map(async (d) => {
     const where = d.where({ ...a });
     const rows = await socrata.query(d.id, `SELECT ${d.fields.join(', ')} WHERE ${where} ORDER BY ${d.date} DESC LIMIT ${LIMIT}`, {
+      access: ACCESS.CORE,
       tool: 'block report',
       name: d.name,
     });
-    const out = { dataset: d.id, name: d.name, matched_on: d.grain, recent: rows };
+    const out = { dataset: d.id, name: d.name, matched_on: d.grain, full_download: resources.hasFullDownload(d.id), recent: rows };
     if (d.openWhere) {
       // Open items are fetched on their own: an old open item can sit far
       // below the most recent rows and would otherwise never be seen.
       const open = await socrata.query(d.id, `SELECT ${d.fields.join(', ')} WHERE (${where}) AND (${d.openWhere}) ORDER BY ${d.date} LIMIT ${LIMIT}`, {
+        access: ACCESS.CORE,
         tool: 'block report (open)',
         name: d.name,
       });
@@ -147,6 +163,7 @@ export async function blockReport(ctx, input) {
       out.open_means = d.openNote;
       if (open.length === LIMIT) {
         const c = await socrata.query(d.id, `SELECT count(*) AS n WHERE (${where}) AND (${d.openWhere}) LIMIT 1`, {
+          access: ACCESS.CORE,
           tool: 'block report (open count)',
           name: d.name,
         });

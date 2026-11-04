@@ -1,7 +1,7 @@
 // A worked example deployment: a Norfolk "sponge city" campaign.
 // Copy this file, edit it, and run:
 //   node bin/socrata-agent.js ask "..." --config deployments/your.config.js
-// or point worker/deployment.js at it for the web app.
+// or register it in deployments/index.js and set DEPLOYMENT for the web app.
 //
 // What a config can do: pick the city, add plugin tools, add contacts and
 // links, add exclusions, and give the agent focus notes. What it can't do:

@@ -5,7 +5,7 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { cities, getCity } from '../src/cities/index.js';
-import { ask, createContext, DEFAULT_MODEL } from '../src/agent.js';
+import { ask, createContext, DEFAULT_MODEL, apiKeyFromEnv } from '../src/agent.js';
 import { toolsFor, runTool } from '../src/tools.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { pathToFileURL } from 'node:url';
@@ -31,7 +31,9 @@ Examples
   socrata-agent ask "Which neighborhoods have the most potholes reported this year?" --city chicago
 
 Environment
-  OPENROUTER_API_KEY   required for "ask" (https://openrouter.ai/keys)
+  OPENROUTER_API_KEY   required for "ask" with OpenRouter models (https://openrouter.ai/keys)
+  ANTHROPIC_API_KEY    required for "ask" with claude-* models, e.g. --model claude-haiku-5-5
+                       (https://console.anthropic.com); --effort low|medium|high sets their effort
   SOCRATA_APP_TOKEN    optional; raises Socrata's rate limits
   SOCRATA_AGENT_MODEL  optional default model
 `;
@@ -53,6 +55,7 @@ const { values, positionals } = parseArgs({
     city: { type: 'string' },
     config: { type: 'string' },
     model: { type: 'string' },
+    effort: { type: 'string' },
     json: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
@@ -93,14 +96,16 @@ try {
     const question = rest.join(' ').trim();
     if (!question) throw new Error('ask needs a question');
     const { city, plugins, model: configModel } = await loadDeployment();
+    const model = values.model || configModel || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL;
     const out = await ask({
       question,
       city,
       plugins,
       indexes: await loadIndexes(city),
-      apiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: apiKeyFromEnv(model, process.env),
       appToken: process.env.SOCRATA_APP_TOKEN,
-      model: values.model || configModel || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL,
+      model,
+      effort: values.effort,
       onEvent: (e) => {
         if (values.json) return;
         if (e.type === 'tool') console.error(`  → ${e.name} ${JSON.stringify(e.args)}`);

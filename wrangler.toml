@@ -30,3 +30,49 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put OPENROUTER_API_KEY
 #   npx wrangler secret put IP_SALT            # any random string
 #   npx wrangler secret put SOCRATA_APP_TOKEN  # optional
+
+# Siren: the public deployment at jason-edelman.org/ask-siren.
+# Deploys: Workers Builds (the Cloudflare dashboard's Git connection on the
+# "siren" Worker) runs `npm ci && npm test`, then `npx wrangler deploy --env
+# siren`, on every push to main. Preview builds are off: a preview would share
+# this Worker's secrets and KV on a public workers.dev URL.
+# A route runs before the site's Custom Domain, so only this path reaches this
+# Worker; the rest of jason-edelman.org is untouched.
+#   npx wrangler kv namespace create LIMITS --env siren   # paste the id below
+#   npx wrangler secret put OPENROUTER_API_KEY --env siren
+#   npx wrangler secret put IP_SALT --env siren
+#   npx wrangler secret put INVITE_SECRET --env siren   # any long random string
+#   npx wrangler secret put ANTHROPIC_API_KEY --env siren   # if MODEL is a claude-* id
+#   npx wrangler secret put RESEND_API_KEY --env siren   # email sign-in (resend.com)
+# Email sign-in also needs LOGIN_FROM below, an address on a domain verified
+# in Resend. Until both are set, the page offers invite codes only.
+#   npx wrangler deploy --env siren
+# Pre-alpha: invite-only, with a waitlist. Make codes with
+#   node scripts/invites.js create --label "who it's for" --uses 5
+# and export the waitlist with `node scripts/invites.js waitlist > ~/siren-waitlist.csv`
+# (keep it out of this public repository).
+[env.siren]
+name = "siren"
+account_id = "543fde7feabd0af945bfae926ceea7ad"
+routes = [
+  { pattern = "jason-edelman.org/ask-siren", zone_name = "jason-edelman.org" },
+  { pattern = "jason-edelman.org/ask-siren/*", zone_name = "jason-edelman.org" },
+]
+
+[env.siren.vars]
+DEPLOYMENT = "siren"
+BASE_PATH = "/ask-siren"
+MODEL = "claude-sonnet-5-5"
+PER_IP_DAILY = "20"
+DAILY_BUDGET_USD = "2"
+MAX_STEPS = "6"
+MAX_TOKENS = "1200"
+INVITE_REQUIRED = "true"
+PER_INVITE_DAILY = "30"
+PER_USER_DAILY = "30"
+CONVERSATION_DAYS = "7"
+LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jason, 2026-11-04)
+
+[[env.siren.kv_namespaces]]
+binding = "LIMITS"
+id = "d4dfe5ca9b814268a1a1abe052287959"

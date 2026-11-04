@@ -7,6 +7,8 @@ import { toolsFor } from '../src/tools.js';
 import { getCity } from '../src/cities/index.js';
 import { systemPrompt } from '../src/prompt.js';
 import water, { tractGeoid, leagueKey, km, TIDE_GAUGES } from '../plugins/water-on-my-block.js';
+import trees, { summarize } from '../plugins/trees-on-my-block.js';
+import litter, { median, perMeter } from '../plugins/litter-on-my-street.js';
 import sponge from '../deployments/sponge-city-norfolk.config.js';
 import { verifyAccess, resetAccessCache } from '../worker/access.js';
 
@@ -25,6 +27,7 @@ function respond(url) {
   if (url.includes('/resource/uvc6-r75u')) return [{ work_type: 'Drains/Structures Cleaned', asset_type: 'Catch Basin', n: '59' }];
   if (url.includes('/resource/qzfe-wj25') && q.includes("'Forestry'")) return [{ primary_task_description: 'Removal', n: '96' }, { primary_task_description: 'Plantings', n: '19' }];
   if (url.includes('/resource/qzfe-wj25')) return [];
+  if (url.includes('/resource/mgyn-4sni') && q.includes('min(')) return [{ hi: '3.06', lo: '-1.03' }];
   if (url.includes('/resource/mgyn-4sni') && q.includes('max(')) return [{ high: '4.94' }];
   if (url.includes('/resource/mgyn-4sni')) return [{ localtime: recent, lafayette_river: '2.286' }];
   throw new Error(`unexpected request ${url}`);
@@ -133,4 +136,117 @@ test('sponge_site_screen serves the prebuilt screen with provenance', async () =
   for (const s of result.sites) assert.match(s.owner, /^(City Of Norfolk|Norfolk Redevelopment|Economic Dev)/i);
   const swales = await checkPlugin(screenPlugin, { city: norfolk, args: { intervention: 'bioswale', civic_league: 'crossroads' }, respond });
   assert.ok(swales.result.streets.every((s) => /crossroads/i.test(s.civic_league)));
+});
+
+test('plugin HTTP retries a server error once, inside one traced step', async () => {
+  let calls = 0;
+  const trace = new Trace();
+  const http = tracedHttp(trace, async () => (++calls === 1 ? new Response('busy', { status: 504 }) : new Response('{"ok":1}')));
+  assert.deepEqual(await http.json('https://hazards.fema.gov/x', { tool: 'fema', retryDelayMs: 0 }), { ok: 1 });
+  assert.equal(calls, 2);
+  assert.equal(trace.steps.length, 1);
+  const always = tracedHttp(new Trace(), async () => new Response('down', { status: 503 }));
+  await assert.rejects(always.json('https://hazards.fema.gov/x', { retryDelayMs: 0 }), /HTTP 503/);
+});
+
+// Fakes shaped like the live answers on 2026-11-04.
+function respondTreesLitter(url) {
+  const q = decodeURIComponent(url);
+  if (url.includes('/api/views/')) return { name: 'some dataset', columns: [] };
+  if (url.includes('/resource/ere7-kake'))
+    return [{ full_address: '111 PENNSYLVANIA AVENUE', gpin: '1438184218', house_number: '111', full_street_name: 'PENNSYLVANIA AVENUE', street_name: 'PENNSYLVANIA', ward_district: '2', parcel_centroid_latitude: '36.88223592', parcel_centroid_longitude: '-76.28240994', census_tract_number: '28', civic_league: 'Colonial Place and Riverview' }];
+  if (url.includes('/resource/qzfe-wj25')) {
+    if (q.includes('min(created_datetime)')) return [{ first: '2020-08-05T08:31:36.000', last: '2026-11-02T15:32:11.000' }];
+    if (q.includes('GROUP BY civic_league')) return [{ civic_league: 'Colonial Place/ Riverview', n: '324' }];
+    if (q.includes('date_extract_y')) return [{ y: '2025', n: '3', cost: '1155.5' }];
+    if (q.includes('GROUP BY t, p')) return [{ t: 'Removal', p: 'Dead Tree', n: '2', cost: '900' }];
+    if (q.includes('GROUP BY t')) return [{ t: 'Removal', n: '60', cost: '30000' }, { t: 'Stump Grinding', n: '55', cost: '14000' }, { t: 'Pruning', n: '70', cost: '18000' }, { t: 'Plantings', n: '12', cost: '3000' }];
+    return [{ work_order_number: '25-1', primary_task_description: 'Removal', problem_description: 'Dead Tree', status_description: 'Complete', created_datetime: '2025-08-25T00:00:00.000' }];
+  }
+  if (url.includes('/resource/cmvv-agyb')) {
+    if (q.includes('GROUP BY civic_league')) return [{ civic_league: 'Colonial Place/ Riverview', n: '2100' }];
+    if (q.includes('GROUP BY common_name')) return [{ common_name: 'Crapemyrtle', n: '12' }, { common_name: 'Willow Oak', n: '2' }];
+    if (q.includes('GROUP BY r')) return [{ r: '6" to 12"', n: '5' }, { n: '9' }];
+    return [{ n: '93993' }];
+  }
+  if (url.includes('/resource/iz5u-2wb3')) return q.includes('GROUP BY category') ? [{ category: 'smoking', n: '50' }, { category: 'drink', n: '50' }] : [{ object: 'cigarettebutt', n: '47' }, { object: 'bottle', n: '53' }];
+  if (url.includes('/resource/fq5y-c2yn'))
+    return [
+      { location_name: 'Granby Street', latitude: '36.884', longitude: '-76.285', litter_per_meter_spring_2022: '0.1', litter_per_meter_summer_2022: '0.14' },
+      { location_name: 'Far Road', latitude: '36.95', longitude: '-76.2', litter_per_meter_fall_2022: '0.05' },
+    ];
+  if (url.includes('/resource/nbz2-dgus')) return [{ ward_route: 'Ward 2-1a', _2010: '1', _2019: '2' }, { ward_route: 'Ward 2-1b', _2010: '2', _2019: '2' }];
+  throw new Error(`unexpected request ${url}`);
+}
+
+test('trees_on_my_block passes conformance and never counts private trees', async () => {
+  const { result, requests } = await checkPlugin(trees, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter });
+  assert.equal(result.near_you.city_trees, 14);
+  assert.equal(result.near_you.no_size_recorded, 9);
+  assert.equal(result.civic_league.civic_league_matched, 'Colonial Place/ Riverview');
+  assert.equal(result.civic_league.removals_per_planting, 5);
+  assert.equal(result.civic_league.city_trees_in_inventory, 2100);
+  assert.equal(result.citywide.city_trees_in_inventory, 93993);
+  assert.ok(result.work_orders_cover.years > 6);
+  for (const u of requests.filter((x) => x.includes('/resource/cmvv-agyb'))) assert.match(decodeURIComponent(u), /common_name != 'PRIVATE TREES'/);
+  assert.ok(result.about_the_data.some((n) => /re-inventory/.test(n)));
+});
+
+test('tree summary ratios', () => {
+  const s = summarize([{ t: 'Removal', n: '10', cost: '5000' }, { t: 'Stump Grinding', n: '9', cost: '1000' }, { t: 'Pruning', n: '20', cost: '3000' }, { t: 'Plantings', n: '4' }], { trees: 2000, years: 5 });
+  assert.equal(s.removals_per_planting, 2.5);
+  assert.equal(s.spent_removing_vs_pruning, 2);
+  assert.equal(s.pruning_work_orders_per_year, 4);
+  assert.equal(s.years_to_prune_every_tree_once_at_this_pace, 500);
+  assert.equal(summarize([], {}).removals_per_planting, null);
+});
+
+test('litter_on_my_street passes conformance and labels the survey honestly', async () => {
+  const { result } = await checkPlugin(litter, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter });
+  assert.equal(result.survey_near_you.items_recorded, 100);
+  assert.equal(result.survey_near_you.by_category[0].percent, 50);
+  assert.equal(result.nearest_surveyed_stretches.nearest.length, 1, 'only stretches within 1.5 km');
+  assert.equal(result.nearest_surveyed_stretches.nearest[0].location, 'Granby Street');
+  assert.deepEqual(result.litter_index.by_year.map((y) => y.year), [2010, 2019]);
+  assert.equal(result.cleanup_spending.civic_league.civic_league_matched, 'Colonial Place/ Riverview');
+  assert.ok(result.about_the_data.some((n) => /244 chosen locations/.test(n)));
+});
+
+test('litter helpers', () => {
+  assert.equal(median([3, 1, 2]), 2);
+  assert.equal(median([1, 2, 3, 4]), 2.5);
+  assert.equal(median([]), null);
+  assert.ok(Math.abs(perMeter({ litter_per_meter_spring_2022: '0.1', litter_per_meter_summer_2022: '0.2' }) - 0.15) < 1e-9);
+  assert.equal(perMeter({}), null);
+});
+
+import { readFileSync, readdirSync } from 'node:fs';
+
+test('case files: every served finding has a source and a checked quote; every fix points at a finding', () => {
+  const dir = new URL('../data/cases/', import.meta.url);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+    const doc = JSON.parse(readFileSync(new URL(file, dir), 'utf8'));
+    const ids = new Set(doc.findings.map((f) => f.id));
+    assert.equal(ids.size, doc.findings.length, `${file}: duplicate finding ids`);
+    for (const f of doc.findings) {
+      assert.ok(f.claim && f.source?.url?.startsWith('https://') && f.source.title, `${file} ${f.id}: claim and source`);
+      assert.ok(['confirms', 'weakens', 'context', 'who_decides'].includes(f.stance), `${file} ${f.id}: stance`);
+      assert.ok(f.found_by, `${file} ${f.id}: found_by names who found it`);
+      if (!f.unverified) assert.ok(f.quote && /^\d{4}-\d{2}-\d{2}$/.test(f.checked || ''), `${file} ${f.id}: run scripts/verify-cases.js --write`);
+    }
+    for (const h of doc.what_would_help) assert.ok(ids.has(h.finding), `${file}: fix points at missing finding ${h.finding}`);
+  }
+});
+
+test('the_record serves only checked findings, and puts every source in the trace and hand-off', async () => {
+  const { result, trace, resources } = await checkPlugin(trees, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter });
+  const r = result.the_record;
+  assert.ok(r.confirms.length >= 5 && r.weakens.length >= 3);
+  assert.ok(r.confirms.some((f) => /5% of street-tree pruning requests/.test(f.claim)));
+  assert.ok(r.not_yet_verified.some((c) => /Tree Commission/.test(c)), 'unverified claims are labeled, not served');
+  assert.ok(![...r.confirms, ...r.weakens, ...r.context].some((f) => /Tree Commission/.test(f.claim)));
+  assert.ok(trace.some((s) => /verified case file/.test(s.tool)));
+  assert.ok(resources.records.some((x) => x.url.includes('78214')), 'the budget book is in the hand-off');
+  const litterResult = (await checkPlugin(litter, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter })).result;
+  assert.ok(litterResult.the_record.confirms.some((f) => /bag tax/.test(f.claim)));
 });

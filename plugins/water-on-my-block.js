@@ -14,6 +14,11 @@ const NORFOLK_COUNTY_FIPS = '51710';
 const OPEN_WORK_ORDER = 'status_code < 800 OR status_code = 941';
 
 // From the Tide Sensors (mgyn-4sni) column descriptions.
+// Flood-claim causes with fewer claims than this in a tract are left out.
+const MIN_CLAIMS = 3;
+// A working tide gauge moves more than this in a week.
+const MIN_WEEKLY_RANGE_FT = 0.5;
+
 export const TIDE_GAUGES = [
   { field: 'elizabeth_river_eastern_branch', name: 'Elizabeth River Eastern Branch at Grandy Village', lat: 36.83975, lon: -76.25027 },
   { field: 'little_creek', name: 'Little Creek at 20th Bay St', lat: 36.92551, lon: -76.19395 },
@@ -109,7 +114,7 @@ export default definePlugin({
         'suf7-r643',
         // census_tract is numeric here and holds the 12-digit block group, so a
         // tract is the range <tract GEOID>0 .. <tract GEOID>9.
-        `SELECT cause_of_damage, count(*) AS claims, sum(net_building_payment_amount) AS building_paid, sum(net_contents_payment_amount) AS contents_paid, min(date_of_loss) AS first_loss, max(date_of_loss) AS last_loss WHERE census_tract >= ${geoid}0 AND census_tract <= ${geoid}9 GROUP BY cause_of_damage ORDER BY claims DESC LIMIT 20`,
+        `SELECT cause_of_damage, count(*) AS claims, sum(net_building_payment_amount) AS building_paid, sum(net_contents_payment_amount) AS contents_paid, min(date_of_loss) AS first_loss, max(date_of_loss) AS last_loss WHERE census_tract >= ${geoid}0 AND census_tract <= ${geoid}9 GROUP BY cause_of_damage HAVING count(*) >= ${MIN_CLAIMS} ORDER BY claims DESC LIMIT 20`,
         { tool: 'flood claims in tract', name: 'FEMA NFIP Claims' }
       );
       return {
@@ -122,7 +127,7 @@ export default definePlugin({
           first_loss: r.first_loss?.slice(0, 10),
           last_loss: r.last_loss?.slice(0, 10),
         })),
-        note: 'Insured claims only, anonymized by FEMA to the census tract. They describe the tract, not this house, and they count only properties that carried flood insurance.',
+        note: `Insured claims only, anonymized by FEMA to the census tract. They describe the tract, not this house, and they count only properties that carried flood insurance. Causes with fewer than ${MIN_CLAIMS} claims in the tract are left out, so no household's claim can be singled out.`,
       };
     });
 
@@ -142,8 +147,11 @@ export default definePlugin({
 
     const leagueName = await league;
     const leagueFound = typeof leagueName === 'string';
+    // A failed lookup is an error, not an empty result: say so, don't report "I found no records".
+    const leagueError = leagueName?.error ? { error: `The civic league lookup failed: ${leagueName.error}` } : null;
 
     const stormwater = settle(async () => {
+      if (leagueError) return leagueError;
       if (!a.facts.civic_league) return { error: 'The address record names no civic league for this parcel, so I did not look up league-level stormwater records.' };
       if (!leagueFound) return { error: `I found no stormwater records under a civic league matching "${a.facts.civic_league}" in ward ${ward}.` };
       const [inspections, orders, openOnStreet] = await Promise.all([
@@ -173,6 +181,7 @@ export default definePlugin({
     });
 
     const trees = settle(async () => {
+      if (leagueError) return leagueError;
       if (!leagueFound) return { error: a.facts.civic_league ? `I found no work orders under a civic league matching "${a.facts.civic_league}".` : 'The address record names no civic league for this parcel.' };
       const rows = await ctx.socrata.query(
         'qzfe-wj25',
@@ -203,12 +212,26 @@ export default definePlugin({
           name: 'Tide Sensors',
         });
         const at = latest[0]?.localtime || null;
-        const current = Boolean(at) && Date.parse(at) >= staleAfter;
+        let current = Boolean(at) && Date.parse(at) >= staleAfter;
+        // A gauge can also flatline while still sending fresh timestamps (Mason
+        // Creek, 2026-11: a 0.12 ft range over 7 days, against about 4 ft at the
+        // working gauges). Tides move far more than that in a week.
+        let flat = false;
+        if (current) {
+          const week = await ctx.socrata.query('mgyn-4sni', `SELECT max(${g.field}) AS hi, min(${g.field}) AS lo WHERE localtime >= ${soqlString(new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 19))} LIMIT 1`, {
+            tool: `tide range, last 7 days: ${g.name}`,
+            name: 'Tide Sensors',
+          });
+          const range = Number(week[0]?.hi) - Number(week[0]?.lo);
+          flat = !(range >= MIN_WEEKLY_RANGE_FT);
+          if (flat) current = false;
+        }
         const entry = {
           gauge: g.name,
           distance_km: Math.round(g.km * 10) / 10,
           latest: at ? { at, height_ft: round(latest[0][g.field]) } : null,
           reporting: current,
+          ...(flat ? { not_reporting_because: 'its readings have barely moved in 7 days, so the sensor looks stuck' } : {}),
           ...(g.note ? { note: g.note } : {}),
         };
         if (current) {
@@ -223,7 +246,7 @@ export default definePlugin({
       }
       return {
         gauges,
-        note: 'Heights are in feet; the dataset does not state the vertical datum, so compare readings with each other, not with ground elevation. A gauge counts as reporting if its latest reading is under 30 days old. The city publishes this data unverified.',
+        note: `Heights are in feet; the dataset does not state the vertical datum, so compare readings with each other, not with ground elevation. A gauge counts as reporting if its latest reading is under 30 days old and its readings moved at least ${MIN_WEEKLY_RANGE_FT} ft over the last 7 days. The city publishes this data unverified.`,
       };
     });
 

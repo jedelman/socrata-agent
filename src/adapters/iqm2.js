@@ -94,11 +94,15 @@ const SUFFIX =
 // "Property Located at 9519 and 9523 22nd Bay Street" -> two addresses.
 export function extractAddresses(text) {
   const out = [];
+  // One house number (or range), then numbers joined by a comma, "and", "&" or
+  // plain space. Each separator is a single alternative so the regex can't
+  // split the same whitespace many ways (that backtracked for seconds).
+  const NUM = '\\d+[A-Z]?(?!\\w)(?:\\s*(?:-|–|through|thru)\\s*\\d+)?';
   const re = new RegExp(
-    `\\b((?:\\d+[A-Z]?(?![\\w])(?:\\s*(?:-|–|through|thru)\\s*\\d+)?\\s*(?:,|and|&)?\\s*)+)((?:[NSEW]\\.?\\s+)?(?:[A-Z0-9][\\w'.]*\\s+){1,4}?(?:${SUFFIX}))\\b\\.?`,
+    `\\b(${NUM}(?:(?:\\s*(?:,|and|&)\\s*|\\s+)${NUM})*)\\s+((?:[NSEW]\\.?\\s+)?(?:[A-Z0-9][\\w'.]*\\s+){1,4}?(?:${SUFFIX}))\\b\\.?`,
     'g'
   );
-  for (const m of text.matchAll(re)) {
+  for (const m of String(text).slice(0, 1000).matchAll(re)) {
     const street = m[2].replace(/\s+/g, ' ').trim();
     const nums = m[1].match(/\d+[A-Z]?(?!\w)/g) || [];
     for (const n of nums) out.push(`${n} ${street}`);

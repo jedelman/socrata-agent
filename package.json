@@ -18,16 +18,20 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.10"
   },
   "scripts": {
     "test": "node --test test/*.test.js",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "build:norfolk": "node scripts/build-norfolk-legislation.js",
-    "compare": "node scripts/compare-models.js"
+    "compare": "node scripts/compare-models.js",
+    "verify:cases": "node scripts/verify-cases.js"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0"
   }
 }

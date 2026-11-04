@@ -7,10 +7,25 @@ comes back into the shared project, and what the shared web app runs.
 
 - **City profiles and fixes**, with every dataset id, field name and status code
   checked against the live portal and the date noted.
-- **Plugins** that pass `test/conformance.js` and come with an offline test.
+- **Plugins** that pass `test/conformance.js` (`checkPlugin` on fakes, and
+  `checkPluginFile` on the source) and come with an offline test. Conformance
+  catches mistakes, not malice: a plugin runs with the agent's privileges, so
+  review is the real gate. Plugins read Socrata only through `ctx.socrata`
+  (`ctx.http` refuses Socrata hosts and paths) and import nothing from `src/`
+  but `plugins.js` and `soqlString`.
 - **Adapters** for meeting systems (a Legistar adapter would unlock "who
   decided" for many cities).
 - Bug fixes with a test that fails before the fix.
+
+- **Findings for a case file** (`data/cases/`), from anyone: a civic league,
+  Keep Norfolk Beautiful, a City department, a researcher. A finding is one
+  claim, the source URL, the exact quote that supports it, a stance
+  (`confirms`, `weakens`, `context` or `who_decides`), and `found_by` (your
+  name or organization). Findings that weaken a case are as welcome as ones
+  that confirm it; the record is shared, not a brief. Run
+  `npm run verify:cases -- --write`: a finding whose quote isn't on the page
+  doesn't ship. The steward reviews wording and stance. A records request the
+  City answers is a new source: add what it shows.
 
 ## What upstream won't take
 

@@ -1,11 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-skin="{{SKIN}}" data-loading="{{LOADING}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>What's on my block?</title>
+<title>{{APP_NAME}}: what's on my block?</title>
 <meta name="description" content="Ask your city's open data what's happening at an address, and who decided it. Every answer shows the queries behind it.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%231f5f4a'/><path d='M8 22V12l8-5 8 5v10h-5v-6h-6v6z' fill='white'/></svg>">
+<link rel="icon" href="{{FAVICON}}">
+{{FONTS}}
 <style>
 :root {
   --bg: #f7f6f2; --surface: #ffffff; --ink: #1d1d1b; --muted: #5d5d57; --line: #dedcd4;
@@ -26,6 +27,8 @@ a { color: var(--accent); }
 .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
 header h1 { font-size: clamp(1.6rem, 4vw, 2.1rem); line-height: 1.15; margin: 8px 0 6px; letter-spacing: -0.01em; }
 header p { margin: 0 0 16px; color: var(--muted); }
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.brand { font-weight: 700; letter-spacing: .02em; color: var(--accent); }
 .city { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: .95rem; }
 select, textarea, button { font: inherit; color: inherit; }
 select { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
@@ -65,15 +68,145 @@ ol.trace code { display: block; white-space: pre-wrap; word-break: break-word; m
 @media (prefers-reduced-motion: reduce) { .loading::after { animation: none; content: "…"; } }
 footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 16px; }
 @media (max-width: 520px) { form { flex-direction: column; align-items: stretch; } }
+.brand { text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+.tagline:empty, .footer-note:empty, .badge:empty { display: none; }
+.badge { display: inline-block; margin-top: 6px; font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid currentColor; border-radius: 999px; padding: 2px 10px; opacity: .9; }
+[hidden] { display: none !important; }
+.gate { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-top: 16px; }
+.gate h2 { margin: 0 0 6px; font-size: 1.25rem; }
+.gate h3 { margin: 22px 0 6px; font-size: 1.05rem; }
+.gate p { margin: 6px 0; }
+.gate form { flex-wrap: wrap; }
+.gate input, .gate textarea { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.gate input:focus, .gate textarea:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gate #code { flex: 1; min-width: 12ch; font-family: var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.gate .fields { display: grid; gap: 8px; width: 100%; }
+.gate .fields textarea { min-height: 64px; }
+.gate .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.gate .msg { font-size: .93rem; }
+.gate .msg.ok { color: var(--accent); }
+.gate .fine { color: var(--muted); font-size: .88rem; }
+.convbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 10px 0 0; font-size: .92rem; color: var(--muted); }
+.convbar button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.convbar details { width: 100%; }
+.convbar ul { margin: 6px 0 0; padding-left: 18px; }
+[data-skin="siren"] .gate h2, [data-skin="siren"] .gate h3 { font-family: var(--display); font-weight: 600; }
+.mark { display: none; }
+
+/* ── Siren: blackwater at dusk ─────────────────────────────────────────
+   Deep teal-black water, duckweed green, spatterdock gold, and one thin
+   iridescent line for the mermaid. The mark is the greater siren. */
+:root[data-skin="siren"] {
+  --bg: #edf2ec; --surface: #fbfcf8; --ink: #12201d; --muted: #4c5d58; --line: #cfdcd4;
+  --accent: #13695f; --accent-ink: #ffffff; --soft: #dfeae3; --code: #e6eee8;
+  --gold: #a87d14; --water-1: #1d5a52; --water-2: #0f3634; --water-3: #0a2324;
+  --foam: #e9f3ee; --foam-muted: #bcd8cf; --glow: #6fd1bf; --lily: #e2bb4d;
+  --shimmer: linear-gradient(90deg, #4fb3a9, #8fd3c8 30%, #b6a3e0 62%, #e2bb4d 92%);
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-skin="siren"] {
+    --bg: #081413; --surface: #0f1e1d; --ink: #e4eee9; --muted: #9bb2ab; --line: #21403b;
+    --accent: #6fd1bf; --accent-ink: #062019; --soft: #13302d; --code: #16302d; --gold: #e2bb4d;
+    --warn: #f0b46a; --warn-bg: #2e2416;
+  }
+}
+html[data-skin="siren"] {
+  min-height: 100%;
+  background: radial-gradient(70% 50% at 100% 0%, color-mix(in srgb, var(--glow) 10%, transparent), transparent 70%) no-repeat, var(--bg);
+}
+[data-skin="siren"] body { background: transparent; }
+[data-skin="siren"] .mark { display: block; width: 92px; height: 37px; flex: none; margin: -4px 0 -4px -6px; }
+[data-skin="siren"] .mark .body { fill: var(--glow); }
+[data-skin="siren"] .mark .gill { stroke: var(--lily); stroke-width: 1.9; stroke-linecap: round; fill: none; }
+[data-skin="siren"] .mark .barb { stroke: var(--lily); stroke-width: 1; stroke-linecap: round; fill: none; opacity: .85; }
+[data-skin="siren"] .mark .leg { stroke: var(--glow); stroke-width: 1.5; stroke-linecap: round; fill: none; }
+[data-skin="siren"] .mark .eye { fill: var(--water-3); }
+[data-skin="siren"] .masthead {
+  position: relative; overflow: hidden; color: var(--foam);
+  padding: 18px 20px 40px; margin: 0 -4px 6px; border-radius: 20px 20px 6px 6px;
+  background:
+    radial-gradient(3px 3px at 18% calc(100% - 20px), color-mix(in srgb, var(--glow) 55%, transparent) 50%, transparent 51%),
+    radial-gradient(2px 2px at 64% calc(100% - 24px), color-mix(in srgb, var(--lily) 60%, transparent) 50%, transparent 51%),
+    radial-gradient(2.5px 2.5px at 83% calc(100% - 18px), color-mix(in srgb, var(--glow) 45%, transparent) 50%, transparent 51%),
+    radial-gradient(120% 140% at 8% 0%, var(--water-1) 0%, var(--water-2) 48%, var(--water-3) 100%);
+  /* a slow wave along the bottom edge */
+  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 13px) no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 14' preserveAspectRatio='none'%3E%3Cpath d='M0 0h120v4c-15 0-15 9-30 9S75 4 60 4 45 13 30 13 15 4 0 4z'/%3E%3C/svg%3E") bottom / 120px 14px repeat-x;
+          mask: linear-gradient(#000 0 0) top / 100% calc(100% - 13px) no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 14' preserveAspectRatio='none'%3E%3Cpath d='M0 0h120v4c-15 0-15 9-30 9S75 4 60 4 45 13 30 13 15 4 0 4z'/%3E%3C/svg%3E") bottom / 120px 14px repeat-x;
+}
+[data-skin="siren"] .brand { color: var(--foam); }
+[data-skin="siren"] .brand-name { font-family: var(--display); font-weight: 700; font-size: 1.55rem; letter-spacing: .01em; font-optical-sizing: auto; }
+[data-skin="siren"] .tagline { margin: 2px 0 0; font-family: var(--display); font-style: italic; color: var(--foam-muted); font-size: 1rem; }
+[data-skin="siren"] .masthead h1 { font-family: var(--display); font-weight: 500; color: #fff; margin-top: 18px; font-size: clamp(1.7rem, 4.4vw, 2.3rem); }
+[data-skin="siren"] .masthead #intro { color: var(--foam-muted); }
+[data-skin="siren"] .masthead .city { color: var(--foam-muted); }
+[data-skin="siren"] .masthead select { background: rgb(255 255 255 / .08); border-color: rgb(255 255 255 / .22); color: var(--foam); }
+[data-skin="siren"] .masthead select option { color: #12201d; }
+[data-skin="siren"] .masthead :focus-visible { outline-color: var(--lily); }
+[data-skin="siren"] textarea { border-color: var(--line); box-shadow: 0 1px 0 rgb(0 0 0 / .03); }
+[data-skin="siren"] button.ask { box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 28%, transparent); }
+[data-skin="siren"] button.ask:hover:not(:disabled) { filter: brightness(1.08); }
+[data-skin="siren"] .examples button { border: 1px solid var(--line); }
+[data-skin="siren"] .examples button:hover { border-color: var(--accent); background: var(--surface); }
+[data-skin="siren"] .a { position: relative; overflow: hidden; }
+[data-skin="siren"] .a::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--shimmer); }
+[data-skin="siren"] summary::marker { color: var(--accent); }
+[data-skin="siren"] .answer strong { color: color-mix(in srgb, var(--ink) 88%, var(--accent)); }
+[data-skin="siren"] footer { border-top: 0; position: relative; padding-top: 22px; }
+[data-skin="siren"] footer::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; border-radius: 2px; background: var(--shimmer); opacity: .7; }
+[data-skin="siren"] .footer-note { font-family: var(--display); font-style: italic; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-skin="siren"] .mark .gill, [data-skin="siren"] .mark .barb { transform-origin: 26px 18px; animation: sway 5s ease-in-out infinite; }
+  @keyframes sway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-6deg); } }
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <label class="city">City <select id="city" aria-label="City"></select></label>
+  <header class="masthead">
+    <div class="top">
+      <div class="brandblock"><a class="brand" href="./">{{MARK}}<span class="brand-name">{{APP_NAME}}</span></a><p class="tagline">{{TAGLINE}}</p><span class="badge">{{BADGE}}</span></div>
+      <label class="city">City <select id="city" aria-label="City"></select></label>
+    </div>
     <h1>What's on my block, and who decided it?</h1>
     <p id="intro">Ask about an address, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.</p>
   </header>
+
+  <section class="gate" id="gate" hidden aria-labelledby="gate-title">
+    <h2 id="gate-title">{{APP_NAME}} is in a private pre-alpha</h2>
+    <div id="signin" hidden>
+      <p>Sign in with your email, so your invite and your conversations follow you to any device. We'll send you a link.</p>
+      <form id="login" autocomplete="on">
+        <input id="login-email" name="email" type="email" placeholder="Email" aria-label="Email for sign-in" maxlength="254" required autocomplete="email">
+        <div class="hp" aria-hidden="true"><label>Website <input id="login-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <button class="ask" type="submit">Email me a link</button>
+      </form>
+      <p class="msg" id="login-msg" role="status"></p>
+    </div>
+    <p id="code-intro">If someone gave you an invite code, enter it here.</p>
+    <form id="redeem" autocomplete="off">
+      <input id="code" name="code" placeholder="SIREN-XXXXX-XXXXX" aria-label="Invite code" maxlength="40" required>
+      <button class="ask" type="submit">Enter</button>
+    </form>
+    <p class="msg" id="redeem-msg" role="status"></p>
+    <h3>No code? Join the waitlist</h3>
+    <form id="wl">
+      <div class="fields">
+        <input id="wl-email" name="email" type="email" placeholder="Email" aria-label="Email" maxlength="254" required autocomplete="email">
+        <input id="wl-name" name="name" placeholder="Name (optional)" aria-label="Name (optional)" maxlength="120" autocomplete="name">
+        <input id="wl-org" name="org" placeholder="Organization or civic league (optional)" aria-label="Organization (optional)" maxlength="160" autocomplete="organization">
+        <textarea id="wl-note" name="note" placeholder="What would you ask {{APP_NAME}}? (optional)" aria-label="What would you ask? (optional)" maxlength="600"></textarea>
+        <div class="hp" aria-hidden="true"><label>Website <input id="wl-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div><button class="ask" type="submit">Join the waitlist</button></div>
+      </div>
+    </form>
+    <p class="msg" id="wl-msg" role="status"></p>
+    <p class="fine">{{OPERATOR}}We keep what you enter here only to tell you about {{APP_NAME}}: when you're invited, and what changes. It is never sold or shared. Please don't include a home address. To be removed, reply to any message from us.</p>
+  </section>
 
   <form id="f">
     <textarea id="q" name="q" placeholder="e.g. What's going on at 111 Pennsylvania Ave?" maxlength="600" required aria-label="Your question"></textarea>
@@ -81,17 +214,28 @@ footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1p
   </form>
   <div class="examples" id="examples" aria-label="Example questions"></div>
 
+  <p class="convbar" id="account" hidden></p>
+  <div class="convbar" id="convbar" hidden>
+    <span id="conv-state">New conversation</span>
+    <button type="button" id="conv-new">Start a new conversation</button>
+    <button type="button" id="conv-forget" hidden>Forget this conversation</button>
+    <details id="conv-recent" hidden><summary>Your recent conversations</summary><ul id="conv-list"></ul></details>
+  </div>
   <main id="log" aria-live="polite"></main>
 
   <footer>
+    <p class="footer-note">{{FOOTER_NOTE}}</p>
+    <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
+    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept for 7 days so you can ask follow-ups and pick them up on another device. Only your account can open them, you can forget one at any time, and nothing from them goes into {{APP_NAME}}'s shared findings. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" style="font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline">Sign out</button></p>
     <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
     <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
   </footer>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
 <script>
+const LOADING = document.documentElement.dataset.loading || 'Looking it up. This usually takes 10 to 30 seconds';
 const EXAMPLES = {
   norfolk: ["What's on my block? 810 Union St", 'Who decided to allow a kennel at 111 Pennsylvania Ave?', 'What public meetings are coming up in the next two weeks?'],
   seattle: ['What datasets does Seattle publish about building permits?', 'How many building permits were issued in Seattle last month?'],
@@ -99,13 +243,17 @@ const EXAMPLES = {
 };
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+// Links come from city data, configs and plugins: allow only web links.
+const link = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '#');
 const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || '')) : `<p>${esc(s)}</p>`);
 let history = [];
 let cities = [];
+let conversationId = null;
+let session = {};
 
 async function loadCities() {
   try {
-    cities = await (await fetch('/api/cities')).json();
+    cities = await (await fetch('api/cities')).json();
   } catch { cities = [{ id: 'norfolk', name: 'Norfolk, VA', block: true }]; }
   $('#city').innerHTML = cities.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
   setCity();
@@ -118,30 +266,156 @@ function setCity() {
   $('#examples').innerHTML = (EXAMPLES[c?.id] || []).map((e) => `<button type="button">${esc(e)}</button>`).join('');
   history = [];
 }
-$('#city').addEventListener('change', () => { $('#log').innerHTML = ''; setCity(); });
+$('#city').addEventListener('change', () => { newConversation(); setCity(); });
 $('#examples').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { $('#q').value = e.target.textContent; $('#f').requestSubmit(); } });
 $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f').requestSubmit(); } });
 
 function renderResources(r) {
   const parts = [];
   if (r.contacts?.length) {
-    parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${esc(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
+    parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${link(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
   if (r.records?.length) {
-    parts.push(`<details><summary>Public records <small>(${r.records.length})</small></summary><ul class="plain">${r.records.map((x) => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
+    parts.push(`<details><summary>Public records <small>(${r.records.length})</small></summary><ul class="plain">${r.records.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
   }
   if (r.datasets?.length) {
-    parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${esc(d.page)}" target="_blank" rel="noopener">dataset page</a><a href="${esc(d.csv)}">full CSV</a>${(d.queries || []).map((q, i) => `<a href="${esc(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${esc(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
+    parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${link(d.page)}" target="_blank" rel="noopener">dataset page</a>${d.csv ? `<a href="${link(d.csv)}">full CSV</a>` : ''}${(d.queries || []).map((q, i) => `<a href="${link(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${link(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
   }
   if (r.links?.length) {
-    parts.push(`<details><summary>Go further</summary><ul class="plain">${r.links.map((l) => `<li><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></li>`).join('')}</ul></details>`);
+    parts.push(`<details><summary>Go further</summary><ul class="plain">${r.links.map((l) => `<li><a href="${link(l.url)}" target="_blank" rel="noopener">${esc(l.title)}</a></li>`).join('')}</ul></details>`);
   }
   return parts.join('');
 }
 function renderTrace(t) {
   if (!t?.length) return '';
-  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${esc(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
+  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
 }
+
+function showGate(on) {
+  $('#gate').hidden = !on;
+  $('#f').hidden = on;
+  $('#examples').hidden = on;
+  const signin = on && session.login && !session.signed_in;
+  $('#signin').hidden = !signin;
+  $('#code-intro').textContent = session.signed_in
+    ? "You're signed in. Enter your invite code once and it works on every device you sign in on."
+    : signin ? 'Or, if someone gave you an invite code, enter it here (it will work in this browser only).' : 'If someone gave you an invite code, enter it here.';
+  if (on) (signin ? $('#login-email') : $('#code')).focus();
+}
+function newConversation() {
+  conversationId = null;
+  history = [];
+  $('#log').innerHTML = '';
+  $('#conv-state').textContent = 'New conversation';
+  $('#conv-forget').hidden = true;
+}
+async function loadRecent() {
+  if (!session.conversations) return;
+  try {
+    const { conversations = [] } = await (await fetch('api/conversations', { cache: 'no-store' })).json();
+    $('#conv-recent').hidden = !conversations.length;
+    $('#conv-list').innerHTML = conversations.map((c) => `<li><button type="button" data-id="${esc(c.id)}">${esc(c.title)}</button> <small>${c.turns} question${c.turns === 1 ? '' : 's'} · ${esc(String(c.updated).slice(0, 10))}</small></li>`).join('');
+  } catch {}
+}
+async function loadSession() {
+  try {
+    session = await (await fetch('api/session', { cache: 'no-store' })).json();
+    showGate(Boolean(session.invite_required && !session.invited));
+    $('#convbar').hidden = !session.conversations;
+    $('#privacy-signed-in').hidden = !session.signed_in;
+    $('#account').hidden = !session.signed_in;
+    $('#account').innerHTML = session.signed_in ? `Signed in as <strong>${esc(session.account)}</strong>. Not you? <button type="button" id="signout-top">Sign out</button>` : '';
+    $('#signout-top')?.addEventListener('click', () => $('#signout').click());
+    loadRecent();
+  } catch { /* the ask call reports any problem */ }
+}
+// The sign-in link lands on <base>/login#t=<token>. The token is posted from
+// script, so a mail scanner that only fetches the link can't spend it.
+async function finishSignIn() {
+  if (!/\/login$/.test(location.pathname)) return;
+  const token = new URLSearchParams(location.hash.slice(1)).get('t');
+  window.history.replaceState(null, '', location.pathname.replace(/login$/, ''));
+  if (!token) return;
+  try {
+    const { res, data } = await postJson('api/login/verify', { token });
+    if (!res.ok) { showGate(true); $('#login-msg').textContent = data.error || 'That sign-in link did not work. Ask for a new one.'; }
+  } catch {}
+}
+$('#login').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#login-msg');
+  msg.className = 'msg'; msg.textContent = 'Sending…';
+  try {
+    const { res, data } = await postJson('api/login', { email: $('#login-email').value, website: $('#login-website').value });
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong. Try again.'; return; }
+    msg.className = 'msg ok'; msg.textContent = 'Check your email for a sign-in link. It works once, for 15 minutes.';
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
+$('#conv-new').addEventListener('click', () => { newConversation(); $('#q').focus(); });
+$('#conv-forget').addEventListener('click', async () => {
+  if (!conversationId) return;
+  await postJson('api/conversations/delete', { id: conversationId }).catch(() => {});
+  newConversation();
+  loadRecent();
+});
+$('#conv-list').addEventListener('click', async (e) => {
+  const id = e.target.closest('button')?.dataset.id;
+  if (!id) return;
+  try {
+    const res = await fetch(`api/conversation?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) return;
+    newConversation();
+    conversationId = id;
+    if (data.city && cities.some((c) => c.id === data.city)) $('#city').value = data.city;
+    for (const t of data.turns) {
+      const turn = document.createElement('section');
+      turn.className = 'turn';
+      turn.innerHTML = `<div class="q">${esc(t.question)}</div><div class="a"><div class="answer">${md(t.answer)}</div><p class="meta">${esc(String(t.at).slice(0, 16).replace('T', ' '))} UTC</p></div>`;
+      $('#log').append(turn);
+    }
+    $('#conv-state').textContent = `Continuing: ${data.turns[0]?.question.slice(0, 60) || ''}`;
+    $('#conv-forget').hidden = false;
+    $('#conv-recent').open = false;
+  } catch {}
+});
+$('#signout').addEventListener('click', async () => {
+  await postJson('api/logout', {}).catch(() => {});
+  newConversation();
+  loadSession();
+});
+async function postJson(path, body) {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  let data = {};
+  try { data = await res.json(); } catch {}
+  return { res, data };
+}
+$('#redeem').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#redeem-msg');
+  msg.className = 'msg'; msg.textContent = 'Checking…';
+  try {
+    const { res, data } = await postJson('api/redeem', { code: $('#code').value });
+    if (!res.ok) { msg.textContent = data.error || 'That code didn\'t work.'; return; }
+    msg.textContent = '';
+    await loadSession();
+    showGate(false);
+    $('#q').focus();
+    if ($('#q').value.trim()) $('#f').requestSubmit();
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
+$('#wl').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#wl-msg');
+  msg.className = 'msg'; msg.textContent = 'Adding you…';
+  const body = { email: $('#wl-email').value, name: $('#wl-name').value, org: $('#wl-org').value, note: $('#wl-note').value, website: $('#wl-website').value };
+  try {
+    const { res, data } = await postJson('api/waitlist', body);
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong. Try again.'; return; }
+    msg.className = 'msg ok'; msg.textContent = "You're on the list. We'll be in touch when there's room.";
+    $('#wl').reset();
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
 
 $('#f').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -150,16 +424,29 @@ $('#f').addEventListener('submit', async (e) => {
   const city = $('#city').value;
   const turn = document.createElement('section');
   turn.className = 'turn';
-  turn.innerHTML = `<div class="q">${esc(question)}</div><div class="a"><p class="loading">Looking it up. This usually takes 10 to 30 seconds</p></div>`;
-  $('#log').prepend(turn);
+  turn.innerHTML = `<div class="q">${esc(question)}</div><div class="a"><p class="loading">${esc(LOADING)}</p></div>`;
+  $('#log').append(turn);
+  turn.scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('#q').value = '';
   $('#go').disabled = true;
   const a = turn.querySelector('.a');
   try {
-    const res = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
+    const res = await fetch('api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history, conversation: conversationId }) });
     const data = await res.json();
+    if (res.status === 401 && data.gate === 'invite') {
+      turn.remove();
+      $('#q').value = question;
+      showGate(true);
+      $('#redeem-msg').textContent = data.error || '';
+      return;
+    }
     if (!res.ok) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
     history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });
+    if (data.conversation) {
+      if (!conversationId) { $('#conv-state').textContent = `Conversation: ${question.slice(0, 60)}`; loadRecent(); }
+      conversationId = data.conversation;
+      $('#conv-forget').hidden = false;
+    }
     a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
   } catch (err) {
     a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
@@ -168,6 +455,7 @@ $('#f').addEventListener('submit', async (e) => {
   }
 });
 loadCities();
+finishSignIn().then(loadSession);
 </script>
 </body>
 </html>

@@ -18,6 +18,15 @@ export default {
   portal: 'https://data.yourcity.gov',
   excluded: [{ id: 'abcd-1234', reason: 'Why this dataset is off limits.' }],
   excludedNamePatterns: [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i],
+  // Plugins and core only; the open-ended tools refuse these.
+  restricted: [{ id: 'efgh-5678', reason: 'Why only a vetted plugin may read it.' }],
+  // Columns that identify private people. Names like owner, *_name, plate,
+  // vin, email, phone and mailing_address are withheld in every dataset
+  // already (PERSON_COLUMNS in src/socrata.js); list the ones those miss.
+  deniedColumns: { 'ijkl-9012': ['grantee', 'legal_description'] },
+  // Rows about one household's circumstances, as a SoQL predicate. Siren runs
+  // it in its own first query stage, NULL-safe; check total = kept + matched live.
+  suppressedRows: { 'mnop-3456': "subtype = 'Something about one household'" },
   contacts: [/* citywide contacts, each verified on the city's own site */],
   links: [/* portal, meeting portal, SoQL docs */],
 };
@@ -25,6 +34,12 @@ export default {
 
 Seattle is a reminder that the API domain can differ from the portal: its
 portal is `data.seattle.gov`, but the API is at `cos-data.seattle.gov`.
+`getCity` maps both hosts to the profile, so a domain spelling never loads a
+generic profile without the city's policy.
+
+Filtered views of a dataset get their own ids. The open-ended tools and plugins
+refuse them and point to the parent, so the parent's policy is the one that
+applies; you don't list views in the profile.
 
 Register the profile in `src/cities/index.js`.
 

@@ -2,18 +2,94 @@
 // data.norfolk.gov on 2026-10-06. Contacts are either read live from the
 // Address Information dataset or verified on the city's own pages.
 
+// Owner and deed fields in every year's assessment roll.
+const OWNER_FIELDS = ['owner', 'grantor', 'grantee', 'legal_description', 'document_number'];
+
 export default {
   id: 'norfolk',
   name: 'Norfolk, VA',
   domain: 'data.norfolk.gov',
   portal: 'https://data.norfolk.gov',
 
-  // Name-searchable records about people. The agent never queries these.
+  // Records about people that no level of Siren ever queries. The 2026-11-02
+  // additions came from the capability map (docs/capabilities-norfolk.md),
+  // each checked live that day.
   excluded: [
     { id: 'cab7-wvn5', reason: 'Police Active Warrants is excluded: it is searchable by personal name.' },
     { id: 'uxgi-fkzu', reason: 'Police Arrest Reports is excluded: it is searchable by personal name.' },
+    { id: '7qie-z5gv', reason: 'Delinquent Property Taxes is excluded: it is searchable by owner name.' },
+    { id: '4dwc-v3t8', reason: 'Towing is excluded: it is searchable by license plate and VIN.' },
+    { id: 'ei2q-6g8n', reason: 'Parking Citations is excluded: it is searchable by license plate.' },
+    { id: 'jf3j-u4s7', reason: 'Fire-Rescue Inspections is excluded: it is no longer updated and lists sensitive occupancies by unit.' },
+    { id: 'fcqe-uvnb', reason: 'Police Use of Force and Citizen Complaints is excluded: its per-incident records carry demographics that can identify people.' },
+    { id: '393b-ph9i', reason: "SWaM Certified Businesses is excluded: it ties owners' ethnicity and mailing addresses, often homes, to sole proprietors." },
+    { id: 'p5hy-7rkp', reason: 'Norfolk Cares Center (2020) is excluded: its free-text issue descriptions can name and locate residents.' },
   ],
-  excludedNamePatterns: [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i],
+  excludedNamePatterns: [/warrant/i, /arrest/i, /sex offender/i, /inmate/i, /booking/i, /delinquent/i, /\btow(ed|ing)\b/i, /parking citation/i, /use of force/i, /relocated vehicle/i, /impound/i],
+
+  // Only reviewed plugins and Siren's own code may read these, with the
+  // aggregation and suppression done inside the query. The open-ended tools
+  // refuse them, and the hand-off never offers their full-table CSV (nor for
+  // any dataset below with withheld columns or suppressed rows).
+  restricted: [
+    { id: 'suf7-r643', reason: 'FEMA NFIP Claims is available only through water_on_my_block, which reports claims by census tract with small counts suppressed.' },
+    { id: 'r7bn-2egr', reason: 'Police Incident Reports is not available to open-ended queries: block-, date- and hour-level rows can point to victims.' },
+    { id: 'wqxq-hhe6', reason: 'Micromobility trips are not available to open-ended queries: trip-level origins and destinations can re-identify riders.' },
+    { id: 'nbyu-xjez', reason: 'MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.' },
+    { id: '4fsk-z8s8', reason: 'Employee Salaries is not available to open-ended queries.' },
+    { id: 'vv96-9m5c', reason: 'Employee Demographics is not available to open-ended queries: small groups can identify employees.' },
+    { id: 'dpi6-sct5', reason: "Business Licenses is not available to open-ended queries: it lists sole proprietors' names and home mailing addresses." },
+    { id: 'vfm4-5wv6', reason: "Animal shelter records are not available to open-ended queries: intake reasons can reveal an owner's arrest, eviction, illness or death." },
+    { id: '8bq6-fd8n', reason: 'Foster Care data is not available to open-ended queries: small cells can identify a child.' },
+    { id: 'vj2f-2an3', reason: 'Adoptions data is not available to open-ended queries: small cells can identify a child.' },
+  ],
+
+  // Columns that identify private people. Open-ended queries and plugins
+  // can't select, filter, group, sort or full-text SEARCH by them, and
+  // SELECT * leaves them out. Siren's own code (contacts, the sponge-screen
+  // builder's public-owner check) still reads them. Field names checked live
+  // on 2026-11-02.
+  deniedColumns: {
+    'qva7-tzrf': OWNER_FIELDS,
+    'm5ya-5grb': OWNER_FIELDS,
+    'g7sg-tivf': OWNER_FIELDS,
+    '9gmp-9x4c': OWNER_FIELDS,
+    'yvpm-8aid': OWNER_FIELDS,
+    '7tu9-2ytx': OWNER_FIELDS,
+    '8bfx-a5g8': OWNER_FIELDS,
+    'pdf2-gh9c': OWNER_FIELDS,
+    'th3n-jr9u': OWNER_FIELDS,
+    '7mjv-xiqs': ['contact_name', 'contact_number'],
+    'mi4h-8pn3': ['applicant_name', 'contractor'],
+    'dpi6-sct5': ['primary_owner', 'mailing_address'],
+    'ere7-kake': ['civic_league_president', 'civic_league_email'],
+    'w6gf-9gws': ['document_number'],
+    'bguc-8iwd': ['additional_comments'],
+    'mrv3-rcpc': ['comments', 'user', 'user_modified'],
+    'iz5u-2wb3': ['image'],
+    '5qpt-tdve': ['entered_by_user'],
+    'fq4f-ag5s': ['sponsor', 'photographer', 'notes'],
+    // Occupancy use groups reveal group homes and assisted living at an address.
+    'fahm-yuh4': ['use_group'],
+    'bnrb-u445': ['permit_use_group', 'permit_use_group_info', 'permit_description'],
+  },
+
+  // Rows that point at one household's circumstances. No level sees them:
+  // Siren's own first query stage drops them (src/socrata.js suppressFirst),
+  // and a NULL subtype is kept. Values checked live 2026-11-02; each count
+  // was confirmed as total minus matched.
+  suppressedRows: {
+    // Complaints that someone is living in a shed, RV or commercial building, or
+    // that a home is overcrowded.
+    'm9m3-wk2s': "subtype like 'Residing%' OR subtype = 'Rooming House/Overcrowding'",
+    // Gas and fire red tags mark one household's emergency.
+    '7fk7-nqxm': "subtype in ('Virginia Natural Gas Red Tag', 'Fire Department Red Tag')",
+    // Code Enforcement Cases carry the same complaint subtypes, plus the
+    // rooming-house and occupancy-limit (IPMC 404) ordinances.
+    'mxtv-99gh':
+      "complaint_subtype like 'Residing%' OR complaint_subtype in ('Rooming House/Overcrowding', 'Fire Department Red Tag', 'Virginia Natural Gas Red Tag') OR violation_ordinance = 'Rooming house' OR violation_ordinance like '404.%Occupancy Limitations'",
+    'agip-sqwc': "ordinance = 'Rooming house' OR ordinance like '404.%Occupancy Limitations'",
+  },
 
   // Address in → parcel id, districts, representatives, civic league.
   address: {
@@ -91,7 +167,9 @@ export default {
         return `upper(street) = ${q(a.street)} AND street_number >= ${lo} AND street_number < ${lo + 100}`;
       },
       date: 'start_date',
-      fields: ['permit_number', 'type', 'permit_kind', 'street_number', 'street', 'contractor', 'start_date', 'end_date'],
+      // No applicant or contractor: about half are private individuals
+      // (driveways, dumpsters, temporary parking). Checked 2026-11-02.
+      fields: ['permit_number', 'type', 'permit_kind', 'street_number', 'street', 'start_date', 'end_date'],
     },
   ],
 
