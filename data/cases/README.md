@@ -4,8 +4,25 @@ Research done once, checked against its sources, and served to every
 question Siren answers (see `plugins/cases.js`).
 
 Each finding is one claim with its source URL, the exact quote that supports
-it, a stance (`confirms`, `weakens`, `context`, `who_decides`), who found it
-(`found_by`), and the date the quote was last checked (`checked`).
+it, a stance (`confirms`, `weakens`, `context`, `who_decides`, `rules`), who
+found it (`found_by`), and the date the quote was last checked (`checked`).
+
+Durable findings. When the verifier writes (`--write`), each passing finding
+also records:
+- `checked_via`: whether the live page or an archived snapshot proved the quote;
+- `evidence`: the [DASL CID](https://dasl.ing/cid.html) and size of the exact
+  bytes read, so anyone can tell whether a copy is the one we checked;
+- `selector`: a W3C Web Annotation `TextQuoteSelector` (the quote with the text
+  just before and after it);
+- `source.archive`: a Wayback Machine snapshot whose copy holds the quote (with
+  `--archive`; GitHub Actions does this monthly and opens a PR).
+
+If the live page later changes, vanishes or blocks the verifier, the snapshot
+proves the quote instead, and Siren says the finding stands on the archived
+copy. A finding about something *absent* is only ever checked live.
+
+Every case file is also served as W3C Web Annotations (JSON-LD) at
+`<base>/api/cases/<id>` (Siren: `https://jason-edelman.org/ask-siren/api/cases`).
 `npm run verify:cases` re-fetches every source and fails if a quote is gone,
 and a weekly GitHub Action runs it. A source that refuses the machine running
 it (some sites block data-center IPs) only warns while its quote was verified

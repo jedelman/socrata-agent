@@ -1,0 +1,71 @@
+name: Archive case-file sources
+# Durable findings: make sure a Wayback Machine snapshot holds each case-file
+# quote, and record the bytes we read (DASL CID) and the quote's selector.
+# This runs on GitHub's runners because Claude Code cloud sessions can't
+# reach web.archive.org (connection reset, checked 2026-11-04).
+#
+# Monthly (and on demand): runs `verify-cases --write --archive` and, if the
+# case files changed, opens a pull request for the steward to review. That
+# also renews each finding's `checked` date. Needs the repository setting
+# "Allow GitHub Actions to create and approve pull requests"; without it the
+# branch is still pushed and the step says so.
+#
+# On pushes to a working branch that touch the verifier, it runs once as a
+# read-only probe (no writes, no saves, no PR), to show whether snapshots can be
+# looked up and read from GitHub's runners.
+on:
+  schedule:
+    - cron: '17 12 3 * *' # the 3rd of each month, 12:17 UTC
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths: ['scripts/verify-cases.js', '.github/workflows/archive-case-sources.yml']
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: npm ci
+      - name: Probe (read-only)
+        if: github.event_name == 'push'
+        run: node scripts/verify-cases.js --archive --no-save
+      - name: Verify, archive and record
+        if: github.event_name != 'push'
+        run: |
+          set +e
+          node scripts/verify-cases.js --write --archive | tee verify.log
+          echo "VERIFY_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+      - name: Open a pull request with the new evidence
+        if: github.event_name != 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if git diff --quiet -- data/cases; then echo "No changes to case files."; exit 0; fi
+          branch="bot/case-evidence-$(date -u +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add data/cases
+          git commit -m "Case files: archive snapshots and evidence, $(date -u +%Y-%m-%d)"
+          git push -u origin "$branch"
+          {
+            echo "Monthly run of \`scripts/verify-cases.js --write --archive\` (exit ${VERIFY_EXIT})."
+            echo
+            echo 'It records, for each finding that passed: the date and how it was proven (live or archived), the DASL CID and size of the bytes read, the quote selector, and a Wayback Machine snapshot that holds the quote.'
+            echo
+            echo 'Review the `??` and `XX` lines below before merging: a `??` means the live page changed or vanished and the finding now stands on an archived copy.'
+            echo
+            echo '```'
+            grep -E '^(  (ok|\?\?|XX|-) |[a-z].*|Wayback|The Wayback|All quotes|[0-9]+ finding)' verify.log | tail -80
+            echo '```'
+          } > body.md
+          gh pr create --base main --head "$branch" --title "Case files: archive snapshots and evidence ($(date -u +%Y-%m-%d))" --body-file body.md \
+            || echo "Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."

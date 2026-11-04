@@ -16,7 +16,20 @@
       "quote": "Localities where the disposable plastic bag tax currently applies",
       "absent": "Norfolk",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiafhhoqrnvm52mj2qqmuloejkltg5ecqhxje7hx7trfuilqe3telm",
+        "bytes": 71252,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Localities where the disposable plastic bag tax currently applies",
+        "prefix": "or WIC benefits. Tax Rate 5₵ per bag. ",
+        "suffix": ": Albemarle County Alexandria City"
+      }
     },
     {
       "id": "bag-tax-revenue",
@@ -28,7 +41,20 @@
       },
       "quote": "environmental cleanup",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihppy3og772ogl6lcqc7o4wlalmmv3ctj7thbvuvg7mho4y34veyy",
+        "bytes": 31533,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "environmental cleanup",
+        "prefix": "be appropriated for the purposes of ",
+        "suffix": ", providing education programs designed"
+      }
     },
     {
       "id": "receptacle-rule",
@@ -40,7 +66,20 @@
       },
       "quote": "Sidewalks in business districts",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiczdj5t6tniqzu6copxfnhexaxzyd4uovr7ijkz46lygzx6jqin24",
+        "bytes": 30461,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Sidewalks in business districts",
+        "prefix": "14. Beaches and bathing areas; 15. ",
+        "suffix": "; 16. Public buildings, including"
+      }
     },
     {
       "id": "knb-receptacles",
@@ -52,7 +91,20 @@
       },
       "quote": "Request a FREE cigarette receptacle while supplies last",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiczpyn5sfdwfgyca2zkgcl5kpfcd3rrttf3ipbofag4t5zqumfi3a",
+        "bytes": 106728,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Request a FREE cigarette receptacle while supplies last",
+        "prefix": "to put an end to cigarette litter? ",
+        "suffix": ". These receptacles not only help keep"
+      }
     },
     {
       "id": "litterati-purpose",
@@ -64,7 +116,20 @@
       },
       "quote": "littering on commercial corridors",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidbh6pipcjp32h47gddwwv2p2h44xcaq6vv33ox7vjsrfg6sa4tga",
+        "bytes": 241135,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "littering on commercial corridors",
+        "prefix": "with Norfolk, VA to better understand ",
+        "suffix": " and actions that can be taken to"
+      }
     },
     {
       "id": "hrt-stops",
@@ -76,7 +141,20 @@
       },
       "quote": "HRT can collect trash at only around 7%",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreid4hcxan6neeyaywlgbndalcols5gb2fgwc6afeardrwx766wm4mu",
+        "bytes": 46555,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "HRT can collect trash at only around 7%",
+        "prefix": "Roads. Due to limited resources, ",
+        "suffix": " of its highest volume stops with"
+      }
     },
     {
       "id": "norms",
@@ -88,7 +166,20 @@
       },
       "quote": "41% vs. 11%",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiaz7i4ft2p4ujztik2bhvbo33x7fjywwfjqqm3zz26pcws67l7p4m",
+        "bytes": 2245855,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "41% vs. 11%",
+        "prefix": "part of a theoretically predicted, (",
+        "suffix": "), x 2 d, JV= 139) •= 17.06, p < .001."
+      }
     },
     {
       "id": "bag-evidence",
@@ -100,7 +191,20 @@
       },
       "quote": "lead to a 25 to 47% decrease",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigeqydqz5cwcaoitymy6a7xpzkgfddn4vjginvgpnfd42kooy7hcq",
+        "bytes": 3005187,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "lead to a 25 to 47% decrease",
+        "prefix": "only temporary declines in plastic bag ",
+        "suffix": " in plastic bags as a share of total"
+      }
     },
     {
       "id": "cigarette-evidence",
@@ -112,7 +216,20 @@
       },
       "quote": "reduce cigarette litter by half",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreib4ccbru4tssmdzb4p5daptekidldkg252in3tcgjhnuton7ikeam",
+        "bytes": 348341,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "reduce cigarette litter by half",
+        "prefix": "Communities implementing the program ",
+        "suffix": " based on local measurements taken in"
+      }
     }
   ],
   "what_would_help": [

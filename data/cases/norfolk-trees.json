@@ -15,7 +15,20 @@
       },
       "quote": "Percent of street tree pruning requests fulfilled",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreify3tf33lpxbpg3wcopfx55jnkitaj3y3a6jscdbpdtlmowxomoee",
+        "bytes": 4403562,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Percent of street tree pruning requests fulfilled",
+        "prefix": "90 working days or less mowing cycle ",
+        "suffix": " 5 9 5 40 90 Total Number of Properties"
+      }
     },
     {
       "id": "measure-dropped",
@@ -38,7 +51,20 @@
       },
       "quote": "Forestry has been unable to adopt a pro-active tree maintenance program",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibmhjh763nzispgqajlgtf57vgazugdqm2shkpebbb7prhjveiau4",
+        "bytes": 6426762,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Forestry has been unable to adopt a pro-active tree maintenance program",
+        "prefix": "to significant work backlog DRAFT ",
+        "suffix": " City of Norfolk Office of the City"
+      }
     },
     {
       "id": "audit-backlog",
@@ -50,7 +76,20 @@
       },
       "quote": "1,408 - Not completed requests at June 30, 2022",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibmhjh763nzispgqajlgtf57vgazugdqm2shkpebbb7prhjveiau4",
+        "bytes": 6426762,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "1,408 - Not completed requests at June 30, 2022",
+        "prefix": "Norfolk's Aging Tree Population  ",
+        "suffix": " Fiscal Years FY2021 FY2022  Staff and"
+      }
     },
     {
       "id": "supervisor-not-funded",
@@ -62,7 +101,20 @@
       },
       "quote": "The supervisor will allow the existing staff to be split into two crews",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreify3tf33lpxbpg3wcopfx55jnkitaj3y3a6jscdbpdtlmowxomoee",
+        "bytes": 4403562,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The supervisor will allow the existing staff to be split into two crews",
+        "prefix": "funds for a vehicle for the position. ",
+        "suffix": ", allowing for greater coverage of the"
+      }
     },
     {
       "id": "code-requires-plan",
@@ -74,7 +126,20 @@
       },
       "quote": "Norfolk does not currently have an UFMP",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreif4dvueirgyz3hzoi56qafdbsf2ivzru4eomorsvstbwyzd3hofze",
+        "bytes": 6166948,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Norfolk does not currently have an UFMP",
+        "prefix": "long term benefits to the community. ",
+        "suffix": " but their codes and ordinances do"
+      }
     },
     {
       "id": "no-citywide-assessment",
@@ -86,7 +151,20 @@
       },
       "quote": "the city lacks the resource allocation to conduct a city-wide assessment",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreif4dvueirgyz3hzoi56qafdbsf2ivzru4eomorsvstbwyzd3hofze",
+        "bytes": 6166948,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "the city lacks the resource allocation to conduct a city-wide assessment",
+        "prefix": "in select neighborhoods. However, ",
+        "suffix": " prioritized by those areas most at"
+      }
     },
     {
       "id": "safety-first",
@@ -98,7 +176,20 @@
       },
       "quote": "The main priority of the city's tree management is public safety",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihh4wvle3e2muc7y36ncy63tsqi274oynz3t3wwfjjad3ykqjsoja",
+        "bytes": 105851,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The main priority of the city's tree management is public safety",
+        "prefix": "is prioritized. Prioritization ",
+        "suffix": ", therefore those trees posing an"
+      }
     },
     {
       "id": "contract-removal",
@@ -110,7 +201,20 @@
       },
       "quote": "The contract is used to remove decaying or diseased trees",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreify3tf33lpxbpg3wcopfx55jnkitaj3y3a6jscdbpdtlmowxomoee",
+        "bytes": 4403562,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The contract is used to remove decaying or diseased trees",
+        "prefix": "city's tree care maintenance contract. ",
+        "suffix": " throughout the city. A corresponding"
+      }
     },
     {
       "id": "contract-2025",
@@ -122,7 +226,20 @@
       },
       "quote": "decrease the backlog of tree maintenance that built up during the pandemic",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibmbyayoe7xu6onux6cn35lcwii273osakifcyigiaff3oj27u27a",
+        "bytes": 1884469,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "decrease the backlog of tree maintenance that built up during the pandemic",
+        "prefix": "contract. The contract will help to ",
+        "suffix": ". • Provide funds to enhance green"
+      }
     },
     {
       "id": "aging-trees",
@@ -134,7 +251,20 @@
       },
       "quote": "aging tree population has contributed to",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibmhjh763nzispgqajlgtf57vgazugdqm2shkpebbb7prhjveiau4",
+        "bytes": 6426762,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "aging tree population has contributed to",
+        "prefix": "pruning and removal work Norfolk's ",
+        "suffix": " significant work backlog DRAFT"
+      }
     },
     {
       "id": "dominion",
@@ -146,7 +276,20 @@
       },
       "quote": "Nearly all of our neighborhood power lines are cleared on a four year cycle",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig65dmpjq7xwknuv5imlptygjbjprgxij62tznz4nnpzus67tfhwy",
+        "bytes": 258715,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Nearly all of our neighborhood power lines are cleared on a four year cycle",
+        "prefix": "in decay. How often do you trim? ",
+        "suffix": ". Unusual circumstances, such as storms"
+      }
     },
     {
       "id": "benchmark",
@@ -158,7 +301,20 @@
       },
       "quote": "6.6-year",
       "checked": "2026-11-04",
-      "found_by": "Claude research agent for Siren, 2026-11-04"
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicbmox3sollv2yc2lop3ybf72kcl6wfae2w26npvo75lejm4ha5de",
+        "bytes": 402785,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "6.6-year",
+        "prefix": "needed basis. pruning cycle. A mean ",
+        "suffix": " current pruning cycle Tree pruning"
+      }
     },
     {
       "id": "tree-commission",
@@ -181,7 +337,20 @@
       },
       "quote": "it shall be unlawful for any person except an authorized employee of the bureau of parks and forestry to perform any of the following acts on city-owned property without first obtaining a permit from the director",
       "found_by": "Claude research agent for Siren, 2026-11-04",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigvsdckgpimwu4sulzok2rrtpfuhhpnjthd6smbdh46uv5ic2zkyi",
+        "bytes": 827673,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "it shall be unlawful for any person except an authorized employee of the bureau of parks and forestry to perform any of the following acts on city-owned property without first obtaining a permit from the director",
+        "prefix": "as otherwise provided in this section, ",
+        "suffix": ": (1) Plant, transplant, prune, trim,"
+      }
     },
     {
       "id": "ordinance-penalty",
@@ -193,7 +362,20 @@
       },
       "quote": "Each day a violation continues shall be deemed a new violation",
       "found_by": "Claude research agent for Siren, 2026-11-04",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigvsdckgpimwu4sulzok2rrtpfuhhpnjthd6smbdh46uv5ic2zkyi",
+        "bytes": 827673,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Each day a violation continues shall be deemed a new violation",
+        "prefix": "be guilty of a class 1 misdemeanor. ",
+        "suffix": ". In addition to any penalties imposed"
+      }
     },
     {
       "id": "ordinance-replacement",
@@ -205,7 +387,20 @@
       },
       "quote": "shall be used solely for the purpose of enhancing urban forestry programs and operations",
       "found_by": "Claude research agent for Siren, 2026-11-04",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigvsdckgpimwu4sulzok2rrtpfuhhpnjthd6smbdh46uv5ic2zkyi",
+        "bytes": 827673,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "shall be used solely for the purpose of enhancing urban forestry programs and operations",
+        "prefix": "value of trees removed by permit, ",
+        "suffix": ". (Ord. No. 41,728, § 1, 2-15-05) Sec."
+      }
     },
     {
       "id": "ordinance-private-trees",
@@ -217,7 +412,20 @@
       },
       "quote": "within the resource protection area or intensely developed areas in the Chesapeake Bay Preservation Area Overlay District without first obtaining a permit from the director",
       "found_by": "Claude research agent for Siren, 2026-11-04",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigvsdckgpimwu4sulzok2rrtpfuhhpnjthd6smbdh46uv5ic2zkyi",
+        "bytes": 827673,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "within the resource protection area or intensely developed areas in the Chesapeake Bay Preservation Area Overlay District without first obtaining a permit from the director",
+        "prefix": "to perform any of the following acts ",
+        "suffix": ": (1) Plant, transplant, trim, prune,"
+      }
     },
     {
       "id": "ordinance-resident-pruning",
@@ -229,7 +437,20 @@
       },
       "quote": "Residents of Norfolk may apply for a permit to prune and trim city trees located between the curbs and sidewalks",
       "found_by": "Claude research agent for Siren, 2026-11-04",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigvsdckgpimwu4sulzok2rrtpfuhhpnjthd6smbdh46uv5ic2zkyi",
+        "bytes": 827673,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Residents of Norfolk may apply for a permit to prune and trim city trees located between the curbs and sidewalks",
+        "prefix": "45-13. Permits; when required. (a) ",
+        "suffix": ". A request for a permit can take place"
+      }
     },
     {
       "id": "ordinance-forester-duties",
@@ -241,7 +462,20 @@
       },
       "quote": "To direct a comprehensive municipal forestry program encompassing natural resource conservation, preventative, corrective and routine maintenance, and reforestation components",
       "found_by": "Claude research agent for Siren, 2026-11-04",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigvsdckgpimwu4sulzok2rrtpfuhhpnjthd6smbdh46uv5ic2zkyi",
+        "bytes": 827673,
+        "read": "2026-11-04",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "To direct a comprehensive municipal forestry program encompassing natural resource conservation, preventative, corrective and routine maintenance, and reforestation components",
+        "prefix": "the following responsibilities: (a) ",
+        "suffix": ". (b) To administer the tree ordinance"
+      }
     }
   ],
   "what_would_help": [

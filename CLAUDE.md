@@ -78,8 +78,14 @@ generic mode.
   question through a plugin's `the_record` (`plugins/cases.js`). Each finding
   has a source URL and an exact quote; `npm run verify:cases` re-fetches every
   source (pdftotext for PDFs) and fails on a missing quote, and `--write`
-  stamps the date. A finding without a checked quote is served only as
-  "not yet verified". Never add a finding you haven't opened the source for.
+  stamps the date and the evidence (DASL CID of the bytes read, a W3C
+  TextQuoteSelector, how it was proven); `--archive` also records a Wayback
+  snapshot that holds the quote, and a finding whose live page changed or
+  vanished is proven against that snapshot and served "as archived".
+  `.github/workflows/archive-case-sources.yml` does the archiving monthly
+  and opens a PR (cloud sessions can't reach web.archive.org).
+  `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
+  finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).
