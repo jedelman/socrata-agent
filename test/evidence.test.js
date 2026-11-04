@@ -154,3 +154,16 @@ test('the record links the snapshot and says when a finding stands on the archiv
   assert.equal(r.confirms[0].archived, 'https://web.archive.org/web/20260401000000/https://x');
   assert.match(r.confirms[0].note, /archived copy from 2026-04-01/);
 });
+
+test('notes say why no snapshot helped, and --no-save never asks for one', async () => {
+  const none = fakeNet({ live: QUOTE });
+  delete none.archive.save;
+  const r = await checkFinding(finding(), { net: none, workDir: '/tmp', today, now, archiveMode: true });
+  assert.equal(r.outcome, 'ok');
+  assert.ok(r.notes.includes('no snapshot yet'));
+  assert.equal(r.patch.source, undefined);
+  const stale = fakeNet({ live: QUOTE, snapshots: { '20250101000000': 'an older version of the page' } });
+  delete stale.archive.save;
+  const r2 = await checkFinding(finding(), { net: stale, workDir: '/tmp', today, now, archiveMode: true });
+  assert.ok(r2.notes.some((n) => /snapshot 20250101000000 doesn't show the quote/.test(n)));
+});

@@ -8,6 +8,8 @@
 //   node scripts/verify-cases.js --write            also record what was checked
 //   node scripts/verify-cases.js --write --archive  also make sure a Wayback
 //                                                   Machine snapshot holds each quote
+//   ... --archive --no-save                         look up and read snapshots, but
+//                                                   don't ask for new ones
 //
 // Durable findings. With --write, each passing finding records:
 //   checked, checked_via   the date, and whether the live page or an archived
@@ -157,6 +159,7 @@ export async function checkFinding(f, { net, workDir, today, archiveMode = false
     try {
       const closest = await net.archive.lookup(f.source.url);
       if (closest && !candidates.some((c) => c.timestamp === closest.timestamp)) candidates.push(closest);
+      if (!closest && !candidates.length) notes.push('no snapshot yet');
     } catch (err) {
       notes.push(`archive lookup failed (${err.message})`);
     }
@@ -165,6 +168,7 @@ export async function checkFinding(f, { net, workDir, today, archiveMode = false
         const buf = await net.archive.raw(f.source.url, snap.timestamp);
         const text = textOf(buf, workDir);
         if (holds(text, f.quote)) return { snap, buf, text };
+        notes.push(`snapshot ${snap.timestamp} doesn't show the quote`);
       } catch (err) {
         notes.push(`archive unreachable (${err.message})`);
         return null; // one network failure means the archive is down from here; don't hammer it
@@ -195,7 +199,7 @@ export async function checkFinding(f, { net, workDir, today, archiveMode = false
           // fresh enough
         } else {
           let a = await fromArchive();
-          if (!a && net.archive && !notes.some((n) => n.startsWith('archive unreachable'))) {
+          if (!a && net.archive?.save && !notes.some((n) => n.startsWith('archive unreachable'))) {
             try {
               const saved = await net.archive.save(f.source.url);
               if (saved) {
@@ -251,9 +255,9 @@ export async function checkFinding(f, { net, workDir, today, archiveMode = false
 }
 
 // --- The real network.
-async function get(url, init = {}) {
+async function get(url, { timeoutMs = 60000, ...init } = {}) {
   try {
-    return await fetch(url, { headers: { 'User-Agent': USER_AGENT }, redirect: 'follow', signal: AbortSignal.timeout(60000), ...init });
+    return await fetch(url, { headers: { 'User-Agent': USER_AGENT }, redirect: 'follow', signal: AbortSignal.timeout(timeoutMs), ...init });
   } catch (err) {
     throw new Unreachable(err.cause?.code || err.message);
   }
@@ -289,7 +293,8 @@ const wayback = {
     return Buffer.from(await res.arrayBuffer());
   },
   async save(url) {
-    const res = await get(`https://web.archive.org/save/${url}`);
+    // Save Page Now often takes one to two minutes per capture.
+    const res = await get(`https://web.archive.org/save/${url}`, { timeoutMs: 180000 });
     if (!res.ok) throw new Unreachable(`save HTTP ${res.status}`);
     // The final URL (after redirects) or Content-Location names the new snapshot.
     const where = res.headers.get('content-location') || res.url || '';
@@ -305,8 +310,14 @@ if (main) {
   const archiveMode = process.argv.includes('--archive');
   const today = new Date().toISOString().slice(0, 10);
   const workDir = mkdtempSync(join(tmpdir(), 'cases-'));
-  // A circuit breaker: once the archive fails from this machine, stop asking it this run.
+  // Circuit breakers: once reading the archive fails from this machine, stop
+  // reading it this run. Saving has its own breaker (a slow capture isn't an
+  // outage) and a per-run cap, to stay within Save Page Now's limits.
+  const noSave = process.argv.includes('--no-save');
+  const MAX_SAVES = 5;
   let archiveDown = null;
+  let saveDown = null;
+  let saves = 0;
   const guard = (fn) => async (...a) => {
     if (archiveDown) throw new Unreachable(archiveDown);
     try {
@@ -316,7 +327,18 @@ if (main) {
       throw err;
     }
   };
-  const net = { live, archive: { lookup: guard(wayback.lookup), raw: guard(wayback.raw), save: guard(wayback.save) } };
+  const saveGuarded = async (url) => {
+    if (saveDown) throw new Unreachable(saveDown);
+    if (saves >= MAX_SAVES) throw new Unreachable(`${MAX_SAVES} saves this run already; the rest wait for next run`);
+    saves++;
+    try {
+      return await wayback.save(url);
+    } catch (err) {
+      if (err instanceof Unreachable) saveDown = `${err.message}; not retried this run`;
+      throw err;
+    }
+  };
+  const net = { live, archive: { lookup: guard(wayback.lookup), raw: guard(wayback.raw), ...(noSave ? {} : { save: saveGuarded }) } };
   let failed = 0;
   let warned = 0;
   let archived = 0;
@@ -340,6 +362,7 @@ if (main) {
     if (write) writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
   }
   if (archiveMode || archived) console.log(`\nWayback Machine: ${archived} snapshot(s) checked and holding their quotes this run.`);
+  if (archiveMode) console.log(`Saves requested: ${saves}${noSave ? ' (--no-save)' : ''}${saveDown ? `; saving stopped: ${saveDown}` : ''}.`);
   if (archiveDown) console.log(`\nThe Wayback Machine was unreachable from here (${archiveDown}). Archive steps were skipped; nothing failed because of it.`);
   const note = warned ? ` ${warned} finding(s) need a look (see ??).` : '';
   console.log(failed ? `\n${failed} finding(s) failed.${note}` : `\nAll quotes found.${note}`);
