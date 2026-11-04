@@ -47,6 +47,14 @@ export function toolsFor(city, plugins = []) {
       })
     );
   }
+  tools.push(
+    T('suggest_data_source', "When the records you can reach can't answer the question (or only part of it), name the source that would: a specific ordinance, plan, report, dataset or agency record. The person sees a button to ask for it to be added. Call it at most once per question, and only for a source you have reason to think exists; give a url only if you saw it in a tool result.", {
+      need: { type: 'string', description: 'What the person wanted to know, in a short sentence, without their address or name.' },
+      source: { type: 'string', description: 'The source by name, e.g. "Norfolk City Code, Chapter 45 (Trees)".' },
+      url: { type: 'string', description: 'Optional: a link to it, only if a tool result showed one.' },
+      why: { type: 'string', description: 'One sentence: what this source would let you answer.' },
+    }, ['need', 'source', 'why'])
+  );
   const core = new Set(tools.map((t) => t.function.name));
   for (const def of pluginToolDefs(plugins, city)) {
     if (core.has(def.function.name)) throw new Error(`Plugin "${def.function.name}" would replace a core tool.`);
@@ -65,6 +73,13 @@ function capRows(rows) {
 export async function runTool(ctx, name, args) {
   const { socrata, iqm2, indexes, city, resources } = ctx;
   switch (name) {
+    case 'suggest_data_source': {
+      if (ctx.suggestions.length >= 2) return { noted: false, note: 'Two sources are already suggested for this question.' };
+      const clip = (s, n) => String(s ?? '').trim().slice(0, n);
+      const url = clip(args.url, 500);
+      ctx.suggestions.push({ need: clip(args.need, 300), source: clip(args.source, 200), why: clip(args.why, 300), ...(/^https:\/\//i.test(url) ? { url } : {}) });
+      return { noted: true, note: 'The person will see this suggestion with a button to request it. In your answer, say plainly what you could not find and that they can ask for this source to be added.' };
+    }
     case 'search_datasets':
       return socrata.searchCatalog(args.query);
     case 'describe_dataset':

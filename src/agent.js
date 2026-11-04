@@ -36,7 +36,7 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
   for (const c of city.contacts || []) resources.addContact({ ...c, source: 'city profile' });
   for (const l of city.links || []) resources.addLink(l);
   const http = tracedHttp(trace, fetchImpl);
-  return { city, indexes, trace, resources, socrata, iqm2, http, plugins };
+  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, suggestions: [] };
 }
 
 /**
@@ -165,6 +165,7 @@ export async function ask({
     model,
     steps,
     toolResults,
+    suggestions: ctx.suggestions,
     ...(refusal ? { refusal } : {}),
     markdown: {
       trace: ctx.trace.toMarkdown(),

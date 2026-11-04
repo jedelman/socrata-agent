@@ -92,6 +92,15 @@ async function main() {
       console.log([e.email, e.name, e.org, e.note, e.source, e.at].map(csv).join(','));
     }
     console.error(`${keys.length} on the waitlist.`);
+  } else if (cmd === 'requests') {
+    // Source requests, most wanted first.
+    const keys = JSON.parse(wrangler(['list', '--prefix', 'request:']) || '[]');
+    const rows = keys.map(({ name }) => JSON.parse(wrangler(['get', name, '--text']) || '{}')).sort((a, b) => (b.count || 0) - (a.count || 0));
+    for (const r of rows) {
+      console.log(`${String(r.count).padStart(4)}  ${r.source}${r.url ? `  <${r.url}>` : ''}  (last ${String(r.last || '').slice(0, 10)})`);
+      for (const n of (r.needs || []).slice(-3)) console.log(`        - ${n.text}`);
+    }
+    if (!rows.length) console.error('No source requests yet.');
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -100,7 +109,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email>  [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests  [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

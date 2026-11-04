@@ -230,7 +230,7 @@ test('case files: every served finding has a source and a checked quote; every f
     assert.equal(ids.size, doc.findings.length, `${file}: duplicate finding ids`);
     for (const f of doc.findings) {
       assert.ok(f.claim && f.source?.url?.startsWith('https://') && f.source.title, `${file} ${f.id}: claim and source`);
-      assert.ok(['confirms', 'weakens', 'context', 'who_decides'].includes(f.stance), `${file} ${f.id}: stance`);
+      assert.ok(['confirms', 'weakens', 'context', 'who_decides', 'rules'].includes(f.stance), `${file} ${f.id}: stance`);
       assert.ok(f.found_by, `${file} ${f.id}: found_by names who found it`);
       if (!f.unverified) assert.ok(f.quote && /^\d{4}-\d{2}-\d{2}$/.test(f.checked || ''), `${file} ${f.id}: run scripts/verify-cases.js --write`);
     }
@@ -249,4 +249,14 @@ test('the_record serves only checked findings, and puts every source in the trac
   assert.ok(resources.records.some((x) => x.url.includes('78214')), 'the budget book is in the hand-off');
   const litterResult = (await checkPlugin(litter, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter })).result;
   assert.ok(litterResult.the_record.confirms.some((f) => /bag tax/.test(f.claim)));
+});
+
+import caseFile from '../plugins/case-file.js';
+
+test('case_file serves a record with no address, including the rules', async () => {
+  const { result, trace } = await checkPlugin(caseFile, { city: norfolk, args: { topic: 'norfolk-trees' }, respond: () => [] });
+  assert.ok(result.rules.some((f) => /sec\. 45-13\(b\)/.test(f.claim)), 'the tree ordinance is in the record');
+  assert.ok(trace.some((s) => /verified case file/.test(s.tool)));
+  const missing = await checkPlugin(caseFile, { city: norfolk, args: { topic: 'nope' }, respond: () => [] });
+  assert.match(missing.result.error, /No case file/);
 });

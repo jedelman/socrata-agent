@@ -286,6 +286,26 @@ function renderResources(r) {
   }
   return parts.join('');
 }
+// Sources Siren said would answer what she couldn't. The person sees exactly
+// what will be sent, can edit it, and sends it with one button.
+function renderSuggestions(list) {
+  if (!list?.length) return '';
+  return list.map((s, i) => `<form class="suggest gate" data-i="${i}"><h3>Ask for this source to be added</h3><p>${esc(s.why)}</p><p><strong>${esc(s.source)}</strong>${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">link</a>` : ''}</p><label class="fine">What you wanted to know (sent with the request; edit it, and leave out your address)<textarea name="need" maxlength="300" style="width:100%;margin-top:4px">${esc(s.need)}</textarea></label><input type="hidden" name="source" value="${esc(s.source)}"><input type="hidden" name="url" value="${esc(s.url || '')}"><button class="ask" type="submit">Request this source</button> <span class="msg" role="status"></span></form>`).join('');
+}
+$('#log').addEventListener('submit', async (e) => {
+  const f = e.target.closest('form.suggest');
+  if (!f) return;
+  e.preventDefault();
+  const msg = f.querySelector('.msg');
+  msg.textContent = 'Sending…';
+  try {
+    const { res, data } = await postJson('api/requests', { source: f.source.value, url: f.url.value, need: f.need.value });
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; return; }
+    msg.className = 'msg ok';
+    msg.textContent = data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : 'Requested. Thank you: requests decide what {{APP_NAME}} learns next.';
+    f.querySelector('button').disabled = true;
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
 function renderTrace(t) {
   if (!t?.length) return '';
   return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
@@ -447,7 +467,7 @@ $('#f').addEventListener('submit', async (e) => {
       conversationId = data.conversation;
       $('#conv-forget').hidden = false;
     }
-    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
+    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderSuggestions(data.suggestions)}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
   } catch (err) {
     a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
   } finally {

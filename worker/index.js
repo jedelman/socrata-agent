@@ -20,6 +20,7 @@ import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
+import { addRequest } from './requests.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
@@ -307,6 +308,19 @@ async function handleLoginVerify(req, env) {
   return json({ ok: true, member, account: out.masked }, 200, { 'Set-Cookie': userCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
 }
 
+async function handleRequest(req, env) {
+  const kv = env.LIMITS;
+  if (!kv) return json({ error: 'This site is not configured yet.' }, 503);
+  if (inviteOnly(env)) {
+    const setup = inviteSetupError(env);
+    if (setup) return json({ error: setup }, 503);
+    if (!(await inviteAccess(req, env, kv)).invite) return json({ error: 'Sign in or enter your invite code first.' }, 401);
+  }
+  const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env) });
+  if (!out.ok) return json({ error: out.error }, out.status);
+  return json({ ok: true, count: out.count }, 200, { 'Cache-Control': 'no-store' });
+}
+
 async function handleConversations(req, env, path) {
   const kv = env.LIMITS;
   const uid = kv && inviteOnly(env) ? await currentUser(req, env) : null;
@@ -398,6 +412,7 @@ export default {
     if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
+    if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
