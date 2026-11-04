@@ -24,6 +24,7 @@ export function theRecord(ctx, doc) {
   const record = {
     question: doc.title,
     steward: doc.steward,
+    license: doc.license === 'CC-BY-4.0' ? 'CC BY 4.0: reuse with credit to whoever found each finding' : doc.license,
     summary: doc.summary,
     confirms: by('confirms'),
     weakens: by('weakens'),

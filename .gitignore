@@ -3,3 +3,4 @@ node_modules/
 .wrangler/
 # Waitlist exports hold people's email addresses.
 *waitlist*.csv
+dist/

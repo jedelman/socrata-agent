@@ -1,0 +1,30 @@
+name: Deploy Siren
+# Every push to main deploys jason-edelman.org/ask-siren, after the tests
+# pass. Needs the repository secret CLOUDFLARE_API_TOKEN (Workers Scripts
+# Edit on the account, Workers Routes Edit on the jason-edelman.org zone).
+# Worker secrets (ANTHROPIC_API_KEY, IP_SALT, INVITE_SECRET) stay in
+# Cloudflare and are never touched here.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy-siren
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # A GitHub environment, so a required reviewer can be added in the
+    # repository settings without changing this file.
+    environment: siren
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx wrangler deploy --env siren
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
