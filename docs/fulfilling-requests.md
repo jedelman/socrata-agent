@@ -39,7 +39,7 @@ finding wherever it goes.
 
 ```bash
 npm test
-npm run verify:cases -- --write   # re-fetches every source; a missing quote fails
+npm run verify:cases -- --write   # re-fetches every source; a missing quote fails; records evidence and selectors
 node bin/socrata-agent.js tool block_report '{"address":"810 Union St"}' > /dev/null
 ```
 

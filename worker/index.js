@@ -23,6 +23,8 @@ import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberI
 import { addRequest, publicRequests, allRequests, decide } from './requests.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
+import { CASES } from '../plugins/case-file.js';
+import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
@@ -428,6 +430,17 @@ export default {
     if (req.method === 'GET' && path === '/api/requests') {
       if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
       return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+    }
+    // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
+    if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
+      const casesBase = `${url.origin}${base}`;
+      const h = { 'Content-Type': 'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"', 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' };
+      if (path === '/api/cases') {
+        return json({ cases: Object.values(CASES).map((c) => ({ id: c.id, title: c.title, annotations: `${casesBase}/api/cases/${c.id}`, license: c.license })) }, 200, { 'Access-Control-Allow-Origin': '*' });
+      }
+      const doc = CASES[path.slice('/api/cases/'.length).replace(/\.jsonld$/, '')];
+      if (!doc) return json({ error: 'No such case file.' }, 404);
+      return new Response(JSON.stringify(toAnnotations(doc, casesBase), null, 2), { headers: h });
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin') {
       const { config } = getDeployment(env);

@@ -1,6 +1,6 @@
 # Open standards: what Siren and Cairn already reinvent
 
-Status: **research, nothing built.** 2026-11-04. Jason: "take a look at the
+Status: **research; item 3 (durable findings) built 2026-11-04.** Jason: "take a look at the
 open-standards work in scout-harness and let's investigate whether some of this
 applies to Siren/Cairn. I see us on the way to reinventing several wheels."
 
