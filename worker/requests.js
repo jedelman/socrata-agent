@@ -93,3 +93,39 @@ export function withStatus(r, status, extra = {}, now = Date.now()) {
   }
   return out;
 }
+
+/** Every request, for the steward: all statuses, private notes marked. */
+export async function allRequests(kv) {
+  const keys = [];
+  let cursor;
+  do {
+    const page = await kv.list({ prefix: 'request:', cursor });
+    keys.push(...page.keys.map((k) => k.name));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  const rows = await Promise.all(keys.map(async (k) => [k, await kv.get(k, 'json')]));
+  return rows
+    .filter(([, r]) => r)
+    .map(([k, r]) => ({ id: publicId(k), ...r, status: r.status || 'new', needs: (r.needs || []).map((n) => ({ text: n.text, at: n.at, public: Boolean(n.public) })) }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/** Apply a steward decision by public id. Returns { ok, request } or { ok: false, status, error }. */
+export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.now()) {
+  if (typeof id !== 'string' || !/^[0-9a-f]{12}$/.test(id)) return { ok: false, status: 400, error: 'Give the request id.' };
+  const page = await kv.list({ prefix: `request:${id}` });
+  if (page.keys.length !== 1) return { ok: false, status: 404, error: 'No single request has that id.' };
+  const key = page.keys[0].name;
+  const cur = await kv.get(key, 'json');
+  let next;
+  try {
+    next = withStatus(cur, status, { steward_note: note, fulfilled_by }, now);
+  } catch (err) {
+    return { ok: false, status: 400, error: err.message };
+  }
+  if (status === 'fulfilled' && !next.fulfilled_by) return { ok: false, status: 400, error: 'Give the link to the merged PR or commit.' };
+  // A cleared note clears the public note.
+  if (note === '') delete next.steward_note;
+  await kv.put(key, JSON.stringify(next));
+  return { ok: true, request: publicView(key, next) };
+}

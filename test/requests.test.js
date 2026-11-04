@@ -63,3 +63,39 @@ test('issue bodies show typed text literally and never ping anyone', () => {
   assert.match(body, /https:\/\/github\.com\/owner\/repo\/blob\/main\/docs\/fulfilling-requests\.md/);
   assert.ok(!issueTitle(r).match(/@(?!​)/));
 });
+
+import { decide, allRequests } from '../worker/requests.js';
+import { isAdmin, userId } from '../worker/accounts.js';
+import { plan } from '../scripts/sync-request-issues.js';
+
+test('only accounts named in ADMIN_EMAILS are stewards', async () => {
+  const env = { INVITE_SECRET: 'test-secret-that-is-long-enough', ADMIN_EMAILS: ' Steward@Example.org , other@example.org' };
+  assert.equal(await isAdmin(env, await userId(env.INVITE_SECRET, 'steward@example.org')), true);
+  assert.equal(await isAdmin(env, await userId(env.INVITE_SECRET, 'someone@example.org')), false);
+  assert.equal(await isAdmin({ ...env, ADMIN_EMAILS: '' }, await userId(env.INVITE_SECRET, 'steward@example.org')), false);
+  assert.equal(await isAdmin(env, null), false);
+});
+
+test('the steward decides by id; the admin list shows private notes, marked', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'ARB guidelines', need: 'old note' }, kv, visitor: 'v' });
+  await addRequest({ body: { source: 'ARB guidelines', need: 'new note', public: true }, kv, visitor: 'w' });
+  const [r] = await allRequests(kv);
+  assert.equal(r.status, 'new');
+  assert.deepEqual(r.needs.map((n) => n.public), [false, true]);
+  assert.equal((await decide(kv, { id: 'zzz', status: 'accepted' })).status, 400);
+  assert.equal((await decide(kv, { id: r.id, status: 'fulfilled' })).status, 400, 'fulfilled needs a link');
+  const ok = await decide(kv, { id: r.id, status: 'accepted', note: 'Needs the current ARB guidelines PDF.' });
+  assert.ok(ok.ok);
+  assert.equal(ok.request.steward_note, 'Needs the current ARB guidelines PDF.');
+  assert.equal((await publicRequests(kv)).requests.length, 1);
+  const cleared = await decide(kv, { id: r.id, status: 'accepted', note: '' });
+  assert.equal(cleared.request.steward_note, undefined);
+});
+
+test('the sync plan says what each issue should hold', () => {
+  const p = plan([{ id: 'abc123def456', source: 'S', count: 2, status: 'fulfilled', notes: [] }], 'https://x/requests', 'o/r');
+  assert.equal(p[0].state, 'closed');
+  assert.equal(p[0].marker, '<!-- source-request:abc123def456 -->');
+  assert.ok(p[0].body.startsWith(p[0].marker));
+});

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Mirror the public source-request list to GitHub issues, one per request,
-// labeled source-request. Runs from .github/workflows/sync-requests.yml with
-// the workflow's own GITHUB_TOKEN, so the Worker holds no GitHub secret.
+// labeled source-request. Run nightly by a Claude Code routine ("Siren:
+// sync source requests to issues"), which runs --plan and applies the plan
+// with its GitHub tools; or run it directly with a GITHUB_TOKEN.
 //
 // It reads only the public feed (steward-accepted requests, public notes), so
 // nothing reaches GitHub that isn't already on the public page. Issues are
@@ -9,7 +10,11 @@
 // notes change, and closed as completed when a request is fulfilled.
 //
 //   REQUESTS_URL=https://jason-edelman.org/ask-siren/api/requests \
-//   GITHUB_TOKEN=... GITHUB_REPOSITORY=owner/repo node scripts/sync-request-issues.js [--dry-run]
+//   GITHUB_REPOSITORY=owner/repo node scripts/sync-request-issues.js --plan
+//     prints the desired issues as JSON ([{id, marker, title, body, state}]),
+//     needing no token; the caller matches existing issues by marker.
+//   ... GITHUB_TOKEN=... node scripts/sync-request-issues.js [--dry-run]
+//     applies them itself through the GitHub API.
 
 const LABEL = 'source-request';
 const marker = (id) => `<!-- source-request:${id} -->`;
@@ -69,12 +74,28 @@ async function gh(path, { method = 'GET', body } = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+/** The issues the public list should have, as plain data. */
+export function plan(requests, pageUrl, repo) {
+  return requests.map((r) => ({
+    id: r.id,
+    marker: marker(r.id),
+    title: issueTitle(r),
+    body: issueBody(r, pageUrl, repo),
+    state: r.status === 'fulfilled' ? 'closed' : 'open',
+    label: LABEL,
+  }));
+}
+
 async function main() {
   const dry = process.argv.includes('--dry-run');
   const feedUrl = process.env.REQUESTS_URL;
   if (!feedUrl) throw new Error('Set REQUESTS_URL to the public /api/requests feed.');
   const pageUrl = feedUrl.replace(/api\/requests$/, 'requests');
   const { requests = [] } = await (await fetch(feedUrl)).json();
+  if (process.argv.includes('--plan')) {
+    console.log(JSON.stringify(plan(requests, pageUrl, process.env.GITHUB_REPOSITORY), null, 2));
+    return;
+  }
   if (!dry) await gh('/labels', { method: 'POST', body: { name: LABEL, color: '1d6b5c', description: 'A data source people asked the agent to learn' } });
   const existing = [];
   for (let page = 1; ; page++) {

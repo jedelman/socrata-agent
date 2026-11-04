@@ -66,8 +66,9 @@ generic mode.
   gate: `request-accept`/`-decline`/`-fulfilled` set status, only accepted
   and fulfilled requests appear at `<base>/requests` and `/api/requests`, and
   only notes written under the "requests are public" notice are shown.
-  `scripts/sync-request-issues.js` (daily Action) mirrors the public list to
-  `source-request` issues. `docs/fulfilling-requests.md` is the contributor
+  `scripts/sync-request-issues.js` mirrors the public list to
+  `source-request` issues, run nightly by a Claude Code routine (`--plan`).
+  The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
   guide. `plugins/case-file.js` serves a case file for questions with no
   address. No payments: bounties are tabled until after beta (Jason).
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
