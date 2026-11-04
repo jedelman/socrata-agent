@@ -169,6 +169,12 @@ export async function redeem({ code, env, kv, visitor, current = null, maxFailur
 const EMAIL = /^[^\s@<>()",;:]+@[^\s@<>()"',;:]+\.[A-Za-z0-9-]{2,}$/;
 const clip = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
 
+/** A plausible email, trimmed and lowercased, or null. */
+export function normalizeEmail(input) {
+  const email = clip(input, 254).toLowerCase();
+  return EMAIL.test(email) ? email : null;
+}
+
 /** Validate a waitlist entry. Returns { entry } or { error }. */
 export function waitlistEntry(body) {
   if (!body || typeof body !== 'object') return { error: 'Send your email to join the waitlist.' };

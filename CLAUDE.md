@@ -54,6 +54,11 @@ generic mode.
   Never trust the plain email header.
 - `bin/socrata-agent.js` is the CLI (`ask` with your own key; `tool` with no key).
 - `worker/` is the Cloudflare chat app (`index.js` plus `ui.html`).
+  `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
+  sign-in by magic link (Resend), which binds an invite to an account;
+  `conversations.js` holds each account's conversations (KV, 7 days), whose
+  earlier tool results come back as data for follow-ups. Conversations are
+  private to their account and never feed the case files.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.

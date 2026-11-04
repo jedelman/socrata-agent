@@ -40,7 +40,10 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
 }
 
 /**
- * Ask one question. `history` is prior [{role, content}] turns (user/assistant text only).
+ * Ask one question. `history` is prior [{role, content}] turns (user/assistant
+ * text). `carried` lists tool results that history brings back from earlier in
+ * a conversation ({name, args, turn, at}); they get a code-written trace step,
+ * so an answer built on them still shows where its data came from.
  * `apiKey` is the key for the model's provider (see keyNameFor). `effort`
  * (low|medium|high|xhigh|max) applies to Claude models only.
  * Returns { answer, trace, resources, voice, cost, model, steps }.
@@ -48,6 +51,7 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
 export async function ask({
   question,
   history = [],
+  carried = [],
   city,
   indexes,
   apiKey,
@@ -66,6 +70,17 @@ export async function ask({
   // A bad setting must never make the tool loop unbounded.
   maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
   const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
+  if (carried.length) {
+    await ctx.trace.record(
+      {
+        tool: 'results kept from earlier in this conversation',
+        soql: carried.map((c) => `turn ${c.turn}: ${c.name} ${JSON.stringify(c.args)}`).join('; ').slice(0, 1500),
+      },
+      async () => ({ result: null, rows: carried.length })
+    );
+  }
+  // Tool results from this question, returned so a conversation can keep them.
+  const toolResults = [];
   const llm = providerOf(model) === 'anthropic'
     ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl, referer });
@@ -120,6 +135,7 @@ export async function ask({
       }
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
+      if (!isError) toolResults.push({ name: call.name, args: call.args, content });
     }
     llm.appendToolResults(results, steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null);
   }
@@ -148,6 +164,7 @@ export async function ask({
     cost,
     model,
     steps,
+    toolResults,
     ...(refusal ? { refusal } : {}),
     markdown: {
       trace: ctx.trace.toMarkdown(),

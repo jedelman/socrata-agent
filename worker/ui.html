@@ -87,6 +87,10 @@ footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1p
 .gate .msg { font-size: .93rem; }
 .gate .msg.ok { color: var(--accent); }
 .gate .fine { color: var(--muted); font-size: .88rem; }
+.convbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 10px 0 0; font-size: .92rem; color: var(--muted); }
+.convbar button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.convbar details { width: 100%; }
+.convbar ul { margin: 6px 0 0; padding-left: 18px; }
 [data-skin="siren"] .gate h2, [data-skin="siren"] .gate h3 { font-family: var(--display); font-weight: 600; }
 .mark { display: none; }
 
@@ -174,7 +178,16 @@ html[data-skin="siren"] {
 
   <section class="gate" id="gate" hidden aria-labelledby="gate-title">
     <h2 id="gate-title">{{APP_NAME}} is in a private pre-alpha</h2>
-    <p>If someone gave you an invite code, enter it here.</p>
+    <div id="signin" hidden>
+      <p>Sign in with your email, so your invite and your conversations follow you to any device. We'll send you a link.</p>
+      <form id="login" autocomplete="on">
+        <input id="login-email" name="email" type="email" placeholder="Email" aria-label="Email for sign-in" maxlength="254" required autocomplete="email">
+        <div class="hp" aria-hidden="true"><label>Website <input id="login-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+        <button class="ask" type="submit">Email me a link</button>
+      </form>
+      <p class="msg" id="login-msg" role="status"></p>
+    </div>
+    <p id="code-intro">If someone gave you an invite code, enter it here.</p>
     <form id="redeem" autocomplete="off">
       <input id="code" name="code" placeholder="SIREN-XXXXX-XXXXX" aria-label="Invite code" maxlength="40" required>
       <button class="ask" type="submit">Enter</button>
@@ -201,11 +214,19 @@ html[data-skin="siren"] {
   </form>
   <div class="examples" id="examples" aria-label="Example questions"></div>
 
+  <p class="convbar" id="account" hidden></p>
+  <div class="convbar" id="convbar" hidden>
+    <span id="conv-state">New conversation</span>
+    <button type="button" id="conv-new">Start a new conversation</button>
+    <button type="button" id="conv-forget" hidden>Forget this conversation</button>
+    <details id="conv-recent" hidden><summary>Your recent conversations</summary><ul id="conv-list"></ul></details>
+  </div>
   <main id="log" aria-live="polite"></main>
 
   <footer>
     <p class="footer-note">{{FOOTER_NOTE}}</p>
     <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
+    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept for 7 days so you can ask follow-ups and pick them up on another device. Only your account can open them, you can forget one at any time, and nothing from them goes into {{APP_NAME}}'s shared findings. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" style="font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline">Sign out</button></p>
     <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
     <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
   </footer>
@@ -227,6 +248,8 @@ const link = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '#');
 const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || '')) : `<p>${esc(s)}</p>`);
 let history = [];
 let cities = [];
+let conversationId = null;
+let session = {};
 
 async function loadCities() {
   try {
@@ -243,7 +266,7 @@ function setCity() {
   $('#examples').innerHTML = (EXAMPLES[c?.id] || []).map((e) => `<button type="button">${esc(e)}</button>`).join('');
   history = [];
 }
-$('#city').addEventListener('change', () => { $('#log').innerHTML = ''; setCity(); });
+$('#city').addEventListener('change', () => { newConversation(); setCity(); });
 $('#examples').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { $('#q').value = e.target.textContent; $('#f').requestSubmit(); } });
 $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f').requestSubmit(); } });
 
@@ -272,14 +295,95 @@ function showGate(on) {
   $('#gate').hidden = !on;
   $('#f').hidden = on;
   $('#examples').hidden = on;
-  if (on) $('#code').focus();
+  const signin = on && session.login && !session.signed_in;
+  $('#signin').hidden = !signin;
+  $('#code-intro').textContent = session.signed_in
+    ? "You're signed in. Enter your invite code once and it works on every device you sign in on."
+    : signin ? 'Or, if someone gave you an invite code, enter it here (it will work in this browser only).' : 'If someone gave you an invite code, enter it here.';
+  if (on) (signin ? $('#login-email') : $('#code')).focus();
+}
+function newConversation() {
+  conversationId = null;
+  history = [];
+  $('#log').innerHTML = '';
+  $('#conv-state').textContent = 'New conversation';
+  $('#conv-forget').hidden = true;
+}
+async function loadRecent() {
+  if (!session.conversations) return;
+  try {
+    const { conversations = [] } = await (await fetch('api/conversations', { cache: 'no-store' })).json();
+    $('#conv-recent').hidden = !conversations.length;
+    $('#conv-list').innerHTML = conversations.map((c) => `<li><button type="button" data-id="${esc(c.id)}">${esc(c.title)}</button> <small>${c.turns} question${c.turns === 1 ? '' : 's'} · ${esc(String(c.updated).slice(0, 10))}</small></li>`).join('');
+  } catch {}
 }
 async function loadSession() {
   try {
-    const s = await (await fetch('api/session', { cache: 'no-store' })).json();
-    showGate(Boolean(s.invite_required && !s.invited));
+    session = await (await fetch('api/session', { cache: 'no-store' })).json();
+    showGate(Boolean(session.invite_required && !session.invited));
+    $('#convbar').hidden = !session.conversations;
+    $('#privacy-signed-in').hidden = !session.signed_in;
+    $('#account').hidden = !session.signed_in;
+    $('#account').innerHTML = session.signed_in ? `Signed in as <strong>${esc(session.account)}</strong>. Not you? <button type="button" id="signout-top">Sign out</button>` : '';
+    $('#signout-top')?.addEventListener('click', () => $('#signout').click());
+    loadRecent();
   } catch { /* the ask call reports any problem */ }
 }
+// The sign-in link lands on <base>/login#t=<token>. The token is posted from
+// script, so a mail scanner that only fetches the link can't spend it.
+async function finishSignIn() {
+  if (!/\/login$/.test(location.pathname)) return;
+  const token = new URLSearchParams(location.hash.slice(1)).get('t');
+  window.history.replaceState(null, '', location.pathname.replace(/login$/, ''));
+  if (!token) return;
+  try {
+    const { res, data } = await postJson('api/login/verify', { token });
+    if (!res.ok) { showGate(true); $('#login-msg').textContent = data.error || 'That sign-in link did not work. Ask for a new one.'; }
+  } catch {}
+}
+$('#login').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#login-msg');
+  msg.className = 'msg'; msg.textContent = 'Sending…';
+  try {
+    const { res, data } = await postJson('api/login', { email: $('#login-email').value, website: $('#login-website').value });
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong. Try again.'; return; }
+    msg.className = 'msg ok'; msg.textContent = 'Check your email for a sign-in link. It works once, for 15 minutes.';
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
+$('#conv-new').addEventListener('click', () => { newConversation(); $('#q').focus(); });
+$('#conv-forget').addEventListener('click', async () => {
+  if (!conversationId) return;
+  await postJson('api/conversations/delete', { id: conversationId }).catch(() => {});
+  newConversation();
+  loadRecent();
+});
+$('#conv-list').addEventListener('click', async (e) => {
+  const id = e.target.closest('button')?.dataset.id;
+  if (!id) return;
+  try {
+    const res = await fetch(`api/conversation?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) return;
+    newConversation();
+    conversationId = id;
+    if (data.city && cities.some((c) => c.id === data.city)) $('#city').value = data.city;
+    for (const t of data.turns) {
+      const turn = document.createElement('section');
+      turn.className = 'turn';
+      turn.innerHTML = `<div class="q">${esc(t.question)}</div><div class="a"><div class="answer">${md(t.answer)}</div><p class="meta">${esc(String(t.at).slice(0, 16).replace('T', ' '))} UTC</p></div>`;
+      $('#log').append(turn);
+    }
+    $('#conv-state').textContent = `Continuing: ${data.turns[0]?.question.slice(0, 60) || ''}`;
+    $('#conv-forget').hidden = false;
+    $('#conv-recent').open = false;
+  } catch {}
+});
+$('#signout').addEventListener('click', async () => {
+  await postJson('api/logout', {}).catch(() => {});
+  newConversation();
+  loadSession();
+});
 async function postJson(path, body) {
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   let data = {};
@@ -294,6 +398,7 @@ $('#redeem').addEventListener('submit', async (e) => {
     const { res, data } = await postJson('api/redeem', { code: $('#code').value });
     if (!res.ok) { msg.textContent = data.error || 'That code didn\'t work.'; return; }
     msg.textContent = '';
+    await loadSession();
     showGate(false);
     $('#q').focus();
     if ($('#q').value.trim()) $('#f').requestSubmit();
@@ -320,12 +425,13 @@ $('#f').addEventListener('submit', async (e) => {
   const turn = document.createElement('section');
   turn.className = 'turn';
   turn.innerHTML = `<div class="q">${esc(question)}</div><div class="a"><p class="loading">${esc(LOADING)}</p></div>`;
-  $('#log').prepend(turn);
+  $('#log').append(turn);
+  turn.scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('#q').value = '';
   $('#go').disabled = true;
   const a = turn.querySelector('.a');
   try {
-    const res = await fetch('api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history }) });
+    const res = await fetch('api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, city, history, conversation: conversationId }) });
     const data = await res.json();
     if (res.status === 401 && data.gate === 'invite') {
       turn.remove();
@@ -336,6 +442,11 @@ $('#f').addEventListener('submit', async (e) => {
     }
     if (!res.ok) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
     history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });
+    if (data.conversation) {
+      if (!conversationId) { $('#conv-state').textContent = `Conversation: ${question.slice(0, 60)}`; loadRecent(); }
+      conversationId = data.conversation;
+      $('#conv-forget').hidden = false;
+    }
     a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
   } catch (err) {
     a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
@@ -344,7 +455,7 @@ $('#f').addEventListener('submit', async (e) => {
   }
 });
 loadCities();
-loadSession();
+finishSignIn().then(loadSession);
 </script>
 </body>
 </html>

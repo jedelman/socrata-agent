@@ -19,6 +19,8 @@ import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
+import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
+import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -72,6 +74,15 @@ function allowedCities(env) {
   return ids.filter((id) => cities[id]);
 }
 
+// Who is asking, in invite mode: a signed-in account bound to an invite, or a
+// browser holding an invite cookie (the way codes worked before sign-in).
+async function inviteAccess(req, env, kv) {
+  const uid = await currentUser(req, env);
+  const viaAccount = uid ? await memberInvite(kv, uid) : null;
+  if (viaAccount) return { uid, invite: viaAccount, member: true };
+  return { uid, invite: await currentInvite(req, env, kv), member: false };
+}
+
 async function handleAsk(req, env, ctx) {
   const { config: deployment, plugins } = getDeployment(env);
   let body;
@@ -85,7 +96,7 @@ async function handleAsk(req, env, ctx) {
   if (question.length > MAX_QUESTION) return json({ error: `Keep questions under ${MAX_QUESTION} characters.` }, 400);
   const cityId = body.city || allowedCities(env)[0];
   if (!allowedCities(env).includes(cityId)) return json({ error: `This site doesn't serve "${cityId}".` }, 400);
-  const history = (Array.isArray(body.history) ? body.history : [])
+  const clientHistory = (Array.isArray(body.history) ? body.history : [])
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
     .slice(-MAX_HISTORY)
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_HISTORY_CHARS) }));
@@ -103,6 +114,8 @@ async function handleAsk(req, env, ctx) {
   // Behind Cloudflare Access, count per verified person; in invite-only mode,
   // per invite; otherwise per hashed IP.
   let who;
+  // A signed-in account bound to an invite; only accounts keep conversations.
+  let uid = null;
   if (env.ACCESS_TEAM_DOMAIN) {
     try {
       const { email } = await verifyAccess(req, env);
@@ -113,9 +126,12 @@ async function handleAsk(req, env, ctx) {
   } else if (inviteOnly(env)) {
     const setup = inviteSetupError(env);
     if (setup) return json({ error: setup }, 503);
-    const invite = await currentInvite(req, env, kv);
-    if (!invite) return json({ error: 'Siren is invite-only for now. Enter your invite code, or join the waitlist.', gate: 'invite' }, 401);
-    who = { key: `inv-day:${day}:${invite.hash.slice(0, 32)}`, limit: setting(env.PER_INVITE_DAILY, 30), kind: 'invite' };
+    const access = await inviteAccess(req, env, kv);
+    if (!access.invite) return json({ error: 'Siren is invite-only for now. Sign in, enter your invite code, or join the waitlist.', gate: 'invite' }, 401);
+    uid = access.member ? access.uid : null;
+    who = uid
+      ? { key: `user-day:${day}:${uid.slice(0, 32)}`, limit: setting(env.PER_USER_DAILY, 30), kind: 'person' }
+      : { key: `inv-day:${day}:${access.invite.hash.slice(0, 32)}`, limit: setting(env.PER_INVITE_DAILY, 30), kind: 'invite' };
   } else {
     who = { key: `ip:${day}:${await visitorHash(req, env)}`, limit: setting(env.PER_IP_DAILY, 20), kind: 'visitor' };
   }
@@ -134,6 +150,19 @@ async function handleAsk(req, env, ctx) {
     await kv.put(ipKey, String(Number(used || 0) + 1), { expirationTtl: 172800 });
   }
 
+  // Follow-ups: a signed-in account's conversation carries the earlier tool
+  // results. Anyone else gets the older behavior: the text of recent turns.
+  let conversationId = null;
+  let conversation = null;
+  let history = clientHistory;
+  let carried = [];
+  if (uid && kv) {
+    conversation = await loadConversation(kv, uid, body.conversation);
+    if (conversation && conversation.city !== cityId) conversation = null;
+    conversationId = conversation ? body.conversation : newConversationId();
+    ({ history, carried } = historyFrom(conversation));
+  }
+
   // Every paid call is counted as it happens, so spend is recorded even when a
   // later step fails or the visitor leaves; the write runs after the response.
   let cost = 0;
@@ -141,6 +170,7 @@ async function handleAsk(req, env, ctx) {
     const out = await ask({
       question,
       history,
+      carried,
       city: applyConfig(getCity(cityId), deployment),
       plugins,
       indexes: INDEXES,
@@ -159,7 +189,14 @@ async function handleAsk(req, env, ctx) {
         cost += usd;
       },
     });
-    return json({ city: cityId, ...out });
+    const { toolResults, ...answer } = out;
+    if (conversationId) {
+      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults }, { days: env.CONVERSATION_DAYS })
+        .catch((err) => console.error('saving the conversation failed', err));
+      if (ctx?.waitUntil) ctx.waitUntil(save);
+      else await save;
+    }
+    return json({ city: cityId, ...answer, ...(conversationId ? { conversation: conversationId } : {}) });
   } catch (err) {
     console.error(err);
     // The full upstream error goes to the operator's log only; visitors get the gist.
@@ -180,14 +217,31 @@ async function handleAsk(req, env, ctx) {
 async function handleSession(req, env) {
   const headers = { 'Cache-Control': 'no-store' };
   let invited = false;
+  let signedIn = false;
+  let member = false;
+  let account = null;
   if (inviteOnly(env) && !inviteSetupError(env)) {
-    const invite = await currentInvite(req, env, env.LIMITS);
+    const access = await inviteAccess(req, env, env.LIMITS);
+    const { invite } = access;
+    account = access.uid ? (await currentUserInfo(req, env))?.masked || 'your email' : null;
+    signedIn = Boolean(access.uid);
+    member = access.member;
     if (invite) {
       invited = true;
-      headers['Set-Cookie'] = sessionCookie(await signSession(env.INVITE_SECRET, invite.hash), `${basePath(env)}/`);
+      if (!member) headers['Set-Cookie'] = sessionCookie(await signSession(env.INVITE_SECRET, invite.hash), `${basePath(env)}/`);
     }
   }
-  return json({ invite_required: inviteOnly(env), invited, waitlist: inviteOnly(env) }, 200, headers);
+  return json({
+    invite_required: inviteOnly(env),
+    invited,
+    waitlist: inviteOnly(env),
+    login: inviteOnly(env) && loginConfigured(env),
+    signed_in: signedIn,
+    // Shown on every page, so a sign-in link someone else sent you is noticed.
+    account,
+    // Conversations (and follow-ups from earlier findings) need an account bound to an invite.
+    conversations: member,
+  }, 200, headers);
 }
 
 async function handleRedeem(req, env) {
@@ -200,13 +254,76 @@ async function handleRedeem(req, env) {
   } catch {
     return json({ error: 'Send JSON: {"code": "..."}' }, 400);
   }
-  const current = (await currentInvite(req, env, env.LIMITS))?.hash || null;
+  const uid = await currentUser(req, env);
+  const current = (uid ? (await memberInvite(env.LIMITS, uid))?.hash : null) || (await currentInvite(req, env, env.LIMITS))?.hash || null;
   const out = await redeem({
     code: body?.code, env, kv: env.LIMITS, visitor: await visitorHash(req, env), current,
     maxFailures: setting(env.REDEEM_FAILURES_HOURLY, 30, { min: 1 }),
   });
   if (!out.ok) return json({ error: out.error }, out.status);
+  // Signed in: the invite now belongs to the account, on every device.
+  if (uid) {
+    await bindInvite(env.LIMITS, uid, out.hash);
+    return json({ ok: true, bound: true }, 200, { 'Cache-Control': 'no-store' });
+  }
   return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
+}
+
+async function readJson(req) {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
+async function handleLogin(req, env) {
+  if (!inviteOnly(env)) return json({ error: 'This site has no sign-in.' }, 404);
+  const setup = inviteSetupError(env);
+  if (setup) return json({ error: setup }, 503);
+  const body = await readJson(req);
+  const { config } = getDeployment(env);
+  const origin = new URL(req.url).origin;
+  try {
+    const out = await startLogin({
+      body, env, kv: env.LIMITS, visitor: await visitorHash(req, env), link: `${origin}${basePath(env)}/login`, appName: APP_NAME_OF(env, config),
+    });
+    if (!out.ok) return json({ error: out.error }, out.status);
+  } catch (err) {
+    console.error('sign-in email failed', err);
+    return json({ error: "The sign-in email couldn't be sent. Try again in a minute." }, 502);
+  }
+  return json({ ok: true }, 200, { 'Cache-Control': 'no-store' });
+}
+
+async function handleLoginVerify(req, env) {
+  if (!inviteOnly(env)) return json({ error: 'This site has no sign-in.' }, 404);
+  const setup = inviteSetupError(env);
+  if (setup) return json({ error: setup }, 503);
+  const body = await readJson(req);
+  const out = await finishLogin({ token: body?.token, env, kv: env.LIMITS });
+  if (!out.ok) return json({ error: out.error }, out.status);
+  const member = Boolean(await memberInvite(env.LIMITS, out.uid));
+  return json({ ok: true, member, account: out.masked }, 200, { 'Set-Cookie': userCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
+}
+
+async function handleConversations(req, env, path) {
+  const kv = env.LIMITS;
+  const uid = kv && inviteOnly(env) ? await currentUser(req, env) : null;
+  if (!uid || !(await memberInvite(kv, uid))) return json({ error: 'Sign in to see your conversations.' }, 401);
+  const headers = { 'Cache-Control': 'no-store' };
+  if (req.method === 'GET' && path === '/api/conversations') return json({ conversations: await listConversations(kv, uid) }, 200, headers);
+  if (req.method === 'GET' && path === '/api/conversation') {
+    const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
+    if (!conv) return json({ error: 'That conversation is gone (they expire) or was never yours.' }, 404, headers);
+    return json({ city: conv.city, turns: conv.turns.map((t) => ({ question: t.question, answer: t.answer, at: t.at })) }, 200, headers);
+  }
+  if (req.method === 'POST' && path === '/api/conversations/delete') {
+    const body = await readJson(req);
+    await deleteConversation(kv, uid, body?.id);
+    return json({ ok: true }, 200, headers);
+  }
+  return json({ error: 'Not found' }, 404);
 }
 
 async function handleWaitlist(req, env) {
@@ -266,7 +383,7 @@ export default {
       if (!path.startsWith(`${base}/`)) return new Response('Not found', { status: 404 });
       path = path.slice(base.length);
     }
-    if (req.method === 'GET' && (path === '/' || path === '/index.html')) {
+    if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/' || path === '/index.html' || path === '/login')) {
       return new Response(page(env), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
     }
     if (req.method === 'GET' && path === '/api/cities') {
@@ -275,10 +392,15 @@ export default {
       );
     }
     if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
+    if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
+    if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
+    if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
+    if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
+    if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
     return new Response('Not found', { status: 404 });
   },
 };

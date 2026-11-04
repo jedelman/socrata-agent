@@ -39,6 +39,9 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put IP_SALT --env siren
 #   npx wrangler secret put INVITE_SECRET --env siren   # any long random string
 #   npx wrangler secret put ANTHROPIC_API_KEY --env siren   # if MODEL is a claude-* id
+#   npx wrangler secret put RESEND_API_KEY --env siren   # email sign-in (resend.com)
+# Email sign-in also needs LOGIN_FROM below, an address on a domain verified
+# in Resend. Until both are set, the page offers invite codes only.
 #   npx wrangler deploy --env siren
 # Pre-alpha: invite-only, with a waitlist. Make codes with
 #   node scripts/invites.js create --label "who it's for" --uses 5
@@ -62,6 +65,9 @@ MAX_STEPS = "6"
 MAX_TOKENS = "1200"
 INVITE_REQUIRED = "true"
 PER_INVITE_DAILY = "30"
+PER_USER_DAILY = "30"
+CONVERSATION_DAYS = "7"
+# LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # set once the domain is verified in Resend
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"
