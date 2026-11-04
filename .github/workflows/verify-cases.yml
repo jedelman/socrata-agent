@@ -1,6 +1,7 @@
 name: Verify case files
 # Re-fetch every case-file source and check each quote is still there. A
-# source that changes or disappears fails this job; fix the finding (or mark
+# missing quote or a vanished page fails this job; a site that blocks this
+# runner only warns until 30 days after its last successful check; fix the finding (or mark
 # it unverified) rather than letting Siren serve a quote that's gone.
 on:
   schedule:

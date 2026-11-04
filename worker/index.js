@@ -19,7 +19,10 @@ import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
-import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
+import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
+import { addRequest, publicRequests, allRequests, decide } from './requests.js';
+import REQUESTS_PAGE from './requests.html';
+import ADMIN_PAGE from './admin.html';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
@@ -307,6 +310,35 @@ async function handleLoginVerify(req, env) {
   return json({ ok: true, member, account: out.masked }, 200, { 'Set-Cookie': userCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
 }
 
+async function handleRequest(req, env) {
+  const kv = env.LIMITS;
+  if (!kv) return json({ error: 'This site is not configured yet.' }, 503);
+  if (inviteOnly(env)) {
+    const setup = inviteSetupError(env);
+    if (setup) return json({ error: setup }, 503);
+    if (!(await inviteAccess(req, env, kv)).invite) return json({ error: 'Sign in or enter your invite code first.' }, 401);
+  }
+  const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env) });
+  if (!out.ok) return json({ error: out.error }, out.status);
+  return json({ ok: true, count: out.count }, 200, { 'Cache-Control': 'no-store' });
+}
+
+// The steward's review page and its API. Every call checks that the signed-in
+// account is an admin (ADMIN_EMAILS secret); nothing here is cached.
+async function handleAdmin(req, env, path) {
+  const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
+  if (!env.LIMITS) return json({ error: 'This site is not configured yet.' }, 503, headers);
+  const uid = await currentUser(req, env);
+  if (!uid) return json({ error: 'Sign in first.', signin: true }, 401, headers);
+  if (!(await isAdmin(env, uid))) return json({ error: 'This account is not a steward here.' }, 403, headers);
+  if (req.method === 'GET' && path === '/api/admin/requests') return json({ requests: await allRequests(env.LIMITS) }, 200, headers);
+  if (req.method === 'POST' && path === '/api/admin/requests/decide') {
+    const out = await decide(env.LIMITS, (await readJson(req)) || {});
+    return out.ok ? json(out, 200, headers) : json({ error: out.error }, out.status, headers);
+  }
+  return json({ error: 'Not found' }, 404, headers);
+}
+
 async function handleConversations(req, env, path) {
   const kv = env.LIMITS;
   const uid = kv && inviteOnly(env) ? await currentUser(req, env) : null;
@@ -392,12 +424,32 @@ export default {
       );
     }
     if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
+    // The public source-request list: open to everyone, invited or not.
+    if (req.method === 'GET' && path === '/api/requests') {
+      if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
+      return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+    }
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin') {
+      const { config } = getDeployment(env);
+      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+      });
+    }
+    if (req.method === 'GET' && path === '/api/admin/requests') return handleAdmin(req, env, path);
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/requests') {
+      const { config } = getDeployment(env);
+      return new Response(REQUESTS_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace(/\{\{REPO\}\}/g, esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent')), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+      });
+    }
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
+    if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
+    if (req.method === 'POST' && path === '/api/admin/requests/decide') return handleAdmin(req, env, path);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);

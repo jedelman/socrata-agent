@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Source requests</title>
+<meta name="description" content="Data sources people have asked {{APP_NAME}} to learn, and how to help add them.">
+<style>
+:root { --bg: #f6f7f4; --surface: #ffffff; --ink: #18211f; --muted: #58645f; --line: #d9ded9; --accent: #1d6b5c; --chip: #e7efe9; --done: #6b5a1d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0d1513; --surface: #14201d; --ink: #e5ece8; --muted: #a2b1aa; --line: #2a3934; --accent: #7fd1bd; --chip: #1c2c28; --done: #e3c66b; } }
+:root[data-theme="dark"] { --bg: #0d1513; --surface: #14201d; --ink: #e5ece8; --muted: #a2b1aa; --line: #2a3934; --accent: #7fd1bd; --chip: #1c2c28; --done: #e3c66b; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 6px; line-height: 1.25; }
+.lede { color: var(--muted); margin: 0 0 20px; }
+a { color: var(--accent); }
+.how { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 22px; }
+.how p { margin: 4px 0; }
+.meta { color: var(--muted); font-size: .9rem; margin: 0 0 12px; }
+ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+li { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.top { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.src { font-weight: 600; overflow-wrap: anywhere; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; font-size: .92rem; }
+.chip { display: inline-block; font-size: .78rem; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--accent); margin-right: 6px; }
+.chip.fulfilled { color: var(--done); }
+.notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .94rem; }
+.links { margin-top: 8px; font-size: .92rem; display: flex; gap: 14px; flex-wrap: wrap; }
+.empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Source requests</h1>
+  <p class="lede">When {{APP_NAME}} can't answer from the records she reaches, she names the source that would, and people can ask for it. These are the requests a steward has reviewed, most wanted first.</p>
+  <div class="how">
+    <p><strong>Help add one.</strong> A request is fulfilled by a pull request that teaches {{APP_NAME}} the source: verified findings for a case file, a plugin, or a dataset in a city profile. Every finding must quote its source, and every change passes the same checks, then review.</p>
+    <p><a href="{{REPO}}/blob/main/docs/fulfilling-requests.md">How to fulfill a request</a> · <a href="{{REPO}}/issues?q=label%3Asource-request">Requests on GitHub (synced nightly)</a> · <a href="./">Ask {{APP_NAME}}</a></p>
+  </div>
+  <p class="meta" id="meta">Loading…</p>
+  <ol id="list"></ol>
+</div>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const link = (u) => (/^https:\/\//i.test(String(u || '')) ? esc(u) : '#');
+const REPO = '{{REPO}}';
+(async () => {
+  try {
+    const { requests = [], awaiting_review = 0 } = await (await fetch('api/requests')).json();
+    document.getElementById('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}${awaiting_review ? `; ${awaiting_review} awaiting review` : ''}.`;
+    document.getElementById('list').innerHTML = requests.length
+      ? requests.map((r) => `<li>
+          <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${r.count} ${r.count === 1 ? 'person' : 'people'} asked</span></div>
+          <div><span class="chip ${esc(r.status)}">${r.status === 'fulfilled' ? 'Fulfilled' : 'Open'}</span><small class="count">since ${esc(String(r.first).slice(0, 10))}</small></div>
+          ${r.steward_note ? `<p class="notes" style="padding-left:0">${esc(r.steward_note)}</p>` : ''}
+          ${r.notes.length ? `<ul class="notes">${r.notes.map((n) => `<li style="all:unset;display:list-item">${esc(n)}</li>`).join('')}</ul>` : ''}
+          <div class="links">
+            ${r.url ? `<a href="${link(r.url)}" target="_blank" rel="noopener">The source</a>` : ''}
+            <a href="${link(`${REPO}/issues?q=${encodeURIComponent(`label:source-request ${r.id}`)}`)}" target="_blank" rel="noopener">Discussion on GitHub</a>
+            ${r.fulfilled_by ? `<a href="${link(r.fulfilled_by)}" target="_blank" rel="noopener">How it was fulfilled</a>` : ''}
+          </div>
+        </li>`).join('')
+      : '<li class="empty">No reviewed requests yet.</li>';
+  } catch {
+    document.getElementById('meta').textContent = "Couldn't load the list. Try again.";
+  }
+})();
+</script>
+</body>
+</html>

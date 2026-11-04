@@ -30,6 +30,7 @@ export function theRecord(ctx, doc) {
     weakens: by('weakens'),
     context: by('context'),
     who_decides: by('who_decides'),
+    rules: by('rules'),
     not_yet_verified: doc.findings.filter((f) => f.unverified || !f.checked).map((f) => f.claim),
     what_would_help: doc.what_would_help.map((h) => ({ text: h.text, ...(byId[h.finding] ? { based_on: byId[h.finding].source.title } : {}) })),
     records_to_request: doc.records_to_request,

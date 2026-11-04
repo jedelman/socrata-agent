@@ -44,6 +44,7 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put INVITE_SECRET --env siren   # any long random string
 #   npx wrangler secret put ANTHROPIC_API_KEY --env siren   # if MODEL is a claude-* id
 #   npx wrangler secret put RESEND_API_KEY --env siren   # email sign-in (resend.com)
+#   npx wrangler secret put ADMIN_EMAILS --env siren     # steward emails for <base>/admin, comma-separated
 # Email sign-in also needs LOGIN_FROM below, an address on a domain verified
 # in Resend. Until both are set, the page offers invite codes only.
 #   npx wrangler deploy --env siren

@@ -182,3 +182,15 @@ export async function memberInvite(kv, uid) {
 export async function bindInvite(kv, uid, inviteHash, now = Date.now()) {
   await kv.put(`member:${uid}`, JSON.stringify({ invite: inviteHash, since: new Date(now).toISOString() }));
 }
+
+/**
+ * Admins are the signed-in accounts whose email is listed in the ADMIN_EMAILS
+ * Worker secret (comma-separated). A secret, not a var, so the steward's
+ * address never sits in the public repository.
+ */
+export async function isAdmin(env, uid) {
+  if (!uid || !env.ADMIN_EMAILS || !env.INVITE_SECRET) return false;
+  const emails = String(env.ADMIN_EMAILS).split(',').map((e) => normalizeEmail(e)).filter(Boolean);
+  for (const e of emails) if ((await userId(env.INVITE_SECRET, e)) === uid) return true;
+  return false;
+}

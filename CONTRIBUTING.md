@@ -20,7 +20,7 @@ comes back into the shared project, and what the shared web app runs.
 - **Findings for a case file** (`data/cases/`), from anyone: a civic league,
   Keep Norfolk Beautiful, a City department, a researcher. A finding is one
   claim, the source URL, the exact quote that supports it, a stance
-  (`confirms`, `weakens`, `context` or `who_decides`), and `found_by` (your
+  (`confirms`, `weakens`, `context`, `who_decides`, or `rules` for what an ordinance or regulation says), and `found_by` (your
   name or organization). Findings that weaken a case are as welcome as ones
   that confirm it; the record is shared, not a brief. Run
   `npm run verify:cases -- --write`: a finding whose quote isn't on the page

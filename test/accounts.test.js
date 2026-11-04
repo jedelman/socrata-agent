@@ -88,7 +88,13 @@ test('account cookies reject tampering, expiry, the wrong secret, and invite coo
   const c = await signUser(SECRET, uid);
   assert.equal(await verifyUser(SECRET, c), uid);
   assert.equal(await verifyUser('other-secret', c), null);
-  assert.equal(await verifyUser(SECRET, c.replace(/.$/, (x) => (x === 'A' ? 'B' : 'A'))), null);
+  // Flip a character in the middle of the signature: the last base64url
+  // character of a 32-byte MAC carries 2 unused bits, so changing it can
+  // leave the bytes unchanged.
+  const [payload, sig] = c.split('.');
+  const mid = Math.floor(sig.length / 2);
+  const flipped = `${sig.slice(0, mid)}${sig[mid] === 'A' ? 'B' : 'A'}${sig.slice(mid + 1)}`;
+  assert.equal(await verifyUser(SECRET, `${payload}.${flipped}`), null);
   assert.equal(await verifyUser(SECRET, c, Date.now() + 31 * 864e5), null);
   // An invite cookie signed with the same secret must not pass as an account.
   const inviteCookie = await signSession(SECRET, 'f'.repeat(64));
@@ -163,4 +169,33 @@ test('an answer built on carried results says so in its trace', async () => {
   assert.equal(out.trace[0].tool, 'results kept from earlier in this conversation');
   assert.match(out.trace[0].soql, /turn 1: trees_on_my_block/);
   assert.deepEqual(out.toolResults, []);
+});
+
+import { addRequest, requestKey } from '../worker/requests.js';
+
+test('source requests pool by source, keep no asker, and are rate limited', async () => {
+  const kv = fakeKV();
+  const a = await addRequest({ body: { source: 'Norfolk City Code, Chapter 45 (Trees)', url: 'https://library.municode.com/va/norfolk', need: 'Are Ghent trees protected?' }, kv, visitor: 'v1' });
+  const b = await addRequest({ body: { source: 'norfolk city code chapter 45 trees', need: 'Can I prune my street tree?' }, kv, visitor: 'v2' });
+  assert.equal(a.count, 1);
+  assert.equal(b.count, 2, 'spelling and punctuation pool together');
+  const rec = await kv.get(await requestKey('Norfolk City Code, Chapter 45 (Trees)'), 'json');
+  assert.equal(rec.needs.length, 2);
+  assert.equal(rec.url, 'https://library.municode.com/va/norfolk');
+  assert.ok(!JSON.stringify(rec).includes('v1') && !JSON.stringify(rec).includes('v2'), 'no visitor id in the record');
+  assert.equal((await addRequest({ body: { source: 'x' }, kv, visitor: 'v3' })).status, 400);
+  for (let i = 0; i < 20; i++) await addRequest({ body: { source: `s${i} source` }, kv, visitor: 'busy' });
+  assert.equal((await addRequest({ body: { source: 'one more' }, kv, visitor: 'busy' })).status, 429);
+});
+
+test('suggest_data_source is offered everywhere and returned with the answer', async () => {
+  const { toolsFor, runTool } = await import('../src/tools.js');
+  const { createContext } = await import('../src/agent.js');
+  assert.ok(toolsFor(getCity('chicago')).some((t) => t.function.name === 'suggest_data_source'));
+  const ctx = createContext({ city: getCity('norfolk'), fetchImpl: async () => new Response('[]') });
+  const r = await runTool(ctx, 'suggest_data_source', { need: 'Are Ghent trees protected?', source: 'Norfolk City Code, Chapter 45', url: 'javascript:alert(1)', why: 'It holds the tree ordinance.' });
+  assert.ok(r.noted);
+  assert.equal(ctx.suggestions[0].url, undefined, 'only https links are kept');
+  await runTool(ctx, 'suggest_data_source', { need: 'n', source: 's2', why: 'w' });
+  assert.equal((await runTool(ctx, 'suggest_data_source', { need: 'n', source: 's3', why: 'w' })).noted, false, 'at most two per question');
 });

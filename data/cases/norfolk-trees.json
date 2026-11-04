@@ -1,6 +1,6 @@
 {
   "id": "norfolk-trees",
-  "title": "Is Norfolk maintaining its street trees, or cutting them?",
+  "title": "Norfolk's street trees: the rules that protect them, and whether the City maintains them",
   "summary": "The City's own records show request-driven tree care with a documented backlog: in FY2021-FY2023 its budget reported fulfilling 5-9% of street-tree pruning requests, a draft City Auditor report says Forestry has been unable to adopt a proactive maintenance program, and the tree inventory has not been officially re-done since about 2000. They do not show that the City prefers cutting to maintaining: contracted work, an aging tree population, the pandemic, Dominion Energy and the Navy all play a part.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
@@ -170,6 +170,78 @@
       },
       "unverified": true,
       "found_by": "Claude research agent for Siren, 2026-11-04"
+    },
+    {
+      "id": "ordinance-city-trees",
+      "stance": "rules",
+      "claim": "Norfolk's Tree Ordinance makes it unlawful for anyone but the City's parks and forestry staff to plant, prune, remove, damage or disturb any tree on city-owned property, including the strip between curb and sidewalk, or to dig within a city tree's critical root zone, without a permit from the director (City Code sec. 45-13(b)).",
+      "source": {
+        "title": "Norfolk City Code chapter 45 (Trees), as abstracted April 2016 in Virginia Tech's Virginia Tree Ordinance Database; check the current code on Municode",
+        "url": "https://vtod.frec.vt.edu/Documents/Norfolk.pdf"
+      },
+      "quote": "it shall be unlawful for any person except an authorized employee of the bureau of parks and forestry to perform any of the following acts on city-owned property without first obtaining a permit from the director",
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "ordinance-penalty",
+      "stance": "rules",
+      "claim": "Violating chapter 45 is a class 1 misdemeanor, each day counts as a new violation, and a judge may order the damage restored (City Code sec. 45-1).",
+      "source": {
+        "title": "Norfolk City Code chapter 45 (Trees), as abstracted April 2016 in Virginia Tech's Virginia Tree Ordinance Database; check the current code on Municode",
+        "url": "https://vtod.frec.vt.edu/Documents/Norfolk.pdf"
+      },
+      "quote": "Each day a violation continues shall be deemed a new violation",
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "ordinance-replacement",
+      "stance": "rules",
+      "claim": "When trees are removed or damaged in violation of the ordinance, the director may require replacement, or accept a payment in lieu; that money, like permit fees, may be used only for urban forestry (City Code secs. 45-13(e), 45-11, 45-10).",
+      "source": {
+        "title": "Norfolk City Code chapter 45 (Trees), as abstracted April 2016 in Virginia Tech's Virginia Tree Ordinance Database; check the current code on Municode",
+        "url": "https://vtod.frec.vt.edu/Documents/Norfolk.pdf"
+      },
+      "quote": "shall be used solely for the purpose of enhancing urban forestry programs and operations",
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "ordinance-private-trees",
+      "stance": "rules",
+      "claim": "The ordinance's permit rule for trees on private land applies only in the Chesapeake Bay Preservation Area's resource protection and intensely developed areas (City Code sec. 45-13(c)); elsewhere, the abstract shows no permit needed to remove a private tree.",
+      "source": {
+        "title": "Norfolk City Code chapter 45 (Trees), as abstracted April 2016 in Virginia Tech's Virginia Tree Ordinance Database; check the current code on Municode",
+        "url": "https://vtod.frec.vt.edu/Documents/Norfolk.pdf"
+      },
+      "quote": "within the resource protection area or intensely developed areas in the Chesapeake Bay Preservation Area Overlay District without first obtaining a permit from the director",
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "ordinance-resident-pruning",
+      "stance": "rules",
+      "claim": "Residents may get a permit to prune city trees between curb and sidewalk themselves, after an arborist-led workshop, from the ground with hand tools (City Code sec. 45-13(a)).",
+      "source": {
+        "title": "Norfolk City Code chapter 45 (Trees), as abstracted April 2016 in Virginia Tech's Virginia Tree Ordinance Database; check the current code on Municode",
+        "url": "https://vtod.frec.vt.edu/Documents/Norfolk.pdf"
+      },
+      "quote": "Residents of Norfolk may apply for a permit to prune and trim city trees located between the curbs and sidewalks",
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "ordinance-forester-duties",
+      "stance": "rules",
+      "claim": "The City Forester must direct a forestry program with preventative, corrective and routine maintenance, administer a street tree management plan, and propose the budget and staffing it needs (City Code sec. 45-4).",
+      "source": {
+        "title": "Norfolk City Code chapter 45 (Trees), as abstracted April 2016 in Virginia Tech's Virginia Tree Ordinance Database; check the current code on Municode",
+        "url": "https://vtod.frec.vt.edu/Documents/Norfolk.pdf"
+      },
+      "quote": "To direct a comprehensive municipal forestry program encompassing natural resource conservation, preventative, corrective and routine maintenance, and reforestation components",
+      "found_by": "Claude research agent for Siren, 2026-11-04",
+      "checked": "2026-11-04"
     }
   ],
   "what_would_help": [

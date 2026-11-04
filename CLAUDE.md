@@ -59,6 +59,18 @@ generic mode.
   `conversations.js` holds each account's conversations (KV, 7 days), whose
   earlier tool results come back as data for follow-ups. Conversations are
   private to their account and never feed the case files.
+  `requests.js` pools source requests: when the records can't answer, the
+  core `suggest_data_source` tool names the source that would, and the person
+  can request it (no asker identity kept; export with
+  `node scripts/invites.js requests`). The list is public behind a steward
+  gate: `request-accept`/`-decline`/`-fulfilled` set status, only accepted
+  and fulfilled requests appear at `<base>/requests` and `/api/requests`, and
+  only notes written under the "requests are public" notice are shown.
+  `scripts/sync-request-issues.js` mirrors the public list to
+  `source-request` issues, run nightly by a Claude Code routine (`--plan`).
+  The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
+  guide. `plugins/case-file.js` serves a case file for questions with no
+  address. No payments: bounties are tabled until after beta (Jason).
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
