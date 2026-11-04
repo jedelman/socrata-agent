@@ -1,0 +1,22 @@
+name: Sync source requests to issues
+# Mirrors the public source-request list (steward-accepted requests only) to
+# GitHub issues labeled source-request. Uses this workflow's own token.
+on:
+  schedule:
+    - cron: '23 11 * * *' # daily 11:23 UTC
+  workflow_dispatch:
+permissions:
+  issues: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/sync-request-issues.js
+        env:
+          REQUESTS_URL: ${{ vars.REQUESTS_URL || 'https://jason-edelman.org/ask-siren/api/requests' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

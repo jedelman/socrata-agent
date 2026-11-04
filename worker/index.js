@@ -20,7 +20,8 @@ import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest } from './requests.js';
+import { addRequest, publicRequests } from './requests.js';
+import REQUESTS_PAGE from './requests.html';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
@@ -406,6 +407,17 @@ export default {
       );
     }
     if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
+    // The public source-request list: open to everyone, invited or not.
+    if (req.method === 'GET' && path === '/api/requests') {
+      if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
+      return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+    }
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/requests') {
+      const { config } = getDeployment(env);
+      return new Response(REQUESTS_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace(/\{\{REPO\}\}/g, esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent')), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+      });
+    }
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);

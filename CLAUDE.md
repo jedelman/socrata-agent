@@ -62,8 +62,14 @@ generic mode.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
   can request it (no asker identity kept; export with
-  `node scripts/invites.js requests`). `plugins/case-file.js` serves a case
-  file for questions with no address.
+  `node scripts/invites.js requests`). The list is public behind a steward
+  gate: `request-accept`/`-decline`/`-fulfilled` set status, only accepted
+  and fulfilled requests appear at `<base>/requests` and `/api/requests`, and
+  only notes written under the "requests are public" notice are shown.
+  `scripts/sync-request-issues.js` (daily Action) mirrors the public list to
+  `source-request` issues. `docs/fulfilling-requests.md` is the contributor
+  guide. `plugins/case-file.js` serves a case file for questions with no
+  address. No payments: bounties are tabled until after beta (Jason).
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.

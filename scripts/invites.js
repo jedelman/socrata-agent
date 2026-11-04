@@ -20,6 +20,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
+import { withStatus, publicId } from '../worker/requests.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -93,14 +94,31 @@ async function main() {
     }
     console.error(`${keys.length} on the waitlist.`);
   } else if (cmd === 'requests') {
-    // Source requests, most wanted first.
+    // Source requests for the steward, most wanted first. Private notes are
+    // shown here (marked) but never on the public list.
     const keys = JSON.parse(wrangler(['list', '--prefix', 'request:']) || '[]');
-    const rows = keys.map(({ name }) => JSON.parse(wrangler(['get', name, '--text']) || '{}')).sort((a, b) => (b.count || 0) - (a.count || 0));
-    for (const r of rows) {
-      console.log(`${String(r.count).padStart(4)}  ${r.source}${r.url ? `  <${r.url}>` : ''}  (last ${String(r.last || '').slice(0, 10)})`);
-      for (const n of (r.needs || []).slice(-3)) console.log(`        - ${n.text}`);
+    const rows = keys.map(({ name }) => [name, JSON.parse(wrangler(['get', name, '--text']) || '{}')]).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
+    const only = opt('status', '');
+    for (const [name, r] of rows) {
+      if (only && (r.status || 'new') !== only) continue;
+      console.log(`${publicId(name)}  ${String(r.status || 'new').padEnd(9)} ${String(r.count).padStart(4)}  ${r.source}${r.url ? `  <${r.url}>` : ''}  (last ${String(r.last || '').slice(0, 10)})`);
+      for (const n of (r.needs || []).slice(-3)) console.log(`        - ${n.public ? '' : '[private] '}${n.text}`);
     }
     if (!rows.length) console.error('No source requests yet.');
+  } else if (['request-accept', 'request-decline', 'request-fulfilled', 'request-reopen'].includes(cmd)) {
+    // Steward decisions. Accepting puts a request on the public list and, at
+    // the next sync, on GitHub; --note is shown publicly with it.
+    const id = String(argv[1] || '').trim().toLowerCase();
+    if (!/^[0-9a-f]{6,64}$/.test(id)) throw new Error('Give the request id from `requests` (the first column).');
+    const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
+    if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
+    const key = matches[0].name;
+    const cur = JSON.parse(wrangler(['get', key, '--text']) || '{}');
+    const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
+    const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
+    if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
+    wrangler(['put', key, JSON.stringify(next)]);
+    console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.`);
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -109,7 +127,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests  [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id>  [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }
