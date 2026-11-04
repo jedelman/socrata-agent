@@ -18,6 +18,8 @@
 //      (login CSRF) to read what you ask; the visible address is how you'd
 //      notice. Binding the link to the requesting browser would stop it
 //      outright but break "tap the link on your phone, sign in on the laptop".
+//      Jason accepted this tradeoff on 2026-11-04: people compose their own
+//      usage, even if it can confuse them.
 //   4. Redeeming a code while signed in binds the invite to the account
 //      (member:<uid>). Every device signed in to that email is then in, for
 //      one use of the code.

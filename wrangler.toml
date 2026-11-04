@@ -71,7 +71,7 @@ INVITE_REQUIRED = "true"
 PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"
 CONVERSATION_DAYS = "7"
-# LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # set once the domain is verified in Resend
+LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jason, 2026-11-04)
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"
