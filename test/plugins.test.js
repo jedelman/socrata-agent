@@ -231,6 +231,7 @@ test('case files: every served finding has a source and a checked quote; every f
     for (const f of doc.findings) {
       assert.ok(f.claim && f.source?.url?.startsWith('https://') && f.source.title, `${file} ${f.id}: claim and source`);
       assert.ok(['confirms', 'weakens', 'context', 'who_decides'].includes(f.stance), `${file} ${f.id}: stance`);
+      assert.ok(f.found_by, `${file} ${f.id}: found_by names who found it`);
       if (!f.unverified) assert.ok(f.quote && /^\d{4}-\d{2}-\d{2}$/.test(f.checked || ''), `${file} ${f.id}: run scripts/verify-cases.js --write`);
     }
     for (const h of doc.what_would_help) assert.ok(ids.has(h.finding), `${file}: fix points at missing finding ${h.finding}`);

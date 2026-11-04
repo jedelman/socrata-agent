@@ -10,7 +10,7 @@ export function theRecord(ctx, doc) {
   const sources = new Map();
   const shape = (f) => {
     sources.set(f.source.url, f.source.title);
-    return { claim: f.claim, source: f.source.title, url: f.source.url, ...(f.checked ? { checked: f.checked } : {}) };
+    return { claim: f.claim, source: f.source.title, url: f.source.url, found_by: f.found_by, ...(f.checked ? { checked: f.checked } : {}) };
   };
   const verified = doc.findings.filter((f) => !f.unverified && f.checked);
   const by = (stance) => verified.filter((f) => f.stance === stance).map(shape);
@@ -23,6 +23,7 @@ export function theRecord(ctx, doc) {
   });
   const record = {
     question: doc.title,
+    steward: doc.steward,
     summary: doc.summary,
     confirms: by('confirms'),
     weakens: by('weakens'),
@@ -32,7 +33,7 @@ export function theRecord(ctx, doc) {
     what_would_help: doc.what_would_help.map((h) => ({ text: h.text, ...(byId[h.finding] ? { based_on: byId[h.finding].source.title } : {}) })),
     records_to_request: doc.records_to_request,
     how_to_use:
-      'Each finding was checked against its source on the date shown. Name the source when you use a finding. Give what weakens the case alongside what confirms it. Say "not yet verified" for anything in not_yet_verified. The records to request are drafts for the person to send under the Virginia FOIA; Siren never sends them.',
+      'Each finding was checked against its source on the date shown, and names who found it. Name the source when you use a finding. Give what weakens the case alongside what confirms it. Say "not yet verified" for anything in not_yet_verified. The records to request are drafts for the person to send under the Virginia FOIA; Siren never sends them.',
   };
   for (const [url, title] of sources) ctx.resources.addRecord({ title, url, kind: 'source' });
   return record;

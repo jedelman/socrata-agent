@@ -17,6 +17,16 @@ comes back into the shared project, and what the shared web app runs.
   decided" for many cities).
 - Bug fixes with a test that fails before the fix.
 
+- **Findings for a case file** (`data/cases/`), from anyone: a civic league,
+  Keep Norfolk Beautiful, a City department, a researcher. A finding is one
+  claim, the source URL, the exact quote that supports it, a stance
+  (`confirms`, `weakens`, `context` or `who_decides`), and `found_by` (your
+  name or organization). Findings that weaken a case are as welcome as ones
+  that confirm it; the record is shared, not a brief. Run
+  `npm run verify:cases -- --write`: a finding whose quote isn't on the page
+  doesn't ship. The steward reviews wording and stance. A records request the
+  City answers is a new source: add what it shows.
+
 ## What upstream won't take
 
 - **Anything that finds people.** No tools that search or profile individuals by

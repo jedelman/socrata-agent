@@ -2,6 +2,8 @@
   "id": "norfolk-litter",
   "title": "Does Norfolk prevent litter, or only pick it up?",
   "summary": "Norfolk and Keep Norfolk Beautiful run some prevention (education, free cigarette receptacles, campaigns, a state litter-prevention grant, and the 2022 Litterati study meant to test prevention on commercial corridors). But prevention is small beside cleanup, no results of the 2022 prevention test were found, Norfolk has not adopted the 5-cent bag tax, and no record was found of enforcing the state rule requiring litter receptacles at gas stations, fast-food restaurants and shopping centers.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "TODO: Jason to choose a license for case files",
   "findings": [
     {
       "id": "bag-tax",
@@ -13,7 +15,8 @@
       },
       "quote": "Localities where the disposable plastic bag tax currently applies",
       "absent": "Norfolk",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "bag-tax-revenue",
@@ -24,7 +27,8 @@
         "url": "https://law.lis.virginia.gov/vacode/title58.1/chapter17/section58.1-1745/"
       },
       "quote": "environmental cleanup",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "receptacle-rule",
@@ -35,7 +39,8 @@
         "url": "https://law.lis.virginia.gov/admincode/title9/agency20/chapter190/section40/"
       },
       "quote": "Sidewalks in business districts",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "knb-receptacles",
@@ -46,7 +51,8 @@
         "url": "https://norfolk.gov/6372"
       },
       "quote": "Request a FREE cigarette receptacle while supplies last",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "litterati-purpose",
@@ -57,7 +63,8 @@
         "url": "https://litterati.org/the-city-fingerprint-project"
       },
       "quote": "littering on commercial corridors",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "hrt-stops",
@@ -68,7 +75,8 @@
         "url": "https://gohrt.com/adopt-a-stop"
       },
       "quote": "HRT can collect trash at only around 7%",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "norms",
@@ -79,7 +87,8 @@
         "url": "https://public.websites.umich.edu/~prestos/Consumption/pdfs/Cialdinietal1990.pdf"
       },
       "quote": "41% vs. 11%",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "bag-evidence",
@@ -90,7 +99,8 @@
         "url": "https://wwals.net/pictures/2025-06-19--plastic-bag-ban-benefits-science/science.adp9274.pdf"
       },
       "quote": "lead to a 25 to 47% decrease",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     },
     {
       "id": "cigarette-evidence",
@@ -101,7 +111,8 @@
         "url": "https://kab.org/communities-report-prolonged-success-in-reducing-cigarette-butt-litter-2"
       },
       "quote": "reduce cigarette litter by half",
-      "checked": "2026-11-04"
+      "checked": "2026-11-04",
+      "found_by": "Claude research agent for Siren, 2026-11-04"
     }
   ],
   "what_would_help": [
