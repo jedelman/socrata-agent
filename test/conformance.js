@@ -52,8 +52,9 @@ export async function checkPlugin(plugin, { city, args, respond }) {
   return { result, trace: ctx.trace.toJSON(), resources: ctx.resources.toJSON(), requests };
 }
 
-// What a plugin may import from core: the plugin API, and the SoQL quoting helper.
-const ALLOWED_CORE = { 'plugins.js': null, 'socrata.js': ['soqlString'] };
+// What a plugin may import from core: the plugin API, the SoQL quoting helper,
+// and the document readers (pure functions over a document the plugin holds).
+const ALLOWED_CORE = { 'plugins.js': null, 'socrata.js': ['soqlString'], 'documents.js': ['searchSections', 'readSection', 'pageLink'] };
 
 export function checkPluginSource(source, file = 'plugin') {
   const problems = [];
