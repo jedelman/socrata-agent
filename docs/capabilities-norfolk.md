@@ -145,8 +145,13 @@ suppression is now NULL-safe.
   house number.
 - **Storm history near me** (STORM 2010–20): street conditions by block;
   damaged buildings as counts only.
-- **Trees on my block:** species and size within ~150 m; Significant Trees
-  public-only.
+- **Trees on my block:** built 2026-11-04 as `trees_on_my_block` (species and
+  size within 100 m; Forestry work on the street, in the civic league and
+  citywide; removals per planting; the pruning pace). Significant Trees not
+  included.
+- **Litter on my street:** built 2026-11-04 as `litter_on_my_street` (the 2022
+  Litterati survey within 500 m, the nearest surveyed stretches per meter, the
+  ward's Litter Index 2010–2019, and cleanup work orders and cost).
 - **Rain and tide, now and on a flood day:** the airport's daily rainfall
   plus a live gauge, with impossible readings filtered.
 - **Mosquito activity:** fixed areas only (wards or a ~2 km grid), never trap

@@ -293,6 +293,8 @@ test('a flatlined tide gauge is not reported as current', async () => {
 test('conformance reads plugin source for the ways out a fake network cannot see', () => {
   checkPluginFile(new URL('../plugins/water-on-my-block.js', import.meta.url));
   checkPluginFile(new URL('../plugins/sponge-site-screen.js', import.meta.url));
+  checkPluginFile(new URL('../plugins/trees-on-my-block.js', import.meta.url));
+  checkPluginFile(new URL('../plugins/litter-on-my-street.js', import.meta.url));
   for (const src of [
     "import { Socrata, ACCESS } from '../src/socrata.js';",
     "import { createContext } from '../src/agent.js';",
