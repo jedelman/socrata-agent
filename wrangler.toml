@@ -32,6 +32,10 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put SOCRATA_APP_TOKEN  # optional
 
 # Siren: the public deployment at jason-edelman.org/ask-siren.
+# Deploys: Workers Builds (the Cloudflare dashboard's Git connection on the
+# "siren" Worker) runs `npm ci && npm test`, then `npx wrangler deploy --env
+# siren`, on every push to main. Preview builds are off: a preview would share
+# this Worker's secrets and KV on a public workers.dev URL.
 # A route runs before the site's Custom Domain, so only this path reaches this
 # Worker; the rest of jason-edelman.org is untouched.
 #   npx wrangler kv namespace create LIMITS --env siren   # paste the id below
