@@ -16,6 +16,8 @@
 import { definePlugin } from '../src/plugins.js';
 import { soqlString } from '../src/socrata.js';
 import { leagueKey } from './water-on-my-block.js';
+import { theRecord } from './cases.js';
+import treesCase from '../data/cases/norfolk-trees.json' with { type: 'json' };
 
 export const NEAR_M = 100;
 // 364 inventory rows are labeled "PRIVATE TREES" (2026-11-04). They aren't
@@ -66,7 +68,7 @@ export default definePlugin({
   name: 'trees_on_my_block',
   cities: ['norfolk'],
   description:
-    "The City's trees near an address (species, size where recorded) and what the City does to them: Forestry work orders for pruning, removal, stump grinding and planting, with reasons and costs, on the street, in the civic league and citywide. Includes removals per planting and how many years the recorded pruning pace would take to reach every inventoried tree once. Use for questions about street trees, tree removal, pruning, planting or the urban canopy at an address or in a neighborhood.",
+    "The City's trees near an address (species, size where recorded) and what the City does to them: Forestry work orders for pruning, removal, stump grinding and planting, with reasons and costs, on the street, in the civic league and citywide. Includes removals per planting, how many years the recorded pruning pace would take to reach every inventoried tree once, and the_record: verified findings from the City's budgets, a draft City Auditor report and other sources on whether Norfolk maintains its trees, with what would help and which records to request. Use for questions about street trees, tree removal, pruning, planting or the urban canopy at an address or in a neighborhood.",
   parameters: {
     type: 'object',
     properties: { address: { type: 'string', description: 'House number and street, e.g. "111 Pennsylvania Ave".' } },
@@ -171,6 +173,7 @@ export default definePlugin({
       on_your_street: onStreet,
       civic_league: league,
       citywide: city,
+      the_record: theRecord(ctx, treesCase),
       work_orders_cover: first ? { from: first, to: last, years: Math.round(years * 10) / 10 } : null,
       about_the_data: [
         "The inventory's own description says it was first taken in the late 1990s/early 2000s by the Norfolk Master Gardeners and that no official re-inventory has been done since by City officials or ISA Certified Arborists, though City staff update records over time. It records no tree condition, and most trees have no trunk size recorded.",

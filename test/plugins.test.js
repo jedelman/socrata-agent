@@ -219,3 +219,33 @@ test('litter helpers', () => {
   assert.ok(Math.abs(perMeter({ litter_per_meter_spring_2022: '0.1', litter_per_meter_summer_2022: '0.2' }) - 0.15) < 1e-9);
   assert.equal(perMeter({}), null);
 });
+
+import { readFileSync, readdirSync } from 'node:fs';
+
+test('case files: every served finding has a source and a checked quote; every fix points at a finding', () => {
+  const dir = new URL('../data/cases/', import.meta.url);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+    const doc = JSON.parse(readFileSync(new URL(file, dir), 'utf8'));
+    const ids = new Set(doc.findings.map((f) => f.id));
+    assert.equal(ids.size, doc.findings.length, `${file}: duplicate finding ids`);
+    for (const f of doc.findings) {
+      assert.ok(f.claim && f.source?.url?.startsWith('https://') && f.source.title, `${file} ${f.id}: claim and source`);
+      assert.ok(['confirms', 'weakens', 'context', 'who_decides'].includes(f.stance), `${file} ${f.id}: stance`);
+      if (!f.unverified) assert.ok(f.quote && /^\d{4}-\d{2}-\d{2}$/.test(f.checked || ''), `${file} ${f.id}: run scripts/verify-cases.js --write`);
+    }
+    for (const h of doc.what_would_help) assert.ok(ids.has(h.finding), `${file}: fix points at missing finding ${h.finding}`);
+  }
+});
+
+test('the_record serves only checked findings, and puts every source in the trace and hand-off', async () => {
+  const { result, trace, resources } = await checkPlugin(trees, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter });
+  const r = result.the_record;
+  assert.ok(r.confirms.length >= 5 && r.weakens.length >= 3);
+  assert.ok(r.confirms.some((f) => /5% of street-tree pruning requests/.test(f.claim)));
+  assert.ok(r.not_yet_verified.some((c) => /Tree Commission/.test(c)), 'unverified claims are labeled, not served');
+  assert.ok(![...r.confirms, ...r.weakens, ...r.context].some((f) => /Tree Commission/.test(f.claim)));
+  assert.ok(trace.some((s) => /verified case file/.test(s.tool)));
+  assert.ok(resources.records.some((x) => x.url.includes('78214')), 'the budget book is in the hand-off');
+  const litterResult = (await checkPlugin(litter, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter })).result;
+  assert.ok(litterResult.the_record.confirms.some((f) => /bag tax/.test(f.claim)));
+});

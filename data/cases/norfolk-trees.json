@@ -1,0 +1,187 @@
+{
+  "id": "norfolk-trees",
+  "title": "Is Norfolk maintaining its street trees, or cutting them?",
+  "summary": "The City's own records show request-driven tree care with a documented backlog: in FY2021-FY2023 its budget reported fulfilling 5-9% of street-tree pruning requests, a draft City Auditor report says Forestry has been unable to adopt a proactive maintenance program, and the tree inventory has not been officially re-done since about 2000. They do not show that the City prefers cutting to maintaining: contracted work, an aging tree population, the pandemic, Dominion Energy and the Navy all play a part.",
+  "findings": [
+    {
+      "id": "pruning-requests-fulfilled",
+      "stance": "confirms",
+      "claim": "The City's FY2024 adopted budget reports that it fulfilled 5% of street-tree pruning requests in FY2021 (actual), 9% in FY2022 (actual) and 5% in FY2023 (projected), against 40% adopted for FY2024 and a 90% target. Requests received: 1,946, 1,367 and 1,436.",
+      "source": {
+        "title": "City of Norfolk FY2024 Adopted Budget, Department Budgets (Recreation, Parks and Open Space performance measures)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets"
+      },
+      "quote": "Percent of street tree pruning requests fulfilled",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "measure-dropped",
+      "stance": "context",
+      "claim": "The researcher found the fulfillment measure absent from the FY2025 and FY2026 budget books, and the FY2027 book replaces pruning measures with trees planted. Not yet re-checked by a second reader.",
+      "source": {
+        "title": "City of Norfolk FY2027 Adopted Budget, Department Budgets",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/114013/09-Department-Budgets"
+      },
+      "unverified": true
+    },
+    {
+      "id": "audit-not-proactive",
+      "stance": "confirms",
+      "claim": "A City Auditor report on ground maintenance, marked DRAFT and dated April 2023, says Forestry has been unable to adopt a proactive tree maintenance program, and counts 1,408 tree work requests not completed at June 30, 2022. No final version was found.",
+      "source": {
+        "title": "Office of the City Auditor, Ground Maintenance audit report (DRAFT)",
+        "url": "https://www.norfolkpubliclibrary.org/DocumentCenter/View/77060/Ground-Maintenance-Audit-Report"
+      },
+      "quote": "Forestry has been unable to adopt a pro-active tree maintenance program",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "audit-backlog",
+      "stance": "confirms",
+      "claim": "The same draft audit says staff and equipment are not available for major tree work such as complete removal.",
+      "source": {
+        "title": "Office of the City Auditor, Ground Maintenance audit report (DRAFT)",
+        "url": "https://www.norfolkpubliclibrary.org/DocumentCenter/View/77060/Ground-Maintenance-Audit-Report"
+      },
+      "quote": "1,408 - Not completed requests at June 30, 2022",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "supervisor-not-funded",
+      "stance": "confirms",
+      "claim": "In the FY2024 budget, a Forestry Supervisor ($119,572) that would let existing staff split into two crews was requested but not funded.",
+      "source": {
+        "title": "City of Norfolk FY2024 Adopted Budget, Department Budgets",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets"
+      },
+      "quote": "The supervisor will allow the existing staff to be split into two crews",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "code-requires-plan",
+      "stance": "confirms",
+      "claim": "Norfolk's City Code (chapter 45) charges the City Forester with a forestry program that includes routine maintenance and with administering a street tree management plan; a 2019 report for the U.S. Forest Service and Virginia Department of Forestry found Norfolk had no urban forest management plan.",
+      "source": {
+        "title": "Green Infrastructure Center, Norfolk tree canopy and stormwater report (2019)",
+        "url": "https://gicinc.org/wp-content/uploads/Norfolk_VA_TSW_Report.pdf"
+      },
+      "quote": "Norfolk does not currently have an UFMP",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "no-citywide-assessment",
+      "stance": "confirms",
+      "claim": "The same 2019 report says the City lacks the resources for a citywide tree assessment. The City's tree inventory describes itself as taken in the late 1990s/early 2000s with no official re-inventory since.",
+      "source": {
+        "title": "Green Infrastructure Center, Norfolk tree canopy and stormwater report (2019)",
+        "url": "https://gicinc.org/wp-content/uploads/Norfolk_VA_TSW_Report.pdf"
+      },
+      "quote": "the city lacks the resource allocation to conduct a city-wide assessment",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "safety-first",
+      "stance": "context",
+      "claim": "The City's urban forestry page says the main priority of its tree management is public safety, and rates work as Emergency, Urgent, Routine or Winter. It states no pruning cycle.",
+      "source": {
+        "title": "City of Norfolk, Urban Forestry",
+        "url": "https://norfolk.gov/5460/Urban-Forestry"
+      },
+      "quote": "The main priority of the city's tree management is public safety",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "contract-removal",
+      "stance": "weakens",
+      "claim": "Not all tree work is in the work-order data: the FY2024 budget added $250,000 for a tree canopy maintenance contract used to remove decaying or diseased trees, and the draft audit counts $254,807 paid to an outside contractor for tree removal in FY2022. Pace figures from work orders alone overstate the gap.",
+      "source": {
+        "title": "City of Norfolk FY2024 Adopted Budget, Department Budgets",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets"
+      },
+      "quote": "The contract is used to remove decaying or diseased trees",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "contract-2025",
+      "stance": "weakens",
+      "claim": "The FY2025 budget added $400,000 for tree maintenance to reduce a backlog it attributes to the pandemic.",
+      "source": {
+        "title": "City of Norfolk FY2025 Adopted Budget, Department Budgets",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/88686/08-Department-Budgets"
+      },
+      "quote": "decrease the backlog of tree maintenance that built up during the pandemic",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "aging-trees",
+      "stance": "weakens",
+      "claim": "The draft audit attributes part of the backlog to Norfolk's aging tree population.",
+      "source": {
+        "title": "Office of the City Auditor, Ground Maintenance audit report (DRAFT)",
+        "url": "https://www.norfolkpubliclibrary.org/DocumentCenter/View/77060/Ground-Maintenance-Audit-Report"
+      },
+      "quote": "aging tree population has contributed to",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "dominion",
+      "stance": "weakens",
+      "claim": "Not every removal is the City's: Dominion Energy clears neighborhood power lines on a four-year cycle, which can mean taking a whole tree.",
+      "source": {
+        "title": "Dominion Energy, tree trimming and power lines (Virginia)",
+        "url": "https://www.dominionenergy.com/safety/electric-safety/tree-trimming-and-powerlines/va-tree-trimming-and-powerlines"
+      },
+      "quote": "Nearly all of our neighborhood power lines are cleared on a four year cycle",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "benchmark",
+      "stance": "context",
+      "claim": "A 2014 national census of U.S. municipal forestry found a mean pruning cycle of 6.6 years among communities that use one, against a desired 4.8 years.",
+      "source": {
+        "title": "Hauer & Peterson, municipal tree care census, Arborist News (2016)",
+        "url": "https://treefund.org/wp-content/uploads/2016/06/Hauer-et-al-article-from-Arborist-News__2016_06.pdf"
+      },
+      "quote": "6.6-year",
+      "checked": "2026-11-04"
+    },
+    {
+      "id": "tree-commission",
+      "stance": "who_decides",
+      "claim": "Norfolk's Tree Commission advises the City on trees; a researcher reported that City Code sec. 45-27 requires it to submit an annual report to the council. Not found on the Commission's page; not yet checked in the Code.",
+      "source": {
+        "title": "City of Norfolk, Tree Commission",
+        "url": "https://www.norfolk.gov/6553/Tree-Commission"
+      },
+      "unverified": true
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Fund the Forestry Supervisor the department requested for FY2024, so staff can work as two crews.",
+      "finding": "supervisor-not-funded"
+    },
+    {
+      "text": "Restore the 'percent of pruning requests fulfilled' measure in the budget, so progress can be tracked.",
+      "finding": "pruning-requests-fulfilled"
+    },
+    {
+      "text": "Adopt the street tree management plan the City Code calls for, with a stated pruning cycle (communities using one average 6.6 years).",
+      "finding": "code-requires-plan"
+    },
+    {
+      "text": "Fund a re-inventory with tree condition, so removals can be planned before trees fail.",
+      "finding": "no-citywide-assessment"
+    }
+  ],
+  "records_to_request": [
+    "All tree-care contracts and invoices from FY2020 to now, with trees pruned, removed and stump-ground per invoice.",
+    "A Forestry work-order export with the number of trees per order, request source, priority, and whether a City crew or a contractor did the work.",
+    "The open pruning-request backlog by priority and age, and the data behind the FY2021-FY2024 'requests fulfilled' measure.",
+    "Any street tree or urban forest management plan, pruning-cycle policy, and the final version of the 2023 Ground Maintenance audit.",
+    "Tree Commission annual reports and minutes since 2018."
+  ],
+  "pending": [
+    "Canopy change 2014-2021 from the USGS/Chesapeake Conservancy 1-m land cover (researcher computed about -2.4%); not yet re-checked."
+  ]
+}

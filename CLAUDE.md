@@ -57,6 +57,12 @@ generic mode.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
+- `data/cases/*.json` are case files: research done once and served to every
+  question through a plugin's `the_record` (`plugins/cases.js`). Each finding
+  has a source URL and an exact quote; `npm run verify:cases` re-fetches every
+  source (pdftotext for PDFs) and fails on a missing quote, and `--write`
+  stamps the date. A finding without a checked quote is served only as
+  "not yet verified". Never add a finding you haven't opened the source for.
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).

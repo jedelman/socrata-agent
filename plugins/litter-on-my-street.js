@@ -15,6 +15,8 @@
 import { definePlugin } from '../src/plugins.js';
 import { soqlString } from '../src/socrata.js';
 import { leagueKey, km } from './water-on-my-block.js';
+import { theRecord } from './cases.js';
+import litterCase from '../data/cases/norfolk-litter.json' with { type: 'json' };
 
 export const NEAR_M = 500;
 const SEGMENT_KM = 1.5;
@@ -49,7 +51,7 @@ export default definePlugin({
   name: 'litter_on_my_street',
   cities: ['norfolk'],
   description:
-    "Litter near an address: what Keep Norfolk Beautiful's 2022 Litterati survey recorded within 500 m (object types, cigarette butts, drinks), how littered the nearest surveyed stretches were per meter against the citywide median, the ward's Litter Index scores 2010-2019, and city crews' litter and debris pickup work orders and cost in the civic league by year. Use for questions about litter, trash on the street, cleanups or what litter costs the City.",
+    "Litter near an address: what Keep Norfolk Beautiful's 2022 Litterati survey recorded within 500 m (object types, cigarette butts, drinks), how littered the nearest surveyed stretches were per meter against the citywide median, the ward's Litter Index scores 2010-2019, city crews' litter and debris pickup work orders and cost in the civic league by year, and the_record: verified findings on what Norfolk does to prevent litter, what the evidence says works, and which records to request. Use for questions about litter, trash on the street, cleanups or what litter costs the City.",
   parameters: {
     type: 'object',
     properties: { address: { type: 'string', description: 'House number and street, e.g. "111 Pennsylvania Ave".' } },
@@ -166,6 +168,7 @@ export default definePlugin({
       nearest_surveyed_stretches: stretches,
       litter_index: litterIndex,
       cleanup_spending: pickup,
+      the_record: theRecord(ctx, litterCase),
       about_the_data: [
         "The litter items come from one survey: Keep Norfolk Beautiful's 2022 Litterati City Fingerprint Project, which walked 244 chosen locations from April to September 2022. It is a baseline, not a census: places it didn't walk have no data.",
         'Brands were almost never recorded, so brand counts are not meaningful.',
