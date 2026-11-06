@@ -6,7 +6,7 @@ source added too". It helps the steward choose what to add next. It is not a
 vote.
 
 The feature is off until `BLUESKY_LOGIN = "true"` is set. With it off, the
-list and its page behave as they did before.
+list behaves as it did before (the page and `/admin` only gain anti-framing headers).
 
 ## What an endorsement is, and isn't
 
@@ -20,7 +20,10 @@ list and its page behave as they did before.
   accounts at least `ENDORSE_YOUNG_DAYS` (30) days old. did:web accounts have
   no creation date, so they count as "unknown age". The steward sees every
   endorsement, split into young and unknown age. `ENDORSE_PUBLIC=all` counts
-  every endorsement publicly.
+  every endorsement publicly. An endorsement made while an account was young
+  (or while its creation date couldn't be looked up) is rewritten as
+  established once the account is old enough: the next time that account
+  loads the requests page, or endorses the same request again.
 - **A Bluesky sign-in grants endorsing and nothing else.** It doesn't let anyone
   ask Siren, skip the invite, or touch an email account.
 
@@ -28,8 +31,8 @@ list and its page behave as they did before.
 
 | What | Where | How long |
 |---|---|---|
-| Per endorsement: `endorsement:<request id>:<HMAC(INVITE_SECRET, request + account)>`, plus one flag: young, established or unknown age | KV | Until the request is decided, and in any case until the start of the month 12 to 13 months after it was made (`ENDORSE_RETENTION_MONTHS`) |
-| Rate events: one key per action, named by a day-scoped keyed hash | KV | About a day |
+| Per endorsement: `endorsement:<request id>:<HMAC(INVITE_SECRET, request + account)>`, plus one flag: young, established or unknown age | KV | Until the request is decided (keys written around the decision are swept within minutes, where the public list is computed), and in any case until the start of the month 12 to 13 months after it was made (`ENDORSE_RETENTION_MONTHS`) |
+| Rate events: one key per action, named by a day-scoped keyed hash of the account, a keyed hash of the network address, or a day-scoped keyed hash of the account's server | KV | About a day |
 | A single-use marker for each finished sign-in (a hash of its random state) | KV | Up to two hours |
 | The pending sign-in (state, PKCE verifier, DPoP key, nonce, the account and its server) | A sealed cookie in your browser, scoped to `/ask-siren/oauth/` | 10 minutes |
 | Your sign-in (a keyed id for your account, your handle, its creation day, its server) | A sealed browser-session cookie, scoped to `/ask-siren/api/bsky/` | Until you close the browser, and at most 24 hours |
@@ -38,11 +41,16 @@ Nothing else. KV never holds a DID, a handle, a token, an authorization
 server, a pending sign-in, or the account's creation day. The keyed id for
 your account (`HMAC(INVITE_SECRET, "endorser:" + DID)`) lives only inside your
 sealed cookie, and each endorsement key mixes in the request, so one account's
-endorsements on different requests share nothing. A plain hash of the DID
+endorsements on different requests have no key material in common. (Someone
+who lists KV over and over can still pair keys written close together in
+time; see the threat model.) A plain hash of the DID
 would not do: every did:plc DID can be listed from plc.directory.
 
 When a request is decided (fulfilled or declined), its count is frozen into
-the request record and the per-account keys are deleted. A fulfilled request
+the request record and the per-account keys are deleted. Keys that slip past
+that delete (written in the minute before the decision, when KV listings
+lag, or by a location still serving the old list) are swept the next time
+the public list or the admin page is computed, so they last minutes. A fulfilled request
 shows its frozen number; a reopened one starts again from live endorsements.
 
 The sign-in tokens are revoked (refresh token, then access token) and thrown
@@ -67,6 +75,10 @@ read anything.
 - **Logs** get the failure code of a failed sign-in, and the server's host
   only for large open servers (`ENDORSE_OPEN_ISSUERS`), because a self-hosted
   server's host identifies its person. A cancelled sign-in isn't logged at all.
+  Nothing is kept in logs (`wrangler.toml` has no `[observability]` block),
+  but anyone watching live request logs (`wrangler tail`, or the dashboard's
+  real-time logs) sees each request's URL, including the callback's `iss`
+  (which can name a self-hosted server) and its one-time `code`.
 
 ## The flow, in short
 
@@ -118,8 +130,8 @@ the per-account and per-server rate hashes, and the sealed-cookie keys.
 | `BSKY_LOGIN_PER_VISITOR_HOURLY` | 60 | Login starts per hashed visitor per hour |
 | `ENDORSE_PER_DID_DAILY` | 30 | Endorse and unendorse actions per account per day (repeats are free) |
 | `ENDORSE_PER_VISITOR_DAILY` | 200 | The same, per hashed visitor |
-| `ENDORSE_PER_ISSUER_DAILY` | 20 | New endorsements per day from each server not in `ENDORSE_OPEN_ISSUERS` |
-| `ENDORSE_OPEN_ISSUERS` | `https://bsky.social` | Comma-separated server origins exempt from that cap |
+| `ENDORSE_PER_ISSUER_DAILY` | 20 | New endorsements per day from each server not in `ENDORSE_OPEN_ISSUERS`. Servers are grouped by an approximate registrable domain (the last two labels, three for names like `co.uk`), so `a1.evil.dev` and `a2.evil.dev` share one cap. Each (request, account) counts once a day, so withdrawing and endorsing again doesn't use it up |
+| `ENDORSE_OPEN_ISSUERS` | `https://bsky.social` | Comma-separated server origins exempt from that cap. Add large community servers here, since everyone on one shares its 20 a day |
 | `ENDORSE_PUBLIC` | `established` | `all` counts every endorsement publicly |
 | `ENDORSE_YOUNG_DAYS` | 30 | Accounts younger than this are "young" |
 | `ENDORSE_MIN_ACCOUNT_DAYS` | 0 (off) | Above 0, younger or unknown-age accounts can't endorse at all |
@@ -131,7 +143,13 @@ Rate Limiting bindings (wrangler config, not packages), under `env.siren`:
 `BSKY_VISITOR_RL` (60/min per visitor: login starts, callbacks),
 `BSKY_INPUT_RL` (3/min per account typed), `BSKY_ACCOUNT_RL` (30/min per
 signed-in account: me, endorse, unendorse, forget) and `BSKY_SITE_RL`
-(300/min breakers for login, callback and endorse). Their counts are per
+(300/min breakers for login, callback and endorse). Endorse and unendorse
+also charge `BSKY_VISITOR_RL` per visitor (key `end:<visitor hash>`), and a
+new endorsement from a non-open server charges `BSKY_INPUT_RL` per server
+(key `iss:<day-scoped server hash>`, 3/min), both before the daily KV counts,
+which lag. The callback charges its breaker only after its checks that need no
+I/O (one flow cookie that opens, state, iss), so requests without a genuine
+sealed flow can't trip it. Their counts are per
 Cloudflare location and approximate, so a breaker can lock out one location
 for a minute at most, never the whole site for a day. The daily caps are KV
 listings and can lag about a minute.
@@ -145,7 +163,8 @@ valid, non-loopback `PUBLIC_ORIGIN`, so the rollout can probe before the flag.
 1. **Merge with the flag off.** The PR sets `PUBLIC_ORIGIN` and the bindings.
    After the deploy, the client metadata is live; login routes return 404,
    `/api/bsky/me` says unavailable, and the page shows no panel.
-   `/api/requests` and `/requests` are served exactly as before.
+   `/api/requests` is served exactly as before; `/requests` (and `/admin`)
+   gain `frame-ancestors 'none'` and `X-Frame-Options: DENY`.
 2. **Check the metadata.**
    `curl -si https://jason-edelman.org/ask-siren/oauth-client-metadata.json`
    should return 200 with `application/json`, no redirect, and `client_id`
@@ -236,9 +255,12 @@ delete of the `endorsement:` prefix.
 | Lockout through site-wide limits | Breakers are per location and per minute; daily caps are per account, visitor and server | |
 | Sybil endorsing | Public number counts established accounts; a per-server daily cap for non-open servers; per-account and per-visitor caps; the steward's young and unknown split; per-request clear; "signal, not vote" | Many established bsky.social accounts held by one person still count |
 | Identifying endorsers from a KV dump | Per-request keyed ids, no reverse index, no DID, handle, server or token in KV; counters in their own keyed domains with their own visitor hashes and bucketed expirations; email sign-in's counters hardened too | Pseudonymous, not anonymous, to the holder of `INVITE_SECRET` |
+| Linking one account's endorsements by timing | Nothing in a single dump links them | Repeated KV listings (or watching counts change on the admin page or the public list) can link one account's endorsements made close together in time, including the burst when "Remove all my endorsements" runs or when `me` upgrades an aged account's flags. They still can't name the account without `INVITE_SECRET` |
+| Locking one person out of sign-in | | `BSKY_INPUT_RL` is keyed by the account typed (3/min per location), so someone in the same Cloudflare location who types that account three times a minute keeps its owner getting "busy" there. Accepted: the limit is what stops Siren flooding one account's server |
+| Orphaned endorsements after a decision | The decision clears keys; the public-list and admin computations sweep any left for decided or missing requests | A request reopened within the last minute can look decided to a location whose KV read is still stale, which may then sweep an endorsement made just after the reopen |
 | The steward as a lookup oracle | No per-account steward tools; the admin page shows counts only | |
 | Probing unreviewed requests | `endorse` looks ids up only on the public list; `unendorse` answers the same for every well-formed id | |
-| Cross-site actions and framing | JSON-only POSTs, the Origin check, SameSite, no CORS on POSTs or `me`, `frame-ancestors 'none'` and `X-Frame-Options` on the page | |
+| Cross-site actions and framing | JSON-only POSTs, the Origin check, SameSite, no CORS on POSTs or `me`, `frame-ancestors 'none'` and `X-Frame-Options` on `/requests` and `/admin`; steward POSTs that carry an `Origin` must name this site | |
 | Bluesky identity meeting questions | The session cookie is scoped to `/api/bsky/` | |
 | Shared computers | A browser-session cookie capped at 24 h, the visible handle, sign out, `me` lists only public requests | |
 | Logs identifying self-hosted people | The failure code only; the server host only for open servers; cancellations not logged | |
