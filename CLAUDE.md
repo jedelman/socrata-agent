@@ -68,9 +68,24 @@ generic mode.
   only notes written under the "requests are public" notice are shown.
   `scripts/sync-request-issues.js` mirrors the public list to
   `source-request` issues, run nightly by a Claude Code routine (`--plan`).
-  The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
-  guide. `plugins/case-file.js` serves a case file for questions with no
-  address. No payments: bounties are tabled until after beta (Jason).
+  The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
+  `docs/fulfilling-requests.md` is the contributor guide.
+  Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
+  `BLUESKY_LOGIN`): `bluesky.js` (routes, sealed cookies), `atproto-identity.js`
+  (resolution and the hardened fetch), `atproto-oauth.js` (the client),
+  `endorsements.js` and `public-list.js` (counts through the Cache API).
+  Invariants: identity only, scope `atproto`, a public client on WebCrypto
+  and fetch with no npm dependency; tokens revoked and discarded at the
+  callback, never stored or logged; the flow sealed in a cookie scoped to
+  `/oauth/`, the session in a browser-session cookie scoped to `/api/bsky/`;
+  only accepted requests can be endorsed, and `unendorse` never looks a
+  request up; KV keeps only per-request keyed hashes (no reusable per-person
+  id, no DID, handle, issuer or token) and counters in their own HMAC domains
+  with bucketed expirations; Siren only POSTs to an AS's own origin; never
+  record an invite, email account or uid together with an eid; no
+  per-account steward tools without a separate conversation with Jason;
+  never key anything new under `request:`. `plugins/case-file.js` serves a
+  case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.

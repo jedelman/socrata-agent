@@ -11,7 +11,9 @@ anyone can check.
 
 ## 1. Pick a request
 
-Any open `source-request` issue. Say in the issue that you're working on it,
+Any open `source-request` issue. Bluesky endorsements on the public list
+show demand from established accounts; use them to pick one if you like.
+Say in the issue that you're working on it,
 so effort isn't duplicated, but nobody holds a request exclusively: the first
 pull request that passes review fulfills it. Work on what you choose; nobody
 assigns it.

@@ -176,6 +176,14 @@ npx wrangler secret put IP_SALT --env siren
 npx wrangler deploy --env siren
 ```
 
+The public request list (`/ask-siren/requests`) can be endorsed with a
+Bluesky account: atproto OAuth for identity only, no new dependency and no
+new secret. It needs `PUBLIC_ORIGIN` (set in `[env.siren.vars]`), the four
+`[[env.siren.ratelimits]]` bindings, and `BLUESKY_LOGIN = "true"`, which
+stays unset until the rollout probe passes. What Siren keeps, the flow, the
+limits and the rollout are in
+[docs/bluesky-endorsements.md](docs/bluesky-endorsements.md).
+
 ## Deploy the web app
 
 ```bash
