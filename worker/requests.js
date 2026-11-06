@@ -10,6 +10,16 @@
 // accepts it. Notes appear publicly only if they were written under the
 // "requests are public" notice (public: true); notes from before that notice
 // stay private. Statuses: new, accepted, declined, fulfilled.
+//
+// Endorsements (endorsements.js) are the one place a person's identity
+// touches requests. To count a Bluesky account once per request, KV keeps
+// HMAC(INVITE_SECRET, request + account), never the DID, the handle, the
+// issuer or any token, and nothing that links one account's endorsements
+// across requests. Counts are public; endorsers are pseudonymous to anyone
+// without the key. When a request is decided, its count is frozen into the
+// record and the per-account keys are deleted. This module never imports
+// endorsements.js: callers count and pass the counts in. Nothing else may be
+// keyed under `request:` (the list and steward tools parse every such key).
 
 import { sha256hex } from './invites.js';
 
@@ -51,9 +61,26 @@ const PUBLIC = new Set(['accepted', 'fulfilled']);
 /** The short public id of a request: the first 12 hex of its key. */
 export const publicId = (key) => key.replace(/^request:/, '').slice(0, 12);
 
-/** What the public list shows of one request. */
-export function publicView(key, r) {
-  return {
+const ZERO = Object.freeze({ n: 0, young: 0, unknown: 0 });
+const DECIDED = new Set(['declined', 'fulfilled']);
+
+/**
+ * The public number for a count { n, young, unknown }: every endorsement
+ * under policy 'all', established accounts only under 'established'.
+ */
+export function publicNumber(c, policy = 'established') {
+  if (!c) return 0;
+  const n = Number(c.n) || 0;
+  return policy === 'all' ? n : Math.max(0, n - (Number(c.young) || 0) - (Number(c.unknown) || 0));
+}
+
+/**
+ * What the public list shows of one request. With `live` counts (the Bluesky
+ * feature is on), it adds `endorsements`: the live public number for an
+ * accepted request, the number frozen at decision for a fulfilled one.
+ */
+export function publicView(key, r, live, policy = 'established') {
+  const out = {
     id: publicId(key),
     source: r.source,
     ...(r.url ? { url: r.url } : {}),
@@ -65,10 +92,14 @@ export function publicView(key, r) {
     ...(r.steward_note ? { steward_note: r.steward_note } : {}),
     notes: (r.needs || []).filter((n) => n.public).slice(-5).map((n) => n.text),
   };
+  if (live !== undefined) {
+    out.endorsements = r.status === 'accepted' ? publicNumber(live || ZERO, policy)
+      : r.status === 'fulfilled' ? publicNumber(r.endorsements_at_decision, policy) : 0;
+  }
+  return out;
 }
 
-/** The public list: accepted and fulfilled requests, most wanted first, plus how many await review. */
-export async function publicRequests(kv) {
+async function requestRows(kv) {
   const keys = [];
   let cursor;
   do {
@@ -76,9 +107,20 @@ export async function publicRequests(kv) {
     keys.push(...page.keys.map((k) => k.name));
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  const rows = (await Promise.all(keys.map(async (k) => [k, await kv.get(k, 'json')]))).filter(([, r]) => r);
-  const shown = rows.filter(([, r]) => PUBLIC.has(r.status || 'new')).map(([k, r]) => publicView(k, r));
-  shown.sort((a, b) => (a.status === b.status ? b.count - a.count : a.status === 'accepted' ? -1 : 1));
+  return (await Promise.all(keys.map(async (k) => [k, await kv.get(k, 'json')]))).filter(([, r]) => r);
+}
+
+/**
+ * The public list: accepted and fulfilled requests, accepted first, most
+ * asked first, endorsements only breaking ties; plus how many await review.
+ * Without `counts` (the feature off), items carry no `endorsements` field.
+ */
+export async function publicRequests(kv, counts, { policy = 'established' } = {}) {
+  const rows = await requestRows(kv);
+  const shown = rows
+    .filter(([, r]) => PUBLIC.has(r.status || 'new'))
+    .map(([k, r]) => publicView(k, r, counts ? counts.get(publicId(k)) || ZERO : undefined, policy));
+  shown.sort((a, b) => (a.status !== b.status ? (a.status === 'accepted' ? -1 : 1) : b.count - a.count || (b.endorsements || 0) - (a.endorsements || 0)));
   return { requests: shown, awaiting_review: rows.filter(([, r]) => (r.status || 'new') === 'new').length };
 }
 
@@ -94,29 +136,54 @@ export function withStatus(r, status, extra = {}, now = Date.now()) {
   return out;
 }
 
-/** Every request, for the steward: all statuses, private notes marked. */
-export async function allRequests(kv) {
-  const keys = [];
-  let cursor;
-  do {
-    const page = await kv.list({ prefix: 'request:', cursor });
-    keys.push(...page.keys.map((k) => k.name));
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
-  const rows = await Promise.all(keys.map(async (k) => [k, await kv.get(k, 'json')]));
+/**
+ * The count to freeze into a request moving to `status`: the live count on a
+ * move into a decided status from an undecided one; the earlier frozen value
+ * on a move between decided statuses, or back to accepted (the steward still
+ * sees "N at decision"). undefined when there's nothing to store.
+ */
+export function freezeAtDecision(cur, status, live) {
+  const prev = cur?.endorsements_at_decision;
+  const from = cur?.status || 'new';
+  if (DECIDED.has(status) && !DECIDED.has(from) && live) {
+    return { n: Number(live.n) || 0, young: Number(live.young) || 0, unknown: Number(live.unknown) || 0 };
+  }
+  return prev || undefined;
+}
+
+/** Every request, for the steward: all statuses, private notes marked, live endorsement counts. */
+export async function allRequests(kv, counts = new Map()) {
+  const rows = await requestRows(kv);
   return rows
-    .filter(([, r]) => r)
-    .map(([k, r]) => ({ id: publicId(k), ...r, status: r.status || 'new', needs: (r.needs || []).map((n) => ({ text: n.text, at: n.at, public: Boolean(n.public) })) }))
+    .map(([k, r]) => ({
+      id: publicId(k), ...r, status: r.status || 'new',
+      needs: (r.needs || []).map((n) => ({ text: n.text, at: n.at, public: Boolean(n.public) })),
+      endorsements: { ...(counts.get(publicId(k)) || ZERO) },
+    }))
     .sort((a, b) => b.count - a.count);
 }
 
-/** Apply a steward decision by public id. Returns { ok, request } or { ok: false, status, error }. */
-export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.now()) {
-  if (typeof id !== 'string' || !/^[0-9a-f]{12}$/.test(id)) return { ok: false, status: 400, error: 'Give the request id.' };
+/** The one request whose key starts `request:<id>`: { key, cur } or null. */
+export async function requestByPublicId(kv, id) {
+  if (typeof id !== 'string' || !/^[0-9a-f]{12}$/.test(id)) return null;
   const page = await kv.list({ prefix: `request:${id}` });
-  if (page.keys.length !== 1) return { ok: false, status: 404, error: 'No single request has that id.' };
+  if (page.keys.length !== 1) return null;
   const key = page.keys[0].name;
   const cur = await kv.get(key, 'json');
+  return cur ? { key, cur } : null;
+}
+
+/**
+ * Apply a steward decision by public id. Returns { ok, request, previous } or
+ * { ok: false, status, error }. `live`, when given, is the request's live
+ * endorsement count, frozen into the record on a move to a decided status.
+ * The record is written once (KV refuses a second write to a key within a second).
+ */
+export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.now(), { live } = {}) {
+  if (typeof id !== 'string' || !/^[0-9a-f]{12}$/.test(id)) return { ok: false, status: 400, error: 'Give the request id.' };
+  const found = await requestByPublicId(kv, id);
+  if (!found) return { ok: false, status: 404, error: 'No single request has that id.' };
+  const { key, cur } = found;
   let next;
   try {
     next = withStatus(cur, status, { steward_note: note, fulfilled_by }, now);
@@ -126,6 +193,8 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
   if (status === 'fulfilled' && !next.fulfilled_by) return { ok: false, status: 400, error: 'Give the link to the merged PR or commit.' };
   // A cleared note clears the public note.
   if (note === '') delete next.steward_note;
+  const frozen = freezeAtDecision(cur, status, live);
+  if (frozen) next.endorsements_at_decision = frozen;
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, request: publicView(key, next) };
+  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, live) };
 }

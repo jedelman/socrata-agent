@@ -28,6 +28,7 @@
 // provider, so it can deliver the link.
 
 import { sha256hex, readCookie, normalizeEmail } from './invites.js';
+import { boundary, hmacHex } from './crypto.js';
 
 export const USER_COOKIE = 'siren_user';
 const USER_DAYS = 30;
@@ -135,13 +136,19 @@ export async function startLogin({ body, env, kv, visitor, link, appName = 'Sire
   const uid = await userId(env.INVITE_SECRET, email);
   const hour = new Date(now).toISOString().slice(0, 13);
   // Per address, so nobody can flood someone's inbox; per visitor, so one
-  // person can't spray addresses.
-  const keys = [`login-rate:${hour}:u:${uid.slice(0, 32)}`, `login-rate:${hour}:v:${visitor}`];
+  // person can't spray addresses. `visitor` is a login-only hash (index.js:
+  // HMAC(IP_SALT, "login:" + visitor)), shared with no other counter, and both
+  // keys expire on the same hour boundary, so a listing can't pair them by
+  // expiration.
+  // The address part is its own keyed hash, not a slice of the uid, so the
+  // counter can't be joined to member:<uid> or conv:<uid> keys.
+  const keys = [`login-rate:${hour}:u:${await hmacHex(env.INVITE_SECRET, `login-rate:${uid}`, 32)}`, `login-rate:${hour}:v:${visitor}`];
   const [byEmail, byVisitor] = await Promise.all(keys.map(async (k) => Number((await kv.get(k)) || 0)));
   if (byEmail >= perEmailHourly || byVisitor >= perVisitorHourly) {
     return { ok: false, status: 429, error: 'Too many sign-in emails for now. Check your inbox (and spam) for the last one, or try again in an hour.' };
   }
-  await Promise.all([kv.put(keys[0], String(byEmail + 1), { expirationTtl: 7200 }), kv.put(keys[1], String(byVisitor + 1), { expirationTtl: 7200 })]);
+  const expiration = boundary(now, 'hour', 2);
+  await Promise.all([kv.put(keys[0], String(byEmail + 1), { expiration }), kv.put(keys[1], String(byVisitor + 1), { expiration })]);
 
   const token = b64url(crypto.getRandomValues(new Uint8Array(32)));
   const tokenHash = await sha256hex(token);

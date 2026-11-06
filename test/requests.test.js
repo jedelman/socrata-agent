@@ -99,3 +99,31 @@ test('the sync plan says what each issue should hold', () => {
   assert.equal(p[0].marker, '<!-- source-request:abc123def456 -->');
   assert.ok(p[0].body.startsWith(p[0].marker));
 });
+
+import { requestByPublicId, freezeAtDecision } from '../worker/requests.js';
+
+test('endorsement and Bluesky keys never collide with request: keys', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'ARB guidelines' }, kv, visitor: 'v' });
+  const [r] = await allRequests(kv);
+  // Values that would break JSON.parse if anything read them as requests.
+  await kv.put(`endorsement:${r.id}:${'a'.repeat(32)}`, '1');
+  await kv.put(`endorse-ev:2026-11-06:d:${'b'.repeat(32)}:x`, '');
+  await kv.put(`bsky-ev:2026-11-06T12:v:${'c'.repeat(32)}:x`, '');
+  await kv.put(`bsky-flow-used:${'d'.repeat(32)}`, '1');
+  assert.equal((await allRequests(kv)).length, 1);
+  assert.equal((await publicRequests(kv)).awaiting_review, 1);
+  assert.equal((await requestByPublicId(kv, r.id)).cur.source, 'ARB guidelines');
+  assert.equal(await requestByPublicId(kv, 'nothex'), null);
+  assert.ok((await decide(kv, { id: r.id, status: 'accepted' })).ok);
+});
+
+test('freezeAtDecision: live on the way into a decision, the earlier value otherwise', () => {
+  const live = { n: 5, young: 1, unknown: 2 };
+  assert.deepEqual(freezeAtDecision({ status: 'accepted' }, 'fulfilled', live), live);
+  assert.deepEqual(freezeAtDecision({ status: 'new' }, 'declined', live), live);
+  assert.deepEqual(freezeAtDecision({ status: 'declined', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'fulfilled', live), { n: 1, young: 0, unknown: 0 });
+  assert.deepEqual(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'accepted', live), { n: 1, young: 0, unknown: 0 });
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'accepted', live), undefined);
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), undefined, 'nothing to freeze without a count');
+});
