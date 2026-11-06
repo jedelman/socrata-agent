@@ -74,14 +74,22 @@ generic mode.
   `BLUESKY_LOGIN`): `bluesky.js` (routes, sealed cookies), `atproto-identity.js`
   (resolution and the hardened fetch), `atproto-oauth.js` (the client),
   `endorsements.js` and `public-list.js` (counts through the Cache API).
+  Endorsements, their rate counters and the sign-in markers live in D1
+  (`SIREN_DB`, schema in `migrations/`, applied with `wrangler d1 migrations
+  apply`), not KV: Jason's account is on the Workers Free plan, where KV's
+  1,000 writes and lists a day are shared with every question. Every D1 call
+  goes through `endorseDb(env)`, so with `BLUESKY_LOGIN` unset none happens,
+  and with it on and no binding the routes fail closed (503, reason logged).
+  Prepared statements only; several writes in one `batch`.
   Invariants: identity only, scope `atproto`, a public client on WebCrypto
   and fetch with no npm dependency; tokens revoked and discarded at the
   callback, never stored or logged; the flow sealed in a cookie scoped to
   `/oauth/`, the session in a browser-session cookie scoped to `/api/bsky/`;
   only accepted requests can be endorsed, and `unendorse` never looks a
-  request up; KV keeps only per-request keyed hashes (no reusable per-person
+  request up; D1 keeps only per-request keyed hashes (no reusable per-person
   id, no DID, handle, issuer or token) and counters in their own HMAC domains
-  with bucketed expirations; Siren only POSTs to an AS's own origin; never
+  with bucketed expiries, never a request id or endorsement id in a counter,
+  every table WITHOUT ROWID; nothing Bluesky goes in KV; Siren only POSTs to an AS's own origin; never
   record an invite, email account or uid together with an eid; no
   per-account steward tools without a separate conversation with Jason;
   never key anything new under `request:`. `plugins/case-file.js` serves a
