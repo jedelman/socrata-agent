@@ -1,16 +1,32 @@
-// Bluesky endorsements on accepted source requests. Pure helpers that take
-// KV, env and the session as arguments, like requests.js.
+// Bluesky endorsements on accepted source requests, stored in D1 (the
+// SIREN_DB binding; schema in migrations/). Pure helpers that take the
+// database, env and the session as arguments, like requests.js.
 //
-// What KV holds, and nothing more:
-//   endorsement:<id12>:<HMAC(INVITE_SECRET, "endorsement:" + id12 + ":" + eid)>
-//     value '1', metadata { y: 1 | 0 | null } (young / established / unknown
-//     age), expiring on a month boundary ENDORSE_RETENTION_MONTHS + 1 ahead.
+// What D1 holds, and nothing more (migrations/0001_bluesky_endorsements.sql):
+//   endorsements(eh, request_id, y, exp): one row per (request, account).
+//     eh = HMAC(INVITE_SECRET, "endorsement:" + id12 + ":" + eid), 32 hex;
 //     eid = HMAC(INVITE_SECRET, "endorser:" + DID) lives only in the sealed
 //     session cookie, so one account's endorsements on different requests
-//     share no key material, and no key holds a DID, handle, issuer or token.
-//   endorse-ev:<day>:d|v|i|r:<hash32>:<uuid>  one key per action, counted by
-//     listing (never read-modify-write), in its own HMAC domain, expiring at
-//     the end of the day plus an hour, the same for every key of the day.
+//     share nothing, and no row holds a DID, handle, issuer or token. y is
+//     1 (young), 0 (established) or NULL (unknown age); exp is a month
+//     boundary ENDORSE_RETENTION_MONTHS + 1 ahead, shared by every
+//     endorsement made that month.
+//   endorsement_counts: per-request tallies kept exact by triggers, so a
+//     count reads one row per request.
+//   bsky_rate_counts(k, n, exp): one row per (kind, period, keyed hash),
+//     each hash in its own HMAC domain and day- or hour-scoped; no request
+//     id and no part of an endorsement id, so it can't be joined to the
+//     endorsement rows.
+//   bsky_flows_used(sh, exp): single-use markers for finished sign-ins.
+// Every table is WITHOUT ROWID (no insertion order). Rows past exp are never
+// counted or reported, and are deleted by purgeExpired, which runs where the
+// public list and the admin page are computed (never on a person's own
+// action) and from the optional cron.
+//
+// Nothing here runs unless BLUESKY_LOGIN is "true" (endorseDb): with the flag
+// unset, no D1 call happens anywhere. Every statement is prepared, with bound
+// parameters; several writes go in one batch (one transaction, all or
+// nothing, and one query against the per-invocation limit).
 //
 // Endorsements are a signal for the steward, not a vote: counted per
 // account, and by default the public number counts only did:plc accounts at
@@ -26,6 +42,80 @@ const ID_RE = /^[0-9a-f]{12}$/;
 const NOT_FOUND = Object.freeze({ ok: false, status: 404, code: 'not_found', error: 'No open request has that id.' });
 const BUSY = Object.freeze({ ok: false, status: 429, code: 'busy', error: "That's a lot of endorsing for one day. Try again tomorrow." });
 const BUSY_NOW = Object.freeze({ ok: false, status: 429, code: 'busy', error: 'Lots of endorsing from here right now. Try again in a minute.' });
+
+/** For the operator's log and the steward's page, never shown to the public. */
+export const DB_SETUP_ERROR = 'BLUESKY_LOGIN is "true" but the SIREN_DB D1 binding is missing, so Bluesky sign-in and endorsements are off. '
+  + 'Create the database, apply migrations/ and add the [[env.siren.d1_databases]] block (docs/bluesky-endorsements.md, "Setting up the database").';
+
+/**
+ * The endorsement database: the SIREN_DB binding, only when BLUESKY_LOGIN is
+ * "true". Every D1 call in Siren goes through this, so with the flag unset
+ * nothing touches D1, and with the flag on and no binding the feature is off.
+ */
+export function endorseDb(env) {
+  if (env?.BLUESKY_LOGIN !== 'true') return null;
+  const db = env.SIREN_DB;
+  return db && typeof db.prepare === 'function' && typeof db.batch === 'function' ? db : null;
+}
+
+/** The flag is on but there's no database: a message for the log and the steward, else null. */
+export function dbSetupError(env) {
+  return env?.BLUESKY_LOGIN === 'true' && !endorseDb(env) ? DB_SETUP_ERROR : null;
+}
+
+/** Thrown when a D1 call fails, so a route can answer 503 instead of a bare 500. */
+export class StorageError extends Error {
+  constructor(cause) {
+    super('storage');
+    this.code = 'storage';
+    if (cause) this.cause = cause;
+  }
+}
+
+async function stored(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    throw err instanceof StorageError ? err : new StorageError(err);
+  }
+}
+
+const slots = (n, from = 1) => Array.from({ length: n }, (_, i) => `?${from + i}`).join(', ');
+
+// D1 allows 100 bound parameters per statement; IN lists leave room for one more.
+const CHUNK = 99;
+const chunks = (xs, n = CHUNK) => {
+  const out = [];
+  for (let i = 0; i < xs.length; i += n) out.push(xs.slice(i, i + n));
+  return out;
+};
+
+/** Every statement Siren runs against SIREN_DB (a test runs EXPLAIN QUERY PLAN over each). */
+export const SQL = Object.freeze({
+  get: 'SELECT y FROM endorsements WHERE eh = ?1 AND exp > ?2',
+  // A new row, or one whose expiry passed but isn't purged yet; never an unexpired one.
+  insert: 'INSERT INTO endorsements (eh, request_id, y, exp) VALUES (?1, ?2, ?3, ?4) '
+    + 'ON CONFLICT (eh) DO UPDATE SET y = excluded.y, exp = excluded.exp WHERE endorsements.exp <= ?5',
+  // Only toward better knowledge: never from established (0), never to unknown (NULL).
+  upgrade: 'UPDATE endorsements SET y = ?1 WHERE eh = ?2 AND exp > ?3 AND y IS NOT 0 AND y IS NOT ?1 RETURNING eh',
+  remove: 'DELETE FROM endorsements WHERE eh = ?1',
+  bump: 'INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?1, 1, ?2) ON CONFLICT (k) DO UPDATE SET n = n + 1',
+  rates: (n) => `SELECT k, n FROM bsky_rate_counts WHERE exp > ?1 AND k IN (${slots(n, 2)})`,
+  counts: 'SELECT request_id, n, young, unknown FROM endorsement_counts',
+  countOne: 'SELECT n, young, unknown FROM endorsement_counts WHERE request_id = ?1',
+  // Rows past their expiry but not yet purged, to take off the tallies: reads only those rows.
+  expired: 'SELECT request_id, COUNT(*) AS n, SUM(y IS 1) AS young, SUM(y IS NULL) AS unknown FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 GROUP BY request_id',
+  expiredOne: 'SELECT COUNT(*) AS n, SUM(y IS 1) AS young, SUM(y IS NULL) AS unknown FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 AND request_id = ?2',
+  requestIds: 'SELECT request_id FROM endorsement_counts',
+  endorsedIn: (n) => `SELECT eh FROM endorsements WHERE exp > ?1 AND eh IN (${slots(n, 2)})`,
+  upgradeIn: (n) => `UPDATE endorsements SET y = 0 WHERE exp > ?1 AND (y IS NULL OR y = 1) AND eh IN (${slots(n, 2)})`,
+  removeIn: (n) => `DELETE FROM endorsements WHERE eh IN (${slots(n, 1)}) RETURNING eh`,
+  clear: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements WHERE request_id = ?1 LIMIT ?2) RETURNING eh',
+  purgeEndorsements: 'DELETE FROM endorsements WHERE exp <= ?1',
+  purgeRates: 'DELETE FROM bsky_rate_counts WHERE exp <= ?1',
+  purgeFlows: 'DELETE FROM bsky_flows_used WHERE exp <= ?1',
+  useFlow: 'INSERT INTO bsky_flows_used (sh, exp) VALUES (?1, ?2) ON CONFLICT (sh) DO NOTHING RETURNING sh',
+});
 
 export function publicPolicy(env) {
   return env?.ENDORSE_PUBLIC === 'all' ? 'all' : 'established';
@@ -62,57 +152,38 @@ export function openIssuer(issuer, env) {
   return typeof issuer === 'string' && list.includes(issuer);
 }
 
-export async function endorsementKey(secret, id, eid) {
-  return `endorsement:${id}:${await hmacHex(secret, `endorsement:${id}:${eid}`, 32)}`;
+/** The per-request endorsement id: HMAC(secret, "endorsement:" + id + ":" + eid), 32 hex. */
+export async function endorsementId(secret, id, eid) {
+  return hmacHex(secret, `endorsement:${id}:${eid}`, 32);
 }
 
-async function listAll(kv, prefix, onKey) {
-  let cursor;
-  do {
-    const page = await kv.list({ prefix, cursor });
-    for (const k of page.keys) onKey(k);
-    cursor = page.list_complete ? undefined : page.cursor;
-  } while (cursor);
-}
+const secs = (now) => Math.floor(now / 1000);
 
-export async function countEvents(kv, prefix) {
-  let n = 0;
-  await listAll(kv, prefix, () => {
-    n++;
-  });
-  return n;
-}
-
-export async function recordEvent(kv, prefix, expiration) {
-  await kv.put(`${prefix}${crypto.randomUUID()}`, '', { expiration });
-}
-
-// KV bulk get (up to 100 keys, one operation), with a fallback for runtimes
-// that return something other than a Map.
-async function bulkGet(kv, keys) {
+/** Map(k -> n) for the given rate-counter keys, unexpired only. One statement. */
+export async function readRates(db, keys, now = Date.now()) {
   const out = new Map();
-  for (let i = 0; i < keys.length; i += 100) {
-    const chunk = keys.slice(i, i + 100);
-    const got = chunk.length ? await kv.get(chunk) : new Map();
-    if (got instanceof Map) for (const [k, v] of got) out.set(k, v);
-    else for (const k of chunk) out.set(k, await kv.get(k));
-  }
+  if (!keys.length) return out;
+  const { results } = await db.prepare(SQL.rates(keys.length)).bind(secs(now), ...keys).all();
+  for (const r of results || []) out.set(r.k, Number(r.n) || 0);
   return out;
 }
 
-// KV bulk getWithMetadata (up to 100 keys, one operation): Map(key -> { value, metadata }).
-async function bulkGetWithMetadata(kv, keys) {
-  const out = new Map();
-  for (let i = 0; i < keys.length; i += 100) {
-    const chunk = keys.slice(i, i + 100);
-    const got = chunk.length ? await kv.getWithMetadata(chunk) : new Map();
-    if (got instanceof Map) for (const [k, v] of got) out.set(k, v);
-    else for (const k of chunk) out.set(k, await kv.getWithMetadata(k));
-  }
-  return out;
+/** One rate-counter row's count. */
+export async function countRate(db, key, now = Date.now()) {
+  return (await readRates(db, [key], now)).get(key) || 0;
 }
 
-const present = (v) => v !== null && v !== undefined;
+/** The statement that adds one to a rate counter (for a batch). */
+export const bumpRate = (db, key, expiration) => db.prepare(SQL.bump).bind(key, expiration);
+
+/**
+ * Claim a single-use marker: true the first time, false on a replay.
+ * `expiration` is in seconds.
+ */
+export async function useFlowOnce(db, marker, expiration) {
+  const { results } = await db.prepare(SQL.useFlow).bind(marker, expiration).all();
+  return (results || []).length === 1;
+}
 
 async function allowed(limiter, key) {
   try {
@@ -181,66 +252,38 @@ export function issuerBucket(issuer) {
   return labels.slice(-n).join('.');
 }
 
-async function prefixes(env, session, visitor, now) {
+// The day's rate-counter keys for one action: per account (d), per visitor
+// (v), and, for a server not in ENDORSE_OPEN_ISSUERS, per server (i) and per
+// registrable domain (r). Each hash in its own domain; none holds a request.
+async function rateKeys(env, session, visitor, now) {
   const day = dayOf(now);
   const secret = env.INVITE_SECRET;
   const ih = await hmacHex(secret, `issuer-rate:${day}:${issuerHost(session.issuer)}`, 32);
   const rh = await hmacHex(secret, `domain-rate:${day}:${issuerBucket(session.issuer)}`, 32);
   return {
-    day,
     rh,
-    d: `endorse-ev:${day}:d:${await hmacHex(secret, `endorse-rate:${day}:${session.eid}`, 32)}:`,
-    v: `endorse-ev:${day}:v:${visitor}:`,
-    i: `endorse-ev:${day}:i:${ih}:`,
-    r: `endorse-ev:${day}:r:${rh}:`,
+    d: `ed:${day}:${await hmacHex(secret, `endorse-rate:${day}:${session.eid}`, 32)}`,
+    v: `ev:${day}:${visitor}`,
+    i: `ei:${day}:${ih}`,
+    r: `er:${day}:${rh}`,
   };
 }
 
 const counted = (env, session, now) => publicPolicy(env) === 'all' || youngFlag(session.created, env, now) === 0;
 const countedFlag = (env, y) => publicPolicy(env) === 'all' || y === 0;
 
-// The listed expiration of one endorsement key, so a metadata rewrite keeps
-// the month it was made in. A key too new to be listed yet gets this month's.
-async function keyExpiration(kv, ekey, env, now) {
-  const page = await kv.list({ prefix: ekey, limit: 10 });
-  return page.keys.find((k) => k.name === ekey)?.expiration || retentionExpiry(env, now);
-}
-
-/**
- * Rewrite one endorsement's age flag to `y`, keeping its expiration. KV has
- * no compare-and-set, so the key is read again immediately before the put,
- * and a key withdrawn meanwhile (unendorse, forget, a clear) is left deleted.
- * What remains is the gap between that read and the put.
- * -> 'written' | 'gone' (withdrawn meanwhile) | 'kept' (already upgraded)
- */
-async function upgradeFlag(kv, ekey, y, env, now) {
-  const expiration = await keyExpiration(kv, ekey, env, now);
-  const again = await kv.getWithMetadata(ekey);
-  if (!present(again?.value)) return 'gone';
-  if (!shouldUpgrade(again.metadata?.y ?? null, y)) return 'kept';
-  await kv.put(ekey, '1', { metadata: { y }, expiration });
-  return 'written';
-}
-
 // Should a stored age flag be rewritten to `y`, the flag the session now
 // carries? Only toward better knowledge: unknown -> young or established,
 // young -> established. Never from established, and never to unknown.
+// (SQL.upgrade says the same in its WHERE clause.)
 const shouldUpgrade = (stored, y) => y !== null && stored !== 0 && stored !== y;
-
-/** Thrown when a KV write fails, so the route can answer 503 instead of a bare 500. */
-export class StorageError extends Error {
-  constructor() {
-    super('storage');
-    this.code = 'storage';
-  }
-}
 
 /**
  * Endorse an accepted request. Only ids already on the public list are ever
  * looked up, so new, declined, fulfilled and unknown ids all get the same
- * 404 after the same (zero) KV work.
+ * 404 after the same work (none).
  */
-export async function endorse({ kv, env, id, session, visitor, publicList, now = Date.now() }) {
+export async function endorse({ kv, db, env, id, session, visitor, publicList, now = Date.now() }) {
   if (typeof id !== 'string' || !ID_RE.test(id)) return NOT_FOUND;
   const r = (publicList?.requests || []).find((x) => x.id === id && x.status === 'accepted');
   if (!r) return NOT_FOUND;
@@ -256,53 +299,48 @@ export async function endorse({ kv, env, id, session, visitor, publicList, now =
   }
 
   const y = youngFlag(session.created, env, now);
-  const ekey = await endorsementKey(env.INVITE_SECRET, id, session.eid);
-  const existing = await kv.getWithMetadata(ekey);
-  if (present(existing?.value)) {
-    // The account has aged past "young", or its age is now known: record it,
-    // keeping the original expiration. Free, like any repeat.
-    let stored = existing.metadata?.y ?? null;
-    if (shouldUpgrade(stored, y)) {
+  const eh = await endorsementId(env.INVITE_SECRET, id, session.eid);
+  const existing = await stored(() => db.prepare(SQL.get).bind(eh, secs(now)).first());
+  if (existing) {
+    // The account has aged past "young", or its age is now known: record it.
+    // The expiry is kept. Free, like any repeat. One conditional UPDATE, so a
+    // withdrawal in another tab can't be undone by it.
+    let flag = existing.y ?? null;
+    if (shouldUpgrade(flag, y)) {
       try {
-        const out = await upgradeFlag(kv, ekey, y, env, now);
-        if (out === 'gone') return { ok: true, endorsed: false }; // withdrawn in another tab meanwhile
-        if (out === 'written') stored = y;
+        const { results } = await db.prepare(SQL.upgrade).bind(y, eh, secs(now)).all();
+        if (results?.length) flag = y;
+        else if (!(await db.prepare(SQL.get).bind(eh, secs(now)).first())) return { ok: true, endorsed: false }; // withdrawn meanwhile
       } catch {
-        // Best effort (a write to this key in the last second): the next repeat or `me` retries.
+        // Best effort: the next repeat or `me` retries.
       }
     }
-    return { ok: true, endorsed: true, already: true, counted: countedFlag(env, stored) };
+    return { ok: true, endorsed: true, already: true, counted: countedFlag(env, flag) };
   }
 
-  // Burst limits first: the daily caps below are KV listings that lag about a
-  // minute, so a coordinated burst would pass them. These bindings don't lag.
-  const p = await prefixes(env, session, visitor, now);
+  // Burst limits first: they're per location and cost no D1 read.
+  const k = await rateKeys(env, session, visitor, now);
   const issuerCapped = !openIssuer(session.issuer, env);
   if (!(await allowed(env.BSKY_VISITOR_RL, `end:${visitor}`))) return BUSY_NOW;
-  if (issuerCapped && !(await allowed(env.BSKY_INPUT_RL, `iss:${p.rh}`))) return BUSY_NOW;
-  if ((await countEvents(kv, p.d)) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
-  if ((await countEvents(kv, p.v)) >= setting(env.ENDORSE_PER_VISITOR_DAILY, 200, { min: 1 })) return BUSY;
-  if (issuerCapped && ((await countEvents(kv, p.i)) >= setting(env.ENDORSE_PER_ISSUER_DAILY, 20, { min: 1 })
-    || (await countEvents(kv, p.r)) >= setting(env.ENDORSE_PER_DOMAIN_DAILY, 60, { min: 1 }))) {
+  if (issuerCapped && !(await allowed(env.BSKY_INPUT_RL, `iss:${k.rh}`))) return BUSY_NOW;
+  const used = await stored(() => readRates(db, issuerCapped ? [k.d, k.v, k.i, k.r] : [k.d, k.v], now));
+  if ((used.get(k.d) || 0) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
+  if ((used.get(k.v) || 0) >= setting(env.ENDORSE_PER_VISITOR_DAILY, 200, { min: 1 })) return BUSY;
+  if (issuerCapped && ((used.get(k.i) || 0) >= setting(env.ENDORSE_PER_ISSUER_DAILY, 20, { min: 1 })
+    || (used.get(k.r) || 0) >= setting(env.ENDORSE_PER_DOMAIN_DAILY, 60, { min: 1 }))) {
     return { ok: false, status: 429, code: 'busy', error: 'Your Bluesky server has reached its endorsements for today. Try again tomorrow.' };
   }
   if (!(await allowed(env.BSKY_SITE_RL, 'endorse'))) return { ok: false, status: 429, code: 'busy', error: 'Lots of endorsements right now. Try again in a minute.' };
 
-  // The endorsement first, so a failed write charges nothing.
-  try {
-    await kv.put(ekey, '1', { metadata: { y }, expiration: retentionExpiry(env, now) });
-  } catch {
-    throw new StorageError();
-  }
+  // The endorsement and its counters in one transaction: a failure writes
+  // and charges nothing. A withdraw and a re-endorse charge the server again.
   const exp = eventExpiry(now);
-  // Every event key is a random uuid, so nothing request-specific outlives a
-  // withdrawal. A withdraw and a re-endorse therefore charge the server again.
-  try {
-    await Promise.all([recordEvent(kv, p.d, exp), recordEvent(kv, p.v, exp), ...(issuerCapped ? [recordEvent(kv, p.i, exp), recordEvent(kv, p.r, exp)] : [])]);
-  } catch {
-    // The endorsement stands; the bindings above still bound bursts.
-    console.error('endorse: event write failed');
-  }
+  await stored(() => db.batch([
+    db.prepare(SQL.insert).bind(eh, id, y, retentionExpiry(env, now), secs(now)),
+    bumpRate(db, k.d, exp),
+    bumpRate(db, k.v, exp),
+    ...(issuerCapped ? [bumpRate(db, k.i, exp), bumpRate(db, k.r, exp)] : []),
+  ]));
   return { ok: true, endorsed: true, counted: counted(env, session, now) };
 }
 
@@ -310,112 +348,108 @@ export async function endorse({ kv, env, id, session, visitor, publicList, now =
  * Withdraw an endorsement. No request lookup at all: the answer is the same
  * for every well-formed id, and people can always withdraw.
  */
-export async function unendorse({ kv, env, id, session, visitor, now = Date.now() }) {
+export async function unendorse({ db, env, id, session, visitor, now = Date.now() }) {
   if (typeof id !== 'string' || !ID_RE.test(id)) return { ok: false, status: 400, code: 'bad_id', error: 'Give the request id.' };
   if (!(await allowed(env.BSKY_VISITOR_RL, `end:${visitor}`))) return BUSY_NOW;
-  const p = await prefixes(env, session, visitor, now);
-  if ((await countEvents(kv, p.d)) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
-  if ((await countEvents(kv, p.v)) >= setting(env.ENDORSE_PER_VISITOR_DAILY, 200, { min: 1 })) return BUSY;
-  try {
-    await kv.delete(await endorsementKey(env.INVITE_SECRET, id, session.eid));
-  } catch {
-    throw new StorageError();
-  }
+  const k = await rateKeys(env, session, visitor, now);
+  const used = await stored(() => readRates(db, [k.d, k.v], now));
+  if ((used.get(k.d) || 0) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
+  if ((used.get(k.v) || 0) >= setting(env.ENDORSE_PER_VISITOR_DAILY, 200, { min: 1 })) return BUSY;
   const exp = eventExpiry(now);
-  try {
-    await Promise.all([recordEvent(kv, p.d, exp), recordEvent(kv, p.v, exp)]);
-  } catch {
-    console.error('unendorse: event write failed');
-  }
+  await stored(async () => db.batch([
+    db.prepare(SQL.remove).bind(await endorsementId(env.INVITE_SECRET, id, session.eid)),
+    bumpRate(db, k.d, exp),
+    bumpRate(db, k.v, exp),
+  ]));
   return { ok: true, endorsed: false };
 }
-
-// At most this many age-flag rewrites per `me` call (each is a list and a
-// put); the next call picks up the rest. `me` itself is charged under
-// BSKY_ACCOUNT_RL, so this is bounded per account per minute too.
-const UPGRADES_PER_CALL = 10;
 
 /**
  * The ids of accepted, public requests this account has endorsed. When the
  * session's account is now established, endorsements stored while it was
  * young (or while its age couldn't be looked up) are rewritten as
- * established, keeping their expiration: the page never sends a repeat
- * endorse for an endorsed request, so aging takes effect here, on load.
+ * established in the same batch, keeping their expiry: the page never sends
+ * a repeat endorse for an endorsed request, so aging takes effect here, on load.
  */
-export async function endorsedBy({ kv, env, session, publicList, now = Date.now() }) {
+export async function endorsedBy({ db, env, session, publicList, now = Date.now() }) {
   const ids = (publicList?.requests || []).filter((r) => r.status === 'accepted' && ID_RE.test(r.id)).map((r) => r.id);
-  const keys = await Promise.all(ids.map((id) => endorsementKey(env.INVITE_SECRET, id, session.eid)));
-  const y = youngFlag(session.created, env, now);
-  if (y !== 0) {
-    const got = await bulkGet(kv, keys);
-    return ids.filter((id, i) => present(got.get(keys[i])));
-  }
-  const got = await bulkGetWithMetadata(kv, keys);
-  const stale = keys.filter((k) => present(got.get(k)?.value) && shouldUpgrade(got.get(k).metadata?.y ?? null, 0)).slice(0, UPGRADES_PER_CALL);
-  const gone = new Set();
-  for (const k of stale) {
-    try {
-      if ((await upgradeFlag(kv, k, 0, env, now)) === 'gone') gone.add(k);
-    } catch {
-      // Best effort; the next `me` retries.
-    }
-  }
-  return ids.filter((id, i) => present(got.get(keys[i])?.value) && !gone.has(keys[i]));
+  if (!ids.length) return [];
+  const ehs = await Promise.all(ids.map((id) => endorsementId(env.INVITE_SECRET, id, session.eid)));
+  const t = secs(now);
+  const parts = chunks(ehs);
+  const upgrades = youngFlag(session.created, env, now) === 0 ? parts.map((p) => db.prepare(SQL.upgradeIn(p.length)).bind(t, ...p)) : [];
+  const reads = parts.map((p) => db.prepare(SQL.endorsedIn(p.length)).bind(t, ...p));
+  const out = await stored(() => db.batch([...upgrades, ...reads]));
+  const found = new Set(out.slice(upgrades.length).flatMap((r) => (r.results || []).map((x) => x.eh)));
+  return ids.filter((id, i) => found.has(ehs[i]));
 }
 
 /**
- * Delete every endorsement this account made. Keys are computed for every
- * request (not listed), so one made seconds ago is found despite list lag.
+ * Delete every endorsement this account made. The ids are computed for every
+ * request that has endorsements (from the tallies), so nothing is listed but
+ * request ids, and nothing is missed.
  */
-export async function forgetEndorser({ kv, env, session }) {
-  const ids = new Set();
-  await listAll(kv, 'request:', (k) => ids.add(publicId(k.name)));
-  const list = [...ids];
-  const keys = await Promise.all(list.map((id) => endorsementKey(env.INVITE_SECRET, id, session.eid)));
-  const got = await bulkGet(kv, keys);
-  const found = keys.filter((k) => present(got.get(k)));
-  try {
-    await Promise.all(found.map((k) => kv.delete(k)));
-  } catch {
-    throw new StorageError();
-  }
-  return { removed: found.length };
+export async function forgetEndorser({ db, env, session }) {
+  const { results } = await stored(() => db.prepare(SQL.requestIds).all());
+  const ids = (results || []).map((r) => r.request_id).filter((id) => ID_RE.test(id));
+  if (!ids.length) return { removed: 0 };
+  const ehs = await Promise.all(ids.map((id) => endorsementId(env.INVITE_SECRET, id, session.eid)));
+  const out = await stored(() => db.batch(chunks(ehs, 100).map((p) => db.prepare(SQL.removeIn(p.length)).bind(...p))));
+  return { removed: out.reduce((n, r) => n + (r.results || []).length, 0) };
 }
 
-const tally = (map, id, metadata) => {
-  const c = map.get(id) || { n: 0, young: 0, unknown: 0 };
-  c.n++;
-  if (metadata?.y === 1) c.young++;
-  else if (metadata?.y == null) c.unknown++;
-  map.set(id, c);
-};
+const asCount = (r) => ({ n: Number(r?.n) || 0, young: Number(r?.young) || 0, unknown: Number(r?.unknown) || 0 });
 
-/** Map(id -> { n, young, unknown }) over every endorsement, in one paginated listing. */
-export async function endorsementCounts(kv) {
+const minus = (a, b) => ({ n: a.n - b.n, young: a.young - b.young, unknown: a.unknown - b.unknown });
+
+/**
+ * Map(id -> { n, young, unknown }) over every unexpired endorsement: the
+ * tallies (one row per request), less any rows past their expiry that
+ * haven't been purged yet. One batch, reads only; purgeExpired deletes.
+ */
+export async function endorsementCounts(db, { now = Date.now() } = {}) {
+  const [tallies, expired] = await stored(() => db.batch([db.prepare(SQL.counts), db.prepare(SQL.expired).bind(secs(now))]));
+  const gone = new Map((expired.results || []).map((r) => [r.request_id, asCount(r)]));
   const counts = new Map();
-  await listAll(kv, 'endorsement:', (k) => {
-    const m = /^endorsement:([0-9a-f]{12}):[0-9a-f]{32}$/.exec(k.name);
-    if (m) tally(counts, m[1], k.metadata);
-  });
+  for (const r of tallies.results || []) {
+    if (!ID_RE.test(r.request_id)) continue;
+    const c = minus(asCount(r), gone.get(r.request_id) || asCount(null));
+    if (c.n > 0) counts.set(r.request_id, c);
+  }
   return counts;
 }
 
-export async function countFor(kv, id) {
-  const counts = new Map();
-  if (typeof id === 'string' && ID_RE.test(id)) {
-    await listAll(kv, `endorsement:${id}:`, (k) => tally(counts, id, k.metadata));
-  }
-  return counts.get(id) || { n: 0, young: 0, unknown: 0 };
+export async function countFor(db, id, { now = Date.now() } = {}) {
+  if (typeof id !== 'string' || !ID_RE.test(id)) return asCount(null);
+  const [one, expired] = await stored(() => db.batch([db.prepare(SQL.countOne).bind(id), db.prepare(SQL.expiredOne).bind(secs(now), id)]));
+  const c = minus(asCount(one.results?.[0]), asCount(expired.results?.[0]));
+  return c.n > 0 ? c : asCount(null);
+}
+
+/**
+ * Delete every row past its expiry: endorsements (12 to 13 months), rate
+ * counters (about a day) and single-use markers (up to two hours). Run where
+ * the public list or the admin page is computed, and by the optional cron.
+ * The tallies follow by trigger.
+ * -> { endorsements, rates, flows } rows deleted
+ */
+export async function purgeExpired(db, now = Date.now()) {
+  const t = secs(now);
+  const out = await stored(() => db.batch([
+    db.prepare(SQL.purgeEndorsements).bind(t),
+    db.prepare(SQL.purgeRates).bind(t),
+    db.prepare(SQL.purgeFlows).bind(t),
+  ]));
+  return { endorsements: out[0].meta?.changes || 0, rates: out[1].meta?.changes || 0, flows: out[2].meta?.changes || 0 };
 }
 
 /**
  * The ids in `counts` whose endorsements outlived their request's decision:
- * the request is fulfilled or declined (its count is frozen), or gone. Keys
- * written in the minute before a decision, or by a location still serving a
- * stale list, are missed by the decision's own clear; this finds them where
- * the counts are computed anyway. `new` and `accepted` are left alone: their
- * endorsements are live (a request moved back to new keeps them, like any
- * undecided one).
+ * the request is fulfilled or declined (its count is frozen), or gone. Rows
+ * written by a location still serving a stale list, after the decision's own
+ * clear ran, are missed by it; this finds them where the counts are computed
+ * anyway. `new` and `accepted` are left alone: their endorsements are live
+ * (a request moved back to new keeps them, like any undecided one).
  */
 export function orphanedIds(counts, statuses) {
   const out = [];
@@ -426,32 +460,28 @@ export function orphanedIds(counts, statuses) {
   return out;
 }
 
-// Deletes one sweep may make in all, so it fits beside its invocation's own
-// KV work (Workers KV allows 1,000 operations per invocation); a large
-// orphan is finished by later sweeps.
+// Rows one sweep may delete in all, so a large orphan is spread over a few
+// sweeps instead of one invocation's row writes.
 export const SWEEP_BUDGET = 100;
 
-/** Clear orphaned endorsements (see orphanedIds), at most `budget` deletes; errors are logged, never thrown. */
-export async function sweepOrphans(kv, counts, statuses, { budget = SWEEP_BUDGET } = {}) {
+/** Clear orphaned endorsements (see orphanedIds), at most `budget` rows; errors are logged, never thrown. */
+export async function sweepOrphans(db, counts, statuses, { budget = SWEEP_BUDGET } = {}) {
   const ids = orphanedIds(counts, statuses);
   let left = budget;
   for (const id of ids) {
     if (left <= 0) break;
     try {
-      left -= (await clearRequestEndorsements(kv, id, { max: left })).cleared;
+      left -= (await clearRequestEndorsements(db, id, { max: left })).cleared;
     } catch (err) {
-      console.error('endorsements: orphan sweep failed', err?.message);
+      console.error('endorsements: orphan sweep failed', err?.cause?.message || err?.message);
     }
   }
   return ids;
 }
 
-/** Delete up to `max` of one request's endorsement keys. -> { cleared, remaining } */
-export async function clearRequestEndorsements(kv, id, { max = 800 } = {}) {
+/** Delete up to `max` of one request's endorsements. -> { cleared, remaining } */
+export async function clearRequestEndorsements(db, id, { max = 800 } = {}) {
   if (typeof id !== 'string' || !ID_RE.test(id)) return { cleared: 0, remaining: 0 };
-  const names = [];
-  await listAll(kv, `endorsement:${id}:`, (k) => names.push(k.name));
-  const doomed = names.slice(0, max);
-  for (let i = 0; i < doomed.length; i += 50) await Promise.all(doomed.slice(i, i + 50).map((k) => kv.delete(k)));
-  return { cleared: doomed.length, remaining: names.length - doomed.length };
+  const [gone, left] = await stored(() => db.batch([db.prepare(SQL.clear).bind(id, max), db.prepare(SQL.countOne).bind(id)]));
+  return { cleared: (gone.results || []).length, remaining: asCount(left.results?.[0]).n };
 }

@@ -133,7 +133,8 @@ function renderPanel() {
 function item(r) {
   const available = Boolean(me.bluesky?.available);
   const m = Number(r.endorsements || 0);
-  const ends = m > 0 || available ? ` · ${m} Bluesky endorsement${m === 1 ? '' : 's'}` : '';
+  // No `endorsements` field: counts couldn't be read just now, so show none rather than a wrong 0.
+  const ends = r.endorsements !== undefined && (m > 0 || available) ? ` · ${m} Bluesky endorsement${m === 1 ? '' : 's'}` : '';
   const on = endorsed.has(r.id);
   const button = available && r.status === 'accepted'
     ? `<button type="button" class="endorse" data-id="${esc(r.id)}" aria-pressed="${on}"${inFlight.has(r.id) ? ' disabled' : ''}>${on ? 'Endorsed (undo)' : 'Endorse'}</button>`
@@ -180,7 +181,7 @@ async function toggle(id, want) {
       const r = requests.find((x) => x.id === id);
       // Only adjust for changes this page saw counted: an endorsement made
       // while the account was young may never have been in the public number.
-      if (r && want && !was && !out.already && out.counted) {
+      if (r && r.endorsements !== undefined && want && !was && !out.already && out.counted) {
         r.endorsements = Number(r.endorsements || 0) + 1;
         countedHere.set(id, true);
       } else if (r && !want && was && countedHere.get(id)) {

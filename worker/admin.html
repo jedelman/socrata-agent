@@ -54,7 +54,8 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
       <button type="button" data-s="all" aria-pressed="false">All</button>
     </div>
     <p class="meta" id="meta"></p>
-    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are counted per account, not per person. Young accounts (under <span id="young-days">30</span> days) and accounts of unknown age (did:web) are left out of the public number by default, and shown here split out. This page can't show which accounts endorsed; whoever holds INVITE_SECRET could compute it. A decision freezes the count into the request and deletes the per-account keys.</p>
+    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are counted per account, not per person. Young accounts (under <span id="young-days">30</span> days) and accounts of unknown age (did:web) are left out of the public number by default, and shown here split out. This page can't show which accounts endorsed; whoever holds INVITE_SECRET could compute it. A decision freezes the count into the request and deletes the per-account rows.</p>
+    <p class="meta" id="bsky-error" role="status" hidden></p>
     <ol id="list"></ol>
   </div>
 </div>
@@ -117,6 +118,8 @@ async function load() {
   }
   all = data.requests || [];
   if (Number.isFinite(data.young_days)) $('#young-days').textContent = String(data.young_days);
+  $('#bsky-error').textContent = data.bluesky_error || '';
+  $('#bsky-error').hidden = !data.bluesky_error;
   $('#bsky-note').hidden = !(data.bluesky || all.some((r) => (r.endorsements && r.endorsements.n) || r.endorsements_at_decision));
   $('#app').hidden = false;
   render();
@@ -144,7 +147,7 @@ $('#list').addEventListener('submit', async (e) => {
     if (!res.ok) { msg.textContent = data.error || 'That did not save.'; return; }
     const r = all.find((x) => x.id === li.dataset.id);
     Object.assign(r, { status: data.request.status, steward_note: data.request.steward_note, fulfilled_by: data.request.fulfilled_by });
-    // A decision freezes the count and clears the keys; reload for the new numbers.
+    // A decision freezes the count and clears the rows; reload for the new numbers.
     if (status === 'declined' || status === 'fulfilled') { await load(); return; }
     render();
   } catch { msg.textContent = "Couldn't reach the server."; }

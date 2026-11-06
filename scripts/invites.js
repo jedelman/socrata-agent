@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Make and manage pre-alpha invite codes, and export the waitlist. Runs
-// wrangler against the deployment's LIMITS KV namespace.
+// wrangler against the deployment's LIMITS KV namespace, and, for Bluesky
+// endorsements, its SIREN_DB D1 database.
 //
 //   node scripts/invites.js create --label "Wetlands Watch staff" --uses 5
 //   node scripts/invites.js list
@@ -11,7 +12,7 @@
 //   node scripts/invites.js endorsements-clear <id>      (delete one request's endorsements)
 //
 // Options: --env <name> (default siren), --local (wrangler dev's local KV
-// instead of the deployed one), --config <file> (another wrangler config),
+// and D1 instead of the deployed ones), --config <file> (another wrangler config),
 // --dry-run (print the wrangler commands only).
 //
 // Each browser or device that redeems a code uses one of its --uses (default
@@ -21,9 +22,6 @@
 // addresses.
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
 import { withStatus, publicId, freezeAtDecision } from '../worker/requests.js';
 
@@ -47,38 +45,41 @@ function wrangler(args) {
   return execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
 }
 
-// `wrangler kv bulk delete <file>`: wrangler() above runs only `kv key`
-// commands. The file is a JSON array of key names.
-function wranglerBulkDelete(names) {
-  if (!names.length) return;
-  const dir = mkdtempSync(join(tmpdir(), 'siren-kv-'));
-  const file = join(dir, 'keys.json');
-  writeFileSync(file, JSON.stringify(names));
-  const full = ['wrangler', 'kv', 'bulk', 'delete', file, '--force', '--binding', 'LIMITS', '--env', env, where, ...(opt('config') ? ['--config', opt('config')] : [])];
-  try {
-    if (dry) console.error(`npx ${full.join(' ')}  # ${names.length} keys`);
-    else execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
+// `wrangler d1 execute SIREN_DB --command <sql> --json`: the endorsement
+// tables (migrations/). -> one results array per statement. wrangler's
+// --command takes no bound parameters, so the only values ever written into
+// this SQL are a 12-hex request id and a whole number of seconds, each
+// checked by sqlId / sqlInt first; nothing typed reaches it unchecked.
+const sqlId = (id) => {
+  if (!/^[0-9a-f]{12}$/.test(id)) throw new Error(`Not a request id: ${id}`);
+  return `'${id}'`;
+};
+const sqlInt = (n) => {
+  if (!Number.isSafeInteger(n) || n < 0) throw new Error(`Not a whole number: ${n}`);
+  return String(n);
+};
+function d1(sql) {
+  const full = ['wrangler', 'd1', 'execute', 'SIREN_DB', '--command', sql, '--json', '--yes', '--env', env, where, ...(opt('config') ? ['--config', opt('config')] : [])];
+  if (dry) {
+    console.error(`npx ${full.map((a) => (/[\s"'{}();*=<>]/.test(a) ? `'${a.replace(/'/g, "'\\''")}'` : a)).join(' ')}`);
+    return [];
   }
+  const out = JSON.parse(execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }) || '[]');
+  return (Array.isArray(out) ? out : [out]).map((r) => r.results || []);
 }
 
-// Bluesky endorsements by listing (wrangler's listing includes metadata):
-// Map(id -> { n, young, unknown, names }).
-function endorsementTally(prefix = 'endorsement:') {
-  const keys = JSON.parse(wrangler(['list', '--prefix', prefix]) || '[]');
-  const counts = new Map();
-  for (const k of keys) {
-    const m = /^endorsement:([0-9a-f]{12}):[0-9a-f]{32}$/.exec(k.name);
-    if (!m) continue;
-    const c = counts.get(m[1]) || { n: 0, young: 0, unknown: 0, names: [] };
-    c.n++;
-    if (k.metadata?.y === 1) c.young++;
-    else if (k.metadata?.y == null) c.unknown++;
-    c.names.push(k.name);
-    counts.set(m[1], c);
-  }
-  return counts;
+// Bluesky endorsement tallies, after deleting rows past their expiry:
+// Map(id -> { n, young, unknown }), for one request or all.
+function endorsementTally(id) {
+  const now = sqlInt(Math.floor(Date.now() / 1000));
+  const where = id ? ` WHERE request_id = ${sqlId(id)}` : '';
+  const [, rows = []] = d1(`DELETE FROM endorsements WHERE exp <= ${now}; SELECT request_id, n, young, unknown FROM endorsement_counts${where}`);
+  return new Map(rows.map((r) => [r.request_id, { n: Number(r.n) || 0, young: Number(r.young) || 0, unknown: Number(r.unknown) || 0 }]));
+}
+
+// Delete every endorsement on one request (the tallies follow by trigger).
+function clearEndorsements(id) {
+  d1(`DELETE FROM endorsements WHERE request_id = ${sqlId(id)}`);
 }
 
 // One request by the id `requests` prints, with the same exactly-one check
@@ -158,18 +159,19 @@ async function main() {
     // Steward decisions. Accepting puts a request on the public list and, at
     // the next sync, on GitHub; --note is shown publicly with it. Declining or
     // fulfilling freezes the Bluesky endorsement count into the request (one
-    // write), then deletes the per-account endorsement keys, as the Worker does.
+    // write), then deletes the per-account endorsement rows, as the Worker does.
+    // --no-endorsements skips both, for a deployment without SIREN_DB.
     const { key, cur } = requestById(argv[1]);
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
     const decided = status === 'declined' || status === 'fulfilled';
-    const tally = decided ? endorsementTally(`endorsement:${publicId(key)}:`).get(publicId(key)) : null;
+    const tally = decided && !flag('no-endorsements') ? (endorsementTally(publicId(key)).get(publicId(key)) || { n: 0, young: 0, unknown: 0 }) : null;
     const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
     if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
     const live = tally ? { n: tally.n, young: tally.young, unknown: tally.unknown } : undefined;
     const frozen = freezeAtDecision(cur, status, live);
     if (frozen) next.endorsements_at_decision = frozen;
     wrangler(['put', key, JSON.stringify(next)]);
-    if (tally) wranglerBulkDelete(tally.names);
+    if (tally && tally.n) clearEndorsements(publicId(key));
     console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.${tally ? ` ${tally.n} endorsement${tally.n === 1 ? '' : 's'} frozen and cleared.` : ''}`);
   } else if (cmd === 'endorsements') {
     // Per-request Bluesky endorsement totals. Nothing here can say who endorsed.
@@ -179,8 +181,8 @@ async function main() {
   } else if (cmd === 'endorsements-clear') {
     // For brigading: delete every endorsement on one request.
     const { key, cur } = requestById(argv[1]);
-    const c = endorsementTally(`endorsement:${publicId(key)}:`).get(publicId(key));
-    wranglerBulkDelete(c?.names || []);
+    const c = endorsementTally(publicId(key)).get(publicId(key));
+    clearEndorsements(publicId(key));
     console.error(`${cur.source}: ${c?.n || 0} endorsement${c?.n === 1 ? '' : 's'} cleared.`);
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
@@ -190,7 +192,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id>  [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id>  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

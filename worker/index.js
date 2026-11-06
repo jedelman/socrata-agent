@@ -22,7 +22,7 @@ import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from 
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, publicRequests, allRequests, decide, requestByPublicId } from './requests.js';
 import { hmacHex } from './crypto.js';
-import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans } from './endorsements.js';
+import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeExpired, endorseDb, dbSetupError } from './endorsements.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { cachedPublicList, purgePublicList } from './public-list.js';
 import {
@@ -352,13 +352,30 @@ async function handleAdmin(req, env, path, ctx) {
   const kv = env.LIMITS;
   const later = (p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p);
   const purge = () => later(purgePublicList({ origin: new URL(req.url).origin, base: basePath(env) }));
+  // Endorsements live in D1 (SIREN_DB), read only with BLUESKY_LOGIN on.
+  const db = endorseDb(env);
+  const dbMissing = dbSetupError(env);
+  const storeMsg = (err) => String(err?.cause?.message || err?.message || 'unknown').slice(0, 300);
   if (req.method === 'GET' && path === '/api/admin/requests') {
-    const counts = await endorsementCounts(kv);
+    let counts = new Map();
+    let problem = dbMissing;
+    if (db) {
+      try {
+        counts = await endorsementCounts(db);
+      } catch (err) {
+        console.error('admin: endorsement counts failed', storeMsg(err));
+        problem = `Endorsement counts couldn't be read just now (D1: ${storeMsg(err)}). The numbers below show 0 until they can.`;
+      }
+    }
     const requests = await allRequests(kv, counts);
-    // Sweep endorsements that outlived their request's decision (endorsements.js orphanedIds).
-    const statuses = new Map(requests.map((r) => [r.id, r.status]));
-    if (orphanedIds(counts, statuses).length) later(sweepOrphans(kv, counts, statuses));
-    return json({ requests, bluesky: blueskyReady(env), young_days: setting(env.ENDORSE_YOUNG_DAYS, 30, { min: 0, max: 3650 }) }, 200, headers);
+    if (db && !problem) {
+      // Sweep endorsements that outlived their request's decision (endorsements.js
+      // orphanedIds), and delete rows past their expiry.
+      const statuses = new Map(requests.map((r) => [r.id, r.status]));
+      if (orphanedIds(counts, statuses).length) later(sweepOrphans(db, counts, statuses));
+      later(purgeExpired(db).catch((err) => console.error('admin: purge failed', storeMsg(err))));
+    }
+    return json({ requests, bluesky: blueskyReady(env), ...(problem ? { bluesky_error: problem } : {}), young_days: setting(env.ENDORSE_YOUNG_DAYS, 30, { min: 0, max: 3650 }) }, 200, headers);
   }
   // Defense in depth over JSON-only and SameSite: a steward POST that names
   // an Origin must name this site.
@@ -368,21 +385,37 @@ async function handleAdmin(req, env, path, ctx) {
   }
   if (req.method === 'POST' && path === '/api/admin/requests/decide') {
     const body = (await readJson(req)) || {};
-    // Count before the one write, so a decision freezes the live number.
-    // With the feature off and no endorsements, nothing is added to the record.
-    const live = typeof body.id === 'string' && /^[0-9a-f]{12}$/.test(body.id) ? await countFor(kv, body.id) : undefined;
-    const out = await decide(kv, body, Date.now(), { live: live && (blueskyReady(env) || live.n > 0) ? live : undefined });
+    const validId = typeof body.id === 'string' && /^[0-9a-f]{12}$/.test(body.id);
+    // With endorsements switched on, a decision freezes the live count; if it
+    // can't be read, refuse rather than lose it.
+    if (dbMissing && DECIDED.has(body.status)) return json({ error: dbMissing }, 503, headers);
+    let live;
+    if (db && validId) {
+      try {
+        live = await countFor(db, body.id);
+      } catch (err) {
+        console.error('admin: endorsement count failed', storeMsg(err));
+        if (DECIDED.has(body.status)) return json({ error: `The endorsement count couldn't be read, so nothing was decided (D1: ${storeMsg(err)}). Try again.` }, 503, headers);
+      }
+    }
+    const out = await decide(kv, body, Date.now(), { live });
     if (!out.ok) return json({ error: out.error }, out.status, headers);
-    if (DECIDED.has(out.request.status)) {
-      later(clearRequestEndorsements(kv, out.request.id).catch((err) => console.error('clearing endorsements failed', err?.message)));
+    if (db && DECIDED.has(out.request.status)) {
+      later(clearRequestEndorsements(db, out.request.id).catch((err) => console.error('clearing endorsements failed', storeMsg(err))));
     }
     purge();
     return json(out, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/admin/requests/endorsements/clear') {
     const body = (await readJson(req)) || {};
+    if (!db) return json({ error: dbMissing || 'Bluesky endorsements are switched off here.' }, dbMissing ? 503 : 404, headers);
     if (!(await requestByPublicId(kv, body.id))) return json({ error: 'No single request has that id.' }, 404, headers);
-    const out = await clearRequestEndorsements(kv, body.id);
+    let out;
+    try {
+      out = await clearRequestEndorsements(db, body.id);
+    } catch (err) {
+      return json({ error: `Clearing failed (D1: ${storeMsg(err)}). Try again.` }, 503, headers);
+    }
     purge();
     return json({ ok: true, ...out }, 200, headers);
   }
@@ -453,6 +486,13 @@ function page(env) {
 }
 
 export default {
+  // Optional: with a cron trigger configured ([env.siren.triggers], see
+  // wrangler.toml), delete endorsement rows past their expiry even on days
+  // nobody loads the list. Without BLUESKY_LOGIN and SIREN_DB it does nothing.
+  async scheduled(controller, env, ctx) {
+    const db = endorseDb(env);
+    if (db) ctx.waitUntil(purgeExpired(db).catch((err) => console.error('scheduled purge failed', String(err?.cause?.message || err?.message).slice(0, 300))));
+  },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     // Served under a path on someone else's site (jason-edelman.org/ask-siren):

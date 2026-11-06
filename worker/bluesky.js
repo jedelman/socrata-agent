@@ -7,7 +7,7 @@
 //      limit; limits; resolve handle -> DID -> document -> PDS -> AS ourselves;
 //      PAR with PKCE and DPoP; the pending flow (state, verifier, DPoP key,
 //      nonce, bound DID and issuer) is sealed into an HttpOnly cookie scoped
-//      to <base>/oauth/. KV never holds a pending flow.
+//      to <base>/oauth/. No store holds a pending flow.
 //   2. GET /oauth/callback: one flow cookie, state, iss (RFC 9207), a
 //      single-use marker, the token exchange, the sub check, then the account
 //      is re-resolved with no cache and must still name the same AS. Both
@@ -29,7 +29,9 @@ import {
   publicOrigin, clientIds, clientMetadata, authServerFor, authServerMetadata, pkce, newDpopKey,
   pushAuthorization, authorizeUrl, exchangeCode, checkTokenResponse, revokeAll,
 } from './atproto-oauth.js';
-import { endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countEvents, recordEvent, StorageError } from './endorsements.js';
+import {
+  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countRate, bumpRate, useFlowOnce, endorseDb, dbSetupError, StorageError,
+} from './endorsements.js';
 import { cachedPublicList } from './public-list.js';
 
 export const BSKY_COOKIE = 'siren_bsky';
@@ -66,12 +68,46 @@ const ENDORSE_ERRORS = {
   busy: 'Lots of activity right now. Try again in a minute.',
 };
 
-/** Login, callback, endorse and the rest: the flag, storage, secrets, all four limiters and a valid origin. */
+/**
+ * Login, callback, endorse and the rest: the flag, the SIREN_DB database
+ * (endorsements and counters), LIMITS (request records), the secrets, all
+ * four limiters and a valid origin.
+ */
 export function blueskyReady(env) {
   return env?.BLUESKY_LOGIN === 'true'
+    && Boolean(endorseDb(env))
     && Boolean(env.LIMITS && env.INVITE_SECRET && env.IP_SALT)
     && RL_BINDINGS.every((b) => env[b] && typeof env[b].limit === 'function')
     && Boolean(publicOrigin(env));
+}
+
+/**
+ * With BLUESKY_LOGIN "true" but something missing, what's missing, by name
+ * (bindings and secret names only, never values), for the log; else null.
+ * The routes then fail closed with a 503 instead of a 404.
+ */
+export function blueskySetupError(env) {
+  if (env?.BLUESKY_LOGIN !== 'true' || blueskyReady(env)) return null;
+  const db = dbSetupError(env);
+  if (db) return db;
+  const missing = [
+    ...['LIMITS', 'INVITE_SECRET', 'IP_SALT'].filter((k) => !env[k]),
+    ...RL_BINDINGS.filter((b) => !(env[b] && typeof env[b].limit === 'function')),
+    ...(publicOrigin(env) ? [] : ['PUBLIC_ORIGIN (a valid origin)']),
+  ];
+  return `BLUESKY_LOGIN is "true" but ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing, so Bluesky sign-in is off (docs/bluesky-endorsements.md).`;
+}
+
+const NOT_SET_UP = "Bluesky sign-in is switched on here but isn't set up yet, so it's off for now.";
+
+// The flag off: 404, as if the routes didn't exist. The flag on but not set
+// up: a 503 that says so, and the precise reason in the log.
+function unavailable(env, { text = false } = {}) {
+  const why = blueskySetupError(env);
+  if (!why) return text ? new Response('Not found', { status: 404 }) : notFound();
+  console.error('bluesky:', why);
+  return text ? new Response(NOT_SET_UP, { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } })
+    : jsonResponse({ error: NOT_SET_UP, code: 'not_set_up' }, 503);
 }
 
 /** The client metadata document: a valid, non-loopback PUBLIC_ORIGIN, flag or not (so the rollout can probe). */
@@ -186,7 +222,7 @@ const resolverOpts = (env, fetchImpl, signal) => ({ fetchImpl, signal, dohUrl: e
  * Steps 3 to 15 of a login start (the gate and origin checks are the route's).
  * -> { ok: true, redirect, cookie } | { ok: false, status, code, error }
  */
-export async function startBlueskyLogin({ body, env, kv, visitor, base, fetchImpl = fetch, now = Date.now(), timeoutMs = LOGIN_DEADLINE_MS, maxCookieBytes = MAX_COOKIE_BYTES }) {
+export async function startBlueskyLogin({ body, env, db, visitor, base, fetchImpl = fetch, now = Date.now(), timeoutMs = LOGIN_DEADLINE_MS, maxCookieBytes = MAX_COOKIE_BYTES }) {
   const fail = (code) => ({ ok: false, status: LOGIN_STATUS[code] || 502, code, error: LOGIN_ERRORS[code] || LOGIN_ERRORS.as_refused });
   // 3. Parse the input before charging anything.
   const parsed = parseAccountInput(body?.account);
@@ -197,10 +233,11 @@ export async function startBlueskyLogin({ body, env, kv, visitor, base, fetchImp
 
   // 4. Limits, before any outbound fetch, stopping at the first that fails.
   if (!(await allowed(env.BSKY_VISITOR_RL, `login:${visitor}`))) return fail('busy');
-  const evPrefix = `bsky-ev:${new Date(now).toISOString().slice(0, 13)}:v:${visitor}:`;
+  // The hourly per-visitor count, in D1 (a failed read fails closed).
+  const evKey = `bl:${new Date(now).toISOString().slice(0, 13)}:${visitor}`;
   let used;
   try {
-    used = await countEvents(kv, evPrefix);
+    used = await countRate(db, evKey, now);
   } catch {
     return fail('busy');
   }
@@ -208,7 +245,7 @@ export async function startBlueskyLogin({ body, env, kv, visitor, base, fetchImp
   if (!(await allowed(env.BSKY_INPUT_RL, `login:${await hmacHex(env.INVITE_SECRET, `bsky-acct:${input}`, 32)}`))) return fail('busy');
   if (!(await allowed(env.BSKY_SITE_RL, 'login'))) return fail('busy');
   try {
-    await recordEvent(kv, evPrefix, boundary(now, 'hour', 2));
+    await bumpRate(db, evKey, boundary(now, 'hour', 2)).run();
   } catch {
     console.error('bluesky login: event write failed');
   }
@@ -258,7 +295,7 @@ export async function startBlueskyLogin({ body, env, kv, visitor, base, fetchImp
  * The callback. -> { ok: true, cookie, handle } | { ok: false, code }.
  * `defer(promise)` is ctx.waitUntil in the Worker and a collector in tests.
  */
-export async function finishBlueskyLogin({ params, flowValues, env, kv, visitor, base, fetchImpl = fetch, defer = (p) => p, now = Date.now(), log = console.error }) {
+export async function finishBlueskyLogin({ params, flowValues, env, db, visitor, base, fetchImpl = fetch, defer = (p) => p, now = Date.now(), log = console.error }) {
   let issuerForLog = null;
   const fail = (code) => {
     // Never the state, code, tokens, DID, handle or AS text; the issuer host
@@ -290,13 +327,13 @@ export async function finishBlueskyLogin({ params, flowValues, env, kv, visitor,
   // 6. The code.
   const code = params.get('code');
   if (typeof code !== 'string' || code.length < 1 || code.length > 2048) return fail('as_error');
-  // The site-wide breaker, before any KV or outbound request.
+  // The site-wide breaker, before any D1 or outbound request.
   if (!(await allowed(env.BSKY_SITE_RL, 'callback'))) return fail('busy');
   // 7. Single use: a serial replay of the same cookie, state and iss is refused.
-  const used = `bsky-flow-used:${hex(await sha256(flow.s)).slice(0, 32)}`;
+  // One INSERT that claims the marker or finds it taken, so even two
+  // replays at once can't both pass.
   try {
-    if ((await kv.get(used)) !== null) return fail('flow_expired');
-    await kv.put(used, '1', { expiration: boundary(now, 'hour', 1) + 3600 });
+    if (!(await useFlowOnce(db, hex(await sha256(flow.s)).slice(0, 32), boundary(now, 'hour', 1) + 3600))) return fail('flow_expired');
   } catch {
     return fail('busy'); // no token request without the marker
   }
@@ -387,12 +424,12 @@ export async function handleMetadata(req, env, base, appName = 'Siren') {
 }
 
 export async function handleLogin(req, env, ctx, base, deps = {}) {
-  if (!blueskyReady(env)) return notFound();
+  if (!blueskyReady(env)) return unavailable(env);
   if (new URL(req.url).origin !== publicOrigin(env).origin || foreignOrigin(req, env)) {
     return jsonResponse({ error: LOGIN_ERRORS.not_here, code: 'not_here' }, 403);
   }
   const out = await startBlueskyLogin({
-    body: await readJson(req), env, kv: env.LIMITS, visitor: await bskyVisitor(req, env, 'bsky-login'), base,
+    body: await readJson(req), env, db: endorseDb(env), visitor: await bskyVisitor(req, env, 'bsky-login'), base,
     fetchImpl: deps.fetchImpl || fetch, now: deps.now ?? Date.now(),
     ...(deps.timeoutMs ? { timeoutMs: deps.timeoutMs } : {}), ...(deps.maxCookieBytes ? { maxCookieBytes: deps.maxCookieBytes } : {}),
   });
@@ -401,14 +438,14 @@ export async function handleLogin(req, env, ctx, base, deps = {}) {
 }
 
 export async function handleCallback(req, env, ctx, base, deps = {}) {
-  if (!blueskyReady(env)) return new Response('Not found', { status: 404 });
+  if (!blueskyReady(env)) return unavailable(env, { text: true });
   const flowValues = readCookies(req, FLOW_COOKIE);
   let out;
   try {
     out = await finishBlueskyLogin({
       params: new URL(req.url).searchParams,
       flowValues,
-      env, kv: env.LIMITS, visitor: await bskyVisitor(req, env, 'bsky-login'), base,
+      env, db: endorseDb(env), visitor: await bskyVisitor(req, env, 'bsky-login'), base,
       fetchImpl: deps.fetchImpl || fetch,
       defer: deps.defer || ((p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p)),
       now: deps.now ?? Date.now(),
@@ -452,14 +489,19 @@ const listFor = (req, env, ctx, base, deps) => deps.publicList
   || cachedPublicList({ env, ctx, kv: env.LIMITS, origin: new URL(req.url).origin, base, sweep: false, ...(deps.cache !== undefined ? { cache: deps.cache } : {}) });
 
 export async function handleMe(req, env, ctx, base, deps = {}) {
-  if (!blueskyReady(env)) return jsonResponse({ bluesky: { available: false }, endorsed: [] });
+  if (!blueskyReady(env)) {
+    const why = blueskySetupError(env);
+    if (!why) return jsonResponse({ bluesky: { available: false }, endorsed: [] });
+    console.error('bluesky:', why);
+    return jsonResponse({ bluesky: { available: false }, endorsed: [], error: NOT_SET_UP, code: 'not_set_up' }, 503);
+  }
   const now = deps.now ?? Date.now();
   const policy = publicPolicy(env);
   const youngDays = setting(env.ENDORSE_YOUNG_DAYS, 30, { min: 0, max: 3650 });
   const retentionMonths = setting(env.ENDORSE_RETENTION_MONTHS, 12, { min: 1, max: 24 });
   const info = { available: true, policy, young_days: youngDays, retention_months: retentionMonths };
   const { session, clear } = await signedIn(req, env, base, now);
-  // Signed out touches no KV and no limiter.
+  // Signed out touches no storage and no limiter.
   if (!session) return jsonResponse({ bluesky: { ...info, signed_in: false, handle: null, counted: false, age: null }, endorsed: [] }, 200, clear);
   const y = youngFlag(session.created, env, now);
   const counted = policy === 'all' || y === 0;
@@ -467,11 +509,11 @@ export async function handleMe(req, env, ctx, base, deps = {}) {
   const age = y === 1 ? 'young' : y === 0 ? 'established' : 'unknown';
   const signed = { ...info, signed_in: true, handle: session.handle || null, counted, age };
   // Over the limit: still say who is signed in (so the page keeps Sign out),
-  // but read no KV.
+  // but read nothing.
   if (!(await accountAllowed(env, session))) return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
   let endorsed;
   try {
-    endorsed = await endorsedBy({ kv: env.LIMITS, env, session, publicList: await listFor(req, env, ctx, base, deps), now });
+    endorsed = await endorsedBy({ db: endorseDb(env), env, session, publicList: await listFor(req, env, ctx, base, deps), now });
   } catch {
     return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 503);
   }
@@ -479,7 +521,7 @@ export async function handleMe(req, env, ctx, base, deps = {}) {
 }
 
 export async function handleLogout(req, env, base) {
-  if (!blueskyReady(env)) return notFound();
+  if (!blueskyReady(env)) return unavailable(env);
   if (foreignOrigin(req, env)) return jsonResponse({ error: ENDORSE_ERRORS.not_here, code: 'not_here' }, 403);
   // Only the Bluesky session (never siren_user or siren_invite), but every
   // copy of it, so a session planted on the parent domain doesn't survive.
@@ -488,7 +530,7 @@ export async function handleLogout(req, env, base) {
 
 // The shared front half of endorse, unendorse and forget.
 async function guarded(req, env, base, deps) {
-  if (!blueskyReady(env)) return { response: notFound() };
+  if (!blueskyReady(env)) return { response: unavailable(env) };
   if (foreignOrigin(req, env)) return { response: jsonResponse({ error: ENDORSE_ERRORS.not_here, code: 'not_here' }, 403) };
   const now = deps.now ?? Date.now();
   const { session, clear } = await signedIn(req, env, base, now);
@@ -497,12 +539,14 @@ async function guarded(req, env, base, deps) {
   return { session, now };
 }
 
-// A KV failure is a JSON 503, never a bare 500.
+// A storage failure is a JSON 503, never a bare 500. D1's message (no bound
+// values in it) goes to the log: "no such table" means the migrations
+// weren't applied, and the Free plan's daily row limits have their own.
 async function storageSafe(fn) {
   try {
     return await fn();
   } catch (err) {
-    if (!(err instanceof StorageError)) console.error('bluesky: storage error', err?.message);
+    console.error('bluesky: storage error', String((err instanceof StorageError ? err.cause?.message : err?.message) || 'unknown').slice(0, 300));
     return jsonResponse({ error: ENDORSE_ERRORS.busy, code: 'busy' }, 503);
   }
 }
@@ -514,7 +558,7 @@ export async function handleEndorse(req, env, ctx, base, deps = {}) {
   if (g.response) return g.response;
   const body = await readJson(req);
   return storageSafe(async () => reply(await endorse({
-    kv: env.LIMITS, env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'),
+    kv: env.LIMITS, db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'),
     publicList: await listFor(req, env, ctx, base, deps), now: g.now,
   })));
 }
@@ -523,14 +567,14 @@ export async function handleUnendorse(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   const body = await readJson(req);
-  return storageSafe(async () => reply(await unendorse({ kv: env.LIMITS, env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now })));
+  return storageSafe(async () => reply(await unendorse({ db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now })));
 }
 
 export async function handleForget(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   return storageSafe(async () => {
-    const { removed } = await forgetEndorser({ kv: env.LIMITS, env, session: g.session });
+    const { removed } = await forgetEndorser({ db: endorseDb(env), env, session: g.session });
     return jsonResponse({ ok: true, removed }, 200, { 'Set-Cookie': allSessionClears(req, env, base) });
   });
 }

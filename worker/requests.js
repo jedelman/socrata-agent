@@ -12,14 +12,14 @@
 // stay private. Statuses: new, accepted, declined, fulfilled.
 //
 // Endorsements (endorsements.js) are the one place a person's identity
-// touches requests. To count a Bluesky account once per request, KV keeps
-// HMAC(INVITE_SECRET, request + account), never the DID, the handle, the
-// issuer or any token, and one account's endorsements on different requests
-// have no key material in common (someone who lists KV over and over could
-// still pair keys written close together in time). Counts are public;
-// endorsers are pseudonymous to anyone without the key. When a request is
-// decided, its count is frozen into the record and the per-account keys are
-// deleted; any written around the decision are swept within minutes. This module never imports
+// touches requests. They live in D1 (SIREN_DB), not in KV with the requests:
+// to count a Bluesky account once per request, D1 keeps HMAC(INVITE_SECRET,
+// request + account), never the DID, the handle, the issuer or any token, and
+// one account's endorsements on different requests have nothing in common.
+// Counts are public; endorsers are pseudonymous to anyone without the key.
+// When a request is decided, its count is frozen into this record and the
+// per-account rows are deleted; any written around the decision are swept
+// within minutes. This module never imports
 // endorsements.js: callers count and pass the counts in. Nothing else may be
 // keyed under `request:` (the list and steward tools parse every such key).
 

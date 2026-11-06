@@ -1,8 +1,10 @@
-// A fake atproto network, KV, rate limiter and cache for the Bluesky tests.
+// A fake atproto network, KV, rate limiter and cache for the Bluesky tests
+// (the D1 fake is test/fake-d1.js).
 // Nothing here touches the real network: every call goes through the
 // `fetch` this returns, which routes by host and path.
 
 import { b64url, sha256, enc } from '../worker/crypto.js';
+import { fakeD1 } from './fake-d1.js';
 
 export const W = {
   DID: 'did:plc:abcdefghijklmnopqrstuvwx',
@@ -221,7 +223,7 @@ export function fakeCache() {
 
 export const SECRET = 'test-secret-that-is-long-enough';
 
-/** An env with the feature on and every binding present. */
+/** An env with the feature on and every binding present (SIREN_DB is null where node:sqlite is missing; those tests skip). */
 export function readyEnv(over = {}) {
   return {
     BLUESKY_LOGIN: 'true',
@@ -230,6 +232,7 @@ export function readyEnv(over = {}) {
     INVITE_SECRET: SECRET,
     IP_SALT: 'salt-for-tests',
     LIMITS: fakeKV(),
+    SIREN_DB: fakeD1(),
     BSKY_VISITOR_RL: fakeLimiter(),
     BSKY_INPUT_RL: fakeLimiter(),
     BSKY_ACCOUNT_RL: fakeLimiter(),
