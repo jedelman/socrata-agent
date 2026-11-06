@@ -27,7 +27,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
-import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, dropDeleted, withDeleted } from '../worker/requests.js';
+import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, decisionKey, decisionOf, stewardView, withDeleted } from '../worker/requests.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -58,21 +58,27 @@ async function keyFor(arg) {
   return inviteKey(a);
 }
 
-// A request record with its deleted notes dropped (see worker/requests.js).
+// A request record as the Worker reads it: deleted notes dropped and the
+// stored decision laid over it (see worker/requests.js).
 function readRequest(key) {
   const r = JSON.parse(wrangler(['get', key, '--text']) || '{}');
-  const deleted = deletedIds(key);
-  return { r: dropDeleted(r, deleted), deleted };
+  const deleted = readOptionalJson(deletedKey(key));
+  const decision = readOptionalJson(decisionKey(key));
+  return { r: stewardView(r, Array.isArray(deleted) ? deleted : [], decision), deleted: Array.isArray(deleted) ? deleted : [] };
 }
-function deletedIds(key) {
-  if (dry) return [];
+// A key that may be missing: only wrangler's "Value not found" counts as
+// empty. Any other failure (auth, network, rate limit) is thrown, so a failed
+// read never stands in for an empty tombstone that a delete would overwrite.
+function readOptionalJson(key) {
+  if (dry) return null;
+  let out;
   try {
-    const out = wrangler(['get', deletedKey(key), '--text']).trim();
-    const ids = out && !/value not found/i.test(out) ? JSON.parse(out) : [];
-    return Array.isArray(ids) ? ids : [];
-  } catch {
-    return [];
+    out = wrangler(['get', key, '--text']).trim();
+  } catch (err) {
+    if (/value not found/i.test(String(err?.stdout || ''))) return null;
+    throw err;
   }
+  return out && !/value not found/i.test(out) ? JSON.parse(out) : null;
 }
 
 function exists(key) {
@@ -128,7 +134,8 @@ async function main() {
     for (const [name, r] of rows) {
       if (only && (r.status || 'new') !== only) continue;
       console.log(`${publicId(name)}  ${String(r.status || 'new').padEnd(9)} ${String(r.count).padStart(4)}  ${r.source}${r.url ? `  <${r.url}>` : ''}  (last ${r.last || ''})`);
-      for (const n of r.needs) console.log(`        ${n.id}  ${n.day || ''}  ${n.review === 'ok' ? '' : '[pending] '}${n.public ? '' : '[private] '}${n.text}`);
+      // Only public notes need a decision, as on the admin page.
+      for (const n of r.needs) console.log(`        ${n.id}  ${n.day || ''}  ${n.public && n.review !== 'ok' ? '[pending] ' : ''}${n.public ? '' : '[private] '}${n.text}`);
     }
     if (!rows.length) console.error('No source requests yet.');
   } else if (['request-accept', 'request-decline', 'request-fulfilled', 'request-reopen'].includes(cmd)) {
@@ -146,6 +153,8 @@ async function main() {
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
     const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
     if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
+    // The decision first, which raises never write, so a stale raise can't undo it.
+    wrangler(['put', decisionKey(key), JSON.stringify(decisionOf(next))]);
     wrangler(['put', key, JSON.stringify(next)]);
     console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.`);
   } else if (cmd === 'request-note') {

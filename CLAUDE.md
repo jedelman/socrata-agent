@@ -69,19 +69,26 @@ generic mode.
   the steward are shown. Every note is reviewed whatever the request's
   status: new notes are stored `review: 'pending'`, and the steward approves
   or deletes each one at `<base>/admin` or with `request-note`. Legacy notes
-  (no `review`) count as reviewed only when written no later than `decided`
-  and that decision made the request public. A deleted note's id is kept
-  under `request-deleted:<hash>`, which raises never write, so a stale raise
-  can't bring it back. Stored and public dates are days, never finer.
-  `POST /api/requests` returns a count only for a request that is already
-  public, and `awaiting_review` is a once-a-day snapshot. A request accepted
-  once carries `was_public`; if it leaves the list, `/api/requests` lists it
-  under `withdrawn: [{id, day}]`.
+  (no `review`) count as reviewed only when written no later than `decided`,
+  that decision made the request public, and they were among the last five
+  public notes (what the old list showed). Steward state lives in keys raises
+  never write, laid over the record on every read: `request-decision:<hash>`
+  (status, decided, was_public, steward_note, fulfilled_by) and
+  `request-deleted:<hash>` (deleted note ids), so a stale raise can't undo a
+  decision or bring a deleted note back. Stored and public dates are days,
+  never finer. `POST /api/requests` returns a count only for a request that
+  is already public. `GET /api/requests` never writes to KV (Free plan: 1,000
+  writes a day, shared with every question): `awaiting_review` counts only
+  requests first received before `awaiting_review_before` (today, UTC), so a
+  raise can't move it, and the feed is cached per location for five minutes.
+  A request accepted once carries `was_public`; if it leaves the list,
+  `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
-  `source-request` issues, run nightly by a Claude Code routine (`--plan`).
-  It closes withdrawn requests' issues with a fixed title and body (plan
-  entries carry `create_if_missing: false` and `state_reason`, which the
-  routine must honor), and when applying directly it also closes any marked
+  `source-request` issues, run nightly by a Claude Code routine (`--plan`;
+  its prompt is copied in `docs/request-sync-routine.md`). Withdrawn entries
+  (`create_if_missing: false`, `state_reason: not_planned`) appear only with
+  `--plan --with-withdrawn`, which the routine may pass only once its prompt
+  honors both fields. When applying directly it also closes any marked
   issue in neither list (only if the feed carries `withdrawn`; closing all of
   them, or more than three, needs `--close-unlisted`). GitHub keeps old titles
   and bodies; only deleting an issue by hand removes them.

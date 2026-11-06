@@ -274,6 +274,24 @@ async function handleRedeem(req, env) {
   return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
 }
 
+// The public request feed costs a KV list and three reads per request, from
+// the account's daily quota that every question also draws on. So it is kept
+// in this location's cache for its max-age (five minutes), keyed without the
+// query string so a cache-busting query can't spend the quota. Where the
+// Cache API is missing (Node tests, workers.dev), it is built every time.
+async function cachedFeed(url, ctx, build) {
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const key = new Request(`${url.origin}${url.pathname}`);
+  const hit = cache ? await cache.match(key).catch(() => null) : null;
+  if (hit) return hit;
+  const res = await build();
+  if (cache && res.ok) {
+    const put = cache.put(key, res.clone()).catch(() => {});
+    if (ctx?.waitUntil) ctx.waitUntil(put);
+  }
+  return res;
+}
+
 async function readJson(req) {
   try {
     return await req.json();
@@ -435,7 +453,7 @@ export default {
       // No `withdrawn` here: the mirror closes unlisted issues only when the
       // feed carries that list, so an unconfigured site closes nothing.
       if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
-      return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+      return cachedFeed(url, ctx, async () => json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' }));
     }
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {

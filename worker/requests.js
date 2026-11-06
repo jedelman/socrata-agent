@@ -14,23 +14,30 @@
 // public" notice (public: true) are ever shown. Notes from before that notice
 // stay private. Notes from before per-note review (no `review` field) count
 // as reviewed only if they were written no later than the request's last
-// decision and that decision put the request on the public list.
+// decision, that decision put the request on the public list, and the old
+// public list showed them (the last five public notes).
 // Statuses: new, accepted, declined, fulfilled.
 //
 // A request is one KV record, and a raise rewrites all of it from what it
-// read, which can be up to a minute stale elsewhere. So a deleted note's id is
-// also kept under `request-deleted:<hash>`, which raises never write, and
-// every read drops those notes: a stale raise can't bring a deleted note back.
-// The same staleness can still undo a decision (a stale raise writes back the
-// old status); moving requests to D1 is the durable fix.
+// read, which can be up to a minute stale elsewhere. So the steward's state
+// lives in two more keys that raises never write, and every read lays them
+// over the record: `request-decision:<hash>` holds the decision (status,
+// decided, was_public, steward_note, fulfilled_by), so a stale raise can't
+// undo a decline; `request-deleted:<hash>` holds deleted note ids, so a stale
+// raise can't bring a deleted note back. Windows that remain until requests
+// move to D1: a stale raise can set an approved note back to pending (it
+// hides, never shows), and two steward actions on one request inside the
+// propagation window can race on those keys (the admin page sends the notes
+// it deleted this session, so its own deletes always add up; the CLI's don't).
 //
 // A request that was ever public carries was_public. If it later leaves the
 // public list (declined, or set back to new), the public feed lists it under
-// `withdrawn` with the day, so the GitHub mirror can close its issue. Known
-// limit: a public id is the first 12 hex of sha256 of the normalized source
-// text, so anyone can confirm a guessed source against it, withdrawn ones
-// included. A random id stored at acceptance would fix that; issue markers
-// depend on the current scheme, so it is left for a later change.
+// `withdrawn` with the day, for WITHDRAWN_DAYS, so the GitHub mirror can close
+// its issue. Known limit: a public id is the first 12 hex of sha256 of the
+// normalized source text, so anyone can confirm a guessed source against it,
+// withdrawn ones included while they are listed. A random id stored at
+// acceptance would fix that; issue markers depend on the current scheme, so
+// it is left for a later change.
 
 import { sha256hex } from './invites.js';
 
@@ -40,6 +47,9 @@ const KEEP_NOTES = 20;
 // approved ones.
 const KEEP_PENDING = 10;
 const KEEP_DELETED = 500;
+// How long a withdrawn request stays in the public feed's `withdrawn` list:
+// long enough for nightly syncs to close its issue, not forever.
+export const WITHDRAWN_DAYS = 30;
 const clip = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
 const dayOf = (now) => new Date(now).toISOString().slice(0, 10);
 const asDay = (v) => (typeof v === 'string' && v ? v.slice(0, 10) : v);
@@ -61,15 +71,17 @@ function legacyNoteId(n) {
 }
 
 // Legacy notes ({text, at, public}) count as reviewed only when written no
-// later than the request's last decision, and only if that decision put the
-// request on the public list: the steward saw them when accepting it. After a
+// later than the request's last decision, only if that decision put the
+// request on the public list (the steward saw them when accepting it), and
+// only if the old public list actually showed them: it showed the last five
+// public notes, so an older one was never published and waits. After a
 // decline or a reset to new, every legacy note waits for the steward.
 // normalizeRecord runs before a decision changes status or decided, so
 // r.status here is the status set at `decided`.
-function legacyReview(n, r) {
+function legacyReview(n, r, shown) {
   const at = Date.parse(n.at);
   const decided = Date.parse(r.decided);
-  return PUBLIC.has(r.status || 'new') && Number.isFinite(at) && Number.isFinite(decided) && at <= decided ? 'ok' : 'pending';
+  return PUBLIC.has(r.status || 'new') && shown.has(n) && Number.isFinite(at) && Number.isFinite(decided) && at <= decided ? 'ok' : 'pending';
 }
 
 /** Where the ids of a request's deleted notes are kept. Raises never write it. */
@@ -86,6 +98,41 @@ export function dropDeleted(r, ids) {
 async function readDeleted(kv, key) {
   const ids = await kv.get(deletedKey(key), 'json');
   return Array.isArray(ids) ? ids : [];
+}
+
+/** Where a request's steward decision is kept. Raises never write it. */
+export const decisionKey = (key) => key.replace(/^request:/, 'request-decision:');
+const DECISION_FIELDS = ['status', 'decided', 'was_public', 'steward_note', 'fulfilled_by'];
+
+/** The steward-owned fields of a record. Pure. */
+export function decisionOf(r) {
+  return Object.fromEntries(DECISION_FIELDS.filter((f) => r?.[f] !== undefined).map((f) => [f, r[f]]));
+}
+
+/** A record with the stored decision laid over it: the decision's fields win, and a field it lacks is dropped. Pure. */
+export function withDecision(r, d) {
+  if (!r || !d || typeof d !== 'object' || typeof d.status !== 'string') return r;
+  const out = { ...r };
+  for (const f of DECISION_FIELDS) {
+    if (d[f] === undefined) delete out[f];
+    else out[f] = d[f];
+  }
+  return out;
+}
+
+/**
+ * A stored record as every reader should see it: normalized (against its own
+ * decision, for the legacy rule), deleted notes dropped, then the stored
+ * decision laid over it. Pure; null for a missing record.
+ */
+export function stewardView(stored, deleted, decision) {
+  if (!stored) return null;
+  return withDecision(normalizeRecord(dropDeleted(stored, deleted)), decision);
+}
+
+async function readRequest(kv, key) {
+  const [stored, deleted, decision] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key), kv.get(decisionKey(key), 'json')]);
+  return { cur: stewardView(stored, deleted, decision), deleted };
 }
 
 /**
@@ -107,10 +154,12 @@ export function trimNotes(needs) {
  */
 export function normalizeRecord(r) {
   const seen = new Set();
+  // The legacy notes the old public list showed: the last five public ones.
+  const shown = new Set((r.needs || []).filter((n) => typeof n.review !== 'string' && n.public === true).slice(-5));
   const needs = (r.needs || []).map((n) => {
     let out;
     if (typeof n.review === 'string') out = { id: String(n.id || ''), text: n.text, day: asDay(n.day ?? n.at), public: n.public === true, review: n.review === 'ok' ? 'ok' : 'pending' };
-    else out = { id: legacyNoteId(n), text: n.text, day: asDay(n.at ?? n.day), public: n.public === true, review: legacyReview(n, r) };
+    else out = { id: legacyNoteId(n), text: n.text, day: asDay(n.at ?? n.day), public: n.public === true, review: legacyReview(n, r, shown) };
     if (!out.id || seen.has(out.id)) {
       let i = 2;
       while (seen.has(`${out.id || 'n'}-${i}`)) i++;
@@ -133,8 +182,7 @@ export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.no
   if (used >= perDay) return { ok: false, status: 429, error: 'That is a lot of requests for one day. Thank you; try again tomorrow.' };
   await kv.put(rateKey, String(used + 1), { expirationTtl: 90000 });
   const key = await requestKey(source);
-  const [stored, deleted] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key)]);
-  const cur = normalizeRecord(dropDeleted(stored, deleted) || { source, url: '', count: 0, first: day, needs: [], status: 'new' });
+  const cur = (await readRequest(kv, key)).cur || normalizeRecord({ source, url: '', count: 0, first: day, needs: [], status: 'new' });
   const note = { id: `n${randomHex(4)}`, text: need, day, public: body?.public === true, review: 'pending' };
   const next = {
     ...cur,
@@ -185,42 +233,42 @@ async function listRequests(kv) {
     keys.push(...page.keys.map((k) => k.name));
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  const rows = await Promise.all(keys.map(async (k) => {
-    const [r, deleted] = await Promise.all([kv.get(k, 'json'), readDeleted(kv, k)]);
-    return [k, dropDeleted(r, deleted)];
-  }));
+  const rows = await Promise.all(keys.map(async (k) => [k, (await readRequest(kv, k)).cur]));
   return rows.filter(([, r]) => r);
 }
 
-const STATS_KEY = 'request-stats';
-
-// How many requests await review, as a count taken once a day (one KV write a
-// day): a live count would let anyone test whether someone else already asked
-// for a source, by raising it and watching the number.
-async function awaitingSnapshot(kv, rows, now) {
-  const day = dayOf(now);
-  const snap = await kv.get(STATS_KEY, 'json');
-  if (snap?.day === day && Number.isInteger(snap.awaiting_review)) return snap.awaiting_review;
-  const awaiting = rows.filter(([, r]) => (r.status || 'new') === 'new').length;
-  await kv.put(STATS_KEY, JSON.stringify({ day, awaiting_review: awaiting }));
-  return awaiting;
+/**
+ * How many requests await review, counting only those first received before
+ * `day`: a live count would let anyone test whether someone else already
+ * asked for a source, by raising it and watching the number. A raise today
+ * either adds to a request already counted or makes one first received today,
+ * so it can't move this number. No write, so the public read can't fail on
+ * KV's write limits. Pure.
+ */
+export function awaitingBefore(rows, day) {
+  return rows.filter(([, r]) => (r.status || 'new') === 'new' && String(asDay(r.first) || '') < day).length;
 }
 
 /**
  * The public list: accepted and fulfilled requests, most wanted first; how
- * many awaited review at the day's first look; and the requests that were
- * public and no longer are (id and the day of that decision only), so the
- * mirror can close them.
+ * many requests received before today await review (and that day); and the
+ * requests that were public and no longer are, withdrawn in the last
+ * WITHDRAWN_DAYS (id and the day of that decision only), so the mirror can
+ * close them. Reads only.
  */
 export async function publicRequests(kv, now = Date.now()) {
   const rows = await listRequests(kv);
+  const day = dayOf(now);
+  const since = dayOf(now - WITHDRAWN_DAYS * 86400000);
   const shown = rows.filter(([, r]) => PUBLIC.has(r.status || 'new')).map(([k, r]) => publicView(k, r));
   shown.sort((a, b) => (a.status === b.status ? b.count - a.count : a.status === 'accepted' ? -1 : 1));
   const withdrawn = rows
     .filter(([, r]) => r.was_public === true && !PUBLIC.has(r.status || 'new'))
     .map(([k, r]) => ({ id: publicId(k), day: asDay(r.decided) || null }))
+    // A withdrawal with no day (never expected) is kept rather than dropped.
+    .filter((w) => !w.day || w.day >= since)
     .sort((a, b) => (a.id < b.id ? -1 : 1));
-  return { requests: shown, awaiting_review: await awaitingSnapshot(kv, rows, now), withdrawn };
+  return { requests: shown, awaiting_review: awaitingBefore(rows, day), awaiting_review_before: day, withdrawn };
 }
 
 /** Steward decision. `extra` may carry steward_note (public) or fulfilled_by (a PR or commit URL). */
@@ -270,8 +318,9 @@ async function findRequest(kv, id) {
   const page = await kv.list({ prefix: `request:${id}` });
   if (page.keys.length !== 1) return { error: { ok: false, status: 404, error: 'No single request has that id.' } };
   const key = page.keys[0].name;
-  const [cur, deleted] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key)]);
-  return { key, cur: dropDeleted(cur, deleted), deleted };
+  const { cur, deleted } = await readRequest(kv, key);
+  if (!cur) return { error: { ok: false, status: 404, error: 'No single request has that id.' } };
+  return { key, cur, deleted };
 }
 
 /** Apply a steward decision by public id. Returns { ok, request } or { ok: false, status, error }. */
@@ -288,16 +337,26 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
   if (status === 'fulfilled' && !next.fulfilled_by) return { ok: false, status: 400, error: 'Give the link to the merged PR or commit.' };
   // A cleared note clears the public note.
   if (note === '') delete next.steward_note;
+  // The decision first: if the record write is lost to a stale raise, reads
+  // still see this decision.
+  await kv.put(decisionKey(key), JSON.stringify(decisionOf(next)));
   await kv.put(key, JSON.stringify(next));
   return { ok: true, request: publicView(key, next) };
 }
 
-/** Approve or delete one note by request id and note id. Returns { ok, request, needs } or { ok: false, status, error }. */
-export async function reviewNote(kv, { id, note, action }) {
+const NOTE_ID = /^[0-9a-z-]{1,24}$/;
+
+/**
+ * Approve or delete one note by request id and note id. `deleted` may list
+ * note ids this steward already deleted from the request, kept in the
+ * tombstone even if this read of it is stale. Returns { ok, request, needs }
+ * or { ok: false, status, error }.
+ */
+export async function reviewNote(kv, { id, note, action, deleted: sent }) {
   const found = await findRequest(kv, id);
   if (found.error) return found.error;
   const { key, cur, deleted } = found;
-  if (typeof note !== 'string' || !/^[0-9a-z-]{1,24}$/.test(note)) return { ok: false, status: 400, error: 'Give the note id.' };
+  if (typeof note !== 'string' || !NOTE_ID.test(note)) return { ok: false, status: 400, error: 'Give the note id.' };
   let next;
   try {
     next = withNoteReview(cur, note, action);
@@ -306,7 +365,10 @@ export async function reviewNote(kv, { id, note, action }) {
   }
   // The tombstone first: if the record write is lost to a stale raise, reads
   // still drop the note.
-  if (action === 'delete') await kv.put(deletedKey(key), JSON.stringify(withDeleted(deleted, note)));
+  if (action === 'delete') {
+    const known = Array.isArray(sent) ? sent.filter((x) => typeof x === 'string' && NOTE_ID.test(x)).slice(-KEEP_DELETED) : [];
+    await kv.put(deletedKey(key), JSON.stringify(withDeleted([...new Set([...deleted, ...known])], note)));
+  }
   await kv.put(key, JSON.stringify(next));
   return { ok: true, request: publicView(key, next), needs: adminView(key, next).needs };
 }

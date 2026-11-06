@@ -2,7 +2,8 @@
 // Mirror the public source-request list to GitHub issues, one per request,
 // labeled source-request. Run nightly by a Claude Code routine ("Siren:
 // sync source requests to issues"), which runs --plan and applies the plan
-// with its GitHub tools; or run it directly with a GITHUB_TOKEN.
+// with its GitHub tools; or run it directly with a GITHUB_TOKEN. The
+// routine's prompt is kept in docs/request-sync-routine.md.
 //
 // It reads only the public feed (steward-accepted requests, approved public
 // notes), so nothing reaches GitHub that isn't already on the public page.
@@ -31,16 +32,21 @@
 // unlisted issues alone.
 //
 //   REQUESTS_URL=https://jason-edelman.org/ask-siren/api/requests \
-//   GITHUB_REPOSITORY=owner/repo node scripts/sync-request-issues.js --plan
+//   GITHUB_REPOSITORY=owner/repo node scripts/sync-request-issues.js --plan [--with-withdrawn]
 //     prints the desired issues as JSON ([{id, marker, title, body, state,
-//     state_reason?, create_if_missing?, label}]), withdrawn ones included,
-//     needing no token. The caller matches existing issues by marker, and
-//     must honor two fields: an entry with create_if_missing: false is never
-//     created (it only updates an issue that exists), and a closed entry is
-//     closed with its state_reason (completed or not_planned), title
-//     included.
+//     state_reason?, create_if_missing?, label}]), needing no token. The
+//     caller matches existing issues by marker. Plain --plan keeps its first
+//     contract: every entry may be created when missing, and closed ones are
+//     fulfilled requests. Withdrawn entries appear only with
+//     --with-withdrawn, which only a caller that honors two more fields may
+//     pass: an entry with create_if_missing: false is never created (it only
+//     updates an issue that exists), and a closed entry is closed with its
+//     state_reason (completed or not_planned), including an issue already
+//     closed with another reason.
 //   ... GITHUB_TOKEN=... node scripts/sync-request-issues.js [--dry-run] [--close-unlisted]
-//     applies them itself through the GitHub API.
+//     applies them itself through the GitHub API. --dry-run prints the
+//     operations and writes nothing; with a token it lists the existing
+//     issues (a read) so it shows closes and refusals too.
 
 const LABEL = 'source-request';
 const marker = (id) => `<!-- source-request:${id} -->`;
@@ -152,7 +158,9 @@ export function operations({ existing, requests, withdrawn, pageUrl, repo, close
     const patch = {};
     if (issue.body !== want.body) patch.body = want.body;
     if (issue.title !== want.title) patch.title = want.title;
-    if (want.state === 'closed' && issue.state === 'open') Object.assign(patch, { state: 'closed', state_reason: want.state_reason || 'completed' });
+    const reason = want.state_reason || 'completed';
+    // An issue already closed with another reason (fulfilled, then withdrawn) is re-closed with this one.
+    if (want.state === 'closed' && (issue.state === 'open' || (issue.state_reason && issue.state_reason !== reason))) Object.assign(patch, { state: 'closed', state_reason: reason });
     if (want.state === 'open' && issue.state === 'closed') patch.state = 'open';
     if (Object.keys(patch).length) ops.push({ op: 'update', number: issue.number, patch });
   };
@@ -192,13 +200,16 @@ export async function main({ argv = process.argv.slice(2), env = process.env, fe
   const repo = env.GITHUB_REPOSITORY;
   const withdrawn = Array.isArray(feed.withdrawn) ? feed.withdrawn : undefined;
   if (argv.includes('--plan')) {
-    log(JSON.stringify(plan(feed.requests, pageUrl, repo, withdrawn || []), null, 2));
+    // Withdrawn entries only for a caller that says it honors create_if_missing and state_reason.
+    log(JSON.stringify(plan(feed.requests, pageUrl, repo, argv.includes('--with-withdrawn') ? withdrawn || [] : []), null, 2));
     return;
   }
   const gh = github(env, fetchImpl);
   const existing = [];
+  // A dry run lists issues when it has a token (a read), so it previews closes and refusals.
+  const list = !dry || Boolean(env.GITHUB_TOKEN);
   for (let page = 1; ; page++) {
-    const batch = dry ? [] : await gh(`/issues?labels=${LABEL}&state=all&per_page=100&page=${page}`);
+    const batch = list ? await gh(`/issues?labels=${LABEL}&state=all&per_page=100&page=${page}`) : [];
     existing.push(...batch);
     if (batch.length < 100) break;
   }

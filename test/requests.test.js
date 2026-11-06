@@ -24,20 +24,20 @@ function fakeKV() {
 
 test('nothing is public until the steward accepts it, and old notes stay private', async () => {
   const kv = fakeKV();
-  await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'An old note, sent before requests were public' }, kv, visitor: 'v1' });
-  await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'Are Ghent trees protected?', public: true }, kv, visitor: 'v2' });
-  await addRequest({ body: { source: 'ARB historic district guidelines', need: 'Front-yard trees?', public: true }, kv, visitor: 'v3' });
+  const sent = Date.parse('2026-11-05T12:00:00Z');
+  await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'An old note, sent before requests were public' }, kv, visitor: 'v1', now: sent });
+  await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'Are Ghent trees protected?', public: true }, kv, visitor: 'v2', now: sent });
+  await addRequest({ body: { source: 'ARB historic district guidelines', need: 'Front-yard trees?', public: true }, kv, visitor: 'v3', now: sent });
   let list = await publicRequests(kv, Date.parse('2026-11-06T12:00:00Z'));
   assert.deepEqual(list.requests, []);
   assert.equal(list.awaiting_review, 2);
+  assert.equal(list.awaiting_review_before, '2026-11-06');
 
   const key = await requestKey('Norfolk City Code, Chapter 45');
   await kv.put(key, JSON.stringify(withStatus(await kv.get(key, 'json'), 'accepted', { steward_note: 'Municode is behind a bot challenge; a copy we can re-check is needed.' })));
   list = await publicRequests(kv, Date.parse('2026-11-06T13:00:00Z'));
   assert.equal(list.requests.length, 1);
-  assert.equal(list.awaiting_review, 2, 'the awaiting count is a once-a-day snapshot');
-  list = await publicRequests(kv, Date.parse('2026-11-07T00:00:00Z'));
-  assert.equal(list.awaiting_review, 1);
+  assert.equal(list.awaiting_review, 1, 'a decision is counted at once; only raises are held back');
   let r = list.requests[0];
   assert.equal(r.id, publicId(key));
   assert.equal(r.count, 2);
@@ -207,7 +207,8 @@ test('legacy records: notes count as reviewed only when written no later than th
 
   // The steward sees every legacy note with a stable id and its review state.
   const before = (await allRequests(kv))[0].needs;
-  assert.deepEqual(before.map((n) => n.review), ['ok', 'ok', 'ok', 'pending']);
+  // The private note was never shown, so it isn't counted as reviewed (it needs no review either).
+  assert.deepEqual(before.map((n) => n.review), ['pending', 'ok', 'ok', 'pending']);
   assert.ok(before.every((n) => /^l[0-9a-f]{8}$/.test(n.id)));
   assert.equal(new Set(before.map((n) => n.id)).size, 4);
 
@@ -269,30 +270,34 @@ test('a request that was public and no longer is appears as withdrawn, with a da
   const b = rows.find((x) => x.source === 'Declined while new');
   await decide(kv, { id: a.id, status: 'accepted' }, at('2026-11-01T10:00:00Z'));
   await decide(kv, { id: b.id, status: 'declined', note: 'Not a public source.' }, at('2026-11-01T10:00:00Z'));
-  let feed = await publicRequests(kv);
+  const view = at('2026-11-06T00:00:00Z');
+  let feed = await publicRequests(kv, view);
   assert.deepEqual(feed.withdrawn, []);
   await decide(kv, { id: a.id, status: 'declined' }, at('2026-11-03T18:30:00Z'));
-  feed = await publicRequests(kv);
+  feed = await publicRequests(kv, view);
   assert.deepEqual(feed.requests, []);
   assert.deepEqual(feed.withdrawn, [{ id: a.id, day: '2026-11-03' }], 'never-public requests are not listed');
   assert.ok(!JSON.stringify(feed.withdrawn).includes('Accepted then declined'));
   // Reopened, it is public again and no longer withdrawn.
   await decide(kv, { id: a.id, status: 'accepted' }, at('2026-11-04T00:00:00Z'));
-  feed = await publicRequests(kv);
+  feed = await publicRequests(kv, view);
   assert.equal(feed.requests[0].id, a.id);
   assert.deepEqual(feed.withdrawn, []);
   // Set back to new, it is withdrawn too.
   await decide(kv, { id: a.id, status: 'new' }, at('2026-11-05T00:00:00Z'));
-  assert.deepEqual((await publicRequests(kv)).withdrawn, [{ id: a.id, day: '2026-11-05' }]);
+  assert.deepEqual((await publicRequests(kv, view)).withdrawn, [{ id: a.id, day: '2026-11-05' }]);
+  // Listed for WITHDRAWN_DAYS, then dropped from the feed.
+  assert.deepEqual((await publicRequests(kv, at('2026-12-05T00:00:00Z'))).withdrawn, [{ id: a.id, day: '2026-11-05' }]);
+  assert.deepEqual((await publicRequests(kv, at('2026-12-06T00:00:00Z'))).withdrawn, []);
 });
 
 test('legacy: a request accepted before was_public existed is withdrawn when declined', async () => {
   const kv = fakeKV();
   const key = await requestKey('Old accepted source');
   await kv.put(key, JSON.stringify({ source: 'Old accepted source', url: '', count: 1, first: '2026-10-01T00:00:00.000Z', last: '2026-10-01T00:00:00.000Z', status: 'accepted', decided: '2026-10-02T00:00:00.000Z', needs: [] }));
-  assert.deepEqual((await publicRequests(kv)).withdrawn, []);
+  assert.deepEqual((await publicRequests(kv, at('2026-11-06T00:00:00Z'))).withdrawn, []);
   assert.ok((await decide(kv, { id: publicId(key), status: 'declined' }, at('2026-11-06T00:00:00Z'))).ok);
-  assert.deepEqual((await publicRequests(kv)).withdrawn, [{ id: publicId(key), day: '2026-11-06' }]);
+  assert.deepEqual((await publicRequests(kv, at('2026-11-07T00:00:00Z'))).withdrawn, [{ id: publicId(key), day: '2026-11-06' }]);
 });
 
 test('the plan closes withdrawn issues with a fixed body and title', () => {
@@ -478,4 +483,111 @@ test('the steward page counts only public notes as needing review', async () => 
   const r = { needs: [{ public: false, review: 'pending' }, { public: true, review: 'pending' }, { public: true, review: 'ok' }] };
   assert.equal(pending(r).length, 1);
   assert.match(html, /delete the GitHub issue by hand/);
+});
+
+// --- Second review: no writes on the public read, decisions that stale raises
+// can't undo, the legacy five, steward deletes that add up, and the plan's
+// two contracts.
+
+import { decisionKey, awaitingBefore } from '../worker/requests.js';
+
+test('the public feed never writes to KV, so a KV out of writes still serves it', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Tree canopy layer', need: 'q', public: true }, kv, visitor: 'v', now: at('2026-11-05T10:00:00Z') });
+  const [r] = await allRequests(kv);
+  await decide(kv, { id: r.id, status: 'accepted' }, at('2026-11-05T11:00:00Z'));
+  await addRequest({ body: { source: 'Another source' }, kv, visitor: 'v', now: at('2026-11-05T12:00:00Z') });
+  let puts = 0;
+  const full = { ...kv, async put() { puts++; throw new Error('KV put failed: 429 Too Many Requests'); } };
+  const feed = await publicRequests(full, at('2026-11-06T09:00:00Z'));
+  assert.equal(feed.requests.length, 1);
+  assert.equal(feed.awaiting_review, 1);
+  assert.equal(puts, 0, 'no write at all');
+  assert.ok(![...kv.store.keys()].some((k) => k === 'request-stats'));
+});
+
+test('the awaiting count leaves out requests first received today', () => {
+  const rows = [
+    ['request:a', { status: 'new', first: '2026-11-05' }],
+    ['request:b', { status: 'new', first: '2026-11-06' }],
+    ['request:c', { status: 'accepted', first: '2026-11-01' }],
+    ['request:d', { status: 'new', first: '2026-10-01T10:00:00.000Z' }],
+  ];
+  assert.equal(awaitingBefore(rows, '2026-11-06'), 2);
+  assert.equal(awaitingBefore(rows, '2026-11-07'), 3);
+});
+
+test('a stale raise cannot undo a decline: the request stays withdrawn', async () => {
+  for (const staleDecision of [false, true]) {
+    const kv = fakeKV();
+    await addRequest({ body: { source: 'Records about 12 Elm St owner', need: 'q', public: true }, kv, visitor: 'v' });
+    const [r] = await allRequests(kv);
+    const key = await requestKey('Records about 12 Elm St owner');
+    await decide(kv, { id: r.id, status: 'accepted', note: 'ok' }, at('2026-11-05T10:00:00Z'));
+    await reviewNote(kv, { id: r.id, note: r.needs[0].id, action: 'approve' });
+    // A raise elsewhere read the record (and maybe the decision) before the decline landed.
+    const stale = staleKV(kv, staleDecision ? [key, decisionKey(key)] : [key]);
+    await decide(kv, { id: r.id, status: 'declined' }, at('2026-11-06T10:00:00Z'));
+    await addRequest({ body: { source: 'Records about 12 Elm St owner', need: 'later', public: true }, kv: stale, visitor: 'w' });
+    assert.equal(JSON.parse(kv.store.get(key)).status, staleDecision ? 'accepted' : 'declined', 'the record itself may carry the stale status');
+    const feed = await publicRequests(kv, at('2026-11-06T12:00:00Z'));
+    assert.deepEqual(feed.requests, [], `still off the list (stale decision read: ${staleDecision})`);
+    assert.deepEqual(feed.withdrawn, [{ id: r.id, day: '2026-11-06' }]);
+    const admin = (await allRequests(kv))[0];
+    assert.equal(admin.status, 'declined');
+    assert.equal(admin.steward_note, 'ok');
+    assert.deepEqual(raiseResponse(await addRequest({ body: { source: 'Records about 12 Elm St owner' }, kv, visitor: 'x' })), { ok: true }, 'no count for a declined request');
+  }
+});
+
+test('a cleared steward note stays cleared, even under an older record', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Budget PDF' }, kv, visitor: 'v' });
+  const [r] = await allRequests(kv);
+  const key = await requestKey('Budget PDF');
+  await decide(kv, { id: r.id, status: 'accepted', note: 'first note' });
+  const stale = staleKV(kv, [key]);
+  await decide(kv, { id: r.id, status: 'accepted', note: '' });
+  await addRequest({ body: { source: 'Budget PDF' }, kv: stale, visitor: 'w' });
+  assert.equal((await publicRequests(kv)).requests[0].steward_note, undefined);
+});
+
+test('legacy: only notes the old list showed (the last five public) count as reviewed', async () => {
+  const kv = fakeKV();
+  const key = await requestKey('Legacy eight');
+  const needs = Array.from({ length: 8 }, (_, i) => ({ text: `n${i + 1}`, at: `2026-10-0${i + 1}T00:00:00.000Z`, public: true }));
+  // Decided between n5 and n6: the old list showed n4..n8.
+  await kv.put(key, JSON.stringify({ source: 'Legacy eight', url: '', count: 8, first: '2026-10-01', last: '2026-10-08', status: 'accepted', decided: '2026-10-05T12:00:00.000Z', needs }));
+  const feed = await publicRequests(kv);
+  assert.deepEqual(feed.requests[0].notes, ['n4', 'n5'], 'n1 to n3 were never published, and n6 to n8 came after the decision');
+  assert.deepEqual((await allRequests(kv))[0].needs.map((n) => n.review), ['pending', 'pending', 'pending', 'ok', 'ok', 'pending', 'pending', 'pending']);
+});
+
+test('steward deletes add up even when the tombstone read is stale', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Permit notes', need: 'names Jane Doe', public: true }, kv, visitor: 'v' });
+  await addRequest({ body: { source: 'Permit notes', need: 'second note', public: true }, kv, visitor: 'w' });
+  const [r] = await allRequests(kv);
+  const key = await requestKey('Permit notes');
+  await decide(kv, { id: r.id, status: 'accepted' });
+  for (const n of r.needs) await reviewNote(kv, { id: r.id, note: n.id, action: 'approve' });
+  const stale = staleKV(kv, [key, deletedKey(key)]);
+  assert.ok((await reviewNote(kv, { id: r.id, note: r.needs[0].id, action: 'delete' })).ok);
+  // The second delete reads both keys stale, but sends what this page already deleted.
+  assert.ok((await reviewNote(stale, { id: r.id, note: r.needs[1].id, action: 'delete', deleted: [r.needs[0].id, 'BAD ID!', 7] })).ok);
+  assert.deepEqual((await publicRequests(kv)).requests[0].notes, []);
+  assert.deepEqual(JSON.parse(kv.store.get(deletedKey(key))).sort(), [r.needs[0].id, r.needs[1].id].sort(), 'only valid note ids are kept');
+});
+
+test('a closed issue is re-closed when the reason changes (fulfilled, then withdrawn)', () => {
+  const withdrawn = [{ id: 'aaaaaaaaaaaa', day: '2026-11-06' }];
+  const issue = { number: 1, state: 'closed', state_reason: 'completed', title: 'Source request (withdrawn)', body: withdrawnBody('aaaaaaaaaaaa', '2026-11-06') };
+  const ops = operations({ existing: [issue], requests: [], withdrawn, pageUrl: 'u', repo: 'o/r' });
+  assert.deepEqual(ops, [{ op: 'update', number: 1, patch: { state: 'closed', state_reason: 'not_planned' } }]);
+  assert.deepEqual(operations({ existing: [{ ...issue, state_reason: 'not_planned' }], requests: [], withdrawn, pageUrl: 'u', repo: 'o/r' }), [], 'then nothing');
+  // And a fulfilled request whose issue was closed as not planned.
+  const done = { id: 'bbbbbbbbbbbb', source: 'Done', count: 1, status: 'fulfilled', notes: [] };
+  const [want] = plan([done], 'u', 'o/r');
+  const ops2 = operations({ existing: [{ number: 2, state: 'closed', state_reason: 'not_planned', title: want.title, body: want.body }], requests: [done], withdrawn: [], pageUrl: 'u', repo: 'o/r' });
+  assert.deepEqual(ops2, [{ op: 'update', number: 2, patch: { state: 'closed', state_reason: 'completed' } }]);
 });

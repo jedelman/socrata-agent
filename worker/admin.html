@@ -67,6 +67,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const link = (u) => (/^https:\/\//i.test(String(u || '')) ? esc(u) : '#');
 let all = [];
 let filter = 'new';
+// Notes deleted from this page, by request id, sent with each delete so a
+// stale read of the stored list can't bring an earlier one back.
+const deletedHere = {};
 
 // Only public notes need a decision: a private note is never shown, approved or not.
 const pending = (r) => r.needs.filter((n) => n.public && n.review !== 'ok');
@@ -134,9 +137,10 @@ $('#list').addEventListener('click', async (e) => {
   if (b.dataset.action === 'delete' && !confirm('Delete this note for good?')) return;
   msg.textContent = 'Saving…';
   try {
-    const res = await fetch('api/admin/requests/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: li.dataset.id, note: b.dataset.note, action: b.dataset.action }) });
+    const res = await fetch('api/admin/requests/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: li.dataset.id, note: b.dataset.note, action: b.dataset.action, deleted: deletedHere[li.dataset.id] || [] }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { msg.textContent = data.error || 'That did not save.'; return; }
+    if (b.dataset.action === 'delete') (deletedHere[li.dataset.id] ||= []).push(b.dataset.note);
     const r = all.find((x) => x.id === li.dataset.id);
     r.needs = data.needs;
     render();
