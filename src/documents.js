@@ -115,6 +115,158 @@ export function pageAt(section, offset) {
   return page;
 }
 
+// Budget books: the "Department Budgets" part of Norfolk's adopted budget
+// document (FY 2024 on). Each page carries the department in its footer, with
+// the printed page number ("City Auditor - 127", "128 - City Auditor"; FY 2024
+// drops the dash), and its name again as the first line. Divider pages name a
+// service area ("Legislative", "Public Safety"). Inside a department the same
+// subheadings recur; FY 2024 also splits departments into programs
+// ("Program:  Office of Fire-Rescue Chief", repeated atop each page).
+const FOOTER = /^(?:(\d{1,4})\s+(?:-\s+)?([A-Za-z].*?)|([A-Za-z].*?)\s+(?:-\s+)?(\d{1,4}))$/;
+const PROGRAM = /^Program:\s+(\S.*?)\s*$/;
+// Subheadings that are a whole line by themselves.
+const BUDGET_HEADINGS = [
+  /^Mission( Statement)?:?$/,
+  /^(Department )?Overview$/,
+  /^Trends, Issues, and Initiatives$/,
+  /^Top Initiatives for Fiscal Year:?$/,
+  /^Adopted FY \d{4} Budget Actions$/,
+  /^Department Programs:$/,
+  /^Performance Measures:?$/,
+  /^Special Project Positions:$/,
+  /^Cost Recovery Summary:?$/,
+  /^Adjustments to Baseline Service Level Cost:$/,
+  /^Adopted Service Level Changes:$/,
+  /^Requested but Not Funded Service Level Changes:$/,
+];
+// Subheadings that open a table and may carry its column labels on the same line.
+const BUDGET_TABLES = [
+  /^Expenditure Summary:?$/,
+  /^(Department|Program) Budget Summary$/,
+  /^Funding Source Summary$/,
+  /^FTE Summary by Program$/,
+  /^(Permanent |Temporary )?Full Time Equivalent \(FTE\) Summary:?$/,
+];
+const YEARS_ROW = /^\s*(FY \d{4}\s*)+$/;
+const nameKey = (s) => String(s || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+
+/**
+ * One page of a budget book: its printed label and department (from the
+ * footer), and its kind: `blank`, `divider` (a service-area title page, with
+ * `area`), or `body`, whose `lines` have the footer and the department's
+ * running header taken off.
+ */
+export function budgetPage(raw) {
+  const lines = raw.split('\n');
+  const nb = nonblank(lines);
+  if (!nb.length) return { kind: 'blank' };
+  let label = null;
+  let department = null;
+  let end = lines.length;
+  const foot = FOOTER.exec(nb.at(-1)[0].trim());
+  if (foot) {
+    label = foot[1] || foot[4];
+    department = (foot[2] || foot[3]).replace(/\s+/g, ' ').trim();
+    end = nb.at(-1)[1];
+  }
+  const rest = nonblank(lines.slice(0, end));
+  const text = rest.map(([l]) => l.trim()).join(' ').replace(/\s+/g, ' ');
+  if (!rest.length || /^This page intentionally left blank$/i.test(text)) return { kind: 'blank', label, department };
+  if (rest.length <= 2 && text.length <= 60 && !/\d/.test(text) && (!department || nameKey(text) === nameKey(department))) {
+    return { kind: 'divider', label, department, area: text };
+  }
+  let start = 0;
+  const [first, at] = rest[0];
+  if (department && nameKey(first) === nameKey(department)) start = at + 1;
+  return { kind: 'body', label, department, lines: lines.slice(start, end) };
+}
+
+/** The printed page label of each PDF page (index 0 is PDF page 1), or null. */
+export const budgetPageLabels = (rawPages) => rawPages.map((p) => budgetPage(p).label || null);
+
+function budgetHeading(line, { firstOnPage }) {
+  if (!line || /^\s/.test(line)) return null;
+  const whole = line.trim().replace(/\s+/g, ' ');
+  if (BUDGET_HEADINGS.some((re) => re.test(whole))) return { title: whole.replace(/:$/, ''), keep: false };
+  const head = line.trim().split(/\s{2,}/)[0];
+  if (BUDGET_TABLES.some((re) => re.test(head))) return { title: head.replace(/:$/, ''), keep: head !== line.trim() };
+  // A table page's own title in capitals ("CENTRAL APPROPRIATIONS").
+  if (firstOnPage && upperRatio(whole) === 1 && whole.replace(/[^A-Z]/g, '').length >= 6 && !/\d/.test(whole)) return { title: whole, keep: false, caps: true };
+  return null;
+}
+
+function splitBudget(rawPages) {
+  const sections = [];
+  let area = null;
+  let dept = null; // { section, n, program }
+  let cur = null;
+  const open = (s) => {
+    cur = { ...s, lines: [] };
+    sections.push(cur);
+    return cur;
+  };
+  rawPages.forEach((raw, p) => {
+    const page = budgetPage(raw);
+    if (page.kind === 'divider') area = page.area;
+    if (page.kind !== 'body') return;
+    const name = page.department || dept?.section.department || 'Department Budgets';
+    if (!dept || nameKey(name) !== nameKey(dept.section.department)) {
+      const number = String(sections.filter((s) => !s.number.includes('.')).length + 1);
+      dept = { n: 0, program: null, section: open({ number, title: name, department: name, ...(area ? { area } : {}), pages: [p + 1, p + 1] }) };
+    }
+    let firstOnPage = true;
+    for (const line of page.lines) {
+      if (!line.trim()) {
+        cur.lines.push({ line, page: p + 1 });
+        continue;
+      }
+      const prog = PROGRAM.exec(line.trim());
+      const heading = !prog && budgetHeading(line, { firstOnPage });
+      firstOnPage = false;
+      if (prog) {
+        if (dept.program && nameKey(prog[1]) === nameKey(dept.program.name)) continue; // repeated atop the page
+        const number = `${dept.section.number}.${++dept.n}`;
+        dept.program = { name: prog[1].replace(/\s+/g, ' '), number, n: 0 };
+        open({ number, title: `Program: ${dept.program.name}`, department: dept.section.department, ...(area ? { area } : {}), program: dept.program.name, pages: [p + 1, p + 1] });
+        continue;
+      }
+      if (heading) {
+        if (heading.caps && cur.title === heading.title) continue; // the same table page title, repeated
+        const parent = dept.program || dept;
+        const number = `${parent.number || dept.section.number}.${++parent.n}`;
+        // A table's year row sits just above its heading ("FY 2024  FY 2025 ..."): bring it along.
+        const carried = [];
+        while (cur.lines.length && !cur.lines.at(-1).line.trim()) cur.lines.pop();
+        if (heading.keep && cur.lines.length && YEARS_ROW.test(cur.lines.at(-1).line)) carried.push(cur.lines.pop());
+        open({
+          number,
+          title: heading.title,
+          department: dept.section.department,
+          ...(area ? { area } : {}),
+          ...(dept.program ? { program: dept.program.name } : {}),
+          pages: [carried[0]?.page || p + 1, p + 1],
+        });
+        cur.lines.push(...carried);
+        if (heading.keep) cur.lines.push({ line, page: p + 1 });
+        continue;
+      }
+      cur.lines.push({ line, page: p + 1 });
+      cur.pages[1] = p + 1;
+    }
+  });
+  // A section's last page is the last page it has text on; a department's
+  // spans all of its subsections.
+  for (const s of sections) {
+    const last = s.lines.filter((l) => l.line.trim()).at(-1);
+    s.pages[1] = last ? last.page : s.pages[0];
+  }
+  for (const s of sections) {
+    const subs = sections.filter((x) => x.number.startsWith(`${s.number}.`));
+    if (subs.length) s.pages[1] = Math.max(s.pages[1], ...subs.map((x) => x.pages[1]));
+  }
+  return sections;
+}
+
 /**
  * Split a document into sections. `decimal` (the Norfolk Zoning Ordinance):
  * a section starts at a line whose number is in the table of contents and
@@ -122,16 +274,21 @@ export function pageAt(section, offset) {
  * from the table of contents, which the PDF spells cleanly. Text before the
  * first section (cover, contents) is left out, and so are the contents pages
  * inside the body. `pages`: one chunk per page, for any document.
+ * `budget`: a budget book's Department Budgets, one section per department
+ * (numbered "1", "2", ... in book order), with its subheadings and, in
+ * FY 2024, its programs below it ("7.2", "7.2.1"); each carries its
+ * department, service area and program.
  * Pages are numbered from 1, as a PDF viewer counts them (#page=N).
  */
 export function splitSections(rawPages, { preset = 'decimal' } = {}) {
+  if (preset === 'budget') return splitBudget(rawPages).map(finish);
   const pages = stripRunning(rawPages);
   if (preset === 'pages') {
     return pages
       .map((t, i) => ({ number: String(i + 1), title: `Page ${i + 1}`, pages: [i + 1, i + 1], text: tidy(t.split('\n').map((line) => ({ line, page: i + 1 }))).text }))
       .filter((s) => s.text);
   }
-  if (preset !== 'decimal') throw new Error(`Unknown section preset "${preset}". Known: decimal, pages.`);
+  if (preset !== 'decimal') throw new Error(`Unknown section preset "${preset}". Known: decimal, pages, budget.`);
   const toc = tableOfContents(rawPages);
   if (!toc.size) throw new Error('No table of contents found; use --sections pages.');
   const sections = [];
@@ -159,11 +316,14 @@ export function splitSections(rawPages, { preset = 'decimal' } = {}) {
       }
     }
   });
-  return sections.map(({ lines, ...s }) => {
-    const { text, breaks } = tidy(lines);
-    // The first page is already in `pages`; keep only the later page starts.
-    return { ...s, text, breaks: breaks.filter(([, p]) => p !== s.pages[0]) };
-  });
+  return sections.map(finish);
+}
+
+// A section's lines as text, with the pages it crosses. The first page is
+// already in `pages`; `breaks` keeps only the later page starts.
+function finish({ lines, ...s }) {
+  const { text, breaks } = tidy(lines);
+  return { ...s, text, breaks: breaks.filter(([, p]) => p !== s.pages[0]) };
 }
 
 const STOP = new Set('a an and are as at be by for from has have in is it its of on or shall that the this to was what when where which who with any all may must not no'.split(' '));
@@ -267,6 +427,9 @@ export function searchSections(doc, query, { limit = 5 } = {}) {
       return {
         number: p.section.number,
         title: p.section.title,
+        // Budget books say whose section it is.
+        ...(p.section.department ? { department: p.section.department } : {}),
+        ...(p.section.program ? { program: p.section.program } : {}),
         page: pageAt(p.section, p.start + Math.max(0, at)),
         pages: p.section.pages,
         excerpt: excerpt(p.text, at),
@@ -295,6 +458,23 @@ export function readSection(doc, number, { offset = 0, max = 12000 } = {}) {
     text,
     ...(more ? { continues: true, next_offset: start + max } : {}),
   };
+}
+
+/**
+ * A budget book's department by name, forgiving case, punctuation and "&":
+ * { match } with its section, or { candidates } (the departments whose names
+ * contain the words given, or every department when none do).
+ */
+export function findDepartment(doc, name) {
+  const depts = doc.sections.filter((s) => s.department && !s.number.includes('.'));
+  // Word forms count as the same ("Library" finds "Libraries").
+  const key = (x) => terms(String(x).replace(/&/g, ' and ')).join('').replace(/[^a-z0-9]/g, '');
+  const want = key(name);
+  const exact = want && depts.find((s) => key(s.department) === want);
+  if (exact) return { match: exact };
+  const near = want ? depts.filter((s) => key(s.department).includes(want) || want.includes(key(s.department))) : [];
+  if (near.length === 1) return { match: near[0] };
+  return { candidates: (near.length ? near : depts).map((s) => s.department) };
 }
 
 /** The page link a reader can open: the official PDF at that page. */

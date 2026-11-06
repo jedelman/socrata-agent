@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Turn an ordinance PDF into a document Siren can search and quote:
+// Turn an ordinance or budget-book PDF into a document Siren can search and quote:
 // data/documents/<id>.json, with the sections, the tags that say what the
 // text is and how current, and the DASL CID of the exact PDF bytes read.
 //
@@ -17,9 +17,16 @@
 //     --current-through "Supplement No. ..., from the PDF's cover" --supplied-by "Your Name" \
 //     --sections pages --out data/documents/private/norfolk-city-code.json
 //
+//   # a budget book: the Department Budgets part of an adopted budget
+//   node scripts/ingest-document.js --fetch https://www.norfolk.gov/DocumentCenter/View/114013/09-Department-Budgets \
+//     --kind budget-book --id norfolk-budget-fy2027-departments --title "Department Budgets" \
+//     --fiscal-year 2027 --status adopted --book "Adopted FY 2027 Budget Document" --part "09 Department Budgets" \
+//     --listed-on https://www.norfolk.gov/6732/2027-Budget-Document --identified-by "<how you confirmed what it is>"
+//
 // Needs pdftotext (poppler): `brew install poppler` or `apt install poppler-utils`.
-// --sections decimal (numbered "5.6.1." sections with a table of contents) or
-// pages (one chunk per page, for any PDF). data/documents/private/ is not
+// --sections decimal (numbered "5.6.1." sections with a table of contents),
+// budget (a budget book's Department Budgets, by department and subheading;
+// the default with --kind budget-book) or pages (one chunk per page, for any PDF). data/documents/private/ is not
 // committed: put anything there that shouldn't be public yet.
 
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -27,27 +34,45 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { rawCid } from './verify-cases.js';
-import { splitSections } from '../src/documents.js';
+import { splitSections, budgetPageLabels } from '../src/documents.js';
 import { USER_AGENT } from '../src/plugins.js';
 
 const REQUIRED = ['id', 'title', 'enacted', 'current-through', 'url'];
+// A budget book is a plan, not law: it says which budget it is (fiscal year,
+// adopted or proposed, which part of the book) instead of who enacted it.
+const REQUIRED_BUDGET = ['id', 'title', 'fiscal-year', 'status', 'book', 'part', 'identified-by', 'url'];
 
 /** The document JSON, from the PDF's bytes, pdftotext's output, and the tags. Pure, for tests. */
 export function buildDocument({ bytes, text, tags, extractor, retrieved, retrievedBy }) {
-  for (const k of REQUIRED) if (!tags[k]) throw new Error(`--${k} is required`);
+  const budget = tags.kind === 'budget-book';
+  if (tags.kind && !budget) throw new Error(`Unknown --kind "${tags.kind}". Known: budget-book (leave it out for an ordinance).`);
+  for (const k of budget ? REQUIRED_BUDGET : REQUIRED) if (!tags[k]) throw new Error(`--${k} is required`);
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(tags.id)) throw new Error('--id must be lowercase words joined by hyphens');
+  if (budget && !/^20\d\d$/.test(String(tags['fiscal-year']))) throw new Error('--fiscal-year must be a year, such as 2027');
+  if (budget && !['adopted', 'proposed'].includes(tags.status)) throw new Error('--status must be adopted or proposed');
+  const preset = tags.sections || (budget ? 'budget' : 'decimal');
   const pages = text.split('\f');
   if (pages.at(-1).trim() === '') pages.pop();
-  const sections = splitSections(pages, { preset: tags.sections || 'decimal' });
+  const sections = splitSections(pages, { preset });
   if (!sections.length) throw new Error('No sections found; try --sections pages.');
   const chars = sections.reduce((n, s) => n + s.text.length, 0);
   if (chars < 1000) throw new Error(`Only ${chars} characters of text: is this a scanned PDF with no text layer? It needs OCR first (ocrmypdf).`);
+  const what = budget
+    ? {
+        kind: 'budget-book',
+        fiscal_year: Number(tags['fiscal-year']),
+        status: tags.status,
+        book: tags.book,
+        part: tags.part,
+        identified_by: tags['identified-by'],
+        ...(tags['listed-on'] ? { listed_on: tags['listed-on'] } : {}),
+      }
+    : { enacted: tags.enacted, current_through: tags['current-through'] };
   return {
     id: tags.id,
     title: tags.title,
     jurisdiction: tags.jurisdiction || 'ocd-division/country:us/state:va/place:norfolk',
-    enacted: tags.enacted,
-    current_through: tags['current-through'],
+    ...what,
     source: {
       url: tags.url,
       retrieved,
@@ -56,8 +81,11 @@ export function buildDocument({ bytes, text, tags, extractor, retrieved, retriev
       bytes: bytes.length,
       pages: pages.length,
     },
-    extracted: { tool: extractor, sections: tags.sections || 'decimal' },
-    note: 'Text extracted from the PDF at source.url. The PDF is the authority: check a quote against it, at the page given, before relying on it. Amendments after current_through are not in this text.',
+    extracted: { tool: extractor, sections: preset },
+    note: budget
+      ? 'Text extracted from the PDF at source.url. The PDF is the authority: check a quote or a figure against it, at the page given, before relying on it. Extraction can misalign table columns. This is the budget as the City published it, not a record of spending.'
+      : 'Text extracted from the PDF at source.url. The PDF is the authority: check a quote against it, at the page given, before relying on it. Amendments after current_through are not in this text.',
+    ...(preset === 'budget' ? { page_labels: budgetPageLabels(pages) } : {}),
     sections,
   };
 }
