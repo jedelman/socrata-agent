@@ -28,13 +28,17 @@
 // budget (a budget book's Department Budgets, by department and subheading;
 // the default with --kind budget-book) or pages (one chunk per page, for any PDF). data/documents/private/ is not
 // committed: put anything there that shouldn't be public yet.
+//
+// Each document carries its search index (search_index), so a request only
+// scores. After a change to how search tokenizes or cuts passages, rebuild
+// the indexes without the PDFs: node scripts/ingest-document.js --reindex data/documents/*.json
 
 import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { rawCid } from './verify-cases.js';
-import { splitSections, budgetPageLabels } from '../src/documents.js';
+import { splitSections, budgetPageLabels, buildSearchIndex } from '../src/documents.js';
 import { USER_AGENT } from '../src/plugins.js';
 
 const REQUIRED = ['id', 'title', 'enacted', 'current-through', 'url'];
@@ -83,12 +87,21 @@ export function buildDocument({ bytes, text, tags, extractor, retrieved, retriev
     },
     extracted: { tool: extractor, sections: preset },
     note: budget
-      ? 'Text extracted from the PDF at source.url. The PDF is the authority: check a quote or a figure against it, at the page given, before relying on it. Extraction can misalign table columns. This is the budget as the City published it, not a record of spending.'
+      ? 'Text extracted from the PDF at source.url. The PDF is the authority: check a quote or a figure against it, at the page given, before relying on it. In a table of figures by year, a cell the PDF leaves blank is shown as \u2014. Columns headed Adopted are the City\'s plan, not spending; columns headed Actual are prior-year figures as the City printed them in this book.'
       : 'Text extracted from the PDF at source.url. The PDF is the authority: check a quote against it, at the page given, before relying on it. Amendments after current_through are not in this text.',
     ...(preset === 'budget' ? { page_labels: budgetPageLabels(pages) } : {}),
     sections,
+    search_index: buildSearchIndex(sections),
   };
 }
+
+/** A document with its search index rebuilt from its sections; nothing else changes. */
+export const reindexDocument = (doc) => ({ ...doc, search_index: buildSearchIndex(doc.sections) });
+
+const write = (out, doc) => {
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, `${JSON.stringify(doc, null, 1)}\n`);
+};
 
 function args(argv) {
   const out = { _: [] };
@@ -101,6 +114,15 @@ function args(argv) {
 
 async function main() {
   const a = args(process.argv.slice(2));
+  if (a.reindex) {
+    // A document already ingested: rebuild only its search index (after a
+    // change to how search tokenizes or cuts passages).
+    for (const file of [a.reindex, ...a._]) {
+      write(file, reindexDocument(JSON.parse(readFileSync(file, 'utf8'))));
+      console.log(`${file}: search index rebuilt`);
+    }
+    return;
+  }
   let bytes;
   if (a.fetch) {
     const res = await fetch(a.fetch, { headers: { 'user-agent': USER_AGENT } });
@@ -130,8 +152,7 @@ async function main() {
       retrievedBy: a['supplied-by'] || (a.fetch ? 'fetched from the official URL' : 'unnamed'),
     });
     const out = a.out || `data/documents/${doc.id}.json`;
-    mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, `${JSON.stringify(doc, null, 1)}\n`);
+    write(out, doc);
     const kb = Math.round(readFileSync(out).length / 1024);
     console.log(`${out}: ${doc.sections.length} sections, ${doc.source.pages} pages, ${kb} KB`);
     console.log(`PDF ${doc.source.bytes} bytes, CID ${doc.source.cid}`);

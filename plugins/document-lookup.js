@@ -11,8 +11,8 @@ import { searchSections, readSection, pageLink } from '../src/documents.js';
  * Cites the read whether or not the section exists; returns null if it doesn't.
  * `record(s)` names the hand-off entry for a section that was found.
  */
-export async function readCited(ctx, doc, number, { offset, max, tool, note, record }) {
-  const s = readSection(doc, number, { offset, ...(max ? { max } : {}) });
+export async function readCited(ctx, doc, number, { offset, max, marker, tool, note, record }) {
+  const s = readSection(doc, number, { offset, ...(max ? { max } : {}), ...(marker ? { marker } : {}) });
   await ctx.cite({ tool, url: doc.source.url, rows: s ? 1 : 0, note });
   if (!s) return null;
   const link = pageLink(doc, s.pages[0]);
@@ -20,9 +20,13 @@ export async function readCited(ctx, doc, number, { offset, max, tool, note, rec
   return { ...s, link };
 }
 
-/** Ranked passages for a query, each with its page link. Cites the search. */
-export async function searchCited(ctx, doc, query, { limit = 5, tool, note }) {
-  const results = searchSections(doc, query, { limit }).map((r) => ({ ...r, link: pageLink(doc, r.page) }));
+/**
+ * Ranked passages for a query, each with its page link. Cites the search,
+ * with the rows it returned. `filter(section)` narrows the search itself
+ * (before ranking and the limit), so the rows cited are the rows found.
+ */
+export async function searchCited(ctx, doc, query, { limit = 5, filter, tool, note }) {
+  const results = searchSections(doc, query, { limit, ...(filter ? { filter } : {}) }).map((r) => ({ ...r, link: pageLink(doc, r.page) }));
   await ctx.cite({ tool, url: doc.source.url, rows: results.length, note });
   return results;
 }

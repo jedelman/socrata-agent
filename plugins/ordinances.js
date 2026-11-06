@@ -40,7 +40,7 @@ export default definePlugin({
     additionalProperties: false,
   },
   async run(ctx, { document, query, section, offset }) {
-    const doc = DOCUMENTS[document];
+    const doc = Object.hasOwn(DOCUMENTS, String(document)) ? DOCUMENTS[document] : null;
     if (!doc) return { error: `No document "${document}". Known: ${Object.keys(DOCUMENTS).join(', ')}.` };
     if (section) {
       const s = await readCited(ctx, doc, section, {

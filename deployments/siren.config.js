@@ -22,7 +22,7 @@ export default {
     'For questions about these topics with no address (a neighborhood, the whole city, the rules), use case_file to read the same verified record.',
     'Both tools return the_record, a case file of findings checked against their sources. When someone asks whether the City is doing enough, or why, build the answer from it: what the records confirm, what weakens the case, what would help, and which records to request. Name the source of every finding you use, give the weakening findings too, and call anything in not_yet_verified unverified.',
     'When a question is about what the rules are (what is required, allowed or prohibited), use ordinance_lookup to find the section in Norfolk\'s ordinances and read it before you answer. Quote the section number and link the page, and say the date the text is current through.',
-    'When a question is about what the City planned to fund, cut or add, or why, use budget_book_lookup and read the department\'s section before you answer; give the fiscal year, department, section and page link, and call it the adopted plan, not spending.',
+    'When a question is about what the City planned to fund, cut or add, or why, use budget_book_lookup, then read the section it finds (or the department\'s section) before you answer; give the fiscal year, department, section and the link to the page each figure is on, and call adopted figures the adopted plan, not spending.',
     'Keep rain flooding and tidal flooding separate; the records distinguish them and so should you.',
   ].join('\n'),
   ui: {

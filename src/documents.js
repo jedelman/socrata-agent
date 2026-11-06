@@ -1,12 +1,18 @@
-// Documents: a city's ordinances (zoning, City Code), read from the PDF the
-// city publishes and split into numbered sections, so Siren can find and
-// quote the rule itself. Pure functions; they run unchanged in Node and in
-// Workers. scripts/ingest-document.js builds data/documents/*.json from a PDF
-// with these, and plugins/ordinances.js serves them.
+// Documents: a city's ordinances (zoning, City Code) and its adopted budget
+// books, read from the PDFs the city publishes and split into sections, so
+// Siren can find and quote the rule or the plan itself. Ordinances split into
+// numbered sections (the `decimal` preset); a budget book's Department
+// Budgets split by department and the subheadings each repeats (the `budget`
+// preset, with findDepartment to look a department up by name). Pure
+// functions; they run unchanged in Node and in Workers.
+// scripts/ingest-document.js builds data/documents/*.json from a PDF with
+// these, search index included (buildSearchIndex), and plugins/ordinances.js
+// and plugins/budget-books.js serve them through plugins/document-lookup.js.
 //
 // A document records where its bytes came from (official URL, when, by whom,
-// their DASL CID) and how current the text is ("current through"), so every
-// answer can say which version of the law it read.
+// their DASL CID) and which version it is ("current through" for a law; fiscal
+// year and adopted or proposed for a budget), so every answer can say which
+// version it read.
 
 const LEADERS = /\.{4,}/;
 // A numbered line: "5.6 TREE PRESERVATION" or "      5.6.1.   PURPOSE STATEMENT".
@@ -195,6 +201,74 @@ function budgetHeading(line, { firstOnPage }) {
   return null;
 }
 
+// A table cell: a figure ("1,234", "(25,000)", "0.0", "12%", "$5"), or a
+// word a table prints in a cell.
+const CELL = /^(?:\(?-?\$?\d[\d,]*(?:\.\d+)?%?\)?|N\/A|Yes|No|TBD|-|—)$/;
+const BLANK_CELL = '—';
+// Tables of figures by year, where a blank cell moves a figure into the wrong
+// year. (Position tables are left alone: their Total row has no pay grade or
+// salary range, which reads plainly.)
+const FIGURE_TABLES = /^(Expenditure Summary|(Department|Program) Budget Summary|Funding Source Summary|FTE Summary by Program|Performance Measures|Cost Recovery Summary)$/;
+const UNALIGNED = '[a cell is blank here; which column each figure is in is unclear, see the page]';
+
+// The cells at the end of a table row, with where each ends on the line, and
+// where the row's label ends. A cell is set off from the label by at least two
+// spaces ("Pension Principal & Interest2      7,829,389"); a figure one space
+// after a word is part of the label ("FY 2025").
+function rowCells(line) {
+  if (/\bFY \d{4}\b/.test(line)) return null; // a heading row
+  const tokens = [...line.matchAll(/\S+/g)].map((m) => ({ text: m[0], start: m.index, end: m.index + m[0].length }));
+  let i = tokens.length;
+  while (i > 0 && CELL.test(tokens[i - 1].text)) i--;
+  while (i > 0 && i < tokens.length && tokens[i].start - tokens[i - 1].end < 2) i++;
+  const cells = tokens.slice(i);
+  // A row has a label; a figure alone on a line is a footnote mark.
+  if (!cells.length || i === 0) return null;
+  return { cells, labelEnd: tokens[i - 1].end };
+}
+
+/**
+ * Table rows with a blank cell, made explicit. pdftotext -layout keeps a
+ * table's columns as spacing, which the text loses when it narrows wide gaps;
+ * a row with an empty cell would then read as if its figures belonged to the
+ * columns on the left. Within a block of rows (one page, no blank line or
+ * year row between), the columns are where the full rows' cells end; a row
+ * with fewer cells gets "—" in each column it leaves empty. A row that can't
+ * be lined up is marked instead, so it is never read as complete.
+ */
+export function alignCells(entries) {
+  const out = entries.slice();
+  let block = [];
+  const flush = () => {
+    const rows = block.map((i) => ({ i, ...rowCells(out[i].line) })).filter((r) => r.cells);
+    block = [];
+    const K = Math.max(0, ...rows.map((r) => r.cells.length));
+    const full = rows.filter((r) => r.cells.length === K);
+    if (K < 2 || !full.length) return;
+    const median = (xs) => xs.slice().sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+    const cols = Array.from({ length: K }, (_, c) => median(full.map((r) => r.cells[c].end)));
+    const gap = Math.min(...cols.slice(1).map((x, c) => x - cols[c]));
+    for (const r of rows) {
+      if (r.cells.length === K) continue;
+      const line = out[r.i].line;
+      const at = r.cells.map((cell) => {
+        const dist = cols.map((x) => Math.abs(x - cell.end));
+        const c = dist.indexOf(Math.min(...dist));
+        return dist[c] < gap / 2 ? c : -1;
+      });
+      const ok = gap > 0 && at.every((c, j) => c >= 0 && (j === 0 || c > at[j - 1]));
+      const cells = ok ? cols.map((_, c) => r.cells[at.indexOf(c)]?.text || BLANK_CELL) : [...r.cells.map((x) => x.text), UNALIGNED];
+      out[r.i] = { ...out[r.i], line: `${line.slice(0, r.labelEnd)}   ${cells.join('   ')}` };
+    }
+  };
+  entries.forEach(({ line, page }, i) => {
+    if (block.length && (out[block[0]].page !== page || !line.trim() || /\bFY \d{4}\b/.test(line))) flush();
+    if (line.trim()) block.push(i);
+  });
+  flush();
+  return out;
+}
+
 function splitBudget(rawPages) {
   const sections = [];
   let area = null;
@@ -215,6 +289,7 @@ function splitBudget(rawPages) {
       dept = { n: 0, program: null, section: open({ number, title: name, department: name, ...(area ? { area } : {}), pages: [p + 1, p + 1] }) };
     }
     let firstOnPage = true;
+    let before = 0; // lines on this page so far, other than a table's year row
     for (const line of page.lines) {
       if (!line.trim()) {
         cur.lines.push({ line, page: p + 1 });
@@ -223,6 +298,8 @@ function splitBudget(rawPages) {
       const prog = PROGRAM.exec(line.trim());
       const heading = !prog && budgetHeading(line, { firstOnPage });
       firstOnPage = false;
+      const leading = before === 0;
+      if (!YEARS_ROW.test(line) && !prog) before++;
       if (prog) {
         if (dept.program && nameKey(prog[1]) === nameKey(dept.program.name)) continue; // repeated atop the page
         const number = `${dept.section.number}.${++dept.n}`;
@@ -232,6 +309,12 @@ function splitBudget(rawPages) {
       }
       if (heading) {
         if (heading.caps && cur.title === heading.title) continue; // the same table page title, repeated
+        // A table that runs onto the next page repeats its heading there: the
+        // table goes on in the same section.
+        if (leading && !heading.caps && cur !== dept.section && cur.title === heading.title && cur.pages[0] < p + 1) {
+          if (heading.keep) cur.lines.push({ line, page: p + 1 });
+          continue;
+        }
         const parent = dept.program || dept;
         const number = `${parent.number || dept.section.number}.${++parent.n}`;
         // A table's year row sits just above its heading ("FY 2024  FY 2025 ..."): bring it along.
@@ -254,6 +337,7 @@ function splitBudget(rawPages) {
       cur.pages[1] = p + 1;
     }
   });
+  for (const s of sections) if (FIGURE_TABLES.test(s.title)) s.lines = alignCells(s.lines);
   // A section's last page is the last page it has text on; a department's
   // spans all of its subsections.
   for (const s of sections) {
@@ -371,53 +455,121 @@ function passagesOf(section) {
   return out;
 }
 
-const INDEX = new WeakMap();
-function indexOf(doc) {
-  let ix = INDEX.get(doc);
-  if (ix) return ix;
-  const passages = doc.sections.flatMap(passagesOf).map((p) => {
-    const tf = new Map();
-    const words = terms(p.text);
-    for (const w of words) tf.set(w, (tf.get(w) || 0) + 1);
-    return { ...p, tf, len: words.length, title: new Set(terms(p.section.title)) };
+/**
+ * The search index: built once, when a document is ingested, and stored with
+ * it as `search_index`, so a request only scores the passages that hold the
+ * query's words. `passages` is flat, four numbers per passage: section index,
+ * start and end in that section's text, and its word count. `postings` maps
+ * each word to the passages that hold it, as "gap.value" pairs in base 36,
+ * space-separated: gap from the previous passage's index, and value = 2 × the
+ * word's count in the passage, plus 1 when the word is in the section's title.
+ * Built from `sections` alone, so it can be rebuilt and checked at any time.
+ */
+export function buildSearchIndex(sections) {
+  const passages = [];
+  const lists = new Map();
+  let words = 0;
+  sections.forEach((section, si) => {
+    const title = new Set(terms(section.title));
+    for (const p of passagesOf(section)) {
+      const pi = passages.length / 4;
+      const ws = terms(p.text);
+      passages.push(si, p.start, p.start + p.text.length, ws.length);
+      words += ws.length;
+      const tf = new Map();
+      for (const w of ws) tf.set(w, (tf.get(w) || 0) + 1);
+      for (const w of title) if (!tf.has(w)) tf.set(w, 0);
+      for (const [w, f] of tf) {
+        if (!lists.has(w)) lists.set(w, []);
+        lists.get(w).push(pi, 2 * f + (title.has(w) ? 1 : 0));
+      }
+    }
   });
-  const df = new Map();
-  for (const p of passages) for (const w of new Set([...p.tf.keys(), ...p.title])) df.set(w, (df.get(w) || 0) + 1);
-  const avg = passages.reduce((n, p) => n + p.len, 0) / Math.max(1, passages.length);
-  ix = { passages, df, avg };
-  INDEX.set(doc, ix);
-  return ix;
+  const postings = {};
+  for (const w of [...lists.keys()].sort()) {
+    const l = lists.get(w);
+    const out = [];
+    for (let i = 0, prev = 0; i < l.length; i += 2) {
+      out.push(`${(l[i] - prev).toString(36)}.${l[i + 1].toString(36)}`);
+      prev = l[i];
+    }
+    postings[w] = out.join(' ');
+  }
+  const count = passages.length / 4;
+  return { version: 1, passages, avg: words / Math.max(1, count), postings };
+}
+
+// A document without a stored index (a test fixture) gets one built once.
+const BUILT = new WeakMap();
+function indexOf(doc) {
+  if (doc.search_index) return doc.search_index;
+  if (!BUILT.has(doc)) BUILT.set(doc, buildSearchIndex(doc.sections));
+  return BUILT.get(doc);
+}
+
+// The passages holding a word, as [passage index, value, ...].
+function postingsOf(ix, w) {
+  if (!Object.hasOwn(ix.postings, w)) return [];
+  const out = [];
+  let at = 0;
+  for (const pair of ix.postings[w].split(' ')) {
+    const dot = pair.indexOf('.');
+    at += parseInt(pair.slice(0, dot), 36);
+    out.push(at, parseInt(pair.slice(dot + 1), 36));
+  }
+  return out;
 }
 
 /**
  * Passages ranked for a query, best first, one per section: BM25 over
  * passages, a query word in the section's title counting extra, and a bonus
- * when the whole phrase appears. Returns
+ * when the whole phrase appears. `filter(section)`, when given, keeps only
+ * the sections it accepts, before ranking and the limit. Returns
  * [{ number, title, page, pages, excerpt, score }]; `page` is where the
  * excerpt is.
  */
-export function searchSections(doc, query, { limit = 5 } = {}) {
+export function searchSections(doc, query, { limit = 5, filter } = {}) {
   const words = [...new Set(terms(query))];
   if (!words.length) return [];
-  const { passages, df, avg } = indexOf(doc);
-  const n = passages.length;
-  const phrase = String(query).toLowerCase().replace(/\s+/g, ' ').trim();
+  const ix = indexOf(doc);
+  const P = ix.passages;
+  const n = P.length / 4;
+  // The whole query as typed, any run of spaces matching any whitespace.
+  const phrase = String(query).trim().split(/\s+/);
+  const phraseRe = phrase.length > 1 && new RegExp(phrase.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'i');
   const k = 1.2;
   const b = 0.75;
-  const best = new Map();
-  for (const p of passages) {
-    let score = 0;
-    for (const w of words) {
-      const d = df.get(w) || 0;
-      if (!d) continue;
-      const idf = Math.log(1 + (n - d + 0.5) / (d + 0.5));
-      const f = p.tf.get(w) || 0;
-      score += idf * ((f * (k + 1)) / (f + k * (1 - b + (b * p.len) / avg)) + (p.title.has(w) ? 1 : 0));
+  const scores = new Float64Array(n);
+  const hits = new Uint8Array(n);
+  const allowed = new Map();
+  const ok = (si) => {
+    if (!filter) return true;
+    if (!allowed.has(si)) allowed.set(si, !!filter(doc.sections[si]));
+    return allowed.get(si);
+  };
+  for (const w of words) {
+    const list = postingsOf(ix, w);
+    const d = list.length / 2;
+    if (!d) continue;
+    const idf = Math.log(1 + (n - d + 0.5) / (d + 0.5));
+    for (let i = 0; i < list.length; i += 2) {
+      const pi = list[i];
+      if (!ok(P[4 * pi])) continue;
+      const f = list[i + 1] >> 1;
+      scores[pi] += idf * ((f * (k + 1)) / (f + k * (1 - b + (b * P[4 * pi + 3]) / ix.avg)) + (list[i + 1] & 1));
+      hits[pi]++;
     }
+  }
+  const best = new Map();
+  for (let pi = 0; pi < n; pi++) {
+    let score = scores[pi];
     if (!score) continue;
-    if (phrase.includes(' ') && p.text.toLowerCase().replace(/\s+/g, ' ').includes(phrase)) score *= 1.5;
-    const cur = best.get(p.section.number);
-    if (!cur || score > cur.score) best.set(p.section.number, { p, score });
+    const section = doc.sections[P[4 * pi]];
+    const text = section.text.slice(P[4 * pi + 1], P[4 * pi + 2]);
+    // The phrase can only be in a passage that holds all of its words.
+    if (phraseRe && hits[pi] === words.length && phraseRe.test(text)) score *= 1.5;
+    const cur = best.get(section.number);
+    if (!cur || score > cur.score) best.set(section.number, { p: { section, start: P[4 * pi + 1], text }, score });
   }
   return [...best.values()]
     .sort((x, y) => y.score - x.score)
@@ -438,15 +590,28 @@ export function searchSections(doc, query, { limit = 5 } = {}) {
     });
 }
 
+// A section's text with `marker(page)` on its own line where each page starts.
+function marked(section, marker) {
+  if (!section.text) return '';
+  const starts = [[0, section.pages[0]], ...(section.breaks || [])];
+  let out = '';
+  starts.forEach(([at, page], i) => {
+    out += `${marker(page)}\n${section.text.slice(at, starts[i + 1]?.[0] ?? section.text.length)}`;
+  });
+  return out;
+}
+
 /**
  * A section with its subsections (reading 5.6 gives 5.6, 5.6.1, 5.6.2, ...),
  * each under its own number and title, windowed to `max` characters.
+ * `marker(page)`, when given, is put on its own line where each page starts,
+ * so a figure read from the text can be cited to its page.
  */
-export function readSection(doc, number, { offset = 0, max = 12000 } = {}) {
+export function readSection(doc, number, { offset = 0, max = 12000, marker } = {}) {
   const n = String(number).trim().replace(/^§\s*/, '').replace(/\.$/, '');
   const parts = doc.sections.filter((x) => x.number === n || x.number.startsWith(`${n}.`));
   if (!parts.length || parts[0].number !== n) return null;
-  const whole = parts.map((x) => `${x.number} ${x.title}\n${x.text}`).join('\n\n');
+  const whole = parts.map((x) => `${x.number} ${x.title}\n${marker ? marked(x, marker) : x.text}`).join('\n\n');
   const start = Math.max(0, Math.trunc(Number(offset) || 0));
   const text = whole.slice(start, start + max);
   const more = start + max < whole.length;

@@ -18,7 +18,9 @@ subheadings each department repeats (`plugins/budget-books.js`, tool
 The "Department Budgets" part of each adopted budget document: each
 department's mission or overview, its budget actions and the reasons the City
 gave, its expenditure and position summaries, and its performance measures.
-These are plans as adopted, not records of spending. Each file's
+Figures in columns headed Adopted are the City's plan, not spending; columns
+headed Actual are prior-year figures as the City printed them in that book.
+Each file's
 `identified_by` says how it was confirmed to be the adopted book.
 
 | File | Fiscal year | Part of the book | PDF pages (printed) | Source |
@@ -26,13 +28,19 @@ These are plans as adopted, not records of spending. Each file's
 | `norfolk-budget-fy2027-departments.json` | FY 2027, adopted | 09 Department Budgets | 272 (125–396) | [norfolk.gov](https://www.norfolk.gov/DocumentCenter/View/114013/09-Department-Budgets), listed on [2027 Budget Document](https://www.norfolk.gov/6732/2027-Budget-Document), fetched 2026-11-06 |
 | `norfolk-budget-fy2026-departments.json` | FY 2026, adopted | 09 Department Budgets | 236 (145–380) | [norfolk.gov](https://www.norfolk.gov/DocumentCenter/View/102264/09-Department-Budgets), listed on [2026 Budget Document](https://www.norfolk.gov/6498/2026-Budget-Document), fetched 2026-11-06 |
 | `norfolk-budget-fy2025-departments.json` | FY 2025, adopted | 08 Department Budgets | 240 (137–376) | [norfolk.gov](https://www.norfolk.gov/DocumentCenter/View/88686/08-Department-Budgets), listed on [2025 Budget Document](https://www.norfolk.gov/5997/2025-Budget-Document), fetched 2026-11-06 |
-| `norfolk-budget-fy2024-departments.json` | FY 2024, adopted | 10 Department Budgets | 504 (167–668) | [norfolk.gov](https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets), listed on [2024 Budget Document](https://www.norfolk.gov/5572/2024-Budget-Document), fetched 2026-11-06 |
+| `norfolk-budget-fy2024-departments.json` | FY 2024, adopted | Department Budgets | 504 (167–668) | [norfolk.gov](https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets), listed on [2024 Budget Document](https://www.norfolk.gov/5572/2024-Budget-Document), fetched 2026-11-06 |
 
 Sections are numbered in book order: a department is "42", its subheadings
 "42.1", "42.2", .... FY 2024 also splits departments into programs, so a
 subheading there is "39.2.1" (department 39, program 2). Each section carries
 its department, service area and, in FY 2024, its program. `page_labels`
 gives the page number printed on each PDF page, so an answer can cite both.
+A table that runs onto the next page stays one section. In a table of
+figures by year (expenditure, budget, funding source and cost recovery
+summaries, FTE by program, performance measures), a cell the PDF leaves
+blank is shown as "—", so a figure isn't read into the year beside it; a
+row that can't be lined up is marked as unclear. `budget_book_lookup` marks
+where each page starts in the text it reads (`[PDF page N, printed P]`).
 
 Each file records:
 
@@ -46,6 +54,11 @@ Each file records:
   holding a copy can check it's the same one: the same bytes give the same CID.
 - **How it was read:** the extractor (`pdftotext -layout`, with its version)
   and the section rule.
+- **Its search index** (`search_index`), built from the sections at ingest,
+  so a search only scores the passages holding its words instead of indexing
+  the document on the first request. A test checks it matches the sections;
+  after a change to how search tokenizes or cuts passages, rebuild it without
+  the PDF: `node scripts/ingest-document.js --reindex data/documents/*.json`.
 
 The PDF is the authority. Siren links each section to its page in the City's
 PDF (`#page=N`) so a reader can check the quote there.
@@ -104,7 +117,8 @@ page the JSON gives (`pdftotext -layout -f N -l N <pdf> -`). The budget split
 reads the department from each page's footer ("City Auditor - 127"), so a
 book laid out differently needs its own rule or `--sections pages`. Look for
 personal names before committing: the FY 2024 to 2027 books list positions
-by title, not staff by name.
+by title, not staff by name, and `test/budget-books.test.js` fails on an
+honorific or a role followed by a name.
 
 ## Public and private
 
