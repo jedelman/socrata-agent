@@ -30,7 +30,7 @@ import {
   pushAuthorization, authorizeUrl, exchangeCode, checkTokenResponse, revokeAll,
 } from './atproto-oauth.js';
 import {
-  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countRate, bumpRate, useFlowOnce, endorseDb, dbSetupError, StorageError,
+  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countRate, bumpRate, useFlowOnce, purgeExpired, endorseDb, dbSetupError, StorageError,
 } from './endorsements.js';
 import { cachedPublicList } from './public-list.js';
 
@@ -423,6 +423,15 @@ export async function handleMetadata(req, env, base, appName = 'Siren') {
   });
 }
 
+// After a person's own action, delete rows past their expiry, in the
+// background. Only expired rows, so it carries nothing about the person; it
+// keeps deletion going wherever rows are being written. Never the orphan sweep.
+function purgeLater(env, ctx) {
+  const db = endorseDb(env);
+  if (!db || !ctx?.waitUntil) return;
+  ctx.waitUntil(purgeExpired(db).catch((err) => console.error('bluesky: purge failed', String(err?.cause?.message || err?.message || 'unknown').slice(0, 300))));
+}
+
 export async function handleLogin(req, env, ctx, base, deps = {}) {
   if (!blueskyReady(env)) return unavailable(env);
   if (new URL(req.url).origin !== publicOrigin(env).origin || foreignOrigin(req, env)) {
@@ -434,6 +443,7 @@ export async function handleLogin(req, env, ctx, base, deps = {}) {
     ...(deps.timeoutMs ? { timeoutMs: deps.timeoutMs } : {}), ...(deps.maxCookieBytes ? { maxCookieBytes: deps.maxCookieBytes } : {}),
   });
   if (!out.ok) return jsonResponse({ error: out.error, code: out.code }, out.status);
+  purgeLater(env, ctx);
   return jsonResponse({ ok: true, redirect: out.redirect }, 200, { 'Set-Cookie': out.cookie });
 }
 
@@ -557,17 +567,25 @@ export async function handleEndorse(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   const body = await readJson(req);
-  return storageSafe(async () => reply(await endorse({
-    kv: env.LIMITS, db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'),
-    publicList: await listFor(req, env, ctx, base, deps), now: g.now,
-  })));
+  return storageSafe(async () => {
+    const out = await endorse({
+      kv: env.LIMITS, db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'),
+      publicList: await listFor(req, env, ctx, base, deps), now: g.now,
+    });
+    if (out.ok && !out.already) purgeLater(env, ctx);
+    return reply(out);
+  });
 }
 
 export async function handleUnendorse(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   const body = await readJson(req);
-  return storageSafe(async () => reply(await unendorse({ db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now })));
+  return storageSafe(async () => {
+    const out = await unendorse({ db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now });
+    if (out.ok) purgeLater(env, ctx);
+    return reply(out);
+  });
 }
 
 export async function handleForget(req, env, ctx, base, deps = {}) {

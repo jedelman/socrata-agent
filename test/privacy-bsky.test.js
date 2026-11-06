@@ -106,3 +106,37 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
   assert.ok([boundary(now, 'month', 12), boundary(now, 'month', 13)].includes(exp), 'a month boundary 12 to 13 months out');
   assert.equal(new Date(exp * 1000).getUTCDate(), 1);
 });
+
+test('the "What Siren keeps" panel matches the retention the code and the rollout give', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+  const html = read('worker/requests.html');
+  const panel = html.slice(html.indexOf('<summary>What {{APP_NAME}} keeps</summary>'), html.indexOf('</details>', html.indexOf('What {{APP_NAME}} keeps')));
+  const doc = read('docs/bluesky-endorsements.md');
+  const toml = read('wrangler.toml');
+  const index = read('worker/index.js');
+  // Deletion doesn't wait for visitors: the daily cron, turned on with the flag.
+  const cron = toml.match(/^# crons = \["(\d+) (\d+) \* \* \*"\]$/m);
+  assert.ok(cron, 'wrangler.toml carries the daily cron, for the flag-flip PR to uncomment');
+  assert.match(index, /async scheduled\([^)]*\) \{\s*const db = endorseDb\(env\);\s*if \(db\) ctx\.waitUntil\(purgeAll\(db\)/);
+  assert.match(doc, /Flip the flag and turn on the cleanup[\s\S]{0,300}crons = \["17 7 \* \* \*"\]/);
+  assert.equal(`${cron[1]} ${cron[2]}`, '17 7');
+  // Counters expire an hour after the UTC day ends (endorsements.js eventExpiry);
+  // the worst case to the next cron run is what "about a day and a half" must cover.
+  let worst = 0;
+  for (let m = 0; m < 24 * 60; m++) {
+    const made = Date.UTC(2026, 10, 6, 0, m);
+    const exp = boundary(made, 'day', 1) * 1000 + 3600e3;
+    let run = Date.UTC(2026, 10, 6, Number(cron[2]), Number(cron[1]));
+    while (run < exp) run += 86400e3;
+    worst = Math.max(worst, run - made);
+  }
+  assert.ok(worst <= 36 * 3600e3, `counters deleted within ${worst / 3600e3} h`);
+  assert.match(panel, /counters of recent endorsing, deleted within about a day and a half/);
+  assert.match(doc, /within about a day and a half/);
+  assert.ok(!/for about a day/.test(panel), 'no "kept for about a day" promise that only expiry, not deletion, keeps');
+  assert.match(panel, /deleted when the request is decided, and in any case within about <span class="retention">13<\/span> months/);
+  // D1 Time Travel: deleted rows stay restorable for 7 days on Free.
+  assert.match(panel, /restorable history of it for 7 days[^.]*recover a deleted entry for up to 7 days/);
+  assert.match(doc, /Time Travel\): 7 days on the\s+Workers Free plan/);
+});

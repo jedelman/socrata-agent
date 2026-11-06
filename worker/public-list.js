@@ -9,9 +9,15 @@ import { publicRequests } from './requests.js';
 import { endorsementCounts, publicPolicy, orphanedIds, sweepOrphans, purgeExpired, endorseDb } from './endorsements.js';
 
 const SECONDS = 60;
+// A list computed while D1 failed (no counts) is cached briefly under its own
+// key, so a D1 outage (on the Free plan, the daily row limits until midnight
+// UTC) doesn't turn every view into a KV list of the requests, while D1 is
+// still retried every half minute per location.
+const UNAVAILABLE_SECONDS = 30;
 
 const defaultCache = () => (typeof caches !== 'undefined' && caches?.default ? caches.default : null);
 const cacheKey = (origin, base) => new Request(`${origin}${base}/__cache/public-requests-v1`);
+const uncountedKey = (origin, base) => new Request(`${origin}${base}/__cache/public-requests-uncounted-v1`);
 
 /**
  * The list, computed. Endorsements whose request was decided (or is gone)
@@ -24,8 +30,8 @@ const cacheKey = (origin, base) => new Request(`${origin}${base}/__cache/public-
  *
  * Only with BLUESKY_LOGIN on and SIREN_DB bound (callers check blueskyReady).
  * If D1 fails (on the Free plan, past the daily row limits), the list is
- * still served, without counts and flagged `endorsements_unavailable`, and
- * isn't cached, so the next request tries again.
+ * still served, without counts and flagged `endorsements_unavailable`;
+ * cachedPublicList caches that for 30 seconds only, under its own key.
  */
 export async function computePublicList(env, kv, { defer, sweep = true, now = Date.now() } = {}) {
   const db = endorseDb(env);
@@ -50,18 +56,20 @@ export async function computePublicList(env, kv, { defer, sweep = true, now = Da
 
 /** -> { requests, awaiting_review } */
 export async function cachedPublicList({ env, ctx, kv, origin, base = '', cache = defaultCache(), sweep = true }) {
-  const key = cache ? cacheKey(origin, base) : null;
   if (cache) {
-    try {
-      const hit = await cache.match(key);
-      if (hit) return await hit.json();
-    } catch {
-      // a cache miss or failure falls through to computing the list
+    for (const key of [cacheKey(origin, base), uncountedKey(origin, base)]) {
+      try {
+        const hit = await cache.match(key);
+        if (hit) return await hit.json();
+      } catch {
+        // a cache miss or failure falls through to computing the list
+      }
     }
   }
   const list = await computePublicList(env, kv, { sweep, ...(ctx?.waitUntil ? { defer: (p) => ctx.waitUntil(p) } : {}) });
-  if (cache && !list.endorsements_unavailable) {
-    const put = cache.put(key, new Response(JSON.stringify(list), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${SECONDS}` } }))
+  if (cache) {
+    const [key, seconds] = list.endorsements_unavailable ? [uncountedKey(origin, base), UNAVAILABLE_SECONDS] : [cacheKey(origin, base), SECONDS];
+    const put = cache.put(key, new Response(JSON.stringify(list), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${seconds}` } }))
       .catch((err) => console.error('public list: cache put failed', err?.message));
     if (ctx?.waitUntil) ctx.waitUntil(put);
     else await put;
@@ -69,12 +77,16 @@ export async function cachedPublicList({ env, ctx, kv, origin, base = '', cache 
   return list;
 }
 
-/** Drop the cached list in this location, after a steward decision or a clear. */
+/** Drop the cached lists in this location, after a steward decision or a clear. */
 export async function purgePublicList({ origin, base = '', cache = defaultCache() }) {
   if (!cache) return false;
-  try {
-    return await cache.delete(cacheKey(origin, base));
-  } catch {
-    return false;
+  let dropped = false;
+  for (const key of [cacheKey(origin, base), uncountedKey(origin, base)]) {
+    try {
+      dropped = (await cache.delete(key)) || dropped;
+    } catch {
+      // nothing cached, or the cache is unavailable
+    }
   }
+  return dropped;
 }

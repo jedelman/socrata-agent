@@ -77,10 +77,15 @@ generic mode.
   Endorsements, their rate counters and the sign-in markers live in D1
   (`SIREN_DB`, schema in `migrations/`, applied with `wrangler d1 migrations
   apply`), not KV: Jason's account is on the Workers Free plan, where KV's
-  1,000 writes and lists a day are shared with every question. Every D1 call
-  goes through `endorseDb(env)`, so with `BLUESKY_LOGIN` unset none happens,
-  and with it on and no binding the routes fail closed (503, reason logged).
-  Prepared statements only; several writes in one `batch`.
+  1,000 writes and lists a day are shared with every question (Cloudflare
+  docs, checked 2026-11-06; the D1 limits and their sources are in
+  `docs/bluesky-endorsements.md`, "Why D1 and not KV"; keep platform numbers
+  there, dated, not in `wrangler.toml`). Every D1 call in the Worker goes
+  through `endorseDb(env)`, so with `BLUESKY_LOGIN` unset none happens, and
+  with it on and no binding the routes fail closed (503, reason logged). The
+  steward CLI follows the same rule from the env's wrangler config. Prepared
+  statements only; several writes in one `batch`. Retention rests on the
+  daily cron, turned on with the flag.
   Invariants: identity only, scope `atproto`, a public client on WebCrypto
   and fetch with no npm dependency; tokens revoked and discarded at the
   callback, never stored or logged; the flow sealed in a cookie scoped to

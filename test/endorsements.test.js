@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   endorse, unendorse, endorsedBy, forgetEndorser, endorsementCounts, countFor, clearRequestEndorsements,
-  publicNumber, publicPolicy, youngFlag, endorsementId, issuerBucket, orphanedIds, purgeExpired, endorseDb, dbSetupError, StorageError, SQL,
+  publicNumber, publicPolicy, youngFlag, endorsementId, issuerBucket, orphanedIds, purgeExpired, purgeAll, sweepOrphans, PURGE_LIMIT, endorseDb, dbSetupError, StorageError, SQL,
 } from '../worker/endorsements.js';
 import { addRequest, decide, requestKey, publicId, publicRequests, freezeAtDecision } from '../worker/requests.js';
 import { cachedPublicList, purgePublicList, computePublicList } from '../worker/public-list.js';
@@ -264,7 +264,7 @@ dbTest('the public list is served from the cache until purged', async () => {
   assert.equal(third.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
 });
 
-dbTest('if D1 fails, the list is still served, without counts and uncached', async () => {
+dbTest('if D1 fails, the list is still served, without counts, cached only briefly under its own key', async () => {
   const w = await world();
   await go(w, w.ids.open1, await session(1));
   w.db.fail = true;
@@ -281,8 +281,22 @@ dbTest('if D1 fails, the list is still served, without counts and uncached', asy
   assert.equal(list.endorsements_unavailable, true);
   assert.equal(list.requests.length, 3);
   assert.ok(list.requests.every((r) => !('endorsements' in r)), 'no wrong zeros');
-  assert.equal(cache.store.size, 0, 'not cached, so the next load retries');
+  assert.deepEqual([...cache.store.keys()], ['https://x.dev/__cache/public-requests-uncounted-v1'], 'never under the counted key');
+  assert.equal(cache.store.get('https://x.dev/__cache/public-requests-uncounted-v1').headers.get('Cache-Control'), 'public, max-age=30');
   assert.ok(errors.some((e) => /endorsement counts failed/.test(e)));
+  // Within the 30 s, views are served from it: no KV list, no D1 call.
+  const kvList = w.kv.list;
+  let lists = 0;
+  w.kv.list = (...a) => { lists++; return kvList.apply(w.kv, a); };
+  const ops = w.db.ops.length;
+  assert.deepEqual(await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache }), list);
+  assert.equal(lists, 0);
+  assert.equal(w.db.ops.length, ops);
+  // A steward decision drops it, and D1 back means counts again.
+  assert.equal(await purgePublicList({ origin: 'https://x.dev', cache }), true);
+  w.db.fail = false;
+  const back = await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache });
+  assert.equal(back.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
 });
 
 dbTest('a repeat after an unknown age becomes known rewrites null to the known flag, and counted follows the stored flag', async () => {
@@ -436,6 +450,36 @@ dbTest('the orphan sweep stops at its budget, and endorse and me never sweep', a
   assert.equal((await countFor(w.db, w.ids.done, { now: NOW })).n, 0, 'the next sweep finishes it');
 });
 
+dbTest('the orphan sweep is one D1 query however many requests are orphaned (Free: 50 per invocation)', async () => {
+  const w = await world();
+  const ids = Array.from({ length: 120 }, (_, i) => i.toString(16).padStart(12, '0'));
+  for (const id of ids) await putRow(w.db, id, await endorsementId(SECRET, id, 'e1'));
+  const counts = await endorsementCounts(w.db, { now: NOW });
+  assert.equal(counts.size, 120);
+  const mark = w.db.ops.length;
+  const swept = await sweepOrphans(w.db, counts, new Map());
+  assert.equal(swept.length, 120, 'every orphan is reported');
+  assert.equal(w.db.ops.length - mark, 1, 'one statement');
+  assert.ok(w.db.ops.at(-1).params.length <= 100, "within D1's 100 bound parameters");
+  assert.equal(w.db.rows('endorsements').length, 21, 'the first 99 ids this sweep (budget 100 rows), the rest next time');
+  await sweepOrphans(w.db, await endorsementCounts(w.db, { now: NOW }), new Map());
+  assert.equal(w.db.rows('endorsements').length, 0);
+});
+
+dbTest('purges are bounded per statement, and the cron purge finishes a backlog', async () => {
+  const w = await world();
+  for (let n = 0; n < 7; n++) await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, `x${n}`), 0, T - 10);
+  await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, 'live'), 0, T + 86400);
+  assert.equal(PURGE_LIMIT, 500);
+  assert.deepEqual(await purgeExpired(w.db, NOW, { limit: 3 }), { endorsements: 3, rates: 0, flows: 0 });
+  assert.equal(w.db.rows('endorsements').length, 5);
+  const mark = w.db.ops.length;
+  assert.deepEqual(await purgeAll(w.db, NOW, { limit: 3 }), { endorsements: 4, rates: 0, flows: 0 });
+  assert.equal(w.db.ops.length - mark, 2, 'one batch per round, stopping once a round comes up short');
+  assert.equal(w.db.rows('endorsements').length, 1, 'the live one stays');
+  assert.equal((await countFor(w.db, w.ids.open1, { now: NOW })).n, 1, 'the tally followed');
+});
+
 dbTest('orphans: rows that outlive a decision are swept where the list is computed', async () => {
   const w = await world();
   await go(w, w.ids.open1, await session(1));
@@ -513,7 +557,7 @@ dbTest('every write path is one batch, and every statement is prepared with boun
 dbTest('indexes: every hot statement reads by key or index, never a full scan of a growing table', async () => {
   const db = fakeD1();
   const plan = (sql, n) => db.sqlite.prepare(`EXPLAIN QUERY PLAN ${typeof sql === 'function' ? sql(n || 3) : sql}`).all().map((r) => r.detail).join(' | ');
-  const keyed = ['get', 'upgrade', 'remove', 'countOne', 'expired', 'expiredOne', 'clear', 'purgeEndorsements', 'purgeRates', 'purgeFlows', 'endorsedIn', 'upgradeIn', 'removeIn', 'rates'];
+  const keyed = ['get', 'upgrade', 'remove', 'countOne', 'expired', 'expiredOne', 'clear', 'clearIn', 'purgeEndorsements', 'purgeRates', 'purgeFlows', 'endorsedIn', 'upgradeIn', 'removeIn', 'rates'];
   for (const name of keyed) {
     const p = plan(SQL[name]);
     // SCAN, with or without an index, reads every row; SEARCH reads only the matching ones.

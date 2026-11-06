@@ -15,6 +15,17 @@
 // and D1 instead of the deployed ones), --config <file> (another wrangler config),
 // --dry-run (print the wrangler commands only).
 //
+// D1 follows the Worker's rule (worker/endorsements.js endorseDb): the
+// decisions (request-decline, request-fulfilled) freeze and clear Bluesky
+// endorsements only when the target env sets BLUESKY_LOGIN = "true" (with
+// --local, .dev.vars counts too) and binds SIREN_DB. Otherwise they write the
+// decision and touch no database, as before endorsements existed. With the
+// flag on and D1 failing, they refuse before writing anything.
+// --endorsements freezes and clears whenever SIREN_DB is bound, whatever the
+// flag says (for endorsements left from before the flag was turned off);
+// --no-endorsements never touches D1. `endorsements` and
+// `endorsements-clear` need only the binding.
+//
 // Each browser or device that redeems a code uses one of its --uses (default
 // 3). Codes are stored only as hashes, so a lost code can't be looked up
 // again: revoke it by the hash `list` prints, and make a new one. Keep the
@@ -66,6 +77,47 @@ function d1(sql) {
   }
   const out = JSON.parse(execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }) || '[]');
   return (Array.isArray(out) ? out : [out]).map((r) => r.results || []);
+}
+
+// Where the target env stands on endorsements, from its wrangler config:
+// { flag, bound }. Read with wrangler's own config reader, so env
+// inheritance and JSON configs work as they do for deploys.
+let endorseConfig;
+async function endorsementConfig() {
+  if (endorseConfig) return endorseConfig;
+  let wranglerApi;
+  try {
+    wranglerApi = await import('wrangler');
+  } catch {
+    throw new Error("Can't read the wrangler config: run `npm install` first (wrangler is a dev dependency).");
+  }
+  const { unstable_readConfig: readConfig, unstable_getVarsForDev: varsForDev } = wranglerApi;
+  const config = readConfig({ config: opt('config'), env }, { hideWarnings: true });
+  let vars = config.vars || {};
+  if (where === '--local') {
+    const dev = varsForDev(config.configPath, undefined, vars, env, true);
+    vars = Object.fromEntries(Object.entries(dev).map(([k, v]) => [k, v && typeof v === 'object' && 'value' in v ? v.value : v]));
+  }
+  endorseConfig = {
+    flag: vars.BLUESKY_LOGIN === 'true',
+    bound: (config.d1_databases || []).some((d) => d.binding === 'SIREN_DB'),
+  };
+  return endorseConfig;
+}
+
+// Should a decision freeze and clear endorsements? See the header.
+async function decisionTouchesD1() {
+  if (flag('no-endorsements')) return false;
+  const { flag: on, bound } = await endorsementConfig();
+  if (flag('endorsements')) {
+    if (!bound) throw new Error(`--endorsements: env "${env}" binds no SIREN_DB in its wrangler config. Nothing was decided.`);
+    return true;
+  }
+  return on && bound;
+}
+
+async function needD1() {
+  if (!(await endorsementConfig()).bound) throw new Error(`Env "${env}" binds no SIREN_DB in its wrangler config, so there are no Bluesky endorsements to read (docs/bluesky-endorsements.md, "Setting up the database").`);
 }
 
 // Bluesky endorsement tallies, after deleting rows past their expiry:
@@ -159,12 +211,12 @@ async function main() {
     // Steward decisions. Accepting puts a request on the public list and, at
     // the next sync, on GitHub; --note is shown publicly with it. Declining or
     // fulfilling freezes the Bluesky endorsement count into the request (one
-    // write), then deletes the per-account endorsement rows, as the Worker does.
-    // --no-endorsements skips both, for a deployment without SIREN_DB.
+    // write), then deletes the per-account endorsement rows, as the Worker does,
+    // when the env has endorsements switched on (see the header).
     const { key, cur } = requestById(argv[1]);
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
     const decided = status === 'declined' || status === 'fulfilled';
-    const tally = decided && !flag('no-endorsements') ? (endorsementTally(publicId(key)).get(publicId(key)) || { n: 0, young: 0, unknown: 0 }) : null;
+    const tally = decided && (await decisionTouchesD1()) ? (endorsementTally(publicId(key)).get(publicId(key)) || { n: 0, young: 0, unknown: 0 }) : null;
     const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
     if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
     const live = tally ? { n: tally.n, young: tally.young, unknown: tally.unknown } : undefined;
@@ -175,11 +227,13 @@ async function main() {
     console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.${tally ? ` ${tally.n} endorsement${tally.n === 1 ? '' : 's'} frozen and cleared.` : ''}`);
   } else if (cmd === 'endorsements') {
     // Per-request Bluesky endorsement totals. Nothing here can say who endorsed.
+    await needD1();
     const counts = endorsementTally();
     for (const [id, c] of [...counts].sort((a, b) => b[1].n - a[1].n)) console.log(`${id}  ${String(c.n).padStart(4)}  (${c.young} young, ${c.unknown} unknown age)`);
     if (!counts.size) console.error('No Bluesky endorsements.');
   } else if (cmd === 'endorsements-clear') {
     // For brigading: delete every endorsement on one request.
+    await needD1();
     const { key, cur } = requestById(argv[1]);
     const c = endorsementTally(publicId(key)).get(publicId(key));
     clearEndorsements(publicId(key));
@@ -192,7 +246,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id>  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id>  [--endorsements | --no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

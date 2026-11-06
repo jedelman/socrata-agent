@@ -10,7 +10,9 @@ list behaves as it did before (the page and `/admin` only gain anti-framing
 headers), and Siren makes no call to the endorsement database at all.
 Endorsements live in a D1 database bound as `SIREN_DB`
 ([Setting up the database](#setting-up-the-database)); with the flag on and
-no database bound, every Bluesky route answers 503 and the log says why.
+no database bound, every Bluesky route answers 503 and the log says why, and
+the admin page refuses declines and fulfils (503) until the database is
+bound.
 
 ## What an endorsement is, and isn't
 
@@ -37,8 +39,8 @@ no database bound, every Bluesky route answers 503 and the log says why.
 |---|---|---|
 | Per endorsement, one row: `HMAC(INVITE_SECRET, request + account)`, the request's public id, one flag (young, established or unknown age) and its expiry | D1 `endorsements` | Until the request is decided (rows written around the decision are swept within minutes, where the public list is computed), and in any case until the start of the month 12 to 13 months after it was made (`ENDORSE_RETENTION_MONTHS`) |
 | Per request with endorsements: the count, and how many are young or of unknown age | D1 `endorsement_counts`, kept by triggers | As long as the request has endorsements |
-| Rate counters: one row per day and keyed hash, holding a number. The hashes are of the account (day-scoped), the network address, and for servers not in `ENDORSE_OPEN_ISSUERS` the account's server and its domain (day-scoped); for sign-ins, the network address per hour. None names a request or holds any part of an endorsement id, so a withdrawal leaves nothing request-specific behind | D1 `bsky_rate_counts` | About a day (sign-in counts: two hours) |
-| A single-use marker for each finished sign-in (a hash of its random state) | D1 `bsky_flows_used` | Up to two hours |
+| Rate counters: one row per day and keyed hash, holding a number. The hashes are of the account (day-scoped), the network address, and for servers not in `ENDORSE_OPEN_ISSUERS` the account's server and its domain (day-scoped); for sign-ins, the network address per hour. None names a request or holds any part of an endorsement id, so a withdrawal leaves nothing request-specific behind | D1 `bsky_rate_counts` | Expire about a day after they're made (sign-in counts: two hours); deleted by the next daily cleanup at the latest, so within about a day and a half |
+| A single-use marker for each finished sign-in (a hash of its random state) | D1 `bsky_flows_used` | Expires within two hours; deleted by the next daily cleanup at the latest |
 | The pending sign-in (state, PKCE verifier, DPoP key, nonce, the account and its server) | A sealed cookie in your browser, scoped to `/ask-siren/oauth/` | 10 minutes |
 | Your sign-in (a keyed id for your account, your handle, its creation day, its server) | A sealed browser-session cookie, scoped to `/ask-siren/api/bsky/` | Until you close the browser, and at most 24 hours |
 
@@ -55,20 +57,30 @@ the threat model.) A plain hash of the DID would not do: every did:plc DID
 can be listed from plc.directory.
 
 "Until" means the row is deleted. Rows past their expiry are never counted
-or reported, and are deleted the next time the public list
+or reported. A daily cron (`17 7 * * *` UTC, `scheduled` in
+`worker/index.js`) deletes them whether or not anyone visits, which is what
+the promises on the requests page rest on, so the rollout turns it on with
+the flag. They are also deleted, sooner, the next time the public list
 (`/api/requests`, at most once a minute per location) or the admin page is
-computed, or by the optional daily cron in `wrangler.toml`. D1 keeps a
-restorable history of the database (Time Travel) for 7 days on the Free plan,
-so a deleted row stays recoverable from that history, by someone with access
-to the Cloudflare account, for up to 7 days after it is deleted.
+computed, and in the background after an endorse, a withdrawal or a sign-in
+start. Each purge deletes at most 500 rows of each kind, and the cron repeats
+it until none are left (at most 20 rounds), so a month's cohort of
+endorsements, which share one expiry, never goes in a single statement.
+
+D1 keeps a restorable history of the database (Time Travel): 7 days on the
+Workers Free plan, 30 on Paid ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/),
+checked 2026-11-06). A deleted row stays recoverable from that history, by
+someone with access to the Cloudflare account, for up to 7 more days. The
+requests page says so.
 
 When a request is decided (fulfilled or declined), its count is frozen into
 the request record and the per-account rows are deleted. Rows that slip past
 that delete (written by a location still serving the old list) are swept the
-next time the public list (`/api/requests`) or the admin page is computed, at
-most 100 rows per sweep, so they last minutes (a large brigade over a few
-sweeps). The endorse and `me` routes never sweep, so a person's own action
-never carries a sweep's writes. A fulfilled request shows its frozen number;
+next time the public list (`/api/requests`) or the admin page is computed:
+one statement per sweep (one D1 query, however many requests are orphaned),
+at most 100 rows and 99 requests, so they last minutes (a large brigade over
+a few sweeps). The endorse, unendorse and `me` routes never sweep orphans,
+so a person's own action never carries a sweep's writes. A fulfilled request shows its frozen number;
 a reopened one starts again from live endorsements.
 
 The sign-in tokens are revoked (refresh token, then access token) and thrown
@@ -150,7 +162,7 @@ the per-account and per-server rate hashes, and the sealed-cookie keys.
 | `PUBLIC_ORIGIN` | unset (feature off) | The origin the client_id and redirect_uri are built from, never the Host header. `https://host` with no port or path; or, in local dev only, `http://127.0.0.1:<port>` |
 | `BLUESKY_LOGIN` | unset | `"true"` turns on login, callback, endorse, unendorse, forget, logout and the signed-in part of `me` |
 | `BSKY_LOGIN_PER_VISITOR_HOURLY` | 60 | Login starts per hashed visitor per hour |
-| `ENDORSE_PER_DID_DAILY` | 30 | Endorse and unendorse actions per account per day (repeats are free) |
+| `ENDORSE_PER_DID_DAILY` | 30 | Endorse and unendorse actions per account per day (repeats are free, except that two endorses of the same request landing at the same instant can both be charged; the count stays right) |
 | `ENDORSE_PER_VISITOR_DAILY` | 200 | The same, per hashed visitor |
 | `ENDORSE_PER_ISSUER_DAILY` | 20 | New endorsements per day from each server (issuer host) not in `ENDORSE_OPEN_ISSUERS`. A withdraw and a re-endorse count again |
 | `ENDORSE_PER_DOMAIN_DAILY` | 60 | The same, for all such servers under one registrable domain together: the last two labels, or three under a listed multi-label suffix (`co.uk`, `com.au`, and shared hosting such as `github.io` or `fly.dev`, whose tenants are unrelated). So `a1.abc.dev`, `a2.abc.dev` and a wildcard farm under one domain share 60 a day, while `pds1.github.io` and `pds2.github.io` don't share anything |
@@ -162,7 +174,11 @@ the per-account and per-server rate hashes, and the sealed-cookie keys.
 | `DOH_URL` | `https://cloudflare-dns.com/dns-query` | DNS-over-HTTPS JSON endpoint (a Worker has no raw DNS) |
 | `PLC_URL` | `https://plc.directory` | The PLC directory |
 
-Rate Limiting bindings (wrangler config, not packages), under `env.siren`:
+Rate Limiting bindings (wrangler config, not packages), under `env.siren`.
+Their counts are approximate and per Cloudflare location, the period is 10
+or 60 seconds, and each `namespace_id` is an integer unique on the account
+([Rate Limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/),
+checked 2026-11-06):
 `BSKY_VISITOR_RL` (60/min per visitor: login starts, callbacks),
 `BSKY_INPUT_RL` (3/min per account typed), `BSKY_ACCOUNT_RL` (30/min per
 signed-in account: me, endorse, unendorse, forget) and `BSKY_SITE_RL`
@@ -198,12 +214,13 @@ transaction, all or nothing.
 Once, from a laptop logged in to the Cloudflare account:
 
 ```
-npx wrangler d1 create siren
+npx wrangler d1 create siren --env siren
 npx wrangler d1 migrations apply SIREN_DB --env siren --remote
 ```
 
-(Apply needs the binding block first, so: create, add the block below with
-the printed `database_id`, apply, then open the PR.) The block, in
+(`--env siren` makes `create` use the env's `account_id`. Apply needs the
+binding block first, so: create, add the block below with the printed
+`database_id`, apply, then open the PR.) The block, in
 `wrangler.toml` under the Siren env:
 
 ```toml
@@ -217,21 +234,37 @@ migrations_dir = "migrations"
 `wrangler.toml` carries this commented out: a block with a placeholder id
 would fail the Workers Builds deploy. Workers Builds doesn't apply
 migrations, so apply any new one before merging the change that needs it.
-Optionally, a daily cron (`[env.siren.triggers] crons = ["17 7 * * *"]`,
-one of the account's 5 Free cron triggers) deletes expired rows even on
-days nobody loads the list.
+The daily cron (`[env.siren.triggers] crons = ["17 7 * * *"]`, also
+commented out there) is turned on with the flag in rollout step 5.
 
-**Why D1 and not KV:** Jason's account is on the Workers Free plan. KV there
-allows 1,000 writes and 1,000 list operations a day, shared with every
-question Siren answers, and the first version counted endorsements by
-listing KV keys. D1 on Free allows 5,000,000 rows read and 100,000 rows
-written a day, and fails queries past either limit until midnight UTC (Siren
-then answers 503 on Bluesky routes, and serves the public list without
-counts). Roughly: a new endorsement writes about 10 rows (the row, its two
-index entries, the tally, and two to four counters), a withdrawal 3 to 5, a
-sign-in 3 or 4; computing the public list reads one row per request with
-endorsements, at most once a minute per location. Indexes keep every lookup
-to the rows it needs (a test checks each statement's query plan).
+**Why D1 and not KV.** Platform facts, from Cloudflare's docs, checked
+2026-11-06 ([Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/),
+[KV limits](https://developers.cloudflare.com/kv/platform/limits/),
+[D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/),
+[D1 limits](https://developers.cloudflare.com/d1/platform/limits/),
+[Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)).
+Jason's account is on the Workers Free plan. KV there allows 1,000 writes and
+1,000 list operations a day, shared with every question Siren answers, and
+the first version counted endorsements by listing KV keys. D1 on Free allows
+5,000,000 rows read and 100,000 rows written a day, resets at 00:00 UTC, and
+since 2026-09-01 fails queries past either limit until then; it also allows
+50 queries per Worker invocation (a batch counts as one) and 100 bound
+parameters per statement. Free accounts get 5 cron triggers. Past a D1 daily
+limit Siren answers 503 on Bluesky routes, and serves the public list without
+counts (cached for 30 seconds, so the outage doesn't become a KV list per
+view). If the account moves to Paid, these numbers change; recheck them.
+
+Estimated row costs, from the schema (not measured: local D1 reports no row
+counts; measure once after setup with `--remote --json`, whose `meta` has
+`rows_read` and `rows_written`, and date the result here). An index adds a
+written row for each write that touches its column. A new endorsement writes
+about 10 rows (the row and its two index entries, the tally, and two to four
+counters, each with an index entry when new); a withdrawal about 6 to 9 (the
+row and its two index entries, the tally, two counters and any new counters'
+index entries); a sign-in 3 or 4. Computing the public list reads one row per
+request with endorsements, at most once a minute per location. Indexes keep
+every lookup to the rows it needs (a test checks each statement's query
+plan).
 
 ## Rollout
 
@@ -254,8 +287,14 @@ to the rows it needs (a test checks each statement's query plan).
 4. **Set up the database** ([Setting up the database](#setting-up-the-database)):
    create it, apply the migrations, and merge the PR that adds the
    `[[env.siren.d1_databases]]` block. Still nothing changes for visitors.
-5. **Flip the flag** with a one-line PR adding `BLUESKY_LOGIN = "true"` to
-   `[env.siren.vars]` (a dashboard-only var is overwritten on the next deploy).
+5. **Flip the flag and turn on the cleanup**, in one PR: add
+   `BLUESKY_LOGIN = "true"` to `[env.siren.vars]` (a dashboard-only var is
+   overwritten on the next deploy) and uncomment
+   `[env.siren.triggers] crons = ["17 7 * * *"]`. The cron takes one of the
+   account's 5 Free cron triggers (Jason's call which; with none free, the
+   deploy fails, so check the dashboard first). Without it, deletion of
+   expired rows depends on visits, and the requests page's retention promise
+   doesn't hold on a quiet week.
    Then check by hand, once: sign in, endorse, unendorse, forget, sign out; the
    cookie's Path is `/ask-siren/api/bsky/`, it has no Max-Age, and the main
    page's requests don't carry it; the admin counts look right, and deciding a
@@ -308,13 +347,25 @@ to the rows it needs (a test checks each statement's query plan).
   split, the count frozen at decision, and a "Clear endorsements" button for
   brigading. Decisions freeze counts and clear rows. With the flag on, a
   decline or fulfil is refused (503, with the reason) when the count can't
-  be read, rather than losing it.
+  be read (or SIREN_DB isn't bound), rather than losing it. To decide anyway
+  (D1 past its daily limit, say), use the CLI with `--no-endorsements`: the
+  count isn't frozen, and the orphan sweep deletes the request's rows once
+  D1 answers again.
 - **`node scripts/invites.js endorsements`** lists per-request totals.
 - **`node scripts/invites.js endorsements-clear <id>`** deletes one request's
   endorsements. `request-decline` and `request-fulfilled` freeze and clear,
-  like the admin page (`--no-endorsements` skips that where there's no
-  database). They run `wrangler d1 execute SIREN_DB`, and none of them needs
-  the secret.
+  like the admin page, by the Worker's rule: only when the target env's
+  wrangler config sets `BLUESKY_LOGIN = "true"` (with `--local`, `.dev.vars`
+  counts too) and binds `SIREN_DB`. Otherwise they write the decision and
+  make no D1 call. With the flag on and D1 failing, they refuse before
+  writing anything. `--endorsements` freezes and clears whenever SIREN_DB is
+  bound, whatever the flag; `--no-endorsements` never touches D1. They run
+  `wrangler d1 execute SIREN_DB`, and none of them needs the secret.
+- **Turning the flag off** with endorsements live: with it off the Worker
+  doesn't freeze or clear on a decision, and when it comes back on the
+  orphan sweep deletes a decided request's rows without freezing them (a
+  fulfilled request would show 0). Before turning it off, decide nothing
+  with live endorsements, or decide with the CLI's `--endorsements`.
 - **No per-account tools.** There's no block and no "remove this handle's
   endorsements". The steward can't see endorsers, so such a tool could act
   only on outside information about a named person, and its effect on counts
@@ -347,8 +398,8 @@ Delete every endorsement when you rotate it:
 | Linking one account's endorsements by timing | Nothing in a single dump links them | Repeated dumps (or watching counts change on the admin page or the public list) can link one account's endorsements made close together in time, including the burst when "Remove all my endorsements" runs or when `me` upgrades an aged account's flags. So can D1's 7-day Time Travel history, which someone with access to the Cloudflare account can restore to any moment: comparing moments pairs an endorsement with the counter rows written in the same transaction. They still can't name the account without `INVITE_SECRET` |
 | Locking one person out of sign-in | | `BSKY_INPUT_RL` is keyed by the account typed (3/min per location), so someone in the same Cloudflare location who types that account three times a minute keeps its owner getting "busy" there. Accepted: the limit is what stops Siren flooding one account's server |
 | Withdrawing while an age flag is rewritten | The rewrite is one conditional UPDATE, so a withdrawn row stays deleted | |
-| Orphaned endorsements after a decision | The decision clears rows; the public-list and admin computations sweep any left for decided or missing requests, 100 rows at a time | A request reopened within the last minute can look decided to a location whose KV read of the request is still stale, which may then sweep an endorsement made just after the reopen |
-| Running out of the Free plan's daily D1 rows | Counts read one row per request, once a minute per location; indexed lookups; rate caps per account, visitor and server | Past a daily limit, D1 refuses queries until midnight UTC: Bluesky routes answer 503, the public list is served without counts, and steward decisions with endorsements on are refused until then |
+| Orphaned endorsements after a decision | The decision clears rows; the public-list and admin computations sweep any left for decided or missing requests, 100 rows at a time in one statement | A request reopened within the last minute can look decided to a location whose KV read of the request is still stale, which may then sweep an endorsement made just after the reopen |
+| Running out of the Free plan's daily D1 rows | Counts read one row per request, once a minute per location; indexed lookups; rate caps per account, visitor and server; the hourly sign-in count is written only after the input and site limiters pass | Past a daily limit, D1 refuses queries until midnight UTC: Bluesky routes answer 503, the public list is served without counts, and the admin page refuses declines and fulfils until then (the CLI's `--no-endorsements` decides without freezing). Someone holding many /64s could spend the daily writes through sign-in starts |
 | The steward as a lookup oracle | No per-account steward tools; the admin page shows counts only | |
 | Probing unreviewed requests | `endorse` looks ids up only on the public list; `unendorse` answers the same for every well-formed id | |
 | Cross-site actions and framing | JSON-only POSTs, the Origin check, SameSite, no CORS on POSTs or `me`, `frame-ancestors 'none'` and `X-Frame-Options` on `/requests` and `/admin`; steward POSTs that carry an `Origin` must name this site | |

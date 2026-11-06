@@ -8,8 +8,8 @@
 -- keeps an insertion order that could pair rows written together. No counter
 -- row carries a request id or any part of an endorsement id, so the counter
 -- table can't be joined to the endorsement tables. Rows past `exp` are never
--- read and are deleted where the counts are computed (endorsements.js
--- purgeExpired).
+-- read and are deleted by endorsements.js purgeExpired (daily by the cron,
+-- and where the counts are computed).
 
 -- One row per (request, Bluesky account). eh = HMAC(INVITE_SECRET,
 -- 'endorsement:' || request_id || ':' || eid), 32 hex, where eid =

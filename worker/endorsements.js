@@ -19,9 +19,11 @@
 //     endorsement rows.
 //   bsky_flows_used(sh, exp): single-use markers for finished sign-ins.
 // Every table is WITHOUT ROWID (no insertion order). Rows past exp are never
-// counted or reported, and are deleted by purgeExpired, which runs where the
-// public list and the admin page are computed (never on a person's own
-// action) and from the optional cron.
+// counted or reported, and are deleted by purgeExpired: daily by the cron
+// (purgeAll; the rollout makes it a requirement for switching the flag on),
+// and also where the public list and the admin page are computed and after
+// endorse, unendorse and sign-in starts. The orphan sweep never runs on a
+// person's own action.
 //
 // Nothing here runs unless BLUESKY_LOGIN is "true" (endorseDb): with the flag
 // unset, no D1 call happens anywhere. Every statement is prepared, with bound
@@ -111,9 +113,13 @@ export const SQL = Object.freeze({
   upgradeIn: (n) => `UPDATE endorsements SET y = 0 WHERE exp > ?1 AND (y IS NULL OR y = 1) AND eh IN (${slots(n, 2)})`,
   removeIn: (n) => `DELETE FROM endorsements WHERE eh IN (${slots(n, 1)}) RETURNING eh`,
   clear: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements WHERE request_id = ?1 LIMIT ?2) RETURNING eh',
-  purgeEndorsements: 'DELETE FROM endorsements WHERE exp <= ?1',
-  purgeRates: 'DELETE FROM bsky_rate_counts WHERE exp <= ?1',
-  purgeFlows: 'DELETE FROM bsky_flows_used WHERE exp <= ?1',
+  // Several requests' rows in one statement, at most ?1 rows: the orphan sweep.
+  clearIn: (n) => `DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements WHERE request_id IN (${slots(n, 2)}) LIMIT ?1) RETURNING request_id`,
+  // Bounded, so a month's cohort expiring in the same second is deleted over
+  // a few purges instead of in one statement.
+  purgeEndorsements: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 LIMIT ?2)',
+  purgeRates: 'DELETE FROM bsky_rate_counts WHERE k IN (SELECT k FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ?1 LIMIT ?2)',
+  purgeFlows: 'DELETE FROM bsky_flows_used WHERE sh IN (SELECT sh FROM bsky_flows_used INDEXED BY bsky_flows_used_exp WHERE exp <= ?1 LIMIT ?2)',
   useFlow: 'INSERT INTO bsky_flows_used (sh, exp) VALUES (?1, ?2) ON CONFLICT (sh) DO NOTHING RETURNING sh',
 });
 
@@ -426,21 +432,43 @@ export async function countFor(db, id, { now = Date.now() } = {}) {
   return c.n > 0 ? c : asCount(null);
 }
 
+// Rows of each kind one purge may delete. A backlog beyond it goes over the
+// next purges (the daily cron, list and admin loads, endorse, unendorse and
+// sign-in), never in one burst of row writes.
+export const PURGE_LIMIT = 500;
+
 /**
- * Delete every row past its expiry: endorsements (12 to 13 months), rate
- * counters (about a day) and single-use markers (up to two hours). Run where
- * the public list or the admin page is computed, and by the optional cron.
- * The tallies follow by trigger.
+ * Delete rows past their expiry, up to `limit` of each kind: endorsements
+ * (12 to 13 months), rate counters (about a day) and single-use markers (up
+ * to two hours). Run by the daily cron, where the public list or the admin
+ * page is computed, and after endorse, unendorse and sign-in starts. It
+ * deletes only expired rows, so when it runs says nothing about anyone.
+ * The tallies follow by trigger. One batch: one query.
  * -> { endorsements, rates, flows } rows deleted
  */
-export async function purgeExpired(db, now = Date.now()) {
+export async function purgeExpired(db, now = Date.now(), { limit = PURGE_LIMIT } = {}) {
   const t = secs(now);
   const out = await stored(() => db.batch([
-    db.prepare(SQL.purgeEndorsements).bind(t),
-    db.prepare(SQL.purgeRates).bind(t),
-    db.prepare(SQL.purgeFlows).bind(t),
+    db.prepare(SQL.purgeEndorsements).bind(t, limit),
+    db.prepare(SQL.purgeRates).bind(t, limit),
+    db.prepare(SQL.purgeFlows).bind(t, limit),
   ]));
   return { endorsements: out[0].meta?.changes || 0, rates: out[1].meta?.changes || 0, flows: out[2].meta?.changes || 0 };
+}
+
+/**
+ * The daily cron's purge: purgeExpired until nothing expired is left, at most
+ * `rounds` batches (well under the Free plan's 50 queries per invocation).
+ * -> rows deleted, by kind
+ */
+export async function purgeAll(db, now = Date.now(), { rounds = 20, limit = PURGE_LIMIT } = {}) {
+  const total = { endorsements: 0, rates: 0, flows: 0 };
+  for (let i = 0; i < rounds; i++) {
+    const out = await purgeExpired(db, now, { limit });
+    for (const k of Object.keys(total)) total[k] += out[k];
+    if (Object.values(out).every((n) => n < limit)) break;
+  }
+  return total;
 }
 
 /**
@@ -464,14 +492,19 @@ export function orphanedIds(counts, statuses) {
 // sweeps instead of one invocation's row writes.
 export const SWEEP_BUDGET = 100;
 
-/** Clear orphaned endorsements (see orphanedIds), at most `budget` rows; errors are logged, never thrown. */
+/**
+ * Clear orphaned endorsements (see orphanedIds), at most `budget` rows, in
+ * one statement: one D1 query whatever the number of orphans (the Free plan
+ * allows 50 per invocation). The first 99 orphaned ids go in one sweep (D1's
+ * 100 bound parameters, less the budget), the rest in the next. Errors are
+ * logged, never thrown. -> the orphaned ids
+ */
 export async function sweepOrphans(db, counts, statuses, { budget = SWEEP_BUDGET } = {}) {
   const ids = orphanedIds(counts, statuses);
-  let left = budget;
-  for (const id of ids) {
-    if (left <= 0) break;
+  const some = ids.filter((id) => ID_RE.test(id)).slice(0, CHUNK);
+  if (some.length && budget > 0) {
     try {
-      left -= (await clearRequestEndorsements(db, id, { max: left })).cleared;
+      await stored(() => db.prepare(SQL.clearIn(some.length)).bind(budget, ...some).all());
     } catch (err) {
       console.error('endorsements: orphan sweep failed', err?.cause?.message || err?.message);
     }

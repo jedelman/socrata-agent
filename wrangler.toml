@@ -73,63 +73,35 @@ PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"
 CONVERSATION_DAYS = "7"
 LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jason, 2026-11-04)
-# Bluesky sign-in and endorsements on the public request list
-# (docs/bluesky-endorsements.md). Three steps:
-#   1. This file sets PUBLIC_ORIGIN and the rate-limit bindings below, with
-#      BLUESKY_LOGIN unset: the OAuth client metadata goes live at
-#      https://jason-edelman.org/ask-siren/oauth-client-metadata.json (the
-#      client_id), and everything else stays off. Probe it with
-#      `node scripts/bsky-probe.js --account <a real handle>`.
-#   2. The D1 database (SIREN_DB, below): create it, apply migrations/, and
-#      add its [[env.siren.d1_databases]] block in a PR.
-#   3. A one-line PR adds BLUESKY_LOGIN = "true" here (a dashboard-only var
-#      is overwritten by the next deploy). With the flag on and no SIREN_DB,
-#      every Bluesky route answers 503 and logs why; nothing else changes.
-# No new secret: INVITE_SECRET and IP_SALT, already set, are reused with
-# domain separation. Optional knobs, with their defaults:
-#   ENDORSE_PUBLIC = "established"   ENDORSE_YOUNG_DAYS = "30"
-#   ENDORSE_MIN_ACCOUNT_DAYS = "0"    ENDORSE_RETENTION_MONTHS = "12"
-#   ENDORSE_PER_DID_DAILY = "30"      ENDORSE_PER_VISITOR_DAILY = "200"
-#   ENDORSE_PER_ISSUER_DAILY = "20"   ENDORSE_PER_DOMAIN_DAILY = "60"
-#   ENDORSE_OPEN_ISSUERS = "https://bsky.social"
-#   BSKY_LOGIN_PER_VISITOR_HOURLY = "60"
-#   DOH_URL = "https://cloudflare-dns.com/dns-query"   PLC_URL = "https://plc.directory"
+# Bluesky sign-in and endorsements (docs/bluesky-endorsements.md, which has
+# the rollout, the optional knobs and the reasons). Off until a PR adds
+# BLUESKY_LOGIN = "true" here, together with SIREN_DB and the daily cron below.
 PUBLIC_ORIGIN = "https://jason-edelman.org"
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"
 id = "d4dfe5ca9b814268a1a1abe052287959"
 
-# Bluesky endorsements and their rate counters live in D1, not KV: on the
-# Workers Free plan KV allows 1,000 writes and 1,000 list operations a day,
-# shared with every question Siren answers, and D1 allows 100,000 rows
-# written and 5,000,000 read. One database, SIREN_DB, which the planned
-# public board will share. It is deliberately not bound here yet: a
-# d1_databases block with a placeholder id would fail the Workers Builds
+# Bluesky endorsements: the SIREN_DB D1 database (docs/bluesky-endorsements.md,
+# "Setting up the database"). Not bound yet: a placeholder id would fail the
 # deploy. Once, from a laptop logged in to the account:
-#   npx wrangler d1 create siren
-#     (prints the database_id; paste it into the block below and uncomment it)
+#   npx wrangler d1 create siren --env siren
+#   (paste the printed database_id below and uncomment the block)
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
-#     (creates the tables from migrations/, and needs the block uncommented;
-#     rerun after any new migration, before the deploy that needs it:
-#     Workers Builds doesn't apply them)
-# Then commit the uncommented block in a PR:
+# Workers Builds doesn't apply migrations: apply each new one before merging.
 # [[env.siren.d1_databases]]
 # binding = "SIREN_DB"
 # database_name = "siren"
 # database_id = "<the id `wrangler d1 create siren` printed>"
 # migrations_dir = "migrations"
 #
-# Optional: delete expired endorsement rows even on days nobody loads the
-# request list (they are never counted either way; the list and admin page
-# delete them as they go). One of the account's 5 Free cron triggers:
+# Deletes expired endorsement rows daily. Uncommented in the same PR as
+# BLUESKY_LOGIN: the retention promised on the requests page depends on it.
 # [env.siren.triggers]
 # crons = ["17 7 * * *"]
 
-# Bluesky sign-in and endorsements: burst limits and circuit breakers.
-# Counts are per Cloudflare location and approximate (Workers Rate Limiting);
-# the period is 10 or 60 seconds; namespace_id is an integer unique on the
-# account. Bindings aren't inherited, so they live under env.siren.
+# Bluesky burst limits and circuit breakers (docs/bluesky-endorsements.md,
+# "Configuration"). Bindings aren't inherited, so they live under env.siren.
 [[env.siren.ratelimits]]
 name = "BSKY_VISITOR_RL"      # per hashed visitor: login starts, callbacks, endorse/unendorse bursts
 namespace_id = "2611061"

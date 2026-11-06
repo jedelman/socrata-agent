@@ -500,6 +500,28 @@ dbTest('D1 failures on endorse, unendorse and forget are JSON 503s', async () =>
   assert.equal((await f.json()).code, 'busy');
 });
 
+dbTest('endorse and unendorse delete expired rows in the background, never with the orphan sweep', async () => {
+  const env = readyEnv();
+  const cookie = await signedInCookie();
+  const { requestKey, publicId } = await import('../worker/requests.js');
+  const key = await requestKey('A');
+  const list = { requests: [{ id: publicId(key), status: 'accepted', source: 'A' }] };
+  await env.LIMITS.put(key, JSON.stringify({ source: 'A', count: 1, status: 'accepted', needs: [] }));
+  const db = env.SIREN_DB;
+  db.sqlite.prepare('INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?, 1, ?)').run(`ev:2026-01-01:${'a'.repeat(32)}`, 1);
+  db.sqlite.prepare('INSERT INTO endorsements (eh, request_id, y, exp) VALUES (?, ?, 0, ?)').run('b'.repeat(32), 'cccccccccccc', Math.floor(Date.now() / 1000) + 86400);
+  for (const [fn, path] of [[handleEndorse, '/api/bsky/endorse'], [handleUnendorse, '/api/bsky/unendorse']]) {
+    db.sqlite.prepare('INSERT OR IGNORE INTO bsky_rate_counts (k, n, exp) VALUES (?, 1, ?)').run(`ev:2026-01-01:${'a'.repeat(32)}`, 1);
+    const deferred = [];
+    const res = await fn(post(path, { id: list.requests[0].id }, { cookie }), env, { waitUntil: (p) => deferred.push(p) }, BASE, { publicList: list });
+    assert.equal(res.status, 200, path);
+    assert.equal(deferred.length, 1, `${path}: one background purge`);
+    await Promise.all(deferred);
+    assert.ok(!db.rows('bsky_rate_counts').some((r) => r.exp === 1), `${path}: the expired counter is gone`);
+    assert.ok(db.rows('endorsements').some((r) => r.request_id === 'cccccccccccc'), `${path}: an orphan with a live expiry is left to the sweep`);
+  }
+});
+
 dbTest('me over the account limit still says who is signed in, and reads no storage', async () => {
   const env = readyEnv({ BSKY_ACCOUNT_RL: fakeLimiter(0) });
   const res = await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });

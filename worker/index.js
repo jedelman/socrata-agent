@@ -22,7 +22,7 @@ import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from 
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, publicRequests, allRequests, decide, requestByPublicId } from './requests.js';
 import { hmacHex } from './crypto.js';
-import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeExpired, endorseDb, dbSetupError } from './endorsements.js';
+import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeExpired, purgeAll, endorseDb, dbSetupError } from './endorsements.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { cachedPublicList, purgePublicList } from './public-list.js';
 import {
@@ -486,12 +486,13 @@ function page(env) {
 }
 
 export default {
-  // Optional: with a cron trigger configured ([env.siren.triggers], see
-  // wrangler.toml), delete endorsement rows past their expiry even on days
-  // nobody loads the list. Without BLUESKY_LOGIN and SIREN_DB it does nothing.
+  // The daily cron ([env.siren.triggers], added with BLUESKY_LOGIN in rollout
+  // step 5, docs/bluesky-endorsements.md) deletes endorsement rows past their
+  // expiry whether or not anyone visits, which the retention promises on the
+  // requests page rely on. Without BLUESKY_LOGIN and SIREN_DB it does nothing.
   async scheduled(controller, env, ctx) {
     const db = endorseDb(env);
-    if (db) ctx.waitUntil(purgeExpired(db).catch((err) => console.error('scheduled purge failed', String(err?.cause?.message || err?.message).slice(0, 300))));
+    if (db) ctx.waitUntil(purgeAll(db).catch((err) => console.error('scheduled purge failed', String(err?.cause?.message || err?.message).slice(0, 300))));
   },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
