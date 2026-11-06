@@ -27,14 +27,16 @@ test('nothing is public until the steward accepts it, and old notes stay private
   await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'An old note, sent before requests were public' }, kv, visitor: 'v1' });
   await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'Are Ghent trees protected?', public: true }, kv, visitor: 'v2' });
   await addRequest({ body: { source: 'ARB historic district guidelines', need: 'Front-yard trees?', public: true }, kv, visitor: 'v3' });
-  let list = await publicRequests(kv);
+  let list = await publicRequests(kv, Date.parse('2026-11-06T12:00:00Z'));
   assert.deepEqual(list.requests, []);
   assert.equal(list.awaiting_review, 2);
 
   const key = await requestKey('Norfolk City Code, Chapter 45');
   await kv.put(key, JSON.stringify(withStatus(await kv.get(key, 'json'), 'accepted', { steward_note: 'Municode is behind a bot challenge; a copy we can re-check is needed.' })));
-  list = await publicRequests(kv);
+  list = await publicRequests(kv, Date.parse('2026-11-06T13:00:00Z'));
   assert.equal(list.requests.length, 1);
+  assert.equal(list.awaiting_review, 2, 'the awaiting count is a once-a-day snapshot');
+  list = await publicRequests(kv, Date.parse('2026-11-07T00:00:00Z'));
   assert.equal(list.awaiting_review, 1);
   let r = list.requests[0];
   assert.equal(r.id, publicId(key));
@@ -302,7 +304,9 @@ test('the plan closes withdrawn issues with a fixed body and title', () => {
   );
   assert.deepEqual(p.map((x) => [x.id, x.state, x.state_reason]), [['aaaaaaaaaaaa', 'open', undefined], ['bbbbbbbbbbbb', 'closed', 'not_planned'], ['cccccccccccc', 'closed', 'not_planned']]);
   assert.equal(p[1].body, '<!-- source-request:bbbbbbbbbbbb -->\nRemoved from the public request list by a steward on 2026-11-03.');
-  assert.equal(p[1].title, 'Source request bbbbbbbbbbbb (withdrawn)');
+  assert.equal(p[1].title, 'Source request (withdrawn)', 'no id in the title');
+  assert.ok(p.slice(1).every((x) => x.create_if_missing === false && x.state_reason === 'not_planned'), 'plan consumers must not create withdrawn entries');
+  assert.equal(p[0].create_if_missing, undefined);
   assert.equal(p[2].body, '<!-- source-request:cccccccccccc -->\nRemoved from the public request list.', 'a malformed day is dropped, not copied');
   assert.equal(plan([{ id: 'abc123def456', source: 'S', count: 2, status: 'fulfilled', notes: [] }], 'u', 'o/r')[0].state_reason, 'completed');
   assert.equal(plan([], 'u', 'o/r').length, 0, 'no withdrawn list, nothing to close');
@@ -322,8 +326,8 @@ test('applying directly: create, update, close withdrawn, close unlisted, leave 
   const byNumber = Object.fromEntries(ops.filter((o) => o.op === 'update').map((o) => [o.number, o.patch]));
   assert.ok(byNumber[1].body.includes('approved note'));
   assert.equal(byNumber[1].state, undefined);
-  assert.deepEqual(byNumber[2], { body: withdrawnBody('bbbbbbbbbbbb', '2026-11-03'), title: 'Source request bbbbbbbbbbbb (withdrawn)', state: 'closed', state_reason: 'not_planned' });
-  assert.deepEqual(byNumber[3], { body: withdrawnBody('cccccccccccc'), title: 'Source request cccccccccccc (withdrawn)', state: 'closed', state_reason: 'not_planned' }, 'marker in neither list');
+  assert.deepEqual(byNumber[2], { body: withdrawnBody('bbbbbbbbbbbb', '2026-11-03'), title: 'Source request (withdrawn)', state: 'closed', state_reason: 'not_planned' });
+  assert.deepEqual(byNumber[3], { body: withdrawnBody('cccccccccccc'), title: 'Source request (withdrawn)', state: 'closed', state_reason: 'not_planned' }, 'marker in neither list');
   assert.equal(byNumber[4], undefined, 'an issue without a marker is left alone');
   assert.equal(byNumber[5], undefined, 'pull requests are left alone');
   const creates = ops.filter((o) => o.op === 'create');
@@ -339,7 +343,7 @@ test('applying directly: create, update, close withdrawn, close unlisted, leave 
 test('applying directly: no withdrawn list in the feed closes nothing unlisted; a reaccepted request reopens', () => {
   const existing = [
     { number: 3, state: 'open', title: 't', body: '<!-- source-request:cccccccccccc -->\nsome words' },
-    { number: 7, state: 'closed', title: 'Source request aaaaaaaaaaaa (withdrawn)', body: withdrawnBody('aaaaaaaaaaaa', '2026-11-03') },
+    { number: 7, state: 'closed', title: 'Source request (withdrawn)', body: withdrawnBody('aaaaaaaaaaaa', '2026-11-03') },
   ];
   const ops = operations({ existing, requests: [{ id: 'aaaaaaaaaaaa', source: 'Back again', count: 2, status: 'accepted', notes: [] }], withdrawn: undefined, pageUrl: 'u', repo: 'o/r' });
   assert.equal(ops.length, 1);
@@ -347,4 +351,131 @@ test('applying directly: no withdrawn list in the feed closes nothing unlisted; 
   assert.equal(ops[0].patch.state, 'open');
   assert.equal(ops[0].patch.title, 'Source request: Back again');
   assert.deepEqual(operations({ existing, requests: [], withdrawn: undefined, pageUrl: 'u', repo: 'o/r' }), []);
+});
+
+// --- Review fixes: legacy declines, stale raises, trimming, the awaiting
+// snapshot, decision days, and the plan's create_if_missing.
+
+import { trimNotes, deletedKey } from '../worker/requests.js';
+import { UNLISTED_LIMIT } from '../scripts/sync-request-issues.js';
+
+test('legacy: notes before a decline (or a reset to new) stay pending when the request is accepted later', () => {
+  const note = { text: 'note naming Jane Doe at 12 Elm St', at: '2026-11-01T00:00:00Z', public: true };
+  for (const status of ['declined', 'new']) {
+    const legacy = { source: 'S', count: 1, status, decided: '2026-11-02T00:00:00Z', needs: [note] };
+    assert.equal(normalizeRecord(legacy).needs[0].review, 'pending', status);
+    const accepted = withStatus(legacy, 'accepted', {}, at('2026-11-06T00:00:00Z'));
+    assert.equal(accepted.needs[0].review, 'pending', status);
+    assert.deepEqual(publicView('request:abcdef012345aaaa', accepted).notes, [], status);
+  }
+  // Fulfilled counts as public, like accepted.
+  const done = normalizeRecord({ source: 'S', count: 1, status: 'fulfilled', decided: '2026-11-02T00:00:00Z', needs: [note] });
+  assert.equal(done.needs[0].review, 'ok');
+});
+
+// A KV whose reads of one key return a snapshot taken earlier, as a read at
+// another location can within KV's propagation window.
+function staleKV(kv, staleKeys) {
+  const snap = new Map(staleKeys.map((k) => [k, kv.store.get(k)]));
+  return {
+    ...kv,
+    async get(k, type) {
+      if (!snap.has(k)) return kv.get(k, type);
+      const v = snap.get(k);
+      if (v === undefined) return null;
+      return type === 'json' ? JSON.parse(v) : v;
+    },
+  };
+}
+
+test('a stale raise cannot bring a deleted note back', async () => {
+  for (const staleTombstone of [false, true]) {
+    const kv = fakeKV();
+    await addRequest({ body: { source: 'Tree permits', need: 'names a person', public: true }, kv, visitor: 'v' });
+    const [r] = await allRequests(kv);
+    const key = await requestKey('Tree permits');
+    await decide(kv, { id: r.id, status: 'accepted' });
+    await reviewNote(kv, { id: r.id, note: r.needs[0].id, action: 'approve' });
+    assert.deepEqual((await publicRequests(kv)).requests[0].notes, ['names a person']);
+    // A raise elsewhere reads the record (and maybe the tombstone) before the delete lands.
+    const stale = staleKV(kv, staleTombstone ? [key, deletedKey(key)] : [key]);
+    assert.ok((await reviewNote(kv, { id: r.id, note: r.needs[0].id, action: 'delete' })).ok);
+    assert.deepEqual((await publicRequests(kv)).requests[0].notes, []);
+    await addRequest({ body: { source: 'Tree permits', need: 'later', public: true }, kv: stale, visitor: 'w' });
+    const feed = await publicRequests(kv);
+    assert.deepEqual(feed.requests[0].notes, [], `deleted note stays gone (stale tombstone: ${staleTombstone})`);
+    assert.ok(!(await allRequests(kv))[0].needs.some((n) => n.text === 'names a person'), 'the steward does not see it again either');
+    // The next raise that reads the tombstone drops it from storage too.
+    await addRequest({ body: { source: 'Tree permits' }, kv, visitor: 'x' });
+    assert.ok(!kv.store.get(key).includes('names a person'));
+  }
+});
+
+test('a run of new notes cannot push approved notes off an accepted request', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Canopy survey', need: 'approved question', public: true }, kv, visitor: 'v' });
+  const [r] = await allRequests(kv);
+  await decide(kv, { id: r.id, status: 'accepted' });
+  await reviewNote(kv, { id: r.id, note: r.needs[0].id, action: 'approve' });
+  for (let i = 0; i < 20; i++) await addRequest({ body: { source: 'Canopy survey', need: `junk ${i}`, public: true }, kv, visitor: 'spam' });
+  assert.deepEqual((await publicRequests(kv)).requests[0].notes, ['approved question']);
+  const needs = (await allRequests(kv))[0].needs;
+  assert.equal(needs.filter((n) => n.review !== 'ok').length, 10, 'the newest pending notes are kept for review');
+  assert.equal(needs.at(-1).text, 'junk 19');
+  // Trimming keeps order, and keeps approved notes up to the total.
+  const many = Array.from({ length: 25 }, (_, i) => ({ id: `n${i}`, review: i % 2 ? 'ok' : 'pending' }));
+  const kept = trimNotes(many);
+  assert.ok(kept.length <= 20);
+  assert.deepEqual(kept, [...kept].sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1))));
+});
+
+test('the awaiting count does not move with a raise, so it cannot tell whether someone asked already', async () => {
+  const kv = fakeKV();
+  const day = at('2026-11-06T09:00:00Z');
+  await addRequest({ body: { source: 'Police records for 12 Elm St' }, kv, visitor: 'victim', now: day });
+  const before = (await publicRequests(kv, day)).awaiting_review;
+  await addRequest({ body: { source: 'Police records for 12 Elm St' }, kv, visitor: 'prober', now: day + 1000 });
+  assert.equal((await publicRequests(kv, day + 2000)).awaiting_review, before);
+  await addRequest({ body: { source: 'A fresh source' }, kv, visitor: 'prober', now: day + 3000 });
+  assert.equal((await publicRequests(kv, day + 4000)).awaiting_review, before, 'a fresh source does not move it either');
+  assert.equal((await publicRequests(kv, at('2026-11-07T00:00:01Z'))).awaiting_review, 2, 'the next day it is counted again');
+});
+
+test('a decision is stored as a day', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Decided source', need: 'q', public: true }, kv, visitor: 'v' });
+  const [r] = await allRequests(kv);
+  await decide(kv, { id: r.id, status: 'accepted' }, at('2026-11-06T14:15:16.789Z'));
+  const raw = await kv.get(await requestKey('Decided source'), 'json');
+  assert.equal(raw.decided, '2026-11-06');
+  assert.ok(!ISO_TIME.test(JSON.stringify(raw)), 'no time of day anywhere in the record');
+  assert.equal((await allRequests(kv))[0].decided, '2026-11-06');
+});
+
+test('applying directly refuses to close every issue, or many, unless told to', () => {
+  const issue = (n, id, state = 'open') => ({ number: n, state, title: 't', body: `<!-- source-request:${id} -->\nwords` });
+  const two = [issue(1, 'aaaaaaaaaaaa'), issue(2, 'bbbbbbbbbbbb')];
+  assert.throws(() => operations({ existing: two, requests: [], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), /Refusing to close 2 of 2/);
+  assert.equal(operations({ existing: two, requests: [], withdrawn: [], pageUrl: 'u', repo: 'o/r', closeUnlisted: true }).length, 2);
+  const many = Array.from({ length: UNLISTED_LIMIT + 2 }, (_, i) => issue(i + 1, String(i).padStart(12, 'a')));
+  const live = { id: 'ffffffffffff', source: 'Live', count: 1, status: 'accepted', notes: [] };
+  assert.throws(() => operations({ existing: [...many, issue(99, 'ffffffffffff')], requests: [live], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), /Refusing/);
+  // One stray issue beside a listed one is closed without asking.
+  const ops = operations({ existing: [issue(1, 'aaaaaaaaaaaa'), issue(99, 'ffffffffffff')], requests: [live], withdrawn: [], pageUrl: 'u', repo: 'o/r' });
+  assert.equal(ops.find((o) => o.number === 1).patch.state_reason, 'not_planned');
+  // Closed issues count too: an empty feed doesn't blank fulfilled ones.
+  assert.throws(() => operations({ existing: [issue(1, 'aaaaaaaaaaaa', 'closed')], requests: [], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), /Refusing to close 1 of 1/);
+  // Issues already in the withdrawn shape don't count.
+  const done = { number: 1, state: 'closed', title: 'Source request (withdrawn)', body: withdrawnBody('aaaaaaaaaaaa') };
+  assert.deepEqual(operations({ existing: [done], requests: [], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), []);
+});
+
+test('the steward page counts only public notes as needing review', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('../worker/admin.html', import.meta.url), 'utf8');
+  const line = html.match(/^const pending = .*;$/m)[0];
+  const pending = new Function(`${line}; return pending;`)();
+  const r = { needs: [{ public: false, review: 'pending' }, { public: true, review: 'pending' }, { public: true, review: 'ok' }] };
+  assert.equal(pending(r).length, 1);
+  assert.match(html, /delete the GitHub issue by hand/);
 });

@@ -10,6 +10,11 @@
 //   node scripts/invites.js requests [--status new]
 //   node scripts/invites.js request-note <request id> <note id> approve|delete
 //
+// Once a request or note has been synced to GitHub, declining or deleting it
+// doesn't erase it there: the old title stays in the issue's timeline and old
+// bodies in its edit history. For text that names a person or a home, delete
+// the issue by hand (a repo admin step; nothing here deletes issues).
+//
 // Options: --env <name> (default siren), --local (wrangler dev's local KV
 // instead of the deployed one), --config <file> (another wrangler config),
 // --dry-run (print the wrangler commands only).
@@ -22,7 +27,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
-import { withStatus, withNoteReview, normalizeRecord, publicId } from '../worker/requests.js';
+import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, dropDeleted, withDeleted } from '../worker/requests.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -51,6 +56,23 @@ async function keyFor(arg) {
   if (/^invite:[0-9a-f]{64}$/.test(a)) return a;
   if (/^[0-9a-f]{64}$/.test(a)) return `invite:${a}`;
   return inviteKey(a);
+}
+
+// A request record with its deleted notes dropped (see worker/requests.js).
+function readRequest(key) {
+  const r = JSON.parse(wrangler(['get', key, '--text']) || '{}');
+  const deleted = deletedIds(key);
+  return { r: dropDeleted(r, deleted), deleted };
+}
+function deletedIds(key) {
+  if (dry) return [];
+  try {
+    const out = wrangler(['get', deletedKey(key), '--text']).trim();
+    const ids = out && !/value not found/i.test(out) ? JSON.parse(out) : [];
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
 }
 
 function exists(key) {
@@ -101,7 +123,7 @@ async function main() {
     // delete; [private] notes (sent before requests were public) are shown
     // here but never on the public list, even if approved.
     const keys = JSON.parse(wrangler(['list', '--prefix', 'request:']) || '[]');
-    const rows = keys.map(({ name }) => [name, normalizeRecord(JSON.parse(wrangler(['get', name, '--text']) || '{}'))]).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
+    const rows = keys.map(({ name }) => [name, normalizeRecord(readRequest(name).r)]).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
     const only = opt('status', '');
     for (const [name, r] of rows) {
       if (only && (r.status || 'new') !== only) continue;
@@ -120,7 +142,7 @@ async function main() {
     const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
     if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
     const key = matches[0].name;
-    const cur = JSON.parse(wrangler(['get', key, '--text']) || '{}');
+    const cur = readRequest(key).r;
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
     const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
     if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
@@ -128,7 +150,9 @@ async function main() {
     console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.`);
   } else if (cmd === 'request-note') {
     // Review one note: approve shows it publicly (if written under the public
-    // notice) once the request is accepted; delete removes it for good.
+    // notice) once the request is accepted; delete removes it from storage.
+    // A note already synced to GitHub stays in the issue's edit history; for
+    // text that names a person or a home, delete the issue by hand.
     const id = String(argv[1] || '').trim().toLowerCase();
     const noteId = String(argv[2] || '').trim().toLowerCase();
     const action = String(argv[3] || '').trim().toLowerCase();
@@ -137,8 +161,10 @@ async function main() {
     const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
     if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
     const key = matches[0].name;
-    const cur = JSON.parse(wrangler(['get', key, '--text']) || '{}');
+    const { r: cur, deleted } = readRequest(key);
     const next = withNoteReview(cur, noteId, action);
+    // The tombstone first, so a raise that read a stale copy can't bring the note back.
+    if (action === 'delete') wrangler(['put', deletedKey(key), JSON.stringify(withDeleted(deleted, noteId))]);
     wrangler(['put', key, JSON.stringify(next)]);
     console.error(`${cur.source}: note ${noteId} ${action === 'delete' ? 'deleted' : 'approved'}.`);
   } else if (cmd === 'waitlist-remove') {

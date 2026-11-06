@@ -9,7 +9,10 @@ The notes people write about what they wanted to know are reviewed too, one
 by one: a note appears on the list and in the issue only after the steward
 approves it. If the steward takes a request off the list, the next sync
 closes its issue and replaces the issue's text with a line saying it was
-removed; comments on the issue are left as they are.
+removed; comments on the issue are left as they are. That doesn't erase the
+request's words from GitHub: the old title stays in the issue's timeline and
+earlier text in its edit history, a note the steward later deleted included.
+For text that names a person or a home, the steward deletes the issue by hand.
 
 To fulfill one is to teach the agent that source, in a pull request that
 anyone can check.

@@ -14,16 +14,32 @@
 // public" notice (public: true) are ever shown. Notes from before that notice
 // stay private. Notes from before per-note review (no `review` field) count
 // as reviewed only if they were written no later than the request's last
-// decision. Statuses: new, accepted, declined, fulfilled.
+// decision and that decision put the request on the public list.
+// Statuses: new, accepted, declined, fulfilled.
+//
+// A request is one KV record, and a raise rewrites all of it from what it
+// read, which can be up to a minute stale elsewhere. So a deleted note's id is
+// also kept under `request-deleted:<hash>`, which raises never write, and
+// every read drops those notes: a stale raise can't bring a deleted note back.
+// The same staleness can still undo a decision (a stale raise writes back the
+// old status); moving requests to D1 is the durable fix.
 //
 // A request that was ever public carries was_public. If it later leaves the
 // public list (declined, or set back to new), the public feed lists it under
-// `withdrawn` with the day, so the GitHub mirror can close its issue.
+// `withdrawn` with the day, so the GitHub mirror can close its issue. Known
+// limit: a public id is the first 12 hex of sha256 of the normalized source
+// text, so anyone can confirm a guessed source against it, withdrawn ones
+// included. A random id stored at acceptance would fix that; issue markers
+// depend on the current scheme, so it is left for a later change.
 
 import { sha256hex } from './invites.js';
 
 const NOTE_CHARS = 300;
 const KEEP_NOTES = 20;
+// Pending notes kept per request, so a run of new notes can't push out the
+// approved ones.
+const KEEP_PENDING = 10;
+const KEEP_DELETED = 500;
 const clip = (s, n) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, n);
 const dayOf = (now) => new Date(now).toISOString().slice(0, 10);
 const asDay = (v) => (typeof v === 'string' && v ? v.slice(0, 10) : v);
@@ -45,11 +61,42 @@ function legacyNoteId(n) {
 }
 
 // Legacy notes ({text, at, public}) count as reviewed only when written no
-// later than the request's last decision; later ones wait for the steward.
+// later than the request's last decision, and only if that decision put the
+// request on the public list: the steward saw them when accepting it. After a
+// decline or a reset to new, every legacy note waits for the steward.
+// normalizeRecord runs before a decision changes status or decided, so
+// r.status here is the status set at `decided`.
 function legacyReview(n, r) {
   const at = Date.parse(n.at);
   const decided = Date.parse(r.decided);
-  return Number.isFinite(at) && Number.isFinite(decided) && at <= decided ? 'ok' : 'pending';
+  return PUBLIC.has(r.status || 'new') && Number.isFinite(at) && Number.isFinite(decided) && at <= decided ? 'ok' : 'pending';
+}
+
+/** Where the ids of a request's deleted notes are kept. Raises never write it. */
+export const deletedKey = (key) => key.replace(/^request:/, 'request-deleted:');
+
+/** A record without the notes whose ids were deleted. Pure. */
+export function dropDeleted(r, ids) {
+  if (!r || !ids?.length) return r;
+  const gone = new Set(ids);
+  const cur = normalizeRecord(r);
+  return { ...cur, needs: cur.needs.filter((n) => !gone.has(n.id)) };
+}
+
+async function readDeleted(kv, key) {
+  const ids = await kv.get(deletedKey(key), 'json');
+  return Array.isArray(ids) ? ids : [];
+}
+
+/**
+ * The notes to keep, in order: the newest KEEP_PENDING pending notes and as
+ * many of the newest approved ones as fit in KEEP_NOTES.
+ */
+export function trimNotes(needs) {
+  const pending = needs.filter((n) => n.review !== 'ok').slice(-KEEP_PENDING);
+  const ok = needs.filter((n) => n.review === 'ok').slice(-(KEEP_NOTES - pending.length));
+  const keep = new Set([...pending, ...ok]);
+  return needs.filter((n) => keep.has(n));
 }
 
 /**
@@ -86,14 +133,15 @@ export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.no
   if (used >= perDay) return { ok: false, status: 429, error: 'That is a lot of requests for one day. Thank you; try again tomorrow.' };
   await kv.put(rateKey, String(used + 1), { expirationTtl: 90000 });
   const key = await requestKey(source);
-  const cur = normalizeRecord((await kv.get(key, 'json')) || { source, url: '', count: 0, first: day, needs: [], status: 'new' });
+  const [stored, deleted] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key)]);
+  const cur = normalizeRecord(dropDeleted(stored, deleted) || { source, url: '', count: 0, first: day, needs: [], status: 'new' });
   const note = { id: `n${randomHex(4)}`, text: need, day, public: body?.public === true, review: 'pending' };
   const next = {
     ...cur,
     url: cur.url || (/^https:\/\//i.test(url) ? url : ''),
     count: cur.count + 1,
     last: day,
-    needs: need ? [...cur.needs, note].slice(-KEEP_NOTES) : cur.needs,
+    needs: need ? trimNotes([...cur.needs, note]) : cur.needs,
   };
   // KV is eventually consistent, so two requests at once can count as one.
   // The count is a signal for the steward, not a vote.
@@ -137,15 +185,34 @@ async function listRequests(kv) {
     keys.push(...page.keys.map((k) => k.name));
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  return (await Promise.all(keys.map(async (k) => [k, await kv.get(k, 'json')]))).filter(([, r]) => r);
+  const rows = await Promise.all(keys.map(async (k) => {
+    const [r, deleted] = await Promise.all([kv.get(k, 'json'), readDeleted(kv, k)]);
+    return [k, dropDeleted(r, deleted)];
+  }));
+  return rows.filter(([, r]) => r);
+}
+
+const STATS_KEY = 'request-stats';
+
+// How many requests await review, as a count taken once a day (one KV write a
+// day): a live count would let anyone test whether someone else already asked
+// for a source, by raising it and watching the number.
+async function awaitingSnapshot(kv, rows, now) {
+  const day = dayOf(now);
+  const snap = await kv.get(STATS_KEY, 'json');
+  if (snap?.day === day && Number.isInteger(snap.awaiting_review)) return snap.awaiting_review;
+  const awaiting = rows.filter(([, r]) => (r.status || 'new') === 'new').length;
+  await kv.put(STATS_KEY, JSON.stringify({ day, awaiting_review: awaiting }));
+  return awaiting;
 }
 
 /**
  * The public list: accepted and fulfilled requests, most wanted first; how
- * many await review; and the requests that were public and no longer are
- * (id and the day of that decision only), so the mirror can close them.
+ * many awaited review at the day's first look; and the requests that were
+ * public and no longer are (id and the day of that decision only), so the
+ * mirror can close them.
  */
-export async function publicRequests(kv) {
+export async function publicRequests(kv, now = Date.now()) {
   const rows = await listRequests(kv);
   const shown = rows.filter(([, r]) => PUBLIC.has(r.status || 'new')).map(([k, r]) => publicView(k, r));
   shown.sort((a, b) => (a.status === b.status ? b.count - a.count : a.status === 'accepted' ? -1 : 1));
@@ -153,7 +220,7 @@ export async function publicRequests(kv) {
     .filter(([, r]) => r.was_public === true && !PUBLIC.has(r.status || 'new'))
     .map(([k, r]) => ({ id: publicId(k), day: asDay(r.decided) || null }))
     .sort((a, b) => (a.id < b.id ? -1 : 1));
-  return { requests: shown, awaiting_review: rows.filter(([, r]) => (r.status || 'new') === 'new').length, withdrawn };
+  return { requests: shown, awaiting_review: await awaitingSnapshot(kv, rows, now), withdrawn };
 }
 
 /** Steward decision. `extra` may carry steward_note (public) or fulfilled_by (a PR or commit URL). */
@@ -161,7 +228,9 @@ export function withStatus(r, status, extra = {}, now = Date.now()) {
   if (!STATUSES.includes(status)) throw new Error(`Status must be one of ${STATUSES.join(', ')}.`);
   // Normalize first: legacy notes are judged against the earlier decision.
   const cur = normalizeRecord(r);
-  const out = { ...cur, status, decided: new Date(now).toISOString() };
+  // A day, like every stored date. Safe: every note has its review now, so
+  // the legacy rule never compares against this value.
+  const out = { ...cur, status, decided: dayOf(now) };
   // Set at acceptance and kept: a request that leaves the public list later
   // is listed as withdrawn. A legacy request that is public now counts too.
   if (r.was_public === true || PUBLIC.has(status) || PUBLIC.has(r.status || 'new')) out.was_public = true;
@@ -172,6 +241,9 @@ export function withStatus(r, status, extra = {}, now = Date.now()) {
   }
   return out;
 }
+
+/** The tombstone list with one more note id, newest kept. */
+export const withDeleted = (ids, noteId) => [...(ids || []).filter((x) => x !== noteId), noteId].slice(-KEEP_DELETED);
 
 /** Steward review of one note: approve it (shown if it was written under the public notice) or delete it. */
 export function withNoteReview(r, noteId, action) {
@@ -198,7 +270,8 @@ async function findRequest(kv, id) {
   const page = await kv.list({ prefix: `request:${id}` });
   if (page.keys.length !== 1) return { error: { ok: false, status: 404, error: 'No single request has that id.' } };
   const key = page.keys[0].name;
-  return { key, cur: await kv.get(key, 'json') };
+  const [cur, deleted] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key)]);
+  return { key, cur: dropDeleted(cur, deleted), deleted };
 }
 
 /** Apply a steward decision by public id. Returns { ok, request } or { ok: false, status, error }. */
@@ -223,7 +296,7 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
 export async function reviewNote(kv, { id, note, action }) {
   const found = await findRequest(kv, id);
   if (found.error) return found.error;
-  const { key, cur } = found;
+  const { key, cur, deleted } = found;
   if (typeof note !== 'string' || !/^[0-9a-z-]{1,24}$/.test(note)) return { ok: false, status: 400, error: 'Give the note id.' };
   let next;
   try {
@@ -231,6 +304,9 @@ export async function reviewNote(kv, { id, note, action }) {
   } catch (err) {
     return { ok: false, status: /no note/.test(err.message) ? 404 : 400, error: err.message };
   }
+  // The tombstone first: if the record write is lost to a stale raise, reads
+  // still drop the note.
+  if (action === 'delete') await kv.put(deletedKey(key), JSON.stringify(withDeleted(deleted, note)));
   await kv.put(key, JSON.stringify(next));
   return { ok: true, request: publicView(key, next), needs: adminView(key, next).needs };
 }
