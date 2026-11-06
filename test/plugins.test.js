@@ -7,7 +7,7 @@ import { toolsFor } from '../src/tools.js';
 import { getCity } from '../src/cities/index.js';
 import { systemPrompt } from '../src/prompt.js';
 import water, { tractGeoid, leagueKey, km, TIDE_GAUGES } from '../plugins/water-on-my-block.js';
-import trees, { summarize } from '../plugins/trees-on-my-block.js';
+import trees, { summarize, trunkSizes } from '../plugins/trees-on-my-block.js';
 import litter, { median, perMeter } from '../plugins/litter-on-my-street.js';
 import sponge from '../deployments/sponge-city-norfolk.config.js';
 import { verifyAccess, resetAccessCache } from '../worker/access.js';
@@ -166,7 +166,8 @@ function respondTreesLitter(url) {
   if (url.includes('/resource/cmvv-agyb')) {
     if (q.includes('GROUP BY civic_league')) return [{ civic_league: 'Colonial Place/ Riverview', n: '2100' }];
     if (q.includes('GROUP BY common_name')) return [{ common_name: 'Crapemyrtle', n: '12' }, { common_name: 'Willow Oak', n: '2' }];
-    if (q.includes('GROUP BY r')) return [{ r: '6" to 12"', n: '5' }, { n: '9' }];
+    // Shaped like the live answer for this circle on 2026-11-06: a tree carries a range or a diameter, rarely both.
+    if (q.includes('GROUP BY r, d')) return [{ d: '0.0', n: '3' }, { d: '17.0', n: '2' }, { d: '-1.0', n: '1' }, { r: '6" to 12"', n: '5' }, { r: '0" to 6"', d: '4.0', n: '1' }, { n: '2' }];
     return [{ n: '93993' }];
   }
   if (url.includes('/resource/iz5u-2wb3')) return q.includes('GROUP BY category') ? [{ category: 'smoking', n: '50' }, { category: 'drink', n: '50' }] : [{ object: 'cigarettebutt', n: '47' }, { object: 'bottle', n: '53' }];
@@ -182,7 +183,13 @@ function respondTreesLitter(url) {
 test('trees_on_my_block passes conformance and never counts private trees', async () => {
   const { result, requests } = await checkPlugin(trees, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter });
   assert.equal(result.near_you.city_trees, 14);
-  assert.equal(result.near_you.no_size_recorded, 9);
+  assert.equal(result.near_you.no_size_recorded, 6, 'empty, 0 and -1 diameters with no range');
+  assert.equal(result.near_you.no_diameter_recorded, 11);
+  assert.deepEqual(result.near_you.trunk_diameter, { trees: 3, min: 4, median: 17, max: 17 });
+  assert.deepEqual(result.near_you.trunk_diameter_range, [{ range: '0" to 6"', count: 1 }, { range: '6" to 12"', count: 5 }]);
+  assert.ok(requests.map(decodeURIComponent).some((u) => /trunk_diameter AS d/.test(u) && /GROUP BY r, d/.test(u)));
+  assert.ok(result.about_the_data.some((n) => /0 or less is counted as unrecorded/.test(n) && /6,918/.test(n)));
+  assert.ok(!result.about_the_data.some((n) => /most trees have no trunk size/.test(n)));
   assert.equal(result.civic_league.civic_league_matched, 'Colonial Place/ Riverview');
   assert.equal(result.civic_league.removals_per_planting, 5);
   assert.equal(result.civic_league.city_trees_in_inventory, 2100);
@@ -190,6 +197,28 @@ test('trees_on_my_block passes conformance and never counts private trees', asyn
   assert.ok(result.work_orders_cover.years > 6);
   for (const u of requests.filter((x) => x.includes('/resource/cmvv-agyb'))) assert.match(decodeURIComponent(u), /common_name != 'PRIVATE TREES'/);
   assert.ok(result.about_the_data.some((n) => /re-inventory/.test(n)));
+});
+
+test('trunk sizes read the diameter too, and count 0 or less as unrecorded', () => {
+  const s = trunkSizes([
+    { r: '12" to 18"', n: '2' },
+    { r: '6" to 12"', d: '0.0', n: '1' },
+    { d: '10.0', n: '1' },
+    { d: '20', n: '3' },
+    { d: '0.0', n: '4' },
+    { d: '-1.0', n: '1' },
+    { d: '', n: '1' },
+    { n: '5' },
+  ]);
+  assert.deepEqual(s.trunk_diameter_range, [{ range: '6" to 12"', count: 1 }, { range: '12" to 18"', count: 2 }]);
+  assert.deepEqual(s.trunk_diameter, { trees: 4, min: 10, median: 20, max: 20 });
+  assert.equal(s.no_diameter_recorded, 14);
+  assert.equal(s.no_size_recorded, 11, 'a range alone is a size; 0, -1, empty and missing diameters are not');
+  assert.equal(trunkSizes([{ d: '4', n: '1' }, { d: '9', n: '1' }]).trunk_diameter.median, 6.5);
+  const none = trunkSizes([{ d: '0.0', n: '2' }]);
+  assert.equal(none.trunk_diameter, null);
+  assert.equal(none.no_size_recorded, 2);
+  assert.deepEqual(trunkSizes([]), { trunk_diameter_range: [], trunk_diameter: null, no_diameter_recorded: 0, no_size_recorded: 0 });
 });
 
 test('tree summary ratios', () => {
