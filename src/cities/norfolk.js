@@ -173,6 +173,33 @@ export default {
     },
   ],
 
+  // The City's budget, read by budget_for and capital_projects
+  // (plugins/budget-for.js, plugins/capital-projects.js). Every id, field
+  // name, value set and row count was checked live on data.norfolk.gov on
+  // 2026-11-06; all are published by the Department of Budget and Strategic
+  // Planning. No column in any of them matches PERSON_COLUMNS, and reading
+  // every department, unit, object, revenue-source, CIP department and
+  // performance-program name that day turned up no private person, so none
+  // carries a policy and the hand-off offers each full CSV.
+  budget: {
+    // 13,335 lines, FY2025-FY2027 (4,376 / 4,636 / 4,323), 64 departments,
+    // 351 department/unit pairs. Updated daily on weekdays.
+    expenditures: { id: 'mdwe-dquf', name: 'Annual Expenditures' },
+    // 1,477 lines, FY2025-FY2027 (506 / 493 / 478), 49 departments.
+    revenues: { id: 'id3i-2az4', name: 'Annual Revenues' },
+    // 361 measures across 36 departments, columns fy_2022 to fy_2027_target.
+    performance: { id: '7jsp-eyjg', name: 'Performance Measures' },
+    // One dataset per adopted Capital Improvement Plan. Their columns differ:
+    // FY2025 renamed the amounts, FY2024 splits master and subproject names
+    // and has no first-year amount. Wards 1-5 in every year, or none.
+    capitalPlans: [
+      { year: 2027, id: '6tqj-4az3', name: 'Capital Improvement Plan (CIP) Projects - FY 2027', span: 'FY2027-FY2031', project: ['project_name'], total: 'amount', firstYear: 'amount_fy_27' }, // 93 projects
+      { year: 2026, id: 'dpv9-3yq2', name: 'Capital Improvement Plan (CIP) Projects - FY 2026', span: 'FY2026-FY2030', project: ['project_name'], total: 'amount', firstYear: 'amount_fy_26' }, // 103 projects
+      { year: 2025, id: '6njp-hen5', name: 'Capital Improvement Plan (CIP) Projects - FY 2025', span: 'FY2025-FY2029', project: ['project_name'], total: 'adopted_amount_fy_25_fy_29', firstYear: 'adopted_amount_fy_25' }, // 121 projects
+      { year: 2024, id: 'jbfz-2t3g', name: 'Capital Improvement Plan (CIP) Projects - FY24', span: 'FY2024-FY2028', project: ['master_project_name', 'subproject_name'], total: 'amount', firstYear: null }, // 155 projects
+    ],
+  },
+
   meetings: {
     kind: 'iqm2',
     iqm2: 'https://norfolkcityva.iqm2.com',

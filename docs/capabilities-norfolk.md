@@ -130,7 +130,11 @@ suppression is now NULL-safe.
 - **Zoning rules for my lot** (City GIS): explicit `outFields`; no CUP
   applicant; home-based uses only as counts, by allowlist with default deny.
 - **Capital projects near me** (CIP FY26–27): say that about 42% have no
-  location, and never imply nothing is planned nearby.
+  location, and never imply nothing is planned nearby. Built 2026-11-06 as
+  `capital_projects` (CIP FY2024–FY2027 by ward or department, the largest
+  projects with location as published, totals by department and ward); a
+  ward filter reports how many of the plan's projects have no ward. No
+  address lookup yet.
 
 **Services and streets:**
 - **Who represents me, and where do I go:** wards, polling place (with the
@@ -167,7 +171,12 @@ suppression is now NULL-safe.
 **City-wide numbers:**
 - **Follow the city's money:** revenues, expenditures, ARPA, performance.
   The latest closed year labeled unaudited; individual ARPA recipients never
-  named.
+  named. Built 2026-11-06 as `budget_for` (Annual Expenditures `mdwe-dquf`,
+  Annual Revenues `id3i-2az4`, Performance Measures `7jsp-eyjg`): budget vs
+  actual by fiscal year for a department, unit or the whole City. The
+  datasets hold FY2025–FY2027 only, and their metadata doesn't say whether
+  a year is closed or audited, so the tool says that rather than labeling a
+  year unaudited. ARPA not included.
 - **My tract at a glance** (ACS, CDC PLACES, HUD):
   - tract level only, labeled as estimates;
   - flag group-quarters tracts;
