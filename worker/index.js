@@ -22,7 +22,8 @@ import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from 
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, publicRequests, allRequests, decide, requestByPublicId } from './requests.js';
 import { hmacHex } from './crypto.js';
-import { endorsementCounts, countFor, clearRequestEndorsements } from './endorsements.js';
+import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans } from './endorsements.js';
+import { publicOrigin } from './atproto-oauth.js';
 import { cachedPublicList, purgePublicList } from './public-list.js';
 import {
   blueskyReady, handleMetadata, handleLogin as handleBskyLogin, handleCallback, handleMe, handleLogout as handleBskyLogout,
@@ -352,7 +353,18 @@ async function handleAdmin(req, env, path, ctx) {
   const later = (p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p);
   const purge = () => later(purgePublicList({ origin: new URL(req.url).origin, base: basePath(env) }));
   if (req.method === 'GET' && path === '/api/admin/requests') {
-    return json({ requests: await allRequests(kv, await endorsementCounts(kv)), bluesky: blueskyReady(env) }, 200, headers);
+    const counts = await endorsementCounts(kv);
+    const requests = await allRequests(kv, counts);
+    // Sweep endorsements that outlived their request's decision (endorsements.js orphanedIds).
+    const statuses = new Map(requests.map((r) => [r.id, r.status]));
+    if (orphanedIds(counts, statuses).length) later(sweepOrphans(kv, counts, statuses));
+    return json({ requests, bluesky: blueskyReady(env), young_days: setting(env.ENDORSE_YOUNG_DAYS, 30, { min: 0, max: 3650 }) }, 200, headers);
+  }
+  // Defense in depth over JSON-only and SameSite: a steward POST that names
+  // an Origin must name this site.
+  if (req.method === 'POST') {
+    const o = req.headers.get('Origin');
+    if (o !== null && o !== new URL(req.url).origin && o !== publicOrigin(env)?.origin) return json({ error: "Act from this site's own admin page.", code: 'not_here' }, 403, headers);
   }
   if (req.method === 'POST' && path === '/api/admin/requests/decide') {
     const body = (await readJson(req)) || {};
@@ -491,16 +503,16 @@ export default {
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin') {
       const { config } = getDeployment(env);
       return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
+        // Its buttons act for the signed-in steward, so it can't be framed.
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' },
       });
     }
     if (req.method === 'GET' && path === '/api/admin/requests') return handleAdmin(req, env, path, ctx);
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/requests') {
       const { config } = getDeployment(env);
-      // With sign-in on, the page can't be framed (its buttons act for a signed-in account).
-      const extra = blueskyReady(env)
-        ? { 'Cache-Control': 'public, max-age=60', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' }
-        : { 'Cache-Control': 'public, max-age=300' };
+      // The page can't be framed (with sign-in on, its buttons act for a signed-in account).
+      const frame = { 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' };
+      const extra = { ...frame, 'Cache-Control': blueskyReady(env) ? 'public, max-age=60' : 'public, max-age=300' };
       return new Response(REQUESTS_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace(/\{\{REPO\}\}/g, esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent')), {
         headers: { 'Content-Type': 'text/html; charset=utf-8', ...extra },
       });

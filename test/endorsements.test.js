@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   endorse, unendorse, endorsedBy, forgetEndorser, endorsementCounts, countFor, clearRequestEndorsements,
-  publicNumber, publicPolicy, youngFlag, endorsementKey,
+  publicNumber, publicPolicy, youngFlag, endorsementKey, issuerBucket, orphanedIds, StorageError,
 } from '../worker/endorsements.js';
 import { addRequest, decide, requestKey, publicId, publicRequests, freezeAtDecision } from '../worker/requests.js';
 import { cachedPublicList, purgePublicList, computePublicList } from '../worker/public-list.js';
@@ -11,7 +11,7 @@ import { hmacHex } from '../worker/crypto.js';
 import { fakeKV, fakeLimiter, fakeCache, SECRET } from './fake-atproto.js';
 
 const NOW = Date.parse('2026-11-06T12:00:00Z');
-const env0 = (over = {}) => ({ INVITE_SECRET: SECRET, BSKY_SITE_RL: fakeLimiter(), ...over });
+const env0 = (over = {}) => ({ INVITE_SECRET: SECRET, BSKY_SITE_RL: fakeLimiter(), BSKY_VISITOR_RL: fakeLimiter(), BSKY_INPUT_RL: fakeLimiter(), ...over });
 const session = async (n = 1, over = {}) => ({ eid: await hmacHex(SECRET, `endorser:did:plc:account${n}`), handle: '', created: '2025-01-02', issuer: 'https://bsky.social', ...over });
 
 async function world() {
@@ -240,4 +240,131 @@ test('the public list is served from the cache until purged', async () => {
   await purgePublicList(args);
   const third = await cachedPublicList(args);
   assert.equal(third.requests.find((r) => r.id === ids.open1).endorsements, 1);
+});
+
+test('a repeat after an unknown age becomes known rewrites null to the known flag, and counted follows the stored flag', async () => {
+  const { kv, ids } = await world();
+  const env = env0();
+  const failedLookup = await session(1, { created: '' }); // the plc audit lookup failed at that sign-in
+  assert.equal((await go(kv, env, ids.open1, failedLookup)).counted, false);
+  const key = await endorsementKey(SECRET, ids.open1, failedLookup.eid);
+  assert.equal(kv.store.get(key).metadata.y, null);
+  const exp = kv.store.get(key).expiration;
+  // Signed in again, the lookup worked: the stored flag is upgraded, the expiration kept.
+  const again = await go(kv, env, ids.open1, await session(1, { created: '2020-01-01' }));
+  assert.deepEqual(again, { ok: true, endorsed: true, already: true, counted: true });
+  assert.equal(kv.store.get(key).metadata.y, 0);
+  assert.equal(kv.store.get(key).expiration, exp);
+  assert.equal(publicNumber(await countFor(kv, ids.open1), 'established'), 1);
+  // Never downgraded: an established flag stays, and an unknown session doesn't erase it.
+  await go(kv, env, ids.open1, await session(1, { created: '' }));
+  assert.equal(kv.store.get(key).metadata.y, 0);
+  // A young account whose stored flag is still young reports counted: false.
+  const y = await session(2, { created: '2026-11-01' });
+  await go(kv, env, ids.open1, y, 'v2');
+  assert.equal((await go(kv, env, ids.open1, y, 'v2')).counted, false);
+});
+
+test('aging takes effect on `me` (endorsedBy): young and unknown flags become established without a click', async () => {
+  const { kv, ids } = await world();
+  const env = env0();
+  const youngThen = await session(1, { created: '2026-11-01' });
+  assert.equal((await go(kv, env, ids.open1, youngThen)).counted, false);
+  await go(kv, env, ids.open2, await session(1, { created: '' })); // stored unknown
+  const k1 = await endorsementKey(SECRET, ids.open1, youngThen.eid);
+  const exp = kv.store.get(k1).expiration;
+  assert.equal(publicNumber(await countFor(kv, ids.open1), 'established'), 0);
+  // While still young, `me` changes nothing.
+  await endorsedBy({ kv, env, session: youngThen, publicList: await computePublicList(env, kv), now: NOW + 86400e3 });
+  assert.equal(kv.store.get(k1).metadata.y, 1);
+  // 40 days later the same account loads the page.
+  const later = NOW + 40 * 86400e3;
+  const ids2 = await endorsedBy({ kv, env, session: youngThen, publicList: await computePublicList(env, kv), now: later });
+  assert.deepEqual(ids2.sort(), [ids.open1, ids.open2].sort());
+  assert.equal(kv.store.get(k1).metadata.y, 0);
+  assert.equal(kv.store.get(k1).expiration, exp, 'the month it was made in is kept');
+  assert.equal(publicNumber(await countFor(kv, ids.open1), 'established'), 1);
+  assert.equal(publicNumber(await countFor(kv, ids.open2), 'established'), 1);
+  assert.equal((await computePublicList(env, kv)).requests.find((r) => r.id === ids.open1).endorsements, 1);
+  // Nothing left to rewrite: a second call writes nothing.
+  const puts = kv.ops.filter((o) => o.op === 'put').length;
+  await endorsedBy({ kv, env, session: youngThen, publicList: await computePublicList(env, kv), now: later });
+  assert.equal(kv.ops.filter((o) => o.op === 'put').length, puts);
+});
+
+test('burst limits: the visitor and per-server bindings refuse before the lagging KV counts', async () => {
+  let { kv, ids } = await world();
+  const s = await session(1);
+  let env = env0({ BSKY_VISITOR_RL: fakeLimiter(0) });
+  const out = await go(kv, env, ids.open1, s);
+  assert.equal(out.status, 429);
+  assert.equal((await countFor(kv, ids.open1)).n, 0, 'nothing written');
+  assert.deepEqual(env.BSKY_VISITOR_RL.calls, ['end:v1']);
+  assert.ok(![...kv.store.keys()].some((k) => k.startsWith('endorse-ev:')), 'KV counts are zero');
+  assert.equal((await unendorse({ kv, env, id: ids.open1, session: s, visitor: 'v', now: NOW })).status, 429);
+  assert.equal((await go(kv, env0({ BSKY_VISITOR_RL: fakeLimiter(5, { throws: true }) }), ids.open1, s)).status, 429, 'fails closed');
+  // The per-server binding, keyed by the day's server hash, for non-open servers only.
+  ({ kv, ids } = await world());
+  env = env0({ BSKY_INPUT_RL: fakeLimiter(0) });
+  assert.equal((await go(kv, env, ids.open1, await session(2, { issuer: 'https://pds.selfhosted.dev' }))).status, 429);
+  assert.ok((await go(kv, env, ids.open1, await session(3))).ok, 'bsky.social is open');
+  assert.equal(env.BSKY_INPUT_RL.calls.length, 1);
+  assert.match(env.BSKY_INPUT_RL.calls[0], /^iss:[0-9a-f]{32}$/);
+});
+
+test('the per-server cap: subdomains share a bucket, and toggling doesn\'t use up the server\'s day', async () => {
+  assert.equal(issuerBucket('https://a1.evil.dev'), 'evil.dev');
+  assert.equal(issuerBucket('https://pds.example.co.uk'), 'example.co.uk');
+  assert.equal(issuerBucket('https://bsky.social'), 'bsky.social');
+  let { kv, ids } = await world();
+  let env = env0({ ENDORSE_PER_ISSUER_DAILY: '1' });
+  assert.ok((await go(kv, env, ids.open1, await session(1, { issuer: 'https://a1.evil.dev' }), 'a')).ok);
+  assert.equal((await go(kv, env, ids.open1, await session(2, { issuer: 'https://a2.evil.dev' }), 'b')).status, 429);
+  ({ kv, ids } = await world());
+  env = env0({ ENDORSE_PER_ISSUER_DAILY: '2' });
+  const s = await session(1, { issuer: 'https://pds.community.dev' });
+  for (let i = 0; i < 4; i++) {
+    assert.ok((await go(kv, env, ids.open1, s, 'a')).ok, `toggle ${i}`);
+    assert.ok((await unendorse({ kv, env, id: ids.open1, session: s, visitor: 'a', now: NOW })).ok);
+  }
+  assert.equal([...kv.store.keys()].filter((k) => k.includes(':i:')).length, 1, 'one per-server event for one (request, account, day)');
+  assert.ok((await go(kv, env, ids.open1, await session(2, { issuer: 'https://pds.community.dev' }), 'b')).ok, 'the server still has room');
+});
+
+test('orphans: keys that outlive a decision are swept where the list is computed', async () => {
+  const { kv, ids } = await world();
+  const env = env0();
+  await go(kv, env, ids.open1, await session(1));
+  // Written after the decision's own clear ran (list lag, or a stale list elsewhere).
+  const s2 = await session(2);
+  for (const id of [ids.done, ids.nope, 'abcdefabcdef']) await kv.put(await endorsementKey(SECRET, id, s2.eid), '1', { metadata: { y: 0 } });
+  // A request moved back to new keeps its endorsements (undecided).
+  await kv.put(await endorsementKey(SECRET, ids.fresh, s2.eid), '1', { metadata: { y: 0 } });
+  const counts = await endorsementCounts(kv);
+  const statuses = new Map([[ids.open1, 'accepted'], [ids.fresh, 'new'], [ids.done, 'fulfilled'], [ids.nope, 'declined']]);
+  assert.deepEqual(orphanedIds(counts, statuses).sort(), [ids.done, ids.nope, 'abcdefabcdef'].sort());
+  await computePublicList(env, kv);
+  assert.equal((await countFor(kv, ids.done)).n, 0);
+  assert.equal((await countFor(kv, ids.nope)).n, 0);
+  assert.equal((await countFor(kv, 'abcdefabcdef')).n, 0);
+  assert.equal((await countFor(kv, ids.fresh)).n, 1);
+  assert.equal((await countFor(kv, ids.open1)).n, 1);
+  // In the Worker the sweep is deferred to waitUntil.
+  await kv.put(await endorsementKey(SECRET, ids.done, s2.eid), '1', { metadata: { y: 0 } });
+  const deferred = [];
+  await cachedPublicList({ env, kv, ctx: { waitUntil: (p) => deferred.push(p) }, origin: 'https://x.dev', cache: null });
+  assert.equal(deferred.length, 1);
+  await Promise.all(deferred);
+  assert.equal((await countFor(kv, ids.done)).n, 0);
+});
+
+test('a failed endorsement write charges nothing and surfaces as a storage error', async () => {
+  const { kv, ids } = await world();
+  const env = env0();
+  const list = await computePublicList(env, kv);
+  kv.failPut = true;
+  await assert.rejects(endorse({ kv, env, id: ids.open1, session: await session(1), visitor: 'v', publicList: list, now: NOW }), StorageError);
+  await assert.rejects(unendorse({ kv, env, id: ids.open1, session: await session(1), visitor: 'v', now: NOW }), StorageError);
+  kv.failPut = false;
+  assert.ok(![...kv.store.keys()].some((k) => k.startsWith('endorse-ev:')), 'no event charged');
 });

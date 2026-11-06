@@ -14,10 +14,12 @@
 // Endorsements (endorsements.js) are the one place a person's identity
 // touches requests. To count a Bluesky account once per request, KV keeps
 // HMAC(INVITE_SECRET, request + account), never the DID, the handle, the
-// issuer or any token, and nothing that links one account's endorsements
-// across requests. Counts are public; endorsers are pseudonymous to anyone
-// without the key. When a request is decided, its count is frozen into the
-// record and the per-account keys are deleted. This module never imports
+// issuer or any token, and one account's endorsements on different requests
+// have no key material in common (someone who lists KV over and over could
+// still pair keys written close together in time). Counts are public;
+// endorsers are pseudonymous to anyone without the key. When a request is
+// decided, its count is frozen into the record and the per-account keys are
+// deleted; any written around the decision are swept within minutes. This module never imports
 // endorsements.js: callers count and pass the counts in. Nothing else may be
 // keyed under `request:` (the list and steward tools parse every such key).
 
@@ -114,9 +116,12 @@ async function requestRows(kv) {
  * The public list: accepted and fulfilled requests, accepted first, most
  * asked first, endorsements only breaking ties; plus how many await review.
  * Without `counts` (the feature off), items carry no `endorsements` field.
+ * `statuses`, when given, is a Map filled with every request's status by
+ * public id (the orphan sweep needs them, and they're read here anyway).
  */
-export async function publicRequests(kv, counts, { policy = 'established' } = {}) {
+export async function publicRequests(kv, counts, { policy = 'established', statuses } = {}) {
   const rows = await requestRows(kv);
+  if (statuses) for (const [k, r] of rows) statuses.set(publicId(k), r.status || 'new');
   const shown = rows
     .filter(([, r]) => PUBLIC.has(r.status || 'new'))
     .map(([k, r]) => publicView(k, r, counts ? counts.get(publicId(k)) || ZERO : undefined, policy));

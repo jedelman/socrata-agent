@@ -57,7 +57,7 @@ button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg
       <p>If you want one of these added too, endorse it with your Bluesky account. Endorsements help the steward choose what to add next; they aren't votes. Signing in with Bluesky lets you endorse; asking {{APP_NAME}} still needs an invite (<a href="./">join the waitlist</a>).</p>
       <details>
         <summary>What {{APP_NAME}} keeps</summary>
-        <p>Signing in only proves which account you are. {{APP_NAME}} asks for no permission to post or read anything, and throws the sign-in tokens away at once. For each request you endorse, {{APP_NAME}} keeps a code computed from your account and that request with a key only the site holds, plus whether the account was under <span class="young-days">30</span> days old. That's kept until the request is decided, and never more than about 13 months. {{APP_NAME}} doesn't keep your handle, posts or followers. Counts are public; who endorsed isn't, though the site's operator, who holds the key, could check whether a particular account endorsed. Your sign-in lasts until you close the browser, and at most a day. Your Bluesky server will record that you signed in to {{APP_NAME}}, not what you endorsed. To count each account once, {{APP_NAME}} looks up your account's public records (its handle, server and creation date) when you sign in.</p>
+        <p>Signing in only proves which account you are. {{APP_NAME}} asks for no permission to post or read anything, and throws the sign-in tokens away at once. For each request you endorse, {{APP_NAME}} keeps a code computed from your account and that request with a key only the site holds, plus whether the account was under <span class="young-days">30</span> days old. That's kept until the request is decided, and never more than about <span class="retention">13</span> months. To limit abuse, {{APP_NAME}} also keeps counters of recent endorsing for about a day, under a code for your account that changes daily and a code for your network. {{APP_NAME}} doesn't keep your handle, posts or followers. Counts are public; who endorsed isn't, though the site's operator, who holds the key, could check whether a particular account endorsed. Your sign-in lasts until you close the browser, and at most a day. Your Bluesky server will record that you signed in to {{APP_NAME}}, not what you endorsed. To count each account once, {{APP_NAME}} looks up your account's public records (its handle, server and creation date) when you sign in.</p>
       </details>
       <p class="small established" hidden>Counts include Bluesky accounts at least <span class="young-days">30</span> days old.</p>
       <form id="bsky-form">
@@ -67,7 +67,7 @@ button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg
     </div>
     <div id="bsky-in" hidden>
       <p><span id="bsky-who"></span> · <button type="button" class="link" id="bsky-logout">Sign out</button></p>
-      <p class="small" id="bsky-uncounted" hidden>Your endorsements reach the steward; public counts include accounts at least <span class="young-days">30</span> days old.</p>
+      <p class="small" id="bsky-uncounted" hidden>Your endorsements reach the steward; public counts include accounts at least <span class="young-days">30</span> days old. Once yours is, they count from your next visit to this page.</p>
       <p class="small">Counts can take a few minutes to update. <button type="button" class="link" id="bsky-forget">Remove all my endorsements</button></p>
     </div>
     <p class="status" id="bsky-status" role="status"></p>
@@ -103,6 +103,8 @@ const store = {
 let requests = [];
 let me = { bluesky: { available: false }, endorsed: [] };
 let endorsed = new Set();
+const countedHere = new Map(); // id -> whether this page's own endorse was counted publicly
+const inFlight = new Set();
 const say = (text) => { $('bsky-status').textContent = text || ''; };
 const post = async (path, body) => {
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
@@ -114,6 +116,7 @@ function renderPanel() {
   $('bsky').hidden = !b.available;
   if (!b.available) return;
   for (const el of document.querySelectorAll('.young-days')) el.textContent = String(b.young_days ?? 30);
+  for (const el of document.querySelectorAll('.retention')) el.textContent = String(Number(b.retention_months ?? 12) + 1);
   document.querySelector('.bsky .established').hidden = b.policy === 'all';
   $('bsky-out').hidden = Boolean(b.signed_in);
   $('bsky-in').hidden = !b.signed_in;
@@ -129,7 +132,7 @@ function item(r) {
   const ends = m > 0 || available ? ` · ${m} Bluesky endorsement${m === 1 ? '' : 's'}` : '';
   const on = endorsed.has(r.id);
   const button = available && r.status === 'accepted'
-    ? `<button type="button" class="endorse" data-id="${esc(r.id)}" aria-pressed="${on}">${on ? 'Endorsed (undo)' : 'Endorse'}</button>`
+    ? `<button type="button" class="endorse" data-id="${esc(r.id)}" aria-pressed="${on}"${inFlight.has(r.id) ? ' disabled' : ''}>${on ? 'Endorsed (undo)' : 'Endorse'}</button>`
     : '';
   return `<li>
           <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${r.count} ${r.count === 1 ? 'person' : 'people'} asked${ends}</span></div>
@@ -151,7 +154,9 @@ function renderList() {
 async function loadMe() {
   try {
     const res = await fetch('api/bsky/me', { cache: 'no-store' });
-    me = res.ok ? await res.json() : { bluesky: { available: false }, endorsed: [] };
+    const out = await res.json().catch(() => null);
+    // Busy (429 or 503) still says who is signed in, so the panel and Sign out stay.
+    me = res.ok || out?.bluesky?.busy ? out : { bluesky: { available: false }, endorsed: [] };
   } catch {
     me = { bluesky: { available: false }, endorsed: [] };
   }
@@ -159,16 +164,25 @@ async function loadMe() {
 }
 
 async function toggle(id, want) {
+  if (inFlight.has(id)) return; // one request per button at a time
   const path = want ? 'api/bsky/endorse' : 'api/bsky/unendorse';
+  inFlight.add(id);
+  renderList();
   try {
     const { res, out } = await post(path, { id });
     if (res.ok) {
       const was = endorsed.has(id);
       if (want) endorsed.add(id); else endorsed.delete(id);
       const r = requests.find((x) => x.id === id);
-      const counted = want ? out.counted : me.bluesky?.counted;
-      if (r && counted && was !== want && !out.already) r.endorsements = Math.max(0, Number(r.endorsements || 0) + (want ? 1 : -1));
-      renderList();
+      // Only adjust for changes this page saw counted: an endorsement made
+      // while the account was young may never have been in the public number.
+      if (r && want && !was && !out.already && out.counted) {
+        r.endorsements = Number(r.endorsements || 0) + 1;
+        countedHere.set(id, true);
+      } else if (r && !want && was && countedHere.get(id)) {
+        r.endorsements = Math.max(0, Number(r.endorsements || 0) - 1);
+        countedHere.delete(id);
+      }
       say(want ? 'Endorsed. Counts can take a few minutes to update.' : 'Endorsement withdrawn.');
       return;
     }
@@ -184,6 +198,9 @@ async function toggle(id, want) {
     say(out.error || "That didn't work. Try again in a minute.");
   } catch {
     say("Couldn't reach the server.");
+  } finally {
+    inFlight.delete(id);
+    renderList();
   }
 }
 
@@ -242,6 +259,7 @@ $('bsky-forget').addEventListener('click', async () => {
 (async () => {
   const [listResult] = await Promise.allSettled([fetch('api/requests').then((r) => r.json()), loadMe()]);
   renderPanel();
+  if (me.bluesky?.busy) say(me.error || 'Lots of activity right now. Try again in a minute.');
   if (listResult.status === 'fulfilled') {
     const { requests: rs = [], awaiting_review = 0 } = listResult.value || {};
     requests = rs;

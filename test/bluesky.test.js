@@ -350,3 +350,125 @@ test('logout clears only the Bluesky cookie; signed-out endorse is a 401', async
   assert.equal(r401.status, 401);
   assert.equal((await r401.json()).code, 'signed_out');
 });
+
+test('a KV failure at the single-use marker is still a 303 that clears the flow cookie, with no token request', async () => {
+  const L = await login();
+  L.env.LIMITS.failGet = true;
+  const cb = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
+  assert.equal(cb.res.status, 303);
+  assert.equal(cb.location, `${ORIGIN}${BASE}/requests#bluesky-error=busy`);
+  assert.ok(cb.cookies.some((c) => c.startsWith(`${FLOW_COOKIE}=; Path=/ask-siren/oauth/; Max-Age=0`)));
+  assert.equal(tokenCalls(L.net).length, 0);
+  L.env.LIMITS.failGet = false;
+  L.env.LIMITS.failPut = true;
+  const cb2 = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
+  assert.match(cb2.location, /bluesky-error=busy$/);
+  assert.equal(tokenCalls(L.net).length, 0);
+  // Anything else that throws is still a 303.
+  const env = { ...L.env, LIMITS: { ...L.env.LIMITS, get: () => { throw new TypeError('boom'); }, put: async () => {} } };
+  const cb3 = await callback(env, L.net, { state: stateOf(L.net), flow: L.flow, log: () => {} });
+  assert.equal(cb3.res.status, 303);
+});
+
+test('callbacks with no genuine flow never charge the site-wide breaker', async () => {
+  const env = readyEnv();
+  const net = fakeNetwork();
+  for (const ip of ['198.51.100.1', '198.51.100.2', '198.51.100.3']) {
+    await handleCallback(get('/oauth/callback', { ip }), env, null, BASE, { fetchImpl: net.fetch, log: () => {} });
+  }
+  assert.equal(env.BSKY_SITE_RL.calls.length, 0);
+  assert.equal(env.BSKY_VISITOR_RL.calls.length, 3);
+  const L = await login();
+  const cb = await callback(L.env, L.net, { state: 'wrong', flow: L.flow });
+  assert.match(cb.location, /state_mismatch$/);
+  assert.ok(!L.env.BSKY_SITE_RL.calls.includes('callback'));
+  await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
+  assert.ok(L.env.BSKY_SITE_RL.calls.includes('callback'));
+});
+
+test('duplicate cookies also clear a copy planted on the parent domain', async () => {
+  const env = readyEnv();
+  const res = await handleMe(get('/api/bsky/me', { cookie: `${await signedInCookie()}; ${await signedInCookie()}` }), env, null, BASE, { publicList: LIST });
+  const set = res.headers.getSetCookie();
+  assert.ok(set.includes('siren_bsky=; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
+  assert.ok(set.includes('siren_bsky=; Domain=jason-edelman.org; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
+  assert.ok(set.includes('siren_bsky=; Domain=jason-edelman.org; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
+  // A lone invalid cookie clears only Siren's own.
+  const bad = await handleMe(get('/api/bsky/me', { cookie: `${BSKY_COOKIE}=garbage` }), env, null, BASE, { publicList: LIST });
+  assert.equal(bad.headers.getSetCookie().length, 1);
+  // Two flow cookies at the callback: the same.
+  const L = await login();
+  const cb = await callback(L.env, L.net, { state: stateOf(L.net), cookies: `${FLOW_COOKIE}=${L.flow}; ${FLOW_COOKIE}=${L.flow}` });
+  assert.match(cb.location, /flow_expired$/);
+  assert.ok(cb.cookies.includes(`${FLOW_COOKIE}=; Domain=jason-edelman.org; Path=/ask-siren/oauth/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`));
+  // No Domain clears for a loopback origin.
+  const local = readyEnv({ PUBLIC_ORIGIN: 'http://127.0.0.1:8787' });
+  const lr = await handleMe(get('/api/bsky/me', { cookie: `${await signedInCookie()}; ${await signedInCookie()}` }), local, null, BASE, { publicList: LIST });
+  assert.ok(!lr.headers.getSetCookie().some((c) => c.includes('Domain=')));
+});
+
+test('KV failures on endorse, unendorse and forget are JSON 503s', async () => {
+  const env = readyEnv();
+  const cookie = await signedInCookie();
+  const list = { requests: [{ id: 'aaaaaaaaaaaa', status: 'accepted', source: 'A' }] };
+  const { requestKey, publicId } = await import('../worker/requests.js');
+  // Make 'A' a real accepted request with the matching public id.
+  const key = await requestKey('A');
+  list.requests[0].id = publicId(key);
+  await env.LIMITS.put(key, JSON.stringify({ source: 'A', count: 1, status: 'accepted', needs: [] }));
+  env.LIMITS.failPut = true;
+  for (const [fn, path] of [[handleEndorse, '/api/bsky/endorse'], [handleUnendorse, '/api/bsky/unendorse']]) {
+    const res = await fn(post(path, { id: list.requests[0].id }, { cookie }), env, null, BASE, { publicList: list });
+    assert.equal(res.status, 503, path);
+    assert.equal((await res.json()).code, 'busy');
+  }
+  env.LIMITS.failPut = false;
+  assert.ok((await (await handleEndorse(post('/api/bsky/endorse', { id: list.requests[0].id }, { cookie }), env, null, BASE, { publicList: list })).json()).ok);
+  env.LIMITS.failPut = true;
+  const f = await handleForget(post('/api/bsky/forget', {}, { cookie }), env, null, BASE);
+  assert.equal(f.status, 503);
+  assert.equal((await f.json()).code, 'busy');
+});
+
+test('me over the account limit still says who is signed in, and reads no KV', async () => {
+  const env = readyEnv({ BSKY_ACCOUNT_RL: fakeLimiter(0) });
+  const res = await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });
+  assert.equal(res.status, 429);
+  const out = await res.json();
+  assert.equal(out.bluesky.available, true);
+  assert.equal(out.bluesky.signed_in, true);
+  assert.equal(out.bluesky.busy, true);
+  assert.equal(out.bluesky.handle, W.HANDLE);
+  assert.deepEqual(out.endorsed, []);
+  assert.equal(env.LIMITS.ops.length, 0);
+  assert.equal(out.bluesky.retention_months, 12);
+});
+
+test('me rewrites an aged account\'s young endorsements, so they enter the public number', async () => {
+  const env = readyEnv();
+  const { endorsementKey } = await import('../worker/endorsements.js');
+  const eid = await hmacHex(SECRET, `endorser:${W.DID}`);
+  const k = await endorsementKey(SECRET, 'aaaaaaaaaaaa', eid);
+  await env.LIMITS.put(k, '1', { metadata: { y: 1 }, expiration: 1800000000 });
+  // The cookie says the account is now well past 30 days old.
+  const res = await handleMe(get('/api/bsky/me', { cookie: await signedInCookie({ created: '2025-01-02' }) }), env, null, BASE, { publicList: LIST });
+  assert.deepEqual((await res.json()).endorsed, ['aaaaaaaaaaaa']);
+  assert.deepEqual(env.LIMITS.store.get(k).metadata, { y: 0 });
+  assert.equal(env.LIMITS.store.get(k).expiration, 1800000000);
+});
+
+test('login errors carry their fixed sentence and status', async () => {
+  const cases = [
+    ['handle_mismatch', 400, { [`${new URL(W.PLC).host}/${W.DID}`]: () => json(didDoc({ handle: 'bob.fixture.dev' })) }],
+    ['no_pds', 400, { [`${new URL(W.PLC).host}/${W.DID}`]: () => json(didDoc({ pds: null })) }],
+    ['pds_unsupported', 502, { [`${new URL(W.PDS).host}/.well-known/oauth-protected-resource`]: () => json({ resource: 'https://other.fixture.dev', authorization_servers: [W.ISSUER] }) }],
+    ['as_refused', 502, { [`${new URL(W.ISSUER).host}/oauth/par`]: () => json({ error: 'invalid_request' }, 400) }],
+  ];
+  const { LOGIN_ERRORS } = await import('../worker/bluesky.js');
+  for (const [code, status, over] of cases) {
+    const L = await login({ net: fakeNetwork(over) });
+    assert.equal(L.res.status, status, code);
+    assert.equal(L.body.code, code);
+    assert.equal(L.body.error, LOGIN_ERRORS[code]);
+  }
+});

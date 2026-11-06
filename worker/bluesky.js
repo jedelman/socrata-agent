@@ -23,13 +23,13 @@
 import { enc, hex, sha256, hmacHex, randomToken, timingSafeEqual, seal, unseal, boundary } from './crypto.js';
 import { setting, visitorId } from './limits.js';
 import {
-  parseAccountInput, resolveHandle, resolveDidDoc, docHandle, docPds, plcCreatedDay, normalizeHandle, IdentityError,
+  parseAccountInput, resolveAccount, resolveDidDoc, docPds, plcCreatedDay, normalizeHandle, IdentityError,
 } from './atproto-identity.js';
 import {
   publicOrigin, clientIds, clientMetadata, authServerFor, authServerMetadata, pkce, newDpopKey,
   pushAuthorization, authorizeUrl, exchangeCode, checkTokenResponse, revokeAll,
 } from './atproto-oauth.js';
-import { endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countEvents, recordEvent } from './endorsements.js';
+import { endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countEvents, recordEvent, StorageError } from './endorsements.js';
 import { cachedPublicList } from './public-list.js';
 
 export const BSKY_COOKIE = 'siren_bsky';
@@ -132,6 +132,19 @@ export const clearSessionCookie = (base) => `${BSKY_COOKIE}=; Path=${base}/api/b
 export const flowCookie = (value, base) => `${FLOW_COOKIE}=${value}; Path=${base}/oauth/; Max-Age=${FLOW_SECONDS}; HttpOnly; Secure; SameSite=Lax`;
 export const clearFlowCookie = (base) => `${FLOW_COOKIE}=; Path=${base}/oauth/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 
+/**
+ * Clears for a cookie of `name` planted on the parent domain (Domain=<the
+ * PUBLIC_ORIGIN host>) by a sibling subdomain, at the scoped path and at /.
+ * Clearing only Siren's host-only copy would leave the planted one in charge
+ * on the next request. A host may clear cookies for its own domain.
+ */
+export function parentDomainClears(env, name, scopedPath) {
+  const po = publicOrigin(env);
+  if (!po || po.loopback) return [];
+  const host = new URL(po.origin).hostname;
+  return [...new Set([scopedPath, '/'])].map((path) => `${name}=; Domain=${host}; Path=${path}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
+}
+
 async function allowed(limiter, key) {
   try {
     return Boolean((await limiter.limit({ key }))?.success);
@@ -177,30 +190,8 @@ export async function startBlueskyLogin({ body, env, kv, visitor, base, fetchImp
   const deadline = AbortSignal.timeout(timeoutMs);
   const opts = resolverOpts(env, fetchImpl, deadline);
   try {
-    // 6-8. Handle -> DID -> document, the handle checked both ways.
-    let did;
-    let handle = null;
-    let doc;
-    if (parsed.kind === 'handle') {
-      did = await resolveHandle(parsed.handle, opts);
-      doc = await resolveDidDoc(did, opts);
-      if (docHandle(doc) !== parsed.handle) throw new IdentityError('handle_mismatch');
-      handle = parsed.handle;
-    } else {
-      did = parsed.did;
-      doc = await resolveDidDoc(did, opts);
-      const claimed = docHandle(doc);
-      if (claimed) {
-        try {
-          if ((await resolveHandle(claimed, opts)) === did) handle = claimed;
-        } catch (err) {
-          if (deadline.aborted) throw err;
-        }
-      }
-    }
-    // 9. PDS.
-    const pds = docPds(doc);
-    if (!pds) throw new IdentityError('no_pds');
+    // 6-9. Handle -> DID -> document, the handle checked both ways, and the PDS.
+    const { did, handle, pds } = await resolveAccount(parsed, opts);
     // 10. Account age and the AS, in parallel.
     const [created, issuer] = await Promise.all([
       did.startsWith('did:plc:') ? plcCreatedDay(did, opts) : Promise.resolve(''),
@@ -251,8 +242,10 @@ export async function finishBlueskyLogin({ params, flowValues, env, kv, visitor,
     }
     return { ok: false, code };
   };
-  // 1. Limits, before reading anything.
-  if (!(await allowed(env.BSKY_VISITOR_RL, `cb:${visitor}`)) || !(await allowed(env.BSKY_SITE_RL, 'callback'))) return fail('busy');
+  // 1. The per-visitor limit, before reading anything. The site-wide breaker
+  // is charged below, once the checks that need no I/O have passed, so
+  // requests with no genuine sealed flow can't trip it for everyone.
+  if (!(await allowed(env.BSKY_VISITOR_RL, `cb:${visitor}`))) return fail('busy');
   // 2. Exactly one flow cookie that opens, is version 1 and hasn't expired.
   if (!Array.isArray(flowValues) || flowValues.length !== 1) return fail('flow_expired');
   const flow = await unseal(env.INVITE_SECRET, FLOW_PURPOSE, flowValues[0]);
@@ -270,10 +263,16 @@ export async function finishBlueskyLogin({ params, flowValues, env, kv, visitor,
   // 6. The code.
   const code = params.get('code');
   if (typeof code !== 'string' || code.length < 1 || code.length > 2048) return fail('as_error');
+  // The site-wide breaker, before any KV or outbound request.
+  if (!(await allowed(env.BSKY_SITE_RL, 'callback'))) return fail('busy');
   // 7. Single use: a serial replay of the same cookie, state and iss is refused.
   const used = `bsky-flow-used:${hex(await sha256(flow.s)).slice(0, 32)}`;
-  if ((await kv.get(used)) !== null) return fail('flow_expired');
-  await kv.put(used, '1', { expiration: boundary(now, 'hour', 1) + 3600 });
+  try {
+    if ((await kv.get(used)) !== null) return fail('flow_expired');
+    await kv.put(used, '1', { expiration: boundary(now, 'hour', 1) + 3600 });
+  } catch {
+    return fail('busy'); // no token request without the marker
+  }
 
   const ids = clientIds(env, base);
   if (!ids) return fail('flow_expired');
@@ -370,27 +369,39 @@ export async function handleLogin(req, env, ctx, base, deps = {}) {
 
 export async function handleCallback(req, env, ctx, base, deps = {}) {
   if (!blueskyReady(env)) return new Response('Not found', { status: 404 });
-  const out = await finishBlueskyLogin({
-    params: new URL(req.url).searchParams,
-    flowValues: readCookies(req, FLOW_COOKIE),
-    env, kv: env.LIMITS, visitor: await bskyVisitor(req, env, 'bsky-login'), base,
-    fetchImpl: deps.fetchImpl || fetch,
-    defer: deps.defer || ((p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p)),
-    now: deps.now ?? Date.now(),
-    ...(deps.log ? { log: deps.log } : {}),
-  });
+  const flowValues = readCookies(req, FLOW_COOKIE);
+  let out;
+  try {
+    out = await finishBlueskyLogin({
+      params: new URL(req.url).searchParams,
+      flowValues,
+      env, kv: env.LIMITS, visitor: await bskyVisitor(req, env, 'bsky-login'), base,
+      fetchImpl: deps.fetchImpl || fetch,
+      defer: deps.defer || ((p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p)),
+      now: deps.now ?? Date.now(),
+      ...(deps.log ? { log: deps.log } : {}),
+    });
+  } catch {
+    // Every exit is still a 303 that clears the flow cookie.
+    (deps.log || console.error)('bluesky callback', 'as_error');
+    out = { ok: false, code: 'as_error' };
+  }
   const headers = new Headers({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
   headers.set('Location', `${publicOrigin(env).origin}${base}/requests#${out.ok ? 'bluesky=signed-in' : `bluesky-error=${encodeURIComponent(out.code)}`}`);
   if (out.ok) headers.append('Set-Cookie', out.cookie);
   headers.append('Set-Cookie', clearFlowCookie(base));
+  if (flowValues.length > 1) for (const c of parentDomainClears(env, FLOW_COOKIE, `${base}/oauth/`)) headers.append('Set-Cookie', c);
   // Never Response.redirect: its headers are immutable.
   return new Response(null, { status: 303, headers });
 }
 
 async function signedIn(req, env, base, now) {
   const { session, duplicate, invalid } = await currentSession(req, env, now);
-  const clear = duplicate || invalid ? { 'Set-Cookie': clearSessionCookie(base) } : {};
-  return { session, clear };
+  // On a duplicate, clear a copy planted on the parent domain too, or it would
+  // be the only value on the next request and sign the visitor in as its owner.
+  const clears = duplicate ? [clearSessionCookie(base), ...parentDomainClears(env, BSKY_COOKIE, `${base}/api/bsky/`)]
+    : invalid ? [clearSessionCookie(base)] : [];
+  return { session, clear: clears.length ? { 'Set-Cookie': clears } : {} };
 }
 
 async function accountAllowed(env, session) {
@@ -405,13 +416,23 @@ export async function handleMe(req, env, ctx, base, deps = {}) {
   const now = deps.now ?? Date.now();
   const policy = publicPolicy(env);
   const youngDays = setting(env.ENDORSE_YOUNG_DAYS, 30, { min: 0, max: 3650 });
+  const retentionMonths = setting(env.ENDORSE_RETENTION_MONTHS, 12, { min: 1, max: 24 });
+  const info = { available: true, policy, young_days: youngDays, retention_months: retentionMonths };
   const { session, clear } = await signedIn(req, env, base, now);
   // Signed out touches no KV and no limiter.
-  if (!session) return jsonResponse({ bluesky: { available: true, signed_in: false, handle: null, counted: false, policy, young_days: youngDays }, endorsed: [] }, 200, clear);
-  if (!(await accountAllowed(env, session))) return jsonResponse({ error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
-  const endorsed = await endorsedBy({ kv: env.LIMITS, env, session, publicList: await listFor(req, env, ctx, base, deps) });
+  if (!session) return jsonResponse({ bluesky: { ...info, signed_in: false, handle: null, counted: false }, endorsed: [] }, 200, clear);
   const counted = policy === 'all' || youngFlag(session.created, env, now) === 0;
-  return jsonResponse({ bluesky: { available: true, signed_in: true, handle: session.handle || null, counted, policy, young_days: youngDays }, endorsed });
+  const signed = { ...info, signed_in: true, handle: session.handle || null, counted };
+  // Over the limit: still say who is signed in (so the page keeps Sign out),
+  // but read no KV.
+  if (!(await accountAllowed(env, session))) return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
+  let endorsed;
+  try {
+    endorsed = await endorsedBy({ kv: env.LIMITS, env, session, publicList: await listFor(req, env, ctx, base, deps), now });
+  } catch {
+    return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 503);
+  }
+  return jsonResponse({ bluesky: signed, endorsed });
 }
 
 export async function handleLogout(req, env, base) {
@@ -432,29 +453,40 @@ async function guarded(req, env, base, deps) {
   return { session, now };
 }
 
+// A KV failure is a JSON 503, never a bare 500.
+async function storageSafe(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!(err instanceof StorageError)) console.error('bluesky: storage error', err?.message);
+    return jsonResponse({ error: ENDORSE_ERRORS.busy, code: 'busy' }, 503);
+  }
+}
+
 const reply = (out) => (out.ok ? jsonResponse(Object.fromEntries(Object.entries(out).filter(([k]) => k !== 'status'))) : jsonResponse({ error: out.error, code: out.code }, out.status));
 
 export async function handleEndorse(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   const body = await readJson(req);
-  const out = await endorse({
+  return storageSafe(async () => reply(await endorse({
     kv: env.LIMITS, env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'),
     publicList: await listFor(req, env, ctx, base, deps), now: g.now,
-  });
-  return reply(out);
+  })));
 }
 
 export async function handleUnendorse(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   const body = await readJson(req);
-  return reply(await unendorse({ kv: env.LIMITS, env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now }));
+  return storageSafe(async () => reply(await unendorse({ kv: env.LIMITS, env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now })));
 }
 
 export async function handleForget(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
-  const { removed } = await forgetEndorser({ kv: env.LIMITS, env, session: g.session });
-  return jsonResponse({ ok: true, removed }, 200, { 'Set-Cookie': clearSessionCookie(base) });
+  return storageSafe(async () => {
+    const { removed } = await forgetEndorser({ kv: env.LIMITS, env, session: g.session });
+    return jsonResponse({ ok: true, removed }, 200, { 'Set-Cookie': clearSessionCookie(base) });
+  });
 }

@@ -133,6 +133,7 @@ export function fakeKV({ pageSize = 1000 } = {}) {
     store,
     ops,
     failPut: false,
+    failGet: false,
     async get(key, type) {
       if (Array.isArray(key)) {
         ops.push({ op: 'get', keys: key.slice() });
@@ -140,12 +141,19 @@ export function fakeKV({ pageSize = 1000 } = {}) {
         return new Map(key.map((k) => [k, store.has(k) ? (type === 'json' ? JSON.parse(store.get(k).value) : store.get(k).value) : null]));
       }
       ops.push({ op: 'get', key });
+      if (kv.failGet) throw new Error('KV GET failed: 503');
       if (!store.has(key)) return null;
       const v = store.get(key).value;
       return type === 'json' ? JSON.parse(v) : v;
     },
     async getWithMetadata(key) {
+      if (Array.isArray(key)) {
+        ops.push({ op: 'getWithMetadata', keys: key.slice() });
+        if (key.length > 100) throw new Error('bulk get takes at most 100 keys');
+        return new Map(key.map((k) => [k, store.has(k) ? { value: store.get(k).value, metadata: store.get(k).metadata ?? null } : null]));
+      }
       ops.push({ op: 'getWithMetadata', key });
+      if (kv.failGet) throw new Error('KV GET failed: 503');
       if (!store.has(key)) return { value: null, metadata: null };
       const e = store.get(key);
       return { value: e.value, metadata: e.metadata ?? null };
@@ -157,6 +165,7 @@ export function fakeKV({ pageSize = 1000 } = {}) {
     },
     async delete(key) {
       ops.push({ op: 'delete', key });
+      if (kv.failPut) throw new Error('KV delete failed');
       store.delete(key);
     },
     async list({ prefix = '', cursor, limit } = {}) {

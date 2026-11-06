@@ -54,7 +54,7 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
       <button type="button" data-s="all" aria-pressed="false">All</button>
     </div>
     <p class="meta" id="meta"></p>
-    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are counted per account, not per person. Young accounts (under 30 days) and accounts of unknown age (did:web) are left out of the public number by default, and shown here split out. Nobody, you included, can see which accounts endorsed. A decision freezes the count into the request and deletes the per-account keys.</p>
+    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are counted per account, not per person. Young accounts (under <span id="young-days">30</span> days) and accounts of unknown age (did:web) are left out of the public number by default, and shown here split out. Nobody, you included, can see which accounts endorsed. A decision freezes the count into the request and deletes the per-account keys.</p>
     <ol id="list"></ol>
   </div>
 </div>
@@ -116,6 +116,7 @@ async function load() {
     return;
   }
   all = data.requests || [];
+  if (Number.isFinite(data.young_days)) $('#young-days').textContent = String(data.young_days);
   $('#bsky-note').hidden = !(data.bluesky || all.some((r) => (r.endorsements && r.endorsements.n) || r.endorsements_at_decision));
   $('#app').hidden = false;
   render();

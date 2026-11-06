@@ -101,12 +101,12 @@ id = "d4dfe5ca9b814268a1a1abe052287959"
 # the period is 10 or 60 seconds; namespace_id is an integer unique on the
 # account. Bindings aren't inherited, so they live under env.siren.
 [[env.siren.ratelimits]]
-name = "BSKY_VISITOR_RL"      # per hashed visitor: login starts, callbacks
+name = "BSKY_VISITOR_RL"      # per hashed visitor: login starts, callbacks, endorse/unendorse bursts
 namespace_id = "2611061"
 simple = { limit = 60, period = 60 }
 
 [[env.siren.ratelimits]]
-name = "BSKY_INPUT_RL"        # per account typed into the login form
+name = "BSKY_INPUT_RL"        # per account typed into the login form; per-server endorse bursts
 namespace_id = "2611062"
 simple = { limit = 3, period = 60 }
 
