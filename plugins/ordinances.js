@@ -5,7 +5,7 @@
 // from, its DASL CID, and the date its text is current through.
 
 import { definePlugin } from '../src/plugins.js';
-import { searchSections, readSection, pageLink } from '../src/documents.js';
+import { readCited, searchCited } from './document-lookup.js';
 import zoning from '../data/documents/norfolk-zoning-ordinance.json' with { type: 'json' };
 
 export const DOCUMENTS = { [zoning.id]: zoning };
@@ -43,22 +43,23 @@ export default definePlugin({
     const doc = DOCUMENTS[document];
     if (!doc) return { error: `No document "${document}". Known: ${Object.keys(DOCUMENTS).join(', ')}.` };
     if (section) {
-      const s = readSection(doc, section, { offset });
-      await ctx.cite({ tool: `read ${doc.title} §${section}`, url: doc.source.url, rows: s ? 1 : 0, note: `text of the City's PDF, ${doc.current_through}; CID ${doc.source.cid}` });
+      const s = await readCited(ctx, doc, section, {
+        offset,
+        tool: `read ${doc.title} §${section}`,
+        note: `text of the City's PDF, ${doc.current_through}; CID ${doc.source.cid}`,
+        record: (x) => `${doc.title} §${x.number}, ${x.title} (PDF page ${x.pages[0]})`,
+      });
       if (!s) return { document: about(doc), error: `No section ${section} in the ${doc.title}. Search with query to find section numbers.` };
-      const link = pageLink(doc, s.pages[0]);
-      ctx.resources.addRecord({ title: `${doc.title} §${s.number}, ${s.title} (PDF page ${s.pages[0]})`, url: link, kind: 'source' });
-      return { document: about(doc), section: `§${s.number}`, ...s, link, how_to_use: HOW };
+      const { link, ...rest } = s;
+      return { document: about(doc), section: `§${s.number}`, ...rest, link, how_to_use: HOW };
     }
     if (!query || !String(query).trim()) return { error: 'Give query (what to look for) or section (a number to read).' };
-    const results = searchSections(doc, query, { limit: 5 }).map((r) => ({
-      section: `§${r.number}`,
-      title: r.title,
-      page: r.page,
-      link: pageLink(doc, r.page),
-      excerpt: r.excerpt,
-    }));
-    await ctx.cite({ tool: `search the ${doc.title}`, url: doc.source.url, rows: results.length, note: `"${String(query).slice(0, 120)}" in the text of the City's PDF, ${doc.current_through}; CID ${doc.source.cid}` });
+    const found = await searchCited(ctx, doc, query, {
+      limit: 5,
+      tool: `search the ${doc.title}`,
+      note: `"${String(query).slice(0, 120)}" in the text of the City's PDF, ${doc.current_through}; CID ${doc.source.cid}`,
+    });
+    const results = found.map((r) => ({ section: `§${r.number}`, title: r.title, page: r.page, link: r.link, excerpt: r.excerpt }));
     ctx.resources.addRecord({ title: `${doc.title} (City of Norfolk PDF, ${doc.current_through})`, url: doc.source.url, kind: 'source' });
     return { document: about(doc), query, results, how_to_use: HOW };
   },

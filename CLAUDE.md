@@ -87,15 +87,21 @@ generic mode.
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
 - `data/documents/*.json` are Norfolk's ordinances (the Zoning Ordinance so
-  far) from the City's own PDFs, split into numbered sections by
-  `src/documents.js` and served by `plugins/ordinances.js`
-  (`ordinance_lookup`: search, or read a section with its subsections, cited
-  by section and PDF page). `npm run ingest` (`scripts/ingest-document.js`)
-  builds one from a PDF, local or fetched, recording the official URL, the
-  date the text is current through, and the PDF's DASL CID. Run it where
-  the PDF is; the text is far smaller. A copy from anywhere but the City's
-  site goes to the git-ignored `data/documents/private/` until it's cleared
-  for republishing. See `data/documents/README.md`.
+  far) and adopted budget books (the Department Budgets part, FY 2024 to
+  2027) from the City's own PDFs, split into sections by `src/documents.js`.
+  `plugins/ordinances.js` (`ordinance_lookup`: search, or read a section with
+  its subsections, cited by section and PDF page) and `plugins/budget-books.js`
+  (`budget_book_lookup`: search across fiscal years or within one, or read a
+  department's section, cited by fiscal year, department, section and page)
+  share `plugins/document-lookup.js`. A budget book is the adopted plan and
+  its narrative, not a record of spending. `npm run ingest`
+  (`scripts/ingest-document.js`, `--kind budget-book` for a budget) builds
+  one from a PDF, local or fetched, recording the official URL, what the text
+  is (current-through date, or fiscal year, status and how it was
+  identified), and the PDF's DASL CID. Run it where the PDF is; the text is
+  far smaller. A copy from anywhere but the City's site goes to the
+  git-ignored `data/documents/private/` until it's cleared for republishing.
+  See `data/documents/README.md`.
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).
