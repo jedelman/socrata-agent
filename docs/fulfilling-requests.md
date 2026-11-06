@@ -5,6 +5,11 @@ the source that would, and people can ask for it. A steward reviews each
 request; accepted ones appear on the public list (`/ask-siren/requests` for
 Siren) and, after the nightly sync, as GitHub issues labeled
 [`source-request`](https://github.com/jedelman/socrata-agent/issues?q=label%3Asource-request).
+The notes people write about what they wanted to know are reviewed too, one
+by one: a note appears on the list and in the issue only after the steward
+approves it. If the steward takes a request off the list, the next sync
+closes its issue and replaces the issue's text with a line saying it was
+removed; comments on the issue are left as they are.
 
 To fulfill one is to teach the agent that source, in a pull request that
 anyone can check.

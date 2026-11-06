@@ -303,7 +303,8 @@ $('#log').addEventListener('submit', async (e) => {
     const { res, data } = await postJson('api/requests', { source: f.source.value, url: f.url.value, need: f.need.value, public: true });
     if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; return; }
     msg.className = 'msg ok';
-    msg.textContent = data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : 'Requested. Thank you: requests decide what {{APP_NAME}} learns next.';
+    // The server gives a count only for a request already on the public list.
+    msg.textContent = typeof data.count === 'number' && data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : 'Requested. Thank you: requests decide what {{APP_NAME}} learns next.';
     f.querySelector('button').disabled = true;
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });

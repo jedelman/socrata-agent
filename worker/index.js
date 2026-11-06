@@ -20,7 +20,7 @@ import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest, publicRequests, allRequests, decide } from './requests.js';
+import { addRequest, raiseResponse, publicRequests, allRequests, decide, reviewNote } from './requests.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
@@ -322,7 +322,7 @@ async function handleRequest(req, env) {
   }
   const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env) });
   if (!out.ok) return json({ error: out.error }, out.status);
-  return json({ ok: true, count: out.count }, 200, { 'Cache-Control': 'no-store' });
+  return json(raiseResponse(out), 200, { 'Cache-Control': 'no-store' });
 }
 
 // The steward's review page and its API. Every call checks that the signed-in
@@ -336,6 +336,10 @@ async function handleAdmin(req, env, path) {
   if (req.method === 'GET' && path === '/api/admin/requests') return json({ requests: await allRequests(env.LIMITS) }, 200, headers);
   if (req.method === 'POST' && path === '/api/admin/requests/decide') {
     const out = await decide(env.LIMITS, (await readJson(req)) || {});
+    return out.ok ? json(out, 200, headers) : json({ error: out.error }, out.status, headers);
+  }
+  if (req.method === 'POST' && path === '/api/admin/requests/note') {
+    const out = await reviewNote(env.LIMITS, (await readJson(req)) || {});
     return out.ok ? json(out, 200, headers) : json({ error: out.error }, out.status, headers);
   }
   return json({ error: 'Not found' }, 404, headers);
@@ -428,6 +432,8 @@ export default {
     if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
     // The public source-request list: open to everyone, invited or not.
     if (req.method === 'GET' && path === '/api/requests') {
+      // No `withdrawn` here: the mirror closes unlisted issues only when the
+      // feed carries that list, so an unconfigured site closes nothing.
       if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
       return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
     }
@@ -462,7 +468,7 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    if (req.method === 'POST' && path === '/api/admin/requests/decide') return handleAdmin(req, env, path);
+    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
