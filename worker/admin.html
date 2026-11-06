@@ -36,6 +36,7 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
 .actions button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .actions button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .msg { font-size: .9rem; color: var(--muted); }
+.actions button.clear, button.clear { font: inherit; font-size: .85rem; border-radius: 8px; padding: 3px 10px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--warn); margin-left: 6px; }
 .gate { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
 </style>
 </head>
@@ -53,6 +54,7 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
       <button type="button" data-s="all" aria-pressed="false">All</button>
     </div>
     <p class="meta" id="meta"></p>
+    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are counted per account, not per person. Young accounts (under 30 days) and accounts of unknown age (did:web) are left out of the public number by default, and shown here split out. Nobody, you included, can see which accounts endorsed. A decision freezes the count into the request and deletes the per-account keys.</p>
     <ol id="list"></ol>
   </div>
 </div>
@@ -62,6 +64,16 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const link = (u) => (/^https:\/\//i.test(String(u || '')) ? esc(u) : '#');
 let all = [];
 let filter = 'new';
+
+function endorsementLine(r) {
+  const e = r.endorsements || { n: 0, young: 0, unknown: 0 };
+  const f = r.endorsements_at_decision;
+  if (!e.n && !f) return '';
+  const live = e.n ? `${e.n} endorsement${e.n === 1 ? '' : 's'} (${e.young} young, ${e.unknown} unknown age)` : '';
+  const frozen = f ? `${f.n} at decision` : '';
+  const clear = e.n ? ` <button type="button" class="clear" data-clear="${esc(r.id)}">Clear endorsements</button>` : '';
+  return `<p class="small endorse-line">${[live, frozen].filter(Boolean).map(esc).join(' · ')}${clear}<span class="msg clear-msg" role="status"></span></p>`;
+}
 
 function card(r) {
   const notes = r.needs.length
@@ -76,6 +88,7 @@ function card(r) {
   return `<li class="card" data-id="${esc(r.id)}">
     <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${r.count} asked · last ${esc(String(r.last || '').slice(0, 10))}</span></div>
     <div><span class="chip ${esc(r.status)}">${esc(r.status)}</span> <span class="small">id ${esc(r.id)}${r.url ? ` · <a href="${link(r.url)}" target="_blank" rel="noopener">link given</a> (not checked)` : ''}${r.fulfilled_by ? ` · <a href="${link(r.fulfilled_by)}" target="_blank" rel="noopener">fulfilled by</a>` : ''}</span></div>
+    ${endorsementLine(r)}
     ${notes}
     <form>
       <input name="note" maxlength="300" placeholder="Public note (optional): why, or what's needed" value="${esc(r.steward_note || '')}" aria-label="Public note">
@@ -103,6 +116,7 @@ async function load() {
     return;
   }
   all = data.requests || [];
+  $('#bsky-note').hidden = !(data.bluesky || all.some((r) => (r.endorsements && r.endorsements.n) || r.endorsements_at_decision));
   $('#app').hidden = false;
   render();
 }
@@ -129,8 +143,24 @@ $('#list').addEventListener('submit', async (e) => {
     if (!res.ok) { msg.textContent = data.error || 'That did not save.'; return; }
     const r = all.find((x) => x.id === li.dataset.id);
     Object.assign(r, { status: data.request.status, steward_note: data.request.steward_note, fulfilled_by: data.request.fulfilled_by });
+    // A decision freezes the count and clears the keys; reload for the new numbers.
+    if (status === 'declined' || status === 'fulfilled') { await load(); return; }
     render();
   } catch { msg.textContent = "Couldn't reach the server."; }
+});
+
+$('#list').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-clear]');
+  if (!b) return;
+  if (!confirm('Delete every endorsement on this request? This is for brigading; it cannot be undone.')) return;
+  const msg = b.parentElement.querySelector('.clear-msg');
+  msg.textContent = ' Clearing…';
+  try {
+    const res = await fetch('api/admin/requests/endorsements/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.dataset.clear }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { msg.textContent = ` ${data.error || 'That did not work.'}`; return; }
+    await load();
+  } catch { msg.textContent = " Couldn't reach the server."; }
 });
 
 load();

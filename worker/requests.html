@@ -28,6 +28,19 @@ li { background: var(--surface); border: 1px solid var(--line); border-radius: 1
 .notes { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: .94rem; }
 .links { margin-top: 8px; font-size: .92rem; display: flex; gap: 14px; flex-wrap: wrap; }
 .empty { color: var(--muted); }
+.bsky h2 { font-size: 1rem; margin: 0 0 4px; }
+.bsky details { margin: 8px 0; font-size: .92rem; color: var(--muted); }
+.bsky summary { cursor: pointer; color: var(--accent); }
+.bsky form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; }
+.bsky label { display: grid; gap: 4px; font-size: .9rem; flex: 1 1 220px; }
+.bsky input { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+button.act, .bsky button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); }
+button.quiet { background: var(--surface); color: var(--accent); }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; font: inherit; font-size: .88rem; }
+button.endorse { font: inherit; font-size: .88rem; border-radius: 999px; padding: 3px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); }
+button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+.status { font-size: .9rem; color: var(--muted); min-height: 1.4em; margin: 6px 0 0; }
+.small { font-size: .88rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -38,6 +51,27 @@ li { background: var(--surface); border: 1px solid var(--line); border-radius: 1
     <p><strong>Help add one.</strong> A request is fulfilled by a pull request that teaches {{APP_NAME}} the source: verified findings for a case file, a plugin, or a dataset in a city profile. Every finding must quote its source, and every change passes the same checks, then review.</p>
     <p><a href="{{REPO}}/blob/main/docs/fulfilling-requests.md">How to fulfill a request</a> · <a href="{{REPO}}/issues?q=label%3Asource-request">Requests on GitHub (synced nightly)</a> · <a href="./">Ask {{APP_NAME}}</a></p>
   </div>
+  <section class="how bsky" id="bsky" hidden aria-labelledby="bsky-title">
+    <div id="bsky-out">
+      <h2 id="bsky-title">Endorse a request</h2>
+      <p>If you want one of these added too, endorse it with your Bluesky account. Endorsements help the steward choose what to add next; they aren't votes. Signing in with Bluesky lets you endorse; asking {{APP_NAME}} still needs an invite (<a href="./">join the waitlist</a>).</p>
+      <details>
+        <summary>What {{APP_NAME}} keeps</summary>
+        <p>Signing in only proves which account you are. {{APP_NAME}} asks for no permission to post or read anything, and throws the sign-in tokens away at once. For each request you endorse, {{APP_NAME}} keeps a code computed from your account and that request with a key only the site holds, plus whether the account was under <span class="young-days">30</span> days old. That's kept until the request is decided, and never more than about 13 months. {{APP_NAME}} doesn't keep your handle, posts or followers. Counts are public; who endorsed isn't, though the site's operator, who holds the key, could check whether a particular account endorsed. Your sign-in lasts until you close the browser, and at most a day. Your Bluesky server will record that you signed in to {{APP_NAME}}, not what you endorsed. To count each account once, {{APP_NAME}} looks up your account's public records (its handle, server and creation date) when you sign in.</p>
+      </details>
+      <p class="small established" hidden>Counts include Bluesky accounts at least <span class="young-days">30</span> days old.</p>
+      <form id="bsky-form">
+        <label>Your Bluesky handle<input id="bsky-account" name="account" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="260" required></label>
+        <button type="submit">Sign in with Bluesky</button>
+      </form>
+    </div>
+    <div id="bsky-in" hidden>
+      <p><span id="bsky-who"></span> · <button type="button" class="link" id="bsky-logout">Sign out</button></p>
+      <p class="small" id="bsky-uncounted" hidden>Your endorsements reach the steward; public counts include accounts at least <span class="young-days">30</span> days old.</p>
+      <p class="small">Counts can take a few minutes to update. <button type="button" class="link" id="bsky-forget">Remove all my endorsements</button></p>
+    </div>
+    <p class="status" id="bsky-status" role="status"></p>
+  </section>
   <p class="meta" id="meta">Loading…</p>
   <ol id="list"></ol>
 </div>
@@ -45,14 +79,61 @@ li { background: var(--surface); border: 1px solid var(--line); border-radius: 1
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const link = (u) => (/^https:\/\//i.test(String(u || '')) ? esc(u) : '#');
 const REPO = '{{REPO}}';
-(async () => {
-  try {
-    const { requests = [], awaiting_review = 0 } = await (await fetch('api/requests')).json();
-    document.getElementById('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}${awaiting_review ? `; ${awaiting_review} awaiting review` : ''}.`;
-    document.getElementById('list').innerHTML = requests.length
-      ? requests.map((r) => `<li>
-          <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${r.count} ${r.count === 1 ? 'person' : 'people'} asked</span></div>
-          <div><span class="chip ${esc(r.status)}">${r.status === 'fulfilled' ? 'Fulfilled' : 'Open'}</span><small class="count">since ${esc(String(r.first).slice(0, 10))}</small></div>
+const $ = (s) => document.getElementById(s);
+const AFTER = 'siren-endorse-after';
+const MESSAGES = {
+  'signed-in': 'Signed in with Bluesky.',
+  flow_expired: 'That sign-in took too long, was already used, or was started in another tab. Try again.',
+  state_mismatch: "That sign-in didn't match this browser. Start again from this page.",
+  issuer_mismatch: "Your Bluesky server's answer didn't check out, so I didn't sign you in.",
+  account_mismatch: "Your Bluesky server's answer didn't check out, so I didn't sign you in.",
+  scope_missing: "Your Bluesky server's answer didn't check out, so I didn't sign you in.",
+  token_type: "Your Bluesky server's answer didn't check out, so I didn't sign you in.",
+  denied: 'Sign-in was cancelled.',
+  as_error: "Your Bluesky server couldn't finish the sign-in. Try again in a minute.",
+  token_failed: "Your Bluesky server couldn't finish the sign-in. Try again in a minute.",
+  busy: 'Lots of sign-ins right now. Try again in a minute.',
+};
+const GENERIC = "The sign-in didn't work. Try again in a minute.";
+const store = {
+  get() { try { return sessionStorage.getItem(AFTER); } catch { return null; } },
+  set(v) { try { sessionStorage.setItem(AFTER, v); } catch {} },
+  clear() { try { sessionStorage.removeItem(AFTER); } catch {} },
+};
+let requests = [];
+let me = { bluesky: { available: false }, endorsed: [] };
+let endorsed = new Set();
+const say = (text) => { $('bsky-status').textContent = text || ''; };
+const post = async (path, body) => {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  return { res, out: await res.json().catch(() => ({})) };
+};
+
+function renderPanel() {
+  const b = me.bluesky || {};
+  $('bsky').hidden = !b.available;
+  if (!b.available) return;
+  for (const el of document.querySelectorAll('.young-days')) el.textContent = String(b.young_days ?? 30);
+  document.querySelector('.bsky .established').hidden = b.policy === 'all';
+  $('bsky-out').hidden = Boolean(b.signed_in);
+  $('bsky-in').hidden = !b.signed_in;
+  if (b.signed_in) {
+    $('bsky-who').textContent = b.handle ? `Signed in with Bluesky as @${b.handle}` : 'Signed in with your Bluesky account';
+    $('bsky-uncounted').hidden = Boolean(b.counted) || b.policy === 'all';
+  }
+}
+
+function item(r) {
+  const available = Boolean(me.bluesky?.available);
+  const m = Number(r.endorsements || 0);
+  const ends = m > 0 || available ? ` · ${m} Bluesky endorsement${m === 1 ? '' : 's'}` : '';
+  const on = endorsed.has(r.id);
+  const button = available && r.status === 'accepted'
+    ? `<button type="button" class="endorse" data-id="${esc(r.id)}" aria-pressed="${on}">${on ? 'Endorsed (undo)' : 'Endorse'}</button>`
+    : '';
+  return `<li>
+          <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${r.count} ${r.count === 1 ? 'person' : 'people'} asked${ends}</span></div>
+          <div><span class="chip ${esc(r.status)}">${r.status === 'fulfilled' ? 'Fulfilled' : 'Open'}</span><small class="count">since ${esc(String(r.first).slice(0, 10))}</small> ${button}</div>
           ${r.steward_note ? `<p class="notes" style="padding-left:0">${esc(r.steward_note)}</p>` : ''}
           ${r.notes.length ? `<ul class="notes">${r.notes.map((n) => `<li style="all:unset;display:list-item">${esc(n)}</li>`).join('')}</ul>` : ''}
           <div class="links">
@@ -60,10 +141,127 @@ const REPO = '{{REPO}}';
             <a href="${link(`${REPO}/issues?q=${encodeURIComponent(`label:source-request ${r.id}`)}`)}" target="_blank" rel="noopener">Discussion on GitHub</a>
             ${r.fulfilled_by ? `<a href="${link(r.fulfilled_by)}" target="_blank" rel="noopener">How it was fulfilled</a>` : ''}
           </div>
-        </li>`).join('')
-      : '<li class="empty">No reviewed requests yet.</li>';
+        </li>`;
+}
+
+function renderList() {
+  $('list').innerHTML = requests.length ? requests.map(item).join('') : '<li class="empty">No reviewed requests yet.</li>';
+}
+
+async function loadMe() {
+  try {
+    const res = await fetch('api/bsky/me', { cache: 'no-store' });
+    me = res.ok ? await res.json() : { bluesky: { available: false }, endorsed: [] };
   } catch {
-    document.getElementById('meta').textContent = "Couldn't load the list. Try again.";
+    me = { bluesky: { available: false }, endorsed: [] };
+  }
+  endorsed = new Set(Array.isArray(me.endorsed) ? me.endorsed : []);
+}
+
+async function toggle(id, want) {
+  const path = want ? 'api/bsky/endorse' : 'api/bsky/unendorse';
+  try {
+    const { res, out } = await post(path, { id });
+    if (res.ok) {
+      const was = endorsed.has(id);
+      if (want) endorsed.add(id); else endorsed.delete(id);
+      const r = requests.find((x) => x.id === id);
+      const counted = want ? out.counted : me.bluesky?.counted;
+      if (r && counted && was !== want && !out.already) r.endorsements = Math.max(0, Number(r.endorsements || 0) + (want ? 1 : -1));
+      renderList();
+      say(want ? 'Endorsed. Counts can take a few minutes to update.' : 'Endorsement withdrawn.');
+      return;
+    }
+    if (res.status === 401) {
+      await loadMe();
+      renderPanel();
+      renderList();
+      store.set(id);
+      $('bsky-account').focus();
+      say('Sign in with Bluesky to endorse.');
+      return;
+    }
+    say(out.error || "That didn't work. Try again in a minute.");
+  } catch {
+    say("Couldn't reach the server.");
+  }
+}
+
+$('list').addEventListener('click', (e) => {
+  const b = e.target.closest('button.endorse');
+  if (!b) return;
+  const id = b.dataset.id;
+  if (!me.bluesky?.signed_in) {
+    store.set(id);
+    $('bsky-account').focus();
+    say('Sign in with Bluesky to endorse.');
+    return;
+  }
+  toggle(id, b.getAttribute('aria-pressed') !== 'true');
+});
+
+$('bsky-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const account = $('bsky-account').value.trim();
+  if (!account) return;
+  say('Starting the sign-in…');
+  try {
+    const { res, out } = await post('api/bsky/login', { account });
+    if (res.ok && /^https:\/\//.test(out.redirect || '')) {
+      location.assign(out.redirect);
+      return;
+    }
+    say(out.error || GENERIC);
+  } catch {
+    say("Couldn't reach the server.");
+  }
+});
+
+$('bsky-logout').addEventListener('click', async () => {
+  try { await post('api/bsky/logout'); } catch {}
+  await loadMe();
+  renderPanel();
+  renderList();
+  say('Signed out of Bluesky.');
+});
+
+$('bsky-forget').addEventListener('click', async () => {
+  if (!confirm('Remove every endorsement you made, and sign out?')) return;
+  try {
+    const { res, out } = await post('api/bsky/forget');
+    if (!res.ok) { say(out.error || "That didn't work. Try again in a minute."); return; }
+    await loadMe();
+    renderPanel();
+    renderList();
+    say(`Removed ${out.removed} endorsement${out.removed === 1 ? '' : 's'}, and signed you out. Counts can take a few minutes to update.`);
+  } catch {
+    say("Couldn't reach the server.");
+  }
+});
+
+(async () => {
+  const [listResult] = await Promise.allSettled([fetch('api/requests').then((r) => r.json()), loadMe()]);
+  renderPanel();
+  if (listResult.status === 'fulfilled') {
+    const { requests: rs = [], awaiting_review = 0 } = listResult.value || {};
+    requests = rs;
+    $('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}${awaiting_review ? `; ${awaiting_review} awaiting review` : ''}.`;
+    renderList();
+  } else {
+    $('meta').textContent = "Couldn't load the list. Try again.";
+  }
+  // A message from the sign-in, read once from the fragment and then dropped.
+  const frag = new URLSearchParams(location.hash.slice(1));
+  const ok = frag.get('bluesky');
+  const err = frag.get('bluesky-error');
+  if (ok === 'signed-in' || err) {
+    say(ok === 'signed-in' ? MESSAGES['signed-in'] : (Object.prototype.hasOwnProperty.call(MESSAGES, err) ? MESSAGES[err] : GENERIC));
+    history.replaceState(null, '', location.pathname + location.search);
+    const pending = store.get();
+    if (ok === 'signed-in' && pending) {
+      store.clear();
+      if (me.bluesky?.signed_in && !endorsed.has(pending) && requests.some((r) => r.id === pending && r.status === 'accepted')) await toggle(pending, true);
+    }
   }
 })();
 </script>
