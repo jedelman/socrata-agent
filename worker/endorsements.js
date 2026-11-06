@@ -8,7 +8,7 @@
 //     eid = HMAC(INVITE_SECRET, "endorser:" + DID) lives only in the sealed
 //     session cookie, so one account's endorsements on different requests
 //     share no key material, and no key holds a DID, handle, issuer or token.
-//   endorse-ev:<day>:d|v|i:<hash32>:<uuid>  one key per action, counted by
+//   endorse-ev:<day>:d|v|i|r:<hash32>:<uuid>  one key per action, counted by
 //     listing (never read-modify-write), in its own HMAC domain, expiring at
 //     the end of the day plus an hour, the same for every key of the day.
 //
@@ -126,35 +126,73 @@ const dayOf = (now) => new Date(now).toISOString().slice(0, 10);
 const eventExpiry = (now) => boundary(now, 'day', 1) + 3600;
 const retentionExpiry = (env, now) => boundary(now, 'month', setting(env?.ENDORSE_RETENTION_MONTHS, 12, { min: 1, max: 24 }) + 1);
 
-/**
- * The bucket the per-server cap counts in: an approximate registrable domain
- * of the issuer (the last two labels, or three when the second-level label is
- * three characters or fewer, as in co.uk), so a1.evil.dev and a2.evil.dev
- * share one bucket instead of each getting their own.
- */
-export function issuerBucket(issuer) {
-  let host;
+// Public suffixes of more than one label, where a registrable domain keeps
+// one more label than usual: country second-level names (co.uk) and shared
+// hosting (github.io), whose tenants are unrelated people. A short list, not
+// the Public Suffix List: a suffix missing here only pools its tenants into
+// one per-domain bucket, and each tenant still has its own per-server cap.
+const MULTI_LABEL_SUFFIXES = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'net.uk', 'ltd.uk', 'plc.uk', 'sch.uk',
+  'com.au', 'net.au', 'org.au', 'edu.au', 'gov.au', 'id.au', 'asn.au',
+  'co.nz', 'net.nz', 'org.nz', 'ac.nz', 'geek.nz',
+  'co.jp', 'ne.jp', 'or.jp', 'ac.jp', 'go.jp', 'gr.jp',
+  'co.kr', 'or.kr', 'ne.kr', 'co.in', 'net.in', 'org.in', 'firm.in', 'gen.in',
+  'co.za', 'org.za', 'net.za', 'co.il', 'org.il', 'co.id', 'or.id', 'web.id',
+  'com.br', 'net.br', 'org.br', 'com.mx', 'org.mx', 'com.ar', 'com.co', 'com.pe', 'com.uy',
+  'com.cn', 'net.cn', 'org.cn', 'com.tw', 'org.tw', 'com.hk', 'org.hk', 'com.sg', 'org.sg',
+  'com.my', 'com.ph', 'com.vn', 'com.tr', 'com.pl', 'com.ua', 'co.ua', 'com.es', 'com.pt',
+  'com.gr', 'co.at', 'or.at', 'co.hu', 'com.ng', 'com.eg', 'com.sa', 'co.ke', 'com.pk',
+  'github.io', 'gitlab.io', 'codeberg.page', 'fly.dev', 'onrender.com', 'herokuapp.com',
+  'netlify.app', 'vercel.app', 'pages.dev', 'workers.dev', 'deno.dev', 'railway.app',
+  'web.app', 'firebaseapp.com', 'appspot.com', 'glitch.me', 'repl.co', 'replit.app',
+  'ngrok.io', 'ngrok-free.app', 'ngrok.app', 'trycloudflare.com', 'duckdns.org',
+  'dynv6.net', 'freemyip.com', 'ddns.net', 'no-ip.org', 'hopto.org', 'zapto.org',
+  'tailscale.net', 'ts.net', 'azurewebsites.net', 'cloudapp.net', 'run.app',
+  'up.railway.app', 'a.run.app', 'onion.pet', 'nip.io', 'sslip.io',
+]);
+
+/** The issuer's host: the bucket the per-server daily cap counts in. */
+export function issuerHost(issuer) {
   try {
-    host = new URL(issuer).hostname;
+    return new URL(issuer).hostname;
   } catch {
     return String(issuer);
   }
+}
+
+/**
+ * The issuer's approximate registrable domain: the last two labels, or one
+ * more under a multi-label suffix (MULTI_LABEL_SUFFIXES). The per-domain
+ * daily cap and the burst limit count in it, so a1.abc.dev and a2.abc.dev,
+ * or a wildcard farm of servers under one domain, share one bucket, while
+ * pds1.github.io and pds2.github.io don't.
+ */
+export function issuerBucket(issuer) {
+  const host = issuerHost(issuer);
   const labels = host.split('.');
   if (labels.length <= 2) return host;
-  const n = labels[labels.length - 2].length <= 3 ? 3 : 2;
+  let n = 2;
+  for (const k of [3, 2]) {
+    if (labels.length > k && MULTI_LABEL_SUFFIXES.has(labels.slice(-k).join('.'))) {
+      n = k + 1;
+      break;
+    }
+  }
   return labels.slice(-n).join('.');
 }
 
 async function prefixes(env, session, visitor, now) {
   const day = dayOf(now);
   const secret = env.INVITE_SECRET;
-  const ih = await hmacHex(secret, `issuer-rate:${day}:${issuerBucket(session.issuer)}`, 32);
+  const ih = await hmacHex(secret, `issuer-rate:${day}:${issuerHost(session.issuer)}`, 32);
+  const rh = await hmacHex(secret, `domain-rate:${day}:${issuerBucket(session.issuer)}`, 32);
   return {
     day,
-    ih,
+    rh,
     d: `endorse-ev:${day}:d:${await hmacHex(secret, `endorse-rate:${day}:${session.eid}`, 32)}:`,
     v: `endorse-ev:${day}:v:${visitor}:`,
     i: `endorse-ev:${day}:i:${ih}:`,
+    r: `endorse-ev:${day}:r:${rh}:`,
   };
 }
 
@@ -166,6 +204,22 @@ const countedFlag = (env, y) => publicPolicy(env) === 'all' || y === 0;
 async function keyExpiration(kv, ekey, env, now) {
   const page = await kv.list({ prefix: ekey, limit: 10 });
   return page.keys.find((k) => k.name === ekey)?.expiration || retentionExpiry(env, now);
+}
+
+/**
+ * Rewrite one endorsement's age flag to `y`, keeping its expiration. KV has
+ * no compare-and-set, so the key is read again immediately before the put,
+ * and a key withdrawn meanwhile (unendorse, forget, a clear) is left deleted.
+ * What remains is the gap between that read and the put.
+ * -> 'written' | 'gone' (withdrawn meanwhile) | 'kept' (already upgraded)
+ */
+async function upgradeFlag(kv, ekey, y, env, now) {
+  const expiration = await keyExpiration(kv, ekey, env, now);
+  const again = await kv.getWithMetadata(ekey);
+  if (!present(again?.value)) return 'gone';
+  if (!shouldUpgrade(again.metadata?.y ?? null, y)) return 'kept';
+  await kv.put(ekey, '1', { metadata: { y }, expiration });
+  return 'written';
 }
 
 // Should a stored age flag be rewritten to `y`, the flag the session now
@@ -210,8 +264,9 @@ export async function endorse({ kv, env, id, session, visitor, publicList, now =
     let stored = existing.metadata?.y ?? null;
     if (shouldUpgrade(stored, y)) {
       try {
-        await kv.put(ekey, '1', { metadata: { y }, expiration: await keyExpiration(kv, ekey, env, now) });
-        stored = y;
+        const out = await upgradeFlag(kv, ekey, y, env, now);
+        if (out === 'gone') return { ok: true, endorsed: false }; // withdrawn in another tab meanwhile
+        if (out === 'written') stored = y;
       } catch {
         // Best effort (a write to this key in the last second): the next repeat or `me` retries.
       }
@@ -224,10 +279,11 @@ export async function endorse({ kv, env, id, session, visitor, publicList, now =
   const p = await prefixes(env, session, visitor, now);
   const issuerCapped = !openIssuer(session.issuer, env);
   if (!(await allowed(env.BSKY_VISITOR_RL, `end:${visitor}`))) return BUSY_NOW;
-  if (issuerCapped && !(await allowed(env.BSKY_INPUT_RL, `iss:${p.ih}`))) return BUSY_NOW;
+  if (issuerCapped && !(await allowed(env.BSKY_INPUT_RL, `iss:${p.rh}`))) return BUSY_NOW;
   if ((await countEvents(kv, p.d)) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
   if ((await countEvents(kv, p.v)) >= setting(env.ENDORSE_PER_VISITOR_DAILY, 200, { min: 1 })) return BUSY;
-  if (issuerCapped && (await countEvents(kv, p.i)) >= setting(env.ENDORSE_PER_ISSUER_DAILY, 20, { min: 1 })) {
+  if (issuerCapped && ((await countEvents(kv, p.i)) >= setting(env.ENDORSE_PER_ISSUER_DAILY, 20, { min: 1 })
+    || (await countEvents(kv, p.r)) >= setting(env.ENDORSE_PER_DOMAIN_DAILY, 60, { min: 1 }))) {
     return { ok: false, status: 429, code: 'busy', error: 'Your Bluesky server has reached its endorsements for today. Try again tomorrow.' };
   }
   if (!(await allowed(env.BSKY_SITE_RL, 'endorse'))) return { ok: false, status: 429, code: 'busy', error: 'Lots of endorsements right now. Try again in a minute.' };
@@ -239,13 +295,10 @@ export async function endorse({ kv, env, id, session, visitor, publicList, now =
     throw new StorageError();
   }
   const exp = eventExpiry(now);
-  // The per-server event is named by (day, request, account), so withdrawing
-  // and endorsing again overwrites it instead of using up the server's day.
-  const issuerEvent = issuerCapped
-    ? kv.put(`${p.i}${await hmacHex(env.INVITE_SECRET, `issuer-ev:${p.day}:${id}:${session.eid}`, 32)}`, '', { expiration: exp })
-    : null;
+  // Every event key is a random uuid, so nothing request-specific outlives a
+  // withdrawal. A withdraw and a re-endorse therefore charge the server again.
   try {
-    await Promise.all([recordEvent(kv, p.d, exp), recordEvent(kv, p.v, exp), ...(issuerEvent ? [issuerEvent] : [])]);
+    await Promise.all([recordEvent(kv, p.d, exp), recordEvent(kv, p.v, exp), ...(issuerCapped ? [recordEvent(kv, p.i, exp), recordEvent(kv, p.r, exp)] : [])]);
   } catch {
     // The endorsement stands; the bindings above still bound bursts.
     console.error('endorse: event write failed');
@@ -298,16 +351,16 @@ export async function endorsedBy({ kv, env, session, publicList, now = Date.now(
     return ids.filter((id, i) => present(got.get(keys[i])));
   }
   const got = await bulkGetWithMetadata(kv, keys);
-  const found = ids.filter((id, i) => present(got.get(keys[i])?.value));
   const stale = keys.filter((k) => present(got.get(k)?.value) && shouldUpgrade(got.get(k).metadata?.y ?? null, 0)).slice(0, UPGRADES_PER_CALL);
+  const gone = new Set();
   for (const k of stale) {
     try {
-      await kv.put(k, '1', { metadata: { y: 0 }, expiration: await keyExpiration(kv, k, env, now) });
+      if ((await upgradeFlag(kv, k, 0, env, now)) === 'gone') gone.add(k);
     } catch {
       // Best effort; the next `me` retries.
     }
   }
-  return found;
+  return ids.filter((id, i) => present(got.get(keys[i])?.value) && !gone.has(keys[i]));
 }
 
 /**
@@ -373,12 +426,19 @@ export function orphanedIds(counts, statuses) {
   return out;
 }
 
-/** Clear orphaned endorsements (see orphanedIds); errors are logged, never thrown. */
-export async function sweepOrphans(kv, counts, statuses) {
+// Deletes one sweep may make in all, so it fits beside its invocation's own
+// KV work (Workers KV allows 1,000 operations per invocation); a large
+// orphan is finished by later sweeps.
+export const SWEEP_BUDGET = 100;
+
+/** Clear orphaned endorsements (see orphanedIds), at most `budget` deletes; errors are logged, never thrown. */
+export async function sweepOrphans(kv, counts, statuses, { budget = SWEEP_BUDGET } = {}) {
   const ids = orphanedIds(counts, statuses);
+  let left = budget;
   for (const id of ids) {
+    if (left <= 0) break;
     try {
-      await clearRequestEndorsements(kv, id);
+      left -= (await clearRequestEndorsements(kv, id, { max: left })).cleared;
     } catch (err) {
       console.error('endorsements: orphan sweep failed', err?.message);
     }

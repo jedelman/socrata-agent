@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeHandle, isSupportedDid, parseAccountInput, safeUrl, safeFetch, resolveHandle, resolveDidDoc,
-  docHandle, docPds, resolveAccount, plcCreatedDay,
+  docHandle, docPds, resolveAccount, plcCreatedDay, firstArrayObject,
 } from '../worker/atproto-identity.js';
 import { W, json, didDoc, fakeNetwork, hang } from './fake-atproto.js';
 
@@ -192,4 +192,18 @@ test('plcCreatedDay returns the genesis day, or empty on failure', async () => {
   assert.equal(await plcCreatedDay(W.DID, opts(fakeNetwork({ [`plc.fixture.dev/${W.DID}/log/audit`]: null }))), '');
   assert.equal(await plcCreatedDay(W.DID, opts(fakeNetwork({ [`plc.fixture.dev/${W.DID}/log/audit`]: () => new Response('not json') }))), '');
   assert.equal(await plcCreatedDay('did:web:web.fixture.dev', opts(fakeNetwork())), '');
+});
+
+test('plcCreatedDay reads the genesis day from a long account\'s audit log too (over 128 KB)', async () => {
+  // A years-old account with many handle changes and moves; a brace inside a string must not end the entry.
+  const op = (i) => ({ did: W.DID, operation: { type: 'plc_operation', alsoKnownAs: [`at://h${i}.fixture.dev`], services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://pds.fixture.dev' } }, note: 'a } and a \\" here' }, cid: `cid${i}`, nullified: false, createdAt: i === 0 ? '2023-04-05T06:07:08.000Z' : '2026-01-01T00:00:00.000Z' });
+  const log = JSON.stringify(Array.from({ length: 800 }, (_, i) => op(i)));
+  assert.ok(log.length > 131072);
+  const long = fakeNetwork({ [`plc.fixture.dev/${W.DID}/log/audit`]: () => new Response(log, { headers: { 'Content-Type': 'application/json', 'Content-Length': String(log.length) } }) });
+  assert.equal(await plcCreatedDay(W.DID, opts(long)), '2023-04-05');
+  // A first entry cut off by the cap is no date, not an error.
+  const cut = fakeNetwork({ [`plc.fixture.dev/${W.DID}/log/audit`]: () => new Response(`[{"did":"${W.DID}","note":"${'x'.repeat(40000)}","createdAt":"2023-04-05T06:07:08.000Z"}]`) });
+  assert.equal(await plcCreatedDay(W.DID, opts(cut)), '');
+  assert.equal(firstArrayObject('[{"a":"}"},{"b":1}]').a, '}');
+  assert.equal(firstArrayObject('{"a":1}'), null);
 });

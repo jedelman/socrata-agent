@@ -312,23 +312,89 @@ test('burst limits: the visitor and per-server bindings refuse before the laggin
   assert.match(env.BSKY_INPUT_RL.calls[0], /^iss:[0-9a-f]{32}$/);
 });
 
-test('the per-server cap: subdomains share a bucket, and toggling doesn\'t use up the server\'s day', async () => {
+test('the per-server caps: one per server, one per registrable domain, no length heuristic', async () => {
   assert.equal(issuerBucket('https://a1.evil.dev'), 'evil.dev');
+  // Short second-level labels are ordinary domains, not suffixes.
+  assert.equal(issuerBucket('https://a1.abc.dev'), 'abc.dev');
+  assert.equal(issuerBucket('https://a2.abc.dev'), 'abc.dev');
+  assert.equal(issuerBucket('https://x.y.q7z.xyz'), 'q7z.xyz');
+  assert.equal(issuerBucket('https://a1.abc.io'), issuerBucket('https://a2.abc.io'));
+  assert.equal(issuerBucket('https://pds1.ab.dev'), issuerBucket('https://pds2.ab.dev'));
+  // Listed multi-label suffixes keep one more label.
   assert.equal(issuerBucket('https://pds.example.co.uk'), 'example.co.uk');
+  assert.equal(issuerBucket('https://a.b.example.com.au'), 'example.com.au');
+  assert.equal(issuerBucket('https://pds1.github.io'), 'pds1.github.io');
+  assert.notEqual(issuerBucket('https://pds1.github.io'), issuerBucket('https://pds2.github.io'));
+  assert.equal(issuerBucket('https://svc-abc.a.run.app'), 'svc-abc.a.run.app');
   assert.equal(issuerBucket('https://bsky.social'), 'bsky.social');
+  // Per server: one server's 1 a day doesn't touch its neighbour's.
   let { kv, ids } = await world();
   let env = env0({ ENDORSE_PER_ISSUER_DAILY: '1' });
-  assert.ok((await go(kv, env, ids.open1, await session(1, { issuer: 'https://a1.evil.dev' }), 'a')).ok);
-  assert.equal((await go(kv, env, ids.open1, await session(2, { issuer: 'https://a2.evil.dev' }), 'b')).status, 429);
+  assert.ok((await go(kv, env, ids.open1, await session(1, { issuer: 'https://a1.abc.dev' }), 'a')).ok);
+  assert.equal((await go(kv, env, ids.open2, await session(2, { issuer: 'https://a1.abc.dev' }), 'b')).status, 429);
+  assert.ok((await go(kv, env, ids.open1, await session(3, { issuer: 'https://a2.abc.dev' }), 'c')).ok, 'another server under the same domain');
+  // Per domain: a wildcard farm under abc.dev shares one cap.
+  ({ kv, ids } = await world());
+  env = env0({ ENDORSE_PER_DOMAIN_DAILY: '2' });
+  assert.ok((await go(kv, env, ids.open1, await session(1, { issuer: 'https://a1.abc.dev' }), 'a')).ok);
+  assert.ok((await go(kv, env, ids.open1, await session(2, { issuer: 'https://a2.abc.dev' }), 'b')).ok);
+  assert.equal((await go(kv, env, ids.open1, await session(3, { issuer: 'https://a3.abc.dev' }), 'c')).status, 429);
+  assert.ok((await go(kv, env, ids.open1, await session(4, { issuer: 'https://pds1.github.io' }), 'd')).ok, 'another domain');
+  assert.ok((await go(kv, env, ids.open1, await session(5, { issuer: 'https://pds2.github.io' }), 'e')).ok, 'shared-hosting tenants are separate');
+  // Event keys are uuids: nothing in them names a request, and a re-endorse charges again.
   ({ kv, ids } = await world());
   env = env0({ ENDORSE_PER_ISSUER_DAILY: '2' });
   const s = await session(1, { issuer: 'https://pds.community.dev' });
-  for (let i = 0; i < 4; i++) {
-    assert.ok((await go(kv, env, ids.open1, s, 'a')).ok, `toggle ${i}`);
-    assert.ok((await unendorse({ kv, env, id: ids.open1, session: s, visitor: 'a', now: NOW })).ok);
+  assert.ok((await go(kv, env, ids.open1, s, 'a')).ok);
+  assert.ok((await unendorse({ kv, env, id: ids.open1, session: s, visitor: 'a', now: NOW })).ok);
+  const issuerEvents = [...kv.store.keys()].filter((k) => /^endorse-ev:[^:]+:[ir]:/.test(k));
+  assert.equal(issuerEvents.length, 2, 'one per-server and one per-domain event');
+  for (const k of issuerEvents) assert.match(k, /:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  const tag = await hmacHex(SECRET, `issuer-ev:${new Date(NOW).toISOString().slice(0, 10)}:${ids.open1}:${s.eid}`, 32);
+  assert.ok(![...kv.store.keys()].some((k) => k.includes(tag)), 'no per-(request, account) tag survives the withdrawal');
+  assert.ok((await go(kv, env, ids.open1, s, 'a')).ok);
+  assert.equal((await go(kv, env, ids.open2, await session(2, { issuer: 'https://pds.community.dev' }), 'b')).status, 429, 'the re-endorse used the server\'s day');
+});
+
+test('an age-flag rewrite racing a withdrawal leaves the endorsement withdrawn', async () => {
+  for (const via of ['me', 'repeat']) {
+    const { kv, ids } = await world();
+    const env = env0();
+    const young = await session(1, { created: '2026-10-30' });
+    assert.ok((await go(kv, env, ids.open1, young)).ok);
+    const aged = { ...young, created: '2026-01-01' };
+    const ekey = await endorsementKey(SECRET, ids.open1, aged.eid);
+    // Withdraw while the rewrite is between its first read and its put (the expiration listing).
+    const realList = kv.list.bind(kv);
+    let withdrew = null;
+    kv.list = async (opts) => {
+      if (withdrew === null && opts.prefix === ekey) withdrew = await unendorse({ kv, env, id: ids.open1, session: aged, visitor: 'v9', now: NOW });
+      return realList(opts);
+    };
+    const list = await computePublicList(env, kv);
+    const out = via === 'me'
+      ? await endorsedBy({ kv, env, session: aged, publicList: list, now: NOW })
+      : await endorse({ kv, env, id: ids.open1, session: aged, visitor: 'v1', publicList: list, now: NOW });
+    assert.deepEqual(withdrew, { ok: true, endorsed: false }, via);
+    assert.equal(kv.store.has(ekey), false, `${via}: the withdrawn key stays deleted`);
+    if (via === 'me') assert.deepEqual(out, [], 'and me no longer lists it');
+    else assert.equal(out.endorsed, false);
   }
-  assert.equal([...kv.store.keys()].filter((k) => k.includes(':i:')).length, 1, 'one per-server event for one (request, account, day)');
-  assert.ok((await go(kv, env, ids.open1, await session(2, { issuer: 'https://pds.community.dev' }), 'b')).ok, 'the server still has room');
+});
+
+test('the orphan sweep stops at its budget, and endorse and me never sweep', async () => {
+  const { kv, ids } = await world();
+  const env = env0();
+  for (let n = 0; n < 150; n++) await kv.put(await endorsementKey(SECRET, ids.done, `e${n}`), '1', { metadata: { y: 0 } });
+  const deletes = () => kv.ops.filter((o) => o.op === 'delete').length;
+  // The bluesky routes compute the list with sweep: false.
+  await cachedPublicList({ env, kv, origin: 'https://x.dev', cache: null, sweep: false });
+  assert.equal(deletes(), 0);
+  await computePublicList(env, kv);
+  assert.equal(deletes(), 100, 'one sweep deletes at most 100');
+  assert.equal((await countFor(kv, ids.done)).n, 50);
+  await computePublicList(env, kv);
+  assert.equal((await countFor(kv, ids.done)).n, 0, 'the next sweep finishes it');
 });
 
 test('orphans: keys that outlive a decision are swept where the list is computed', async () => {

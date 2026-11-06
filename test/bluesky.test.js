@@ -170,10 +170,18 @@ test('a sub mismatch, or a re-resolution naming another AS, revokes and sets no 
   assert.equal(cb.cookies.length, 1);
 });
 
-test('token responses: no DPoP-Nonce fails; a token-endpoint nonce retry succeeds', async () => {
-  const bare = fakeNetwork({ 'auth.fixture.dev/oauth/token': () => json({ access_token: 'a', token_type: 'DPoP', scope: 'atproto', sub: W.DID }) });
+test('token responses: no DPoP-Nonce fails, still revoking what was issued; a token-endpoint nonce retry succeeds', async () => {
+  const bare = fakeNetwork({ 'auth.fixture.dev/oauth/token': () => json({ access_token: W.ACCESS, refresh_token: W.REFRESH, token_type: 'DPoP', scope: 'atproto', sub: W.DID }) });
   let L = await login({ net: bare });
+  const cbBare = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
+  assert.match(cbBare.location, /token_failed$/);
+  assert.equal(L.net.state.revokes.length, 2, 'both tokens revoked though the response was refused');
+  assert.equal(cbBare.cookies.length, 1, 'only the flow clear');
+  // A refused response with no token in it revokes nothing.
+  const empty = fakeNetwork({ 'auth.fixture.dev/oauth/token': () => json({ error: 'invalid_grant' }, 400) });
+  L = await login({ net: empty });
   assert.match((await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow })).location, /token_failed$/);
+  assert.equal(L.net.state.revokes.length, 0);
   let n = 0;
   const retry = fakeNetwork({
     'auth.fixture.dev/oauth/token': () => (n++ === 0
@@ -186,6 +194,17 @@ test('token responses: no DPoP-Nonce fails; a token-endpoint nonce retry succeed
   assert.equal(proofs.length, 2);
   assert.equal(proofs[1].payload.nonce, 'nonce-fresh');
   assert.equal(L.net.state.revokes[0].nonce, 'nonce-after', 'the revoke carries the newest nonce');
+});
+
+test('a failed re-resolution at the callback is did_unresolved: both tokens revoked, no session', async () => {
+  let n = 0;
+  const net = fakeNetwork({ [`plc.fixture.dev/${W.DID}`]: () => (n++ === 0 ? json(didDoc()) : json({ error: 'down' }, 500)) });
+  const L = await login({ net });
+  const cb = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
+  assert.match(cb.location, /bluesky-error=did_unresolved$/);
+  assert.equal(L.net.state.revokes.length, 2);
+  assert.equal(cb.cookies.length, 1);
+  assert.match(cb.cookies[0], /^siren_bsky_flow=;/);
 });
 
 test('replay: the same cookie, state, iss and code work once', async () => {
@@ -314,12 +333,18 @@ test('me: off, signed out (no KV), signed in (accepted public ids only, counted 
   assert.equal(me.bluesky.counted, true);
   const young = await (await handleMe(get('/api/bsky/me', { cookie: await signedInCookie({ created: new Date().toISOString().slice(0, 10) }) }), env, null, BASE, { publicList: LIST })).json();
   assert.equal(young.bluesky.counted, false);
+  assert.equal(young.bluesky.age, 'young');
+  assert.equal(me.bluesky.age, 'established');
+  const unknown = await (await handleMe(get('/api/bsky/me', { cookie: await signedInCookie({ created: '' }) }), env, null, BASE, { publicList: LIST })).json();
+  assert.equal(unknown.bluesky.counted, false);
+  assert.equal(unknown.bluesky.age, 'unknown', 'did:web: never ages into the count, and the page says so');
   const all = await (await handleMe(get('/api/bsky/me', { cookie: await signedInCookie({ created: '' }) }), { ...env, ENDORSE_PUBLIC: 'all' }, null, BASE, { publicList: LIST })).json();
   assert.equal(all.bluesky.counted, true);
-  // Two session cookies mean signed out, and Siren clears its own.
+  // Two session cookies mean signed out; Siren clears the other copies and keeps its own.
   res = await handleMe(get('/api/bsky/me', { cookie: `${await signedInCookie()}; ${await signedInCookie()}` }), env, null, BASE, { publicList: LIST });
   assert.equal((await res.json()).bluesky.signed_in, false);
-  assert.match(res.headers.get('Set-Cookie'), /^siren_bsky=; Path=\/ask-siren\/api\/bsky\/; Max-Age=0/);
+  assert.ok(!res.headers.getSetCookie().includes('siren_bsky=; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
+  assert.ok(res.headers.getSetCookie().includes('siren_bsky=; Domain=jason-edelman.org; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
 });
 
 test('every new POST refuses a foreign Origin, and all are 404 with the flag off', async () => {
@@ -342,10 +367,19 @@ test('every new POST refuses a foreign Origin, and all are 404 with the flag off
   assert.equal((await handleCallback(get('/oauth/callback?state=x'), { ...env, BLUESKY_LOGIN: 'false' }, null, BASE)).status, 404);
 });
 
-test('logout clears only the Bluesky cookie; signed-out endorse is a 401', async () => {
+test('logout clears only the Bluesky cookie, every copy of it; signed-out endorse is a 401', async () => {
   const env = readyEnv();
   const res = await handleLogout(post('/api/bsky/logout', {}, { origin: ORIGIN }), env, BASE);
-  assert.deepEqual(res.headers.getSetCookie(), ['siren_bsky=; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax']);
+  const set = res.headers.getSetCookie();
+  assert.ok(set.every((c) => c.startsWith('siren_bsky=; ') && /Max-Age=0/.test(c)), 'only the Bluesky session');
+  assert.ok(set.includes('siren_bsky=; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'), "Siren's own");
+  // A session planted on the parent domain, at any path the logout request carries, is cleared too.
+  for (const path of ['/', '/ask-siren', '/ask-siren/api/', '/ask-siren/api/bsky', '/ask-siren/api/bsky/', '/ask-siren/api/bsky/logout']) {
+    assert.ok(set.includes(`siren_bsky=; Domain=jason-edelman.org; Path=${path}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`), path);
+  }
+  const forgot = await handleForget(post('/api/bsky/forget', {}, { origin: ORIGIN, cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });
+  assert.equal(forgot.status, 200);
+  assert.ok(forgot.headers.getSetCookie().includes('siren_bsky=; Domain=jason-edelman.org; Path=/ask-siren/api/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
   const r401 = await handleEndorse(post('/api/bsky/endorse', { id: 'aaaaaaaaaaaa' }), env, null, BASE, { publicList: LIST });
   assert.equal(r401.status, 401);
   assert.equal((await r401.json()).code, 'signed_out');
@@ -386,13 +420,23 @@ test('callbacks with no genuine flow never charge the site-wide breaker', async 
   assert.ok(L.env.BSKY_SITE_RL.calls.includes('callback'));
 });
 
-test('duplicate cookies also clear a copy planted on the parent domain', async () => {
+test('duplicate cookies clear every planted copy at every path the request carried, and keep Siren\'s own', async () => {
   const env = readyEnv();
   const res = await handleMe(get('/api/bsky/me', { cookie: `${await signedInCookie()}; ${await signedInCookie()}` }), env, null, BASE, { publicList: LIST });
   const set = res.headers.getSetCookie();
-  assert.ok(set.includes('siren_bsky=; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
-  assert.ok(set.includes('siren_bsky=; Domain=jason-edelman.org; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
-  assert.ok(set.includes('siren_bsky=; Domain=jason-edelman.org; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
+  assert.ok(!set.includes('siren_bsky=; Path=/ask-siren/api/bsky/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'), "Siren's own copy is kept");
+  // Planted with Domain= at an intermediate path, or at the exact route path, or host-only elsewhere.
+  for (const path of ['/', '/ask-siren', '/ask-siren/', '/ask-siren/api', '/ask-siren/api/', '/ask-siren/api/bsky', '/ask-siren/api/bsky/', '/ask-siren/api/bsky/me']) {
+    assert.ok(set.includes(`siren_bsky=; Domain=jason-edelman.org; Path=${path}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`), `Domain at ${path}`);
+  }
+  assert.ok(set.includes('siren_bsky=; Path=/ask-siren/api/; Max-Age=0; HttpOnly; Secure; SameSite=Lax'), 'host-only at another path');
+  // On an endorse, the exact route path is cleared too.
+  const end = await handleEndorse(post('/api/bsky/endorse', { id: 'aaaaaaaaaaaa' }, { cookie: `${await signedInCookie()}; ${BSKY_COOKIE}=planted` }), env, null, BASE, { publicList: LIST });
+  assert.equal(end.status, 401);
+  assert.ok(end.headers.getSetCookie().includes('siren_bsky=; Domain=jason-edelman.org; Path=/ask-siren/api/bsky/endorse; Max-Age=0; HttpOnly; Secure; SameSite=Lax'));
+  // After the clears, the one cookie left is Siren's own, and the visitor is signed in as themself.
+  const after = await (await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST })).json();
+  assert.equal(after.bluesky.signed_in, true);
   // A lone invalid cookie clears only Siren's own.
   const bad = await handleMe(get('/api/bsky/me', { cookie: `${BSKY_COOKIE}=garbage` }), env, null, BASE, { publicList: LIST });
   assert.equal(bad.headers.getSetCookie().length, 1);
@@ -400,7 +444,9 @@ test('duplicate cookies also clear a copy planted on the parent domain', async (
   const L = await login();
   const cb = await callback(L.env, L.net, { state: stateOf(L.net), cookies: `${FLOW_COOKIE}=${L.flow}; ${FLOW_COOKIE}=${L.flow}` });
   assert.match(cb.location, /flow_expired$/);
-  assert.ok(cb.cookies.includes(`${FLOW_COOKIE}=; Domain=jason-edelman.org; Path=/ask-siren/oauth/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`));
+  for (const path of ['/ask-siren/', '/ask-siren/oauth', '/ask-siren/oauth/', '/ask-siren/oauth/callback']) {
+    assert.ok(cb.cookies.includes(`${FLOW_COOKIE}=; Domain=jason-edelman.org; Path=${path}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`), path);
+  }
   // No Domain clears for a loopback origin.
   const local = readyEnv({ PUBLIC_ORIGIN: 'http://127.0.0.1:8787' });
   const lr = await handleMe(get('/api/bsky/me', { cookie: `${await signedInCookie()}; ${await signedInCookie()}` }), local, null, BASE, { publicList: LIST });

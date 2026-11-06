@@ -100,7 +100,7 @@ async function cancelBody(res) {
  * Throws IdentityError('bad_url' | 'redirect' | 'too_large'), or whatever the
  * underlying fetch throws (an abort, a network error).
  */
-export async function safeFetch(url, { fetchImpl = fetch, method = 'GET', headers = {}, body, signal, timeoutMs = 4000, maxBytes = 65536, redirects = 0 } = {}) {
+export async function safeFetch(url, { fetchImpl = fetch, method = 'GET', headers = {}, body, signal, timeoutMs = 4000, maxBytes = 65536, redirects = 0, truncate = false } = {}) {
   let u = safeUrl(typeof url === 'string' ? url : String(url));
   if (!u) throw new IdentityError('bad_url');
   const sig = signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]) : AbortSignal.timeout(timeoutMs);
@@ -123,11 +123,12 @@ export async function safeFetch(url, { fetchImpl = fetch, method = 'GET', header
       continue;
     }
     const declared = Number(res.headers.get('Content-Length'));
-    if (Number.isFinite(declared) && declared > maxBytes) {
+    if (!truncate && Number.isFinite(declared) && declared > maxBytes) {
       await cancelBody(res);
       throw new IdentityError('too_large');
     }
     let text = '';
+    let truncated = false;
     if (res.body) {
       const reader = res.body.getReader();
       const chunks = [];
@@ -135,15 +136,20 @@ export async function safeFetch(url, { fetchImpl = fetch, method = 'GET', header
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        total += value.byteLength;
-        if (total > maxBytes) {
+        if (total + value.byteLength > maxBytes) {
           try {
             await reader.cancel();
           } catch {
             // ignore
           }
-          throw new IdentityError('too_large');
+          if (!truncate) throw new IdentityError('too_large');
+          // `truncate`: keep the first maxBytes and stop reading.
+          chunks.push(value.subarray(0, maxBytes - total));
+          total = maxBytes;
+          truncated = true;
+          break;
         }
+        total += value.byteLength;
         chunks.push(value);
       }
       const all = new Uint8Array(total);
@@ -154,7 +160,7 @@ export async function safeFetch(url, { fetchImpl = fetch, method = 'GET', header
       }
       text = new TextDecoder().decode(all);
     }
-    return { status: res.status, headers: res.headers, text, url: u.href };
+    return { status: res.status, headers: res.headers, text, url: u.href, truncated };
   }
 }
 
@@ -303,14 +309,52 @@ export async function resolveAccount(input, opts = {}) {
   return { did, handle, pds };
 }
 
+/**
+ * The first element of a JSON array whose text may be cut off after it: the
+ * first `{...}` object, found by tracking depth outside strings. -> the
+ * parsed object, or null.
+ */
+export function firstArrayObject(text) {
+  const start = /^\s*\[\s*\{/.exec(text);
+  if (!start) return null;
+  const from = start[0].length - 1;
+  let depth = 0;
+  let inString = false;
+  for (let i = from; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(text.slice(from, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Enough for the first audit-log entry (about 1 KB) many times over. The log
+// of a long-lived account (many handle changes or moves) can run far past
+// this, so the read stops here instead of failing: only log[0] is needed.
+const PLC_AUDIT_BYTES = 32768;
+
 /** 'YYYY-MM-DD' the did:plc was created (its first audit-log entry), or ''. Never throws. */
 export async function plcCreatedDay(did, { fetchImpl = fetch, plcUrl, signal } = {}) {
   try {
     if (typeof did !== 'string' || !PLC_RE.test(did)) return '';
-    const res = await safeFetch(`${String(plcUrl || 'https://plc.directory').replace(/\/+$/, '')}/${did}/log/audit`, { fetchImpl, signal, maxBytes: 131072 });
+    const res = await safeFetch(`${String(plcUrl || 'https://plc.directory').replace(/\/+$/, '')}/${did}/log/audit`, { fetchImpl, signal, maxBytes: PLC_AUDIT_BYTES, truncate: true });
     if (res.status !== 200) return '';
-    const log = JSON.parse(res.text);
-    const at = Array.isArray(log) ? log[0]?.createdAt : null;
+    const at = firstArrayObject(res.text)?.createdAt;
     return typeof at === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(at) ? at.slice(0, 10) : '';
   } catch {
     return '';

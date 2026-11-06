@@ -57,7 +57,7 @@ button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg
       <p>If you want one of these added too, endorse it with your Bluesky account. Endorsements help the steward choose what to add next; they aren't votes. Signing in with Bluesky lets you endorse; asking {{APP_NAME}} still needs an invite (<a href="./">join the waitlist</a>).</p>
       <details>
         <summary>What {{APP_NAME}} keeps</summary>
-        <p>Signing in only proves which account you are. {{APP_NAME}} asks for no permission to post or read anything, and throws the sign-in tokens away at once. For each request you endorse, {{APP_NAME}} keeps a code computed from your account and that request with a key only the site holds, plus whether the account was under <span class="young-days">30</span> days old. That's kept until the request is decided, and never more than about <span class="retention">13</span> months. To limit abuse, {{APP_NAME}} also keeps counters of recent endorsing for about a day, under a code for your account that changes daily and a code for your network. {{APP_NAME}} doesn't keep your handle, posts or followers. Counts are public; who endorsed isn't, though the site's operator, who holds the key, could check whether a particular account endorsed. Your sign-in lasts until you close the browser, and at most a day. Your Bluesky server will record that you signed in to {{APP_NAME}}, not what you endorsed. To count each account once, {{APP_NAME}} looks up your account's public records (its handle, server and creation date) when you sign in.</p>
+        <p>Signing in only proves which account you are. {{APP_NAME}} asks for no permission to post or read anything, and throws the sign-in tokens away at once. For each request you endorse, {{APP_NAME}} keeps a code computed from your account and that request with a key only the site holds, plus whether the account was under <span class="young-days">30</span> days old. That's kept until the request is decided, and never more than about <span class="retention">13</span> months. To limit abuse, {{APP_NAME}} also keeps counters of recent endorsing for about a day, under a code for your account that changes daily, a code for your network and, for servers other than bsky.social, a daily code for your Bluesky server; none of them names a request. {{APP_NAME}} doesn't keep your handle, posts or followers. Counts are public; who endorsed isn't, though the site's operator, who holds the key, could work out which Bluesky accounts endorsed each request by running the key over the public directory of accounts. Your sign-in lasts until you close the browser, and at most a day. Your Bluesky server will record that you signed in to {{APP_NAME}}, not what you endorsed. To count each account once, {{APP_NAME}} looks up your account's public records (its handle, server and creation date) when you sign in.</p>
       </details>
       <p class="small established" hidden>Counts include Bluesky accounts at least <span class="young-days">30</span> days old.</p>
       <form id="bsky-form">
@@ -68,6 +68,7 @@ button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg
     <div id="bsky-in" hidden>
       <p><span id="bsky-who"></span> · <button type="button" class="link" id="bsky-logout">Sign out</button></p>
       <p class="small" id="bsky-uncounted" hidden>Your endorsements reach the steward; public counts include accounts at least <span class="young-days">30</span> days old. Once yours is, they count from your next visit to this page.</p>
+      <p class="small" id="bsky-unknown-age" hidden>Your account's age can't be looked up (for example, a did:web account), so under this site's policy your endorsements reach the steward but aren't in the public count.</p>
       <p class="small">Counts can take a few minutes to update. <button type="button" class="link" id="bsky-forget">Remove all my endorsements</button></p>
     </div>
     <p class="status" id="bsky-status" role="status"></p>
@@ -92,6 +93,7 @@ const MESSAGES = {
   denied: 'Sign-in was cancelled.',
   as_error: "Your Bluesky server couldn't finish the sign-in. Try again in a minute.",
   token_failed: "Your Bluesky server couldn't finish the sign-in. Try again in a minute.",
+  did_unresolved: "I couldn't re-check your account with its server. Try again in a minute.",
   busy: 'Lots of sign-ins right now. Try again in a minute.',
 };
 const GENERIC = "The sign-in didn't work. Try again in a minute.";
@@ -122,7 +124,9 @@ function renderPanel() {
   $('bsky-in').hidden = !b.signed_in;
   if (b.signed_in) {
     $('bsky-who').textContent = b.handle ? `Signed in with Bluesky as @${b.handle}` : 'Signed in with your Bluesky account';
-    $('bsky-uncounted').hidden = Boolean(b.counted) || b.policy === 'all';
+    const uncounted = !b.counted && b.policy !== 'all';
+    $('bsky-uncounted').hidden = !uncounted || b.age === 'unknown';
+    $('bsky-unknown-age').hidden = !uncounted || b.age !== 'unknown';
   }
 }
 

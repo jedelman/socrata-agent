@@ -17,21 +17,23 @@ const cacheKey = (origin, base) => new Request(`${origin}${base}/__cache/public-
  * are swept here, where every key and every request status is read anyway:
  * at most once a minute per location, so an orphan lives minutes, not months.
  * `defer` is ctx.waitUntil in the Worker; without one the sweep is awaited.
+ * `sweep: false` skips it: the endorse and `me` routes pass that, so a
+ * person's own action never shares its invocation's KV operations with one.
  */
-export async function computePublicList(env, kv, { defer } = {}) {
+export async function computePublicList(env, kv, { defer, sweep = true } = {}) {
   const counts = await endorsementCounts(kv);
   const statuses = new Map();
   const list = await publicRequests(kv, counts, { policy: publicPolicy(env), statuses });
-  if (orphanedIds(counts, statuses).length) {
-    const sweep = sweepOrphans(kv, counts, statuses);
-    if (defer) defer(sweep);
-    else await sweep;
+  if (sweep && orphanedIds(counts, statuses).length) {
+    const pending = sweepOrphans(kv, counts, statuses);
+    if (defer) defer(pending);
+    else await pending;
   }
   return list;
 }
 
 /** -> { requests, awaiting_review } */
-export async function cachedPublicList({ env, ctx, kv, origin, base = '', cache = defaultCache() }) {
+export async function cachedPublicList({ env, ctx, kv, origin, base = '', cache = defaultCache(), sweep = true }) {
   const key = cache ? cacheKey(origin, base) : null;
   if (cache) {
     try {
@@ -41,7 +43,7 @@ export async function cachedPublicList({ env, ctx, kv, origin, base = '', cache 
       // a cache miss or failure falls through to computing the list
     }
   }
-  const list = await computePublicList(env, kv, ctx?.waitUntil ? { defer: (p) => ctx.waitUntil(p) } : {});
+  const list = await computePublicList(env, kv, { sweep, ...(ctx?.waitUntil ? { defer: (p) => ctx.waitUntil(p) } : {}) });
   if (cache) {
     const put = cache.put(key, new Response(JSON.stringify(list), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${SECONDS}` } }))
       .catch((err) => console.error('public list: cache put failed', err?.message));

@@ -236,7 +236,11 @@ export function authorizeUrl(meta, clientId, requestUri) {
   return u.href;
 }
 
-/** The token request for the code. -> { token, nonce } or OAuthError('token_failed'). */
+/**
+ * The token request for the code. -> { token, nonce } or OAuthError('token_failed').
+ * A refused response that still carries a token (a 200 with no DPoP-Nonce)
+ * puts it on the error as `token` and `nonce`, so the caller can revoke it.
+ */
 export async function exchangeCode({ tokenEndpoint, code, verifier, clientId, redirectUri, jwk, nonce, fetchImpl = fetch, signal, now = Date.now() }) {
   let out;
   try {
@@ -244,7 +248,14 @@ export async function exchangeCode({ tokenEndpoint, code, verifier, clientId, re
   } catch {
     throw new OAuthError('token_failed');
   }
-  if (out.status !== 200 || !out.json || !out.nonce) throw new OAuthError('token_failed');
+  if (out.status !== 200 || !out.json || !out.nonce) {
+    const err = new OAuthError('token_failed');
+    if (out.json && ['access_token', 'refresh_token'].some((k) => typeof out.json[k] === 'string' && out.json[k])) {
+      err.token = out.json;
+      err.nonce = out.latestNonce;
+    }
+    throw err;
+  }
   return { token: out.json, nonce: out.latestNonce };
 }
 

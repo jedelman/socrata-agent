@@ -133,16 +133,43 @@ export const flowCookie = (value, base) => `${FLOW_COOKIE}=${value}; Path=${base
 export const clearFlowCookie = (base) => `${FLOW_COOKIE}=; Path=${base}/oauth/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 
 /**
- * Clears for a cookie of `name` planted on the parent domain (Domain=<the
- * PUBLIC_ORIGIN host>) by a sibling subdomain, at the scoped path and at /.
- * Clearing only Siren's host-only copy would leave the planted one in charge
- * on the next request. A host may clear cookies for its own domain.
+ * Every path a cookie sent with a request for `pathname` could carry: "/",
+ * then each segment with and without its trailing slash. A browser sends a
+ * cookie whose Path is any of these, and a Max-Age=0 clear removes only the
+ * one with the same Domain and Path, so a clear must name each.
  */
-export function parentDomainClears(env, name, scopedPath) {
+export function pathPrefixes(pathname) {
+  const out = ['/'];
+  let acc = '';
+  for (const part of String(pathname || '/').split('/').filter(Boolean).slice(0, 12)) {
+    acc += `/${part}`;
+    out.push(acc, `${acc}/`);
+  }
+  return out;
+}
+
+/**
+ * Clears for copies of cookie `name` that Siren didn't set: one planted on
+ * the parent domain (Domain=<the PUBLIC_ORIGIN host> or a domain above it) by
+ * a sibling subdomain or a dangling CNAME, or a host-only one at another path,
+ * at every path the request could have carried it on. Siren's own host-only
+ * copy at `ownPath` is cleared only when `clearOwn` is set: on a duplicate it
+ * is kept, so once the others are gone the visitor is signed in as themself,
+ * and if one survives they stay signed out rather than become its owner.
+ */
+export function cookieClears(env, name, { pathname, ownPath, clearOwn = false }) {
+  const paths = [...new Set([...pathPrefixes(pathname), ...pathPrefixes(ownPath)])];
+  const attrs = 'Max-Age=0; HttpOnly; Secure; SameSite=Lax';
+  const out = paths.filter((path) => clearOwn || path !== ownPath).map((path) => `${name}=; Path=${path}; ${attrs}`);
   const po = publicOrigin(env);
-  if (!po || po.loopback) return [];
-  const host = new URL(po.origin).hostname;
-  return [...new Set([scopedPath, '/'])].map((path) => `${name}=; Domain=${host}; Path=${path}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`);
+  if (po && !po.loopback) {
+    const labels = new URL(po.origin).hostname.split('.');
+    for (let i = 0; i <= labels.length - 2; i++) {
+      const domain = labels.slice(i).join('.');
+      for (const path of paths) out.push(`${name}=; Domain=${domain}; Path=${path}; ${attrs}`);
+    }
+  }
+  return out;
 }
 
 async function allowed(limiter, key) {
@@ -280,14 +307,20 @@ export async function finishBlueskyLogin({ params, flowValues, env, kv, visitor,
   // 8. The token request.
   let token;
   let nonce;
-  try {
-    ({ token, nonce } = await exchangeCode({ tokenEndpoint: flow.i + flow.tp, code, verifier: flow.cv, clientId: ids.clientId, redirectUri: ids.redirectUri, jwk, nonce: flow.n, fetchImpl, now }));
-  } catch {
-    return fail('token_failed');
-  }
   const revoke = () => {
     if (flow.rp) defer(revokeAll({ revocationEndpoint: flow.i + flow.rp, token, clientId: ids.clientId, jwk, nonce, fetchImpl, now }));
   };
+  try {
+    ({ token, nonce } = await exchangeCode({ tokenEndpoint: flow.i + flow.tp, code, verifier: flow.cv, clientId: ids.clientId, redirectUri: ids.redirectUri, jwk, nonce: flow.n, fetchImpl, now }));
+  } catch (err) {
+    // A refused response that still issued tokens: revoke them too.
+    if (err?.token) {
+      token = err.token;
+      nonce = err.nonce || flow.n;
+      revoke();
+    }
+    return fail('token_failed');
+  }
   // 9. The token response must be DPoP, atproto, and the bound DID.
   try {
     checkTokenResponse(token, flow.d);
@@ -390,16 +423,22 @@ export async function handleCallback(req, env, ctx, base, deps = {}) {
   headers.set('Location', `${publicOrigin(env).origin}${base}/requests#${out.ok ? 'bluesky=signed-in' : `bluesky-error=${encodeURIComponent(out.code)}`}`);
   if (out.ok) headers.append('Set-Cookie', out.cookie);
   headers.append('Set-Cookie', clearFlowCookie(base));
-  if (flowValues.length > 1) for (const c of parentDomainClears(env, FLOW_COOKIE, `${base}/oauth/`)) headers.append('Set-Cookie', c);
+  // Two flow cookies: clear every other copy too, so the next sign-in works.
+  if (flowValues.length > 1) {
+    for (const c of cookieClears(env, FLOW_COOKIE, { pathname: new URL(req.url).pathname, ownPath: `${base}/oauth/` })) headers.append('Set-Cookie', c);
+  }
   // Never Response.redirect: its headers are immutable.
   return new Response(null, { status: 303, headers });
 }
 
+// Clears for every copy of the session cookie, Siren's own included.
+const allSessionClears = (req, env, base) => cookieClears(env, BSKY_COOKIE, { pathname: new URL(req.url).pathname, ownPath: `${base}/api/bsky/`, clearOwn: true });
+
 async function signedIn(req, env, base, now) {
   const { session, duplicate, invalid } = await currentSession(req, env, now);
-  // On a duplicate, clear a copy planted on the parent domain too, or it would
-  // be the only value on the next request and sign the visitor in as its owner.
-  const clears = duplicate ? [clearSessionCookie(base), ...parentDomainClears(env, BSKY_COOKIE, `${base}/api/bsky/`)]
+  // On a duplicate, clear every copy but Siren's own: clearing ours and
+  // missing a planted one would sign the visitor in as the planter.
+  const clears = duplicate ? cookieClears(env, BSKY_COOKIE, { pathname: new URL(req.url).pathname, ownPath: `${base}/api/bsky/` })
     : invalid ? [clearSessionCookie(base)] : [];
   return { session, clear: clears.length ? { 'Set-Cookie': clears } : {} };
 }
@@ -408,8 +447,9 @@ async function accountAllowed(env, session) {
   return allowed(env.BSKY_ACCOUNT_RL, `act:${await hmacHex(env.INVITE_SECRET, `bsky-rl:${session.eid}`, 32)}`);
 }
 
+// No orphan sweep here: /api/requests and the admin page do that.
 const listFor = (req, env, ctx, base, deps) => deps.publicList
-  || cachedPublicList({ env, ctx, kv: env.LIMITS, origin: new URL(req.url).origin, base, ...(deps.cache !== undefined ? { cache: deps.cache } : {}) });
+  || cachedPublicList({ env, ctx, kv: env.LIMITS, origin: new URL(req.url).origin, base, sweep: false, ...(deps.cache !== undefined ? { cache: deps.cache } : {}) });
 
 export async function handleMe(req, env, ctx, base, deps = {}) {
   if (!blueskyReady(env)) return jsonResponse({ bluesky: { available: false }, endorsed: [] });
@@ -420,9 +460,12 @@ export async function handleMe(req, env, ctx, base, deps = {}) {
   const info = { available: true, policy, young_days: youngDays, retention_months: retentionMonths };
   const { session, clear } = await signedIn(req, env, base, now);
   // Signed out touches no KV and no limiter.
-  if (!session) return jsonResponse({ bluesky: { ...info, signed_in: false, handle: null, counted: false }, endorsed: [] }, 200, clear);
-  const counted = policy === 'all' || youngFlag(session.created, env, now) === 0;
-  const signed = { ...info, signed_in: true, handle: session.handle || null, counted };
+  if (!session) return jsonResponse({ bluesky: { ...info, signed_in: false, handle: null, counted: false, age: null }, endorsed: [] }, 200, clear);
+  const y = youngFlag(session.created, env, now);
+  const counted = policy === 'all' || y === 0;
+  // 'unknown' (did:web, or a failed lookup) never ages into the count; the page says so.
+  const age = y === 1 ? 'young' : y === 0 ? 'established' : 'unknown';
+  const signed = { ...info, signed_in: true, handle: session.handle || null, counted, age };
   // Over the limit: still say who is signed in (so the page keeps Sign out),
   // but read no KV.
   if (!(await accountAllowed(env, session))) return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
@@ -438,8 +481,9 @@ export async function handleMe(req, env, ctx, base, deps = {}) {
 export async function handleLogout(req, env, base) {
   if (!blueskyReady(env)) return notFound();
   if (foreignOrigin(req, env)) return jsonResponse({ error: ENDORSE_ERRORS.not_here, code: 'not_here' }, 403);
-  // Only the Bluesky session: never siren_user or siren_invite.
-  return jsonResponse({ ok: true }, 200, { 'Set-Cookie': clearSessionCookie(base) });
+  // Only the Bluesky session (never siren_user or siren_invite), but every
+  // copy of it, so a session planted on the parent domain doesn't survive.
+  return jsonResponse({ ok: true }, 200, { 'Set-Cookie': allSessionClears(req, env, base) });
 }
 
 // The shared front half of endorse, unendorse and forget.
@@ -487,6 +531,6 @@ export async function handleForget(req, env, ctx, base, deps = {}) {
   if (g.response) return g.response;
   return storageSafe(async () => {
     const { removed } = await forgetEndorser({ kv: env.LIMITS, env, session: g.session });
-    return jsonResponse({ ok: true, removed }, 200, { 'Set-Cookie': clearSessionCookie(base) });
+    return jsonResponse({ ok: true, removed }, 200, { 'Set-Cookie': allSessionClears(req, env, base) });
   });
 }
