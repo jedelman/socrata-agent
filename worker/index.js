@@ -20,7 +20,14 @@ import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest, publicRequests, allRequests, decide } from './requests.js';
+import { addRequest, publicRequests, allRequests, decide, requestByPublicId } from './requests.js';
+import { hmacHex } from './crypto.js';
+import { endorsementCounts, countFor, clearRequestEndorsements } from './endorsements.js';
+import { cachedPublicList, purgePublicList } from './public-list.js';
+import {
+  blueskyReady, handleMetadata, handleLogin as handleBskyLogin, handleCallback, handleMe, handleLogout as handleBskyLogout,
+  handleEndorse, handleUnendorse, handleForget,
+} from './bluesky.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
@@ -71,6 +78,13 @@ async function sha256(s) {
 // A visitor's hashed identity for rate limits; never stored unhashed.
 async function visitorHash(req, env) {
   return (await sha256(`${env.IP_SALT || 'socrata-agent'}:${visitorId(req.headers.get('CF-Connecting-IP'))}`)).slice(0, 32);
+}
+
+// A visitor hash in its own domain, for one counter only (email sign-in uses
+// 'login'), so it can't be joined with the counters keyed by visitorHash or
+// with the Bluesky ones (bluesky.js bskyVisitor).
+async function visitorHashFor(req, env, purpose) {
+  return hmacHex(env.IP_SALT || 'socrata-agent', `${purpose}:${visitorId(req.headers.get('CF-Connecting-IP'))}`, 32);
 }
 
 function allowedCities(env) {
@@ -291,7 +305,7 @@ async function handleLogin(req, env) {
   const origin = new URL(req.url).origin;
   try {
     const out = await startLogin({
-      body, env, kv: env.LIMITS, visitor: await visitorHash(req, env), link: `${origin}${basePath(env)}/login`, appName: APP_NAME_OF(env, config),
+      body, env, kv: env.LIMITS, visitor: await visitorHashFor(req, env, 'login'), link: `${origin}${basePath(env)}/login`, appName: APP_NAME_OF(env, config),
     });
     if (!out.ok) return json({ error: out.error }, out.status);
   } catch (err) {
@@ -327,16 +341,38 @@ async function handleRequest(req, env) {
 
 // The steward's review page and its API. Every call checks that the signed-in
 // account is an admin (ADMIN_EMAILS secret); nothing here is cached.
-async function handleAdmin(req, env, path) {
+const DECIDED = new Set(['declined', 'fulfilled']);
+async function handleAdmin(req, env, path, ctx) {
   const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
   if (!env.LIMITS) return json({ error: 'This site is not configured yet.' }, 503, headers);
   const uid = await currentUser(req, env);
   if (!uid) return json({ error: 'Sign in first.', signin: true }, 401, headers);
   if (!(await isAdmin(env, uid))) return json({ error: 'This account is not a steward here.' }, 403, headers);
-  if (req.method === 'GET' && path === '/api/admin/requests') return json({ requests: await allRequests(env.LIMITS) }, 200, headers);
+  const kv = env.LIMITS;
+  const later = (p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p);
+  const purge = () => later(purgePublicList({ origin: new URL(req.url).origin, base: basePath(env) }));
+  if (req.method === 'GET' && path === '/api/admin/requests') {
+    return json({ requests: await allRequests(kv, await endorsementCounts(kv)), bluesky: blueskyReady(env) }, 200, headers);
+  }
   if (req.method === 'POST' && path === '/api/admin/requests/decide') {
-    const out = await decide(env.LIMITS, (await readJson(req)) || {});
-    return out.ok ? json(out, 200, headers) : json({ error: out.error }, out.status, headers);
+    const body = (await readJson(req)) || {};
+    // Count before the one write, so a decision freezes the live number.
+    // With the feature off and no endorsements, nothing is added to the record.
+    const live = typeof body.id === 'string' && /^[0-9a-f]{12}$/.test(body.id) ? await countFor(kv, body.id) : undefined;
+    const out = await decide(kv, body, Date.now(), { live: live && (blueskyReady(env) || live.n > 0) ? live : undefined });
+    if (!out.ok) return json({ error: out.error }, out.status, headers);
+    if (DECIDED.has(out.request.status)) {
+      later(clearRequestEndorsements(kv, out.request.id).catch((err) => console.error('clearing endorsements failed', err?.message)));
+    }
+    purge();
+    return json(out, 200, headers);
+  }
+  if (req.method === 'POST' && path === '/api/admin/requests/endorsements/clear') {
+    const body = (await readJson(req)) || {};
+    if (!(await requestByPublicId(kv, body.id))) return json({ error: 'No single request has that id.' }, 404, headers);
+    const out = await clearRequestEndorsements(kv, body.id);
+    purge();
+    return json({ ok: true, ...out }, 200, headers);
   }
   return json({ error: 'Not found' }, 404, headers);
 }
@@ -426,11 +462,21 @@ export default {
       );
     }
     if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
-    // The public source-request list: open to everyone, invited or not.
+    // The public source-request list: open to everyone, invited or not. With
+    // Bluesky endorsements on, it carries counts and goes through the Cache API.
     if (req.method === 'GET' && path === '/api/requests') {
       if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
-      return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+      if (!blueskyReady(env)) return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+      return json(await cachedPublicList({ env, ctx, kv: env.LIMITS, origin: url.origin, base }), 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
     }
+    // Bluesky sign-in (bluesky.js). The client metadata is the OAuth client_id
+    // URL, served whenever PUBLIC_ORIGIN is set; the rest need BLUESKY_LOGIN.
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/oauth-client-metadata.json') {
+      const { config } = getDeployment(env);
+      return handleMetadata(req, env, base, APP_NAME_OF(env, config));
+    }
+    if (req.method === 'GET' && path === '/oauth/callback') return handleCallback(req, env, ctx, base);
+    if (req.method === 'GET' && path === '/api/bsky/me') return handleMe(req, env, ctx, base);
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
       const casesBase = `${url.origin}${base}`;
@@ -448,11 +494,15 @@ export default {
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' },
       });
     }
-    if (req.method === 'GET' && path === '/api/admin/requests') return handleAdmin(req, env, path);
+    if (req.method === 'GET' && path === '/api/admin/requests') return handleAdmin(req, env, path, ctx);
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/requests') {
       const { config } = getDeployment(env);
+      // With sign-in on, the page can't be framed (its buttons act for a signed-in account).
+      const extra = blueskyReady(env)
+        ? { 'Cache-Control': 'public, max-age=60', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' }
+        : { 'Cache-Control': 'public, max-age=300' };
       return new Response(REQUESTS_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace(/\{\{REPO\}\}/g, esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent')), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+        headers: { 'Content-Type': 'text/html; charset=utf-8', ...extra },
       });
     }
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
@@ -462,7 +512,12 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    if (req.method === 'POST' && path === '/api/admin/requests/decide') return handleAdmin(req, env, path);
+    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/endorsements/clear')) return handleAdmin(req, env, path, ctx);
+    if (req.method === 'POST' && path === '/api/bsky/login') return handleBskyLogin(req, env, ctx, base);
+    if (req.method === 'POST' && path === '/api/bsky/logout') return handleBskyLogout(req, env, base);
+    if (req.method === 'POST' && path === '/api/bsky/forget') return handleForget(req, env, ctx, base);
+    if (req.method === 'POST' && path === '/api/bsky/endorse') return handleEndorse(req, env, ctx, base);
+    if (req.method === 'POST' && path === '/api/bsky/unendorse') return handleUnendorse(req, env, ctx, base);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
