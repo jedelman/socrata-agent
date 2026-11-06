@@ -7,6 +7,8 @@
 //   node scripts/invites.js revoke SIREN-ABCDE-FGHJK      (or the hash from list)
 //   node scripts/invites.js waitlist > ~/siren-waitlist.csv
 //   node scripts/invites.js waitlist-remove someone@example.org
+//   node scripts/invites.js endorsements                 (Bluesky endorsement counts)
+//   node scripts/invites.js endorsements-clear <id>      (delete one request's endorsements)
 //
 // Options: --env <name> (default siren), --local (wrangler dev's local KV
 // instead of the deployed one), --config <file> (another wrangler config),
@@ -19,8 +21,11 @@
 // addresses.
 
 import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
-import { withStatus, publicId } from '../worker/requests.js';
+import { withStatus, publicId, freezeAtDecision } from '../worker/requests.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -42,6 +47,50 @@ function wrangler(args) {
   return execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
 }
 
+// `wrangler kv bulk delete <file>`: wrangler() above runs only `kv key`
+// commands. The file is a JSON array of key names.
+function wranglerBulkDelete(names) {
+  if (!names.length) return;
+  const dir = mkdtempSync(join(tmpdir(), 'siren-kv-'));
+  const file = join(dir, 'keys.json');
+  writeFileSync(file, JSON.stringify(names));
+  const full = ['wrangler', 'kv', 'bulk', 'delete', file, '--force', '--binding', 'LIMITS', '--env', env, where, ...(opt('config') ? ['--config', opt('config')] : [])];
+  try {
+    if (dry) console.error(`npx ${full.join(' ')}  # ${names.length} keys`);
+    else execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+// Bluesky endorsements by listing (wrangler's listing includes metadata):
+// Map(id -> { n, young, unknown, names }).
+function endorsementTally(prefix = 'endorsement:') {
+  const keys = JSON.parse(wrangler(['list', '--prefix', prefix]) || '[]');
+  const counts = new Map();
+  for (const k of keys) {
+    const m = /^endorsement:([0-9a-f]{12}):[0-9a-f]{32}$/.exec(k.name);
+    if (!m) continue;
+    const c = counts.get(m[1]) || { n: 0, young: 0, unknown: 0, names: [] };
+    c.n++;
+    if (k.metadata?.y === 1) c.young++;
+    else if (k.metadata?.y == null) c.unknown++;
+    c.names.push(k.name);
+    counts.set(m[1], c);
+  }
+  return counts;
+}
+
+// One request by the id `requests` prints, with the same exactly-one check
+// the Worker uses: { key, cur }.
+function requestById(arg) {
+  const id = String(arg || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{6,64}$/.test(id)) throw new Error('Give the request id from `requests` (the first column).');
+  const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
+  if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
+  const key = matches[0].name;
+  return { key, cur: JSON.parse(wrangler(['get', key, '--text']) || '{}') };
+}
 
 // An invite by its code, its 64-character hash, or invite:<hash>.
 async function keyFor(arg) {
@@ -107,18 +156,32 @@ async function main() {
     if (!rows.length) console.error('No source requests yet.');
   } else if (['request-accept', 'request-decline', 'request-fulfilled', 'request-reopen'].includes(cmd)) {
     // Steward decisions. Accepting puts a request on the public list and, at
-    // the next sync, on GitHub; --note is shown publicly with it.
-    const id = String(argv[1] || '').trim().toLowerCase();
-    if (!/^[0-9a-f]{6,64}$/.test(id)) throw new Error('Give the request id from `requests` (the first column).');
-    const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
-    if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
-    const key = matches[0].name;
-    const cur = JSON.parse(wrangler(['get', key, '--text']) || '{}');
+    // the next sync, on GitHub; --note is shown publicly with it. Declining or
+    // fulfilling freezes the Bluesky endorsement count into the request (one
+    // write), then deletes the per-account endorsement keys, as the Worker does.
+    const { key, cur } = requestById(argv[1]);
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
+    const decided = status === 'declined' || status === 'fulfilled';
+    const tally = decided ? endorsementTally(`endorsement:${publicId(key)}:`).get(publicId(key)) : null;
     const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
     if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
+    const live = tally ? { n: tally.n, young: tally.young, unknown: tally.unknown } : undefined;
+    const frozen = freezeAtDecision(cur, status, live);
+    if (frozen) next.endorsements_at_decision = frozen;
     wrangler(['put', key, JSON.stringify(next)]);
-    console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.`);
+    if (tally) wranglerBulkDelete(tally.names);
+    console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.${tally ? ` ${tally.n} endorsement${tally.n === 1 ? '' : 's'} frozen and cleared.` : ''}`);
+  } else if (cmd === 'endorsements') {
+    // Per-request Bluesky endorsement totals. Nothing here can say who endorsed.
+    const counts = endorsementTally();
+    for (const [id, c] of [...counts].sort((a, b) => b[1].n - a[1].n)) console.log(`${id}  ${String(c.n).padStart(4)}  (${c.young} young, ${c.unknown} unknown age)`);
+    if (!counts.size) console.error('No Bluesky endorsements.');
+  } else if (cmd === 'endorsements-clear') {
+    // For brigading: delete every endorsement on one request.
+    const { key, cur } = requestById(argv[1]);
+    const c = endorsementTally(`endorsement:${publicId(key)}:`).get(publicId(key));
+    wranglerBulkDelete(c?.names || []);
+    console.error(`${cur.source}: ${c?.n || 0} endorsement${c?.n === 1 ? '' : 's'} cleared.`);
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -127,7 +190,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id>  [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id>  [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

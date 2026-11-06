@@ -73,7 +73,49 @@ PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"
 CONVERSATION_DAYS = "7"
 LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jason, 2026-11-04)
+# Bluesky sign-in and endorsements on the public request list
+# (docs/bluesky-endorsements.md). Two steps:
+#   1. This file sets PUBLIC_ORIGIN and the rate-limit bindings below, with
+#      BLUESKY_LOGIN unset: the OAuth client metadata goes live at
+#      https://jason-edelman.org/ask-siren/oauth-client-metadata.json (the
+#      client_id), and everything else stays off. Probe it with
+#      `node scripts/bsky-probe.js --account <a real handle>`.
+#   2. A one-line PR adds BLUESKY_LOGIN = "true" here (a dashboard-only var
+#      is overwritten by the next deploy).
+# No new secret: INVITE_SECRET and IP_SALT, already set, are reused with
+# domain separation. Optional knobs, with their defaults:
+#   ENDORSE_PUBLIC = "established"   ENDORSE_YOUNG_DAYS = "30"
+#   ENDORSE_MIN_ACCOUNT_DAYS = "0"    ENDORSE_RETENTION_MONTHS = "12"
+#   ENDORSE_PER_DID_DAILY = "30"      ENDORSE_PER_VISITOR_DAILY = "200"
+#   ENDORSE_PER_ISSUER_DAILY = "20"   ENDORSE_OPEN_ISSUERS = "https://bsky.social"
+#   BSKY_LOGIN_PER_VISITOR_HOURLY = "60"
+#   DOH_URL = "https://cloudflare-dns.com/dns-query"   PLC_URL = "https://plc.directory"
+PUBLIC_ORIGIN = "https://jason-edelman.org"
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"
 id = "d4dfe5ca9b814268a1a1abe052287959"
+
+# Bluesky sign-in and endorsements: burst limits and circuit breakers.
+# Counts are per Cloudflare location and approximate (Workers Rate Limiting);
+# the period is 10 or 60 seconds; namespace_id is an integer unique on the
+# account. Bindings aren't inherited, so they live under env.siren.
+[[env.siren.ratelimits]]
+name = "BSKY_VISITOR_RL"      # per hashed visitor: login starts, callbacks
+namespace_id = "2611061"
+simple = { limit = 60, period = 60 }
+
+[[env.siren.ratelimits]]
+name = "BSKY_INPUT_RL"        # per account typed into the login form
+namespace_id = "2611062"
+simple = { limit = 3, period = 60 }
+
+[[env.siren.ratelimits]]
+name = "BSKY_ACCOUNT_RL"      # per signed-in account: me, endorse, unendorse, forget
+namespace_id = "2611063"
+simple = { limit = 30, period = 60 }
+
+[[env.siren.ratelimits]]
+name = "BSKY_SITE_RL"         # site-wide circuit breakers: login, callback, endorse
+namespace_id = "2611064"
+simple = { limit = 300, period = 60 }
