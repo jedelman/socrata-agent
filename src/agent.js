@@ -83,6 +83,9 @@ export async function ask({
   if (gapsOn) {
     ctx.gaps = { data: gaps.data, streets: gaps.streets, absenceLines: gaps.absenceLines === true };
     ctx.attempted = [];
+    // Trace steps recorded during a tool call that threw: a step can be ok
+    // (the dataset-name check before a failed query) while its call errored.
+    ctx.erroredSteps = new Set();
     ctx.unanswered = [];
     // Each tool's value as it returned, for the gap predicates: content is
     // cut at RESULT_CHARS, and a cut JSON value doesn't parse.
@@ -149,6 +152,7 @@ export async function ask({
       let content;
       let isError = false;
       let value;
+      const mark = ctx.trace.steps.length;
       if (gapsOn) {
         ctx.batchCalls = out.calls.slice(i + 1).map((c) => ({ name: c.name, args: c.args }));
         ctx.toolResults = toolResults;
@@ -161,7 +165,10 @@ export async function ask({
       } catch (err) {
         isError = true;
         content = JSON.stringify({ error: String(err?.message || err) });
-        if (gapsOn) ctx.attempted.push({ name: call.name, ok: false, ...(classifyRefusal(ctx.socrata, err?.message || err) || {}) });
+        if (gapsOn) {
+          ctx.attempted.push({ name: call.name, ok: false, ...(classifyRefusal(ctx.socrata, err?.message || err) || {}) });
+          for (const s of ctx.trace.steps.slice(mark)) ctx.erroredSteps.add(s);
+        }
       }
       if (gapsOn && !isError) {
         ctx.attempted.push({ name: call.name, ok: true });

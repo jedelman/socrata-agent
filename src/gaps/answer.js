@@ -67,10 +67,12 @@ export function turnFacts(ctx, toolResults = [], extraCalls = []) {
   const generic = extraCalls.filter((c) => c && (c.name === 'query_dataset' || c.name === 'describe_dataset'));
   const pending = generic
     .filter((c) => !pendingRefusal(ctx, c.args?.dataset_id))
-    .map((c) => ({ ok: true, dataset: c.args?.dataset_id, soql: c.name === 'query_dataset' ? String(c.args?.soql || '') : '' }));
+    .map((c) => (c.name === 'query_dataset' ? { ok: true, dataset: c.args?.dataset_id, soql: String(c.args?.soql || '') } : { ok: true, dataset: c.args?.dataset_id, tool: 'describe dataset' }));
   const pendingRefused = generic.map((c) => pendingRefusal(ctx, c.args?.dataset_id)).filter(Boolean);
   const extraTools = extraCalls.map((c) => (typeof c === 'string' ? c : c?.name)).filter(Boolean);
-  const steps = [...ctx.trace.steps.filter((s) => s.ok), ...pending];
+  // A step counts only when it succeeded inside a call that succeeded.
+  const errored = ctx.erroredSteps || new Set();
+  const steps = [...ctx.trace.steps.filter((s) => s.ok && !errored.has(s)), ...pending];
   const attempted = ctx.attempted || [];
   return {
     steps,
@@ -91,12 +93,17 @@ function pendingRefusal(ctx, dataset) {
   return null;
 }
 
+// A step reads a dataset when it ran a query or a describe. Socrata's own
+// lookups (the "check dataset name" metadata read before a query) carry the
+// dataset too, but read none of its records.
+const readsData = (s) => Boolean(s.soql) || s.tool === 'describe dataset';
+
 // A tool that ran counts for a topic's gap only if this turn also read one of
 // the topic's datasets: an address-lookup miss reads no tree data.
-const readTopic = (gap, facts) => !gap.topic?.datasets?.length || facts.steps.some((s) => gap.topic.datasets.includes(s.dataset));
+const readTopic = (gap, facts) => !gap.topic?.datasets?.length || facts.steps.some((s) => readsData(s) && gap.topic.datasets.includes(s.dataset));
 
 function stepMatches(facts, p) {
-  return facts.steps.some((s) => s.dataset === p.dataset && (p.where_includes || []).every((w) => String(s.soql || '').includes(w)));
+  return facts.steps.some((s) => readsData(s) && s.dataset === p.dataset && (p.where_includes || []).every((w) => String(s.soql || '').includes(w)));
 }
 
 export function touches(gap, facts) {

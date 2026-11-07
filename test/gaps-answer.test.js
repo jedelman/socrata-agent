@@ -9,7 +9,7 @@ import { systemPrompt } from '../src/prompt.js';
 import { pluginContext } from '../src/plugins.js';
 import { getCity } from '../src/cities/index.js';
 import { gapCheck } from '../src/gaps/kinds.js';
-import { absenceFor, gapStatementsFor, matchGaps, liveGaps, refilterUnanswered, ABSENCE_ADAPTERS } from '../src/gaps/answer.js';
+import { absenceFor, gapStatementsFor, matchGaps, liveGaps, refilterUnanswered, turnFacts, touches, ABSENCE_ADAPTERS } from '../src/gaps/answer.js';
 import { CASES } from '../src/gaps/cases.js';
 import { treesKey } from './fixtures/trees-live.js';
 import { gapsOffScenario } from './fixtures/gaps-off-scenario.js';
@@ -110,6 +110,29 @@ test('gaps on: steps that errored attach nothing', async () => {
   });
   const out = await ask({ question: 'Forestry work?', city: norfolk, apiKey: 'k', fetchImpl, gaps: GAPS });
   assert.deepEqual(out.gaps.shown, []);
+});
+
+test('gaps on: a call that errored attaches nothing, though its dataset-name check succeeded', async () => {
+  // The only call: a query on the tree inventory that fails after Socrata's
+  // own metadata read (ok, with the dataset set) went through.
+  const { fetchImpl } = fakeWorld([{ tools: [['query_dataset', { dataset_id: 'cmvv-agyb', soql: 'SELECT count(*) AS n' }]] }, { text: 'I could not read the tree inventory.' }], {
+    socrata: () => new Response('{"error":true,"message":"boom"}', { status: 500 }),
+  });
+  const out = await ask({ question: 'How many city trees?', city: norfolk, apiKey: 'k', fetchImpl, gaps: GAPS });
+  assert.ok(out.trace.some((s) => s.ok && s.dataset === 'cmvv-agyb' && !s.soql), 'the name check is in the trace, ok');
+  assert.deepEqual(out.gaps.shown, []);
+  assert.equal(out.gaps.more, 0);
+});
+
+test('touches: a step that succeeded inside a call that threw, and a bare metadata lookup, count for nothing', () => {
+  const g = liveGaps(DATA).find((x) => (x.touches || []).some((p) => p.dataset === 'cmvv-agyb'));
+  const query = { n: 1, ok: true, dataset: 'cmvv-agyb', soql: 'SELECT count(*) AS n', tool: 'query' };
+  const lookup = { n: 2, ok: true, dataset: 'cmvv-agyb', tool: 'check dataset name' };
+  const facts = (steps, errored = []) => turnFacts({ trace: { steps }, erroredSteps: new Set(errored), attempted: [] });
+  assert.equal(touches(g, facts([query])), true);
+  assert.equal(touches(g, facts([query], [query])), false, 'its call threw after the query returned');
+  assert.equal(touches(g, facts([lookup])), false, 'a name check reads no records');
+  assert.equal(touches(g, facts([{ ...lookup, tool: 'describe dataset' }])), true, 'a describe reads the dataset');
 });
 
 test('gaps on: a restricted refusal attaches the 311 gap through ctx.attempted', async () => {
