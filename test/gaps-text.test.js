@@ -154,6 +154,11 @@ test('publicTextViolations: the spec examples hold both ways', () => {
     assert.ok(publicTextViolations(t, { streets: STREETS }).includes('house_number'), t);
   }
   for (const t of ['since 1950', 'in 2024 the City', 'from 2019 to 2024 the City removed 300 trees']) assert.deepEqual(publicTextViolations(t, { streets: STREETS }), [], t);
+  // Numbered streets (Norfolk has many, Ghent's W 21st St among them) need no street list.
+  for (const t of ['710 W 21st St', 'the oak at 710 West 21st Street', '1200 E 26th St was cut']) {
+    assert.ok(publicTextViolations(t).includes('house_number'), t);
+  }
+  for (const t of ['I found 3 21st century plans', 'in the 21st century']) assert.ok(!publicTextViolations(t).includes('house_number'), t);
 });
 
 test('publicTextViolations normalizes first, and own_place refuses the asker’s own place', () => {

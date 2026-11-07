@@ -243,7 +243,8 @@ function houseNumber(t, toks) {
     for (let j = k; j < toks.length && j <= k + 3; j++) {
       if (!joined(t, toks[j - 1], toks[j])) break;
       if (SUFFIXES.has(toks[j].w) && !nounStreet(toks, j)) return true;
-      if (STOP.has(toks[j].w) || !/^\p{L}/u.test(toks[j].w)) break;
+      // Ordinal street names ("710 W 21st St") are words here, not counts.
+      if (STOP.has(toks[j].w) || (!/^\p{L}/u.test(toks[j].w) && !ORDINAL.test(toks[j].w))) break;
     }
   }
   return false;
