@@ -33,10 +33,10 @@ const LOCATION = [
 const WARD = /^(?:ward|ward_district|super_ward_district)$/;
 export const isLocationColumn = (name) => LOCATION.some((re) => re.test(String(name).toLowerCase()));
 const NEVER = new Set(['assigned_crew']);
-// Socrata types that hold a place, whatever the column is called. A column of
-// one of these types is a location column (checked live against the views
-// API's dataTypeName, 2026-11-07: location, point, multipoint, line,
-// multiline, polygon, multipolygon).
+// Socrata types that hold a place, whatever the column is called: a column of
+// one of these types is a location column. Read from the views API's
+// dataTypeName; "point" checked live on cmvv-agyb's latitude_longitude_point,
+// 2026-11-07. The others are Socrata's other location and geometry types.
 export const LOCATION_TYPES = new Set(['location', 'point', 'multipoint', 'line', 'multiline', 'polygon', 'multipolygon']);
 
 /**
