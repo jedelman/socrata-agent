@@ -1,0 +1,274 @@
+{
+  "id": "norfolk-zoning-restaurant-ghent",
+  "title": "What does Norfolk's Zoning Ordinance say about opening a restaurant in a Ghent building?",
+  "summary": "General rules from the City's official Zoning Ordinance: when a restaurant needs a Conditional Use Permit (alcohol, late hours, under 80% seating, entertainment), who decides it, the Certificate of Appropriateness for exterior changes in the Ghent historic districts. It does not say which district a given address is in, whether a restaurant is allowed there (the use table differs by district), or what applies to converting a carriage house; those need the zoning map and a zoning determination for the address.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "findings": [
+    {
+      "id": "restaurant-cup-alcohol",
+      "stance": "rules",
+      "claim": "A restaurant needs a Conditional Use Permit when it sells alcohol, unless it is always closed between 5:00 p.m. and 7:00 a.m. the next morning.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "When alcoholic beverages are sold, except for establishments that are always closed between 5:00 p.m. and 7:00 a.m. the following morning.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "When alcoholic beverages are sold, except for establishments that are always closed between 5:00 p.m. and 7:00 a.m. the following morning.",
+        "prefix": "When entertainment is provided. (E) ",
+        "suffix": " A food menu shall be provided at all"
+      }
+    },
+    {
+      "id": "restaurant-cup-late-hours",
+      "stance": "rules",
+      "claim": "In the Coastal, Suburban or Traditional character districts, a restaurant needs a Conditional Use Permit to operate between 11:00 p.m. and 2:00 a.m.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "In the Coastal, Suburban, or Traditional character districts, for establishments operating between the hours of 11:00 p.m. and 2:00 a.m.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "In the Coastal, Suburban, or Traditional character districts, for establishments operating between the hours of 11:00 p.m. and 2:00 a.m.",
+        "prefix": "hours of 12:00 a.m. and 2:00 a.m. (B) ",
+        "suffix": " (C) Where seats will not be provided"
+      }
+    },
+    {
+      "id": "restaurant-cup-seating-entertainment",
+      "stance": "rules",
+      "claim": "A restaurant also needs a Conditional Use Permit where seats will not be provided for at least 80 percent of patrons, or when entertainment is provided.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Where seats will not be provided for at least 80 percent of patrons. (D) When entertainment is provided.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Where seats will not be provided for at least 80 percent of patrons. (D) When entertainment is provided.",
+        "prefix": "hours of 11:00 p.m. and 2:00 a.m. (C) ",
+        "suffix": " (E) When alcoholic beverages are sold,"
+      }
+    },
+    {
+      "id": "restaurant-food-menu",
+      "stance": "rules",
+      "claim": "Where a restaurant sells alcohol, the ordinance requires a food menu to be provided at all times that alcohol is sold.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A food menu shall be provided at all times that alcohol is sold.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A food menu shall be provided at all times that alcohol is sold.",
+        "prefix": "and 7:00 a.m. the following morning. ",
+        "suffix": " Standards Applicable to All Recreation"
+      }
+    },
+    {
+      "id": "ghent-hc-g1-residential",
+      "stance": "context",
+      "claim": "The purpose statement for the HC-G1 district (Ghent) says its allowed uses are primarily residential.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Allowed uses are primarily residential in order to ensure new structures are compatible with district character.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Allowed uses are primarily residential in order to ensure new structures are compatible with district character.",
+        "prefix": "of adverse environmental influences. ",
+        "suffix": " INTENSITY AND DI MENSIO NAL STANDARDS"
+      }
+    },
+    {
+      "id": "ghent-hc-districts-guidelines",
+      "stance": "rules",
+      "claim": "Development in the Historic and Cultural Conservation districts, a group that includes the three Ghent districts (HC-G1, HC-G2, HC-G3), must comply with the City's Historic District Design Guidelines.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Development in the historic and cultural conservation districts shall comply with the City of Norfolk Historic District Design Guidelines, which is incorporated herein by reference.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Development in the historic and cultural conservation districts shall comply with the City of Norfolk Historic District Design Guidelines, which is incorporated herein by reference.",
+        "prefix": "3.6.3. HISTORIC DISTRICT GUIDELINES ",
+        "suffix": " October 2026 Norfolk, VA Adopted"
+      }
+    },
+    {
+      "id": "ghent-hc-listed",
+      "stance": "context",
+      "claim": "The ordinance's table of established Historic and Cultural Conservation base zoning districts lists Ghent as three districts: HC-G1, HC-G2 and HC-G3.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "HC-G3: Ghent Historic and Cultural Conservation",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "HC-G3: Ghent Historic and Cultural Conservation",
+        "prefix": "................. 3-120 3.6.7. ",
+        "suffix": " ................. 3-122 3.6.8. HC-WF1:"
+      }
+    },
+    {
+      "id": "coa-before-exterior-change",
+      "stance": "rules",
+      "claim": "Unless exempted, a Certificate of Appropriateness must be approved before the exterior appearance of any building in a Historic or Historic Overlay District is altered, whether or not a building permit is needed.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Unless exempted in accordance with subsection (2), below, a Certificate of Appropriateness (COA) shall be approved before any of the following development occurs",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Unless exempted in accordance with subsection (2), below, a Certificate of Appropriateness (COA) shall be approved before any of the following development occurs",
+        "prefix": "or landmark. APPLICABILITY General ",
+        "suffix": " within a Historic or Historic Overlay"
+      }
+    },
+    {
+      "id": "cup-decided-by-council",
+      "stance": "who_decides",
+      "claim": "The ordinance's general conditions apply to Conditional Use Permits approved by City Council, which is the body that approves them.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "The following conditions shall apply to all Conditional Use Permits approved by City Council",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The following conditions shall apply to all Conditional Use Permits approved by City Council",
+        "prefix": "ONS FOR ALL CO NDITIONAL USE PERMITS ",
+        "suffix": ", unless expressly waived or modified"
+      }
+    },
+    {
+      "id": "cup-commission-hearing",
+      "stance": "who_decides",
+      "claim": "Conditional use permit applications are reviewed using the Planning Commission Public Hearing Procedure (Section 2.3.2), except in the expedited cases the ordinance lists.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "conditional use permit applications shall be reviewed using the procedures outlined in Section 2.3.2: Planning Commission Public Hearing Procedure.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-07",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-07",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "conditional use permit applications shall be reviewed using the procedures outlined in Section 2.3.2: Planning Commission Public Hearing Procedure.",
+        "prefix": "provided under subsection (2), below, ",
+        "suffix": " The expedited process for review of a"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "If the restaurant will serve alcohol, plan for a Conditional Use Permit and its public hearing before opening.",
+      "finding": "restaurant-cup-alcohol"
+    },
+    {
+      "text": "Before changing the building's exterior, apply for a Certificate of Appropriateness.",
+      "finding": "coa-before-exterior-change"
+    }
+  ],
+  "pending": [
+    "Which Ghent district (HC-G1, HC-G2, HC-G3 or a commercial district) a given address is in: check the City's zoning map or ask for a zoning determination.",
+    "Whether a restaurant is allowed in that district: Table 3.6.11 (Historic and Cultural Conservation districts) shows restaurant as permitted-or-conditional (P/C) in HC-G3 and not permitted in HC-G1 or HC-G2 by the page image; a column-in-a-table cell can't be quoted exactly, so it is not a finding yet.",
+    "Rules for converting a carriage house to a commercial use: not found in the ordinance sections read. Its carriage-house provisions found so far apply to the R-C (Ocean View) district and to flood-plain definitions."
+  ]
+}
