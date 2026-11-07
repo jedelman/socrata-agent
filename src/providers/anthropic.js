@@ -15,7 +15,7 @@
 // unknown cost, so the Worker's daily budget can't be bypassed.
 
 import Anthropic from '@anthropic-ai/sdk';
-import { networkFetch } from '../budget.js';
+import { networkFetch } from '../request-budget.js';
 
 // USD per million tokens, Anthropic list prices as of 2026-10-06 (Claude API
 // docs). cacheWrite is the 5-minute write rate. longOver: prompts with more
@@ -41,7 +41,7 @@ const API_BASE = 'https://api.anthropic.com';
 /** Output allowance for Claude models when the caller sets none. Thinking counts toward it. */
 export const CLAUDE_MAX_TOKENS = 8000;
 // The SDK retries a failed call at most this often. Each attempt is a fetch,
-// so it counts against the answer's request budget (src/budget.js).
+// so it counts against the answer's request budget (src/request-budget.js).
 const MAX_RETRIES = 1;
 // Below the SDK's non-streaming limit (it refuses requests it estimates at over 10 minutes).
 const RETRY_MAX_TOKENS = 16000;

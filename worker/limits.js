@@ -17,7 +17,7 @@ export function askLimits(env, provider) {
     maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
     // Outbound requests per answer, model calls and retries included.
     // Workers Free allows 50 external subrequests per invocation (Paid:
-    // 10,000). The answer stays within this budget (src/budget.js); the 5
+    // 10,000). The answer stays within this budget (src/request-budget.js); the 5
     // left under 50 are for the rest of the invocation: the Access key fetch
     // (twice when a key has rotated) and any redirect hop, which Cloudflare
     // counts but a fetch() call can't show.

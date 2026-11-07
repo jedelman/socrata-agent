@@ -16,7 +16,7 @@
 //                     first pipeline stage drops them; see suppressFirst)
 // Filtered views of a dataset are refused below core: query the parent.
 
-import { networkFetch } from './budget.js';
+import { networkFetch } from './request-budget.js';
 
 export const ACCESS = Object.freeze({ GENERIC: 'generic', PLUGIN: 'plugin', CORE: 'core' });
 
@@ -213,7 +213,7 @@ export class Socrata {
     this.trace = trace;
     this.resources = resources;
     this.appToken = appToken;
-    // On an answer this is the answer's counting fetch (src/budget.js).
+    // On an answer this is the answer's counting fetch (src/request-budget.js).
     this.fetch = fetchImpl || networkFetch;
     this.names = new Map();
   }

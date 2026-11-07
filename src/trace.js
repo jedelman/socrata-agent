@@ -1,10 +1,10 @@
 // The trace is written by code, never by the model. Every outbound request
 // made on the agent's behalf lands here as it happens, so the trace shown to
 // the operator is a record of what ran, not the model's account of it.
-// A request the answer's budget refused (src/budget.js) is recorded too, as
+// A request the answer's budget refused (src/request-budget.js) is recorded too, as
 // "refused" with the reason, so the trace shows what was not sent and why.
 
-import { isBudgetRefusal } from './budget.js';
+import { isBudgetRefusal } from './request-budget.js';
 
 export class Trace {
   constructor() {

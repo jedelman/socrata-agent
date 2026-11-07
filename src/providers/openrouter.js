@@ -2,7 +2,7 @@
 // The conversation is held in OpenAI message shape; cost comes from
 // OpenRouter's own usage accounting (usage: { include: true }).
 
-import { networkFetch } from '../budget.js';
+import { networkFetch } from '../request-budget.js';
 
 const OPENROUTER = 'https://openrouter.ai/api/v1/chat/completions';
 

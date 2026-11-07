@@ -12,7 +12,7 @@ import { voiceViolations, REWRITE_INSTRUCTION } from './voice.js';
 import { tracedHttp } from './plugins.js';
 import { openrouterProvider } from './providers/openrouter.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
-import { requestBudget } from './budget.js';
+import { requestBudget } from './request-budget.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 const RESULT_CHARS = 16000;
@@ -30,7 +30,7 @@ export const apiKeyFromEnv = (model, env = {}) =>
   providerOf(model) === 'anthropic' ? env.SIREN_ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY : env.OPENROUTER_API_KEY;
 
 // Every client a tool can reach the network through gets the answer's
-// counting fetch (src/budget.js), never `fetchImpl` itself. Without a
+// counting fetch (src/request-budget.js), never `fetchImpl` itself. Without a
 // `budget`, the count still runs, with no limit. Tools see only a read-only
 // view of the count (`ctx.requests`), never the counter: its model lane is
 // never refused and goes around the trace.

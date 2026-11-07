@@ -209,7 +209,7 @@ An answer runs its whole tool loop in one Worker invocation, and Cloudflare
 caps the external subrequests one invocation may make: 50 on Workers Free,
 10,000 by default on Paid (checked 2026-11-06). Past that every fetch throws,
 the model's included. `SUBREQUEST_BUDGET` keeps an answer within it: each
-answer gets one counting fetch (`src/budget.js`) that every client on the
+answer gets one counting fetch (`src/request-budget.js`) that every client on the
 answer's path is built with. Tools are offered to the model only while that
 model call (at its worst, retries included), one tool request and a reserve
 all fit; tool requests are refused once only the reserve is left. The reserve

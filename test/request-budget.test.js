@@ -1,4 +1,4 @@
-// The per-answer outbound request budget (src/budget.js), offline: every
+// The per-answer outbound request budget (src/request-budget.js), offline: every
 // fetch an answer makes is counted at the fetch boundary, tool requests stop
 // short of the limit, and the final model call still happens.
 import { test } from 'node:test';
@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { ask, createContext, BUDGET_STOP_NOTE, BUDGET_TOOL_NOTE } from '../src/agent.js';
-import { requestBudget, RequestBudgetError } from '../src/budget.js';
+import { requestBudget, RequestBudgetError } from '../src/request-budget.js';
 import { Trace } from '../src/trace.js';
 import { getCity } from '../src/cities/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
@@ -248,7 +248,7 @@ test('the source scan catches every way of naming the real network', () => {
   ]) assert.ok(!BARE_FETCH.test(stripCode(ok)), ok);
 });
 
-// The spirit of test/conformance.js, for core: in src/, only src/budget.js
+// The spirit of test/conformance.js, for core: in src/, only src/request-budget.js
 // may name the real network. Everything else takes a fetch it is given.
 test('in src/, only the budget module names the real network', () => {
   const files = [];
@@ -262,7 +262,7 @@ test('in src/, only the budget module names the real network', () => {
   assert.ok(files.length > 10);
   const problems = [];
   for (const f of files) {
-    if (f === '../src/budget.js') continue;
+    if (f === '../src/request-budget.js') continue;
     const code = stripCode(readFileSync(new URL(f, import.meta.url), 'utf8'));
     if (/\bglobalThis\b/.test(code)) problems.push(`${f} uses globalThis`);
     if (/\b(self|window)\s*[.[]/.test(code)) problems.push(`${f} reaches a global object`);

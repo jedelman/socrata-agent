@@ -15,7 +15,7 @@ MAX_TOKENS = "1200"
 # included (default 45, range 10-10000). Workers Free allows 50 external
 # subrequests per invocation and every fetch past that throws; tool requests
 # stop short of the budget so the final answer can still be asked for. On
-# Workers Paid (10,000 by default) it can go much higher. See src/budget.js.
+# Workers Paid (10,000 by default) it can go much higher. See src/request-budget.js.
 # SUBREQUEST_BUDGET = "45"
 
 # Limits are counted here. Create it once and paste the id:
