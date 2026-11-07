@@ -86,6 +86,10 @@ generic mode.
   and opens a PR (cloud sessions can't reach web.archive.org).
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
+- **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
+  in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
+  with a prompt line saying when to use it. `test/plugins.test.js` fails if
+  either is left out (Jason, 2026-11-07).
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).
