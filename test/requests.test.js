@@ -584,3 +584,18 @@ test('a closed issue is re-closed when the reason changes (fulfilled, then withd
   const ops2 = operations({ existing: [{ number: 2, state: 'closed', state_reason: 'not_planned', title: want.title, body: want.body }], requests: [done], withdrawn: [], pageUrl: 'u', repo: 'o/r' });
   assert.deepEqual(ops2, [{ op: 'update', number: 2, patch: { state: 'closed', state_reason: 'completed' } }]);
 });
+
+test('the admin page and the contributor guide promise a closed issue only once the sync runs with --with-withdrawn', async () => {
+  const { readFileSync } = await import('node:fs');
+  const admin = readFileSync(new URL('../worker/admin.html', import.meta.url), 'utf8');
+  const guide = readFileSync(new URL('../docs/fulfilling-requests.md', import.meta.url), 'utf8');
+  const routine = readFileSync(new URL('../docs/request-sync-routine.md', import.meta.url), 'utf8');
+  for (const text of [admin, guide]) {
+    assert.doesNotMatch(text, /closes its GitHub issue at the next sync|the next sync\s+closes its issue/);
+    assert.match(text, /Once the nightly sync runs with `?--with-withdrawn`?|once the nightly sync runs with `--with-withdrawn`/i);
+  }
+  // The routine doc carries the exact replacement prompt and the merge step.
+  assert.match(routine, /## Merge step: update the routine \(Jason only\)/);
+  assert.match(routine, /sync-request-issues\.js --plan --with-withdrawn > \/tmp\/plan\.json/);
+  assert.match(routine, /create_if_missing: false, do nothing \(never create it\)/);
+});

@@ -150,8 +150,9 @@ async function main() {
     // Steward decisions. Accepting puts a request on the public list and, at
     // the next sync, on GitHub; --note is shown publicly with it. Its notes
     // stay pending until each is approved with request-note. Declining a
-    // request that was public lists it as withdrawn, and the sync closes its
-    // issue.
+    // request that was public lists it as withdrawn in the feed; its issue is
+    // closed by a sync run with --with-withdrawn, or directly with a token
+    // (docs/request-sync-routine.md), and until then by hand.
     const id = String(argv[1] || '').trim().toLowerCase();
     if (!/^[0-9a-f]{6,64}$/.test(id)) throw new Error('Give the request id from `requests` (the first column).');
     const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
