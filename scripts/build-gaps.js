@@ -10,6 +10,10 @@
 //                                                          and write
 //   node scripts/build-gaps.js --check                     replay and recompute, and fail
 //                                                          on any difference (no network)
+//   node scripts/build-gaps.js --same-states <earlier.json>
+//                                                          exit 1, listing them, when the
+//                                                          committed gap ids or states
+//                                                          differ from the earlier file's
 //
 // Writes:
 //   data/gaps/<city>.json          the gaps, bundled by the Worker and the CLI
@@ -470,7 +474,7 @@ export function renderDoc(file) {
   const topics = new Map(file.gaps.filter((g) => g.topic).map((g) => [g.topic.name, g.topic]));
   for (const t of topics.values()) {
     lines.push(`## The ${t.name} topic`, '', `Topic-wide checks read ${t.datasets.join(', ')}. The catalog search “${t.search}” is checked for datasets placed neither in nor out.`, '');
-    for (const x of t.not_in_topic) lines.push(`- Outside the topic: ${x.name} (${x.id}). Its description, as read ${x.read}, in its words: “${x.quote}” ${x.reason} ${x.placed}`);
+    for (const x of t.not_in_topic) lines.push(`- Outside the topic: ${x.name} (${x.id}). Its description, as read ${dateOf(x.read)}, in its words: “${x.quote}” ${x.reason} ${x.placed}`);
     lines.push('');
   }
   for (const g of file.gaps) {
@@ -535,11 +539,39 @@ export async function checkGaps({ cityId = 'norfolk', root = ROOT } = {}) {
   return diffs;
 }
 
+/**
+ * What an offline rebuild changed about the board: gaps that came on or went
+ * off it, or changed state. [] when the set of ids and states is the same.
+ * A change goes to a pull request, never straight to main (docs/gaps.md §5.4).
+ */
+export function stateChanges(before, after) {
+  const states = (f) => new Map([...(f?.gaps || []).map((g) => [g.id, g.state]), ...(f?.off_board || []).map((o) => [o.id, `off the board (${o.state})`])]);
+  const a = states(before);
+  const b = states(after);
+  const out = [];
+  for (const id of [...new Set([...a.keys(), ...b.keys()])].sort()) {
+    if (a.get(id) !== b.get(id)) out.push(`${id}: ${a.get(id) || 'not in the file'} -> ${b.get(id) || 'not in the file'}`);
+  }
+  return out;
+}
+
 async function main() {
-  const { values } = parseArgs({ options: { city: { type: 'string', default: 'norfolk' }, live: { type: 'boolean' }, offline: { type: 'boolean' }, check: { type: 'boolean' } } });
+  const { values, positionals } = parseArgs({ allowPositionals: true, options: { city: { type: 'string', default: 'norfolk' }, live: { type: 'boolean' }, offline: { type: 'boolean' }, check: { type: 'boolean' }, 'same-states': { type: 'boolean' } } });
   const cityId = values.city;
   if (!CATALOGS[cityId]) throw new Error(`No gap catalog for ${cityId}.`);
   const p = paths(cityId);
+  if (values['same-states']) {
+    // build-gaps --same-states <earlier file>: exits 1, listing the changes,
+    // when the committed file's gap ids or states differ from the earlier one.
+    if (!positionals[0]) throw new Error('--same-states needs the earlier gap file.');
+    const changes = stateChanges(JSON.parse(readFileSync(positionals[0], 'utf8')), JSON.parse(readFileSync(join(ROOT, p.file), 'utf8')));
+    if (changes.length) {
+      console.error(changes.join('\n'));
+      process.exit(1);
+    }
+    console.log('The gap ids and states are unchanged.');
+    return;
+  }
   if (values.check) {
     const diffs = await checkGaps({ cityId });
     if (diffs.length) {

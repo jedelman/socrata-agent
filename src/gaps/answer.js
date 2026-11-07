@@ -61,10 +61,14 @@ function parse(content) {
  * characters; `toolResults` (parsed from content) is the fallback.
  */
 export function turnFacts(ctx, toolResults = [], extraCalls = []) {
-  // Calls still to run in this batch count as the queries they name.
-  const pending = extraCalls
-    .filter((c) => c && (c.name === 'query_dataset' || c.name === 'describe_dataset'))
+  // Calls still to run in this batch count as the queries they name, and a
+  // query of an excluded or restricted dataset as the refusal it will get
+  // (the open-ended tools run at GENERIC access).
+  const generic = extraCalls.filter((c) => c && (c.name === 'query_dataset' || c.name === 'describe_dataset'));
+  const pending = generic
+    .filter((c) => !pendingRefusal(ctx, c.args?.dataset_id))
     .map((c) => ({ ok: true, dataset: c.args?.dataset_id, soql: c.name === 'query_dataset' ? String(c.args?.soql || '') : '' }));
+  const pendingRefused = generic.map((c) => pendingRefusal(ctx, c.args?.dataset_id)).filter(Boolean);
   const extraTools = extraCalls.map((c) => (typeof c === 'string' ? c : c?.name)).filter(Boolean);
   const steps = [...ctx.trace.steps.filter((s) => s.ok), ...pending];
   const attempted = ctx.attempted || [];
@@ -72,10 +76,19 @@ export function turnFacts(ctx, toolResults = [], extraCalls = []) {
     steps,
     tools: new Set(attempted.filter((a) => a.ok).map((a) => a.name)),
     pendingTools: new Set(extraTools),
-    refused: attempted.filter((a) => a.refusal),
+    refused: [...attempted.filter((a) => a.refusal), ...pendingRefused],
     results: Array.isArray(ctx.toolValues) ? ctx.toolValues : toolResults.map((r) => ({ name: r.name, value: parse(r.content) })),
     absences: ctx.absences || [],
   };
+}
+
+/** The refusal a GENERIC call on this dataset will get, if any. */
+function pendingRefusal(ctx, dataset) {
+  const id = String(dataset || '');
+  if (!id || !ctx.socrata) return null;
+  if (ctx.socrata.isExcluded?.(id)) return { refusal: 'excluded', dataset: id, pending: true };
+  if (ctx.socrata.restricted?.(id)) return { refusal: 'restricted', dataset: id, pending: true };
+  return null;
 }
 
 // A tool that ran counts for a topic's gap only if this turn also read one of
@@ -89,6 +102,7 @@ function stepMatches(facts, p) {
 export function touches(gap, facts) {
   return (gap.touches || []).some((p) => {
     if (p.dataset) return stepMatches(facts, p);
+    if (p.tool && p.field) return (facts.pendingTools || new Set()).has(p.tool) || facts.results.some((r) => r.name === p.tool && r.value && r.value[p.field] != null);
     if (p.tool) return (facts.pendingTools || new Set()).has(p.tool) || (facts.tools.has(p.tool) && readTopic(gap, facts));
     if (p.case) return facts.steps.some((s) => String(s.url || '').endsWith(`/data/cases/${p.case}.json`));
     if (p.refused) return facts.refused.some((r) => r.refusal === 'restricted' && r.dataset === p.refused);
@@ -202,14 +216,21 @@ export function noteUnanswered(ctx, args = {}) {
   if (!ctx.gaps) throw new Error('Unknown tool note_unanswered');
   ctx.unanswered = ctx.unanswered || [];
   if (ctx.unanswered.length) return { noted: false, note: 'This question is already noted.' };
-  const refusals = (ctx.attempted || []).filter((a) => a.refusal);
-  if (refusals.some((r) => r.refusal === 'excluded' || r.refusal === 'denied_column')) return { noted: false };
-  const restricted = refusals.some((r) => r.refusal === 'restricted');
-  const answered = args.answered === 'partly' ? 'partly' : 'no';
+  // The refusal rules cover the whole turn: calls so far, and the calls
+  // still to run in this batch. refilterUnanswered applies them again after
+  // the loop, whatever order the calls came in.
   const facts = turnFacts(ctx, ctx.toolResults || [], ctx.batchCalls || []);
+  if (facts.refused.some((r) => r.refusal === 'excluded' || r.refusal === 'denied_column')) return { noted: false };
+  const restricted = facts.refused.some((r) => r.refusal === 'restricted');
+  const answered = args.answered === 'partly' ? 'partly' : 'no';
   const live = liveGaps(ctx.gaps.data);
   const wanted = Array.isArray(args.gaps) ? args.gaps.slice(0, 2) : [];
+  // A gap a later tool call in the batch may touch is noted (and re-checked
+  // after the loop), but its statement comes back only when a call so far, or
+  // a query still to run, touches it: a tool such as trees_on_my_block can
+  // still miss the address and read nothing.
   const gaps = live.filter((g) => wanted.includes(g.id) && touches(g, facts));
+  const said = gaps.filter((g) => touches(g, { ...facts, pendingTools: new Set() }));
   let question = '';
   if (!restricted) {
     question = String(args.question ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 300);
@@ -218,17 +239,24 @@ export function noteUnanswered(ctx, args = {}) {
   ctx.unanswered.push({ ...(question ? { question } : {}), answered, gaps: gaps.map((g) => g.id) });
   return {
     noted: true,
-    statements: gaps.map((g) => ({ gap: g.id, statement: g.statement, measured: g.last_good || g.measured })),
-    general_questions: gaps.flatMap((g) => g.questions.map((q) => q.text)),
+    statements: said.map((g) => ({ gap: g.id, statement: g.statement, measured: g.last_good || g.measured })),
+    general_questions: said.flatMap((g) => g.questions.map((q) => q.text)),
     note: NOTE_UNANSWERED_NOTE,
   };
 }
 
-/** After the loop: keep only named gaps this turn really touched. */
+/**
+ * After the loop: keep only named gaps this turn really touched, and apply
+ * the refusal rules over the whole turn (§8.2 item 3): after an excluded or
+ * withheld-column refusal nothing is noted, and after a restricted one the
+ * question's text is dropped, whichever came first in the batch.
+ */
 export function refilterUnanswered(ctx, toolResults) {
   const facts = turnFacts(ctx, toolResults);
+  if (facts.refused.some((r) => r.refusal === 'excluded' || r.refusal === 'denied_column')) return [];
+  const restricted = facts.refused.some((r) => r.refusal === 'restricted');
   const live = new Map(liveGaps(ctx.gaps.data).map((g) => [g.id, g]));
-  return (ctx.unanswered || []).map((u) => ({ ...u, gaps: (u.gaps || []).filter((id) => live.has(id) && touches(live.get(id), facts)) }));
+  return (ctx.unanswered || []).map(({ question, ...u }) => ({ ...(question && !restricted ? { question } : {}), ...u, gaps: (u.gaps || []).filter((id) => live.has(id) && touches(live.get(id), facts)) }));
 }
 
 // --- Absence lines (§8.6; Inc 8) ----------------------------------------------------

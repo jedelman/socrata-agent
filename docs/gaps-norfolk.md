@@ -8,7 +8,7 @@ Each gap is measured by code against the live portal, at the same access the ope
 
 Topic-wide checks read cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9. The catalog search “tree” is checked for datasets placed neither in nor out.
 
-- Outside the topic: STORM | System to Track, Organize, Record, and Map (mrv3-rcpc). Its description, as read 2026-11-07T01:01:56.455Z, in its words: “STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.” STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out. Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).
+- Outside the topic: STORM | System to Track, Organize, Record, and Map (mrv3-rcpc). Its description, as read 2026-11-06, in its words: “STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.” STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out. Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).
 
 ## MyNorfolk 311 requests: out of Siren’s reach by rule
 
@@ -48,7 +48,7 @@ I found no street address in the titles of 681 of 1,437 agenda items (47%) in Si
 
 `norfolk.tree-inventory.no-condition` · Absent or empty field (in the records I read) · state: open · measured 2026-11-06
 
-I found no column for tree condition, health or risk in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-06. I found the problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.
+I found no column for tree condition, health or risk in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-06. I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.
 
 **Where:** city-managed trees; City Tree Inventory (cmvv-agyb), Work Orders (qzfe-wj25); citywide.
 
@@ -145,7 +145,7 @@ Of 360 Forestry removal work orders with status “Complete” and an end date f
 **What would close it**
 
 - meeting question: Does the City give residents notice before it removes a street tree, and where is that notice recorded?
-- watch: A private watch on your own street, once Siren offers watches. Watches stay private to the person who sets them. (not offered yet)
+- watch: A private watch on your own street, once Siren offers watches. (not offered yet)
 
 <details><summary>How this was measured</summary>
 
@@ -288,7 +288,7 @@ I found 582 of 2,378 Forestry removal work orders with status “Complete” (24
 
 - meeting question: Does the City plan to record a street on every Forestry work order?
 - dataset proposal: Record a street on every Forestry work order.
-- watch: A private watch on your own street, once Siren offers watches. Watches stay private to the person who sets them. (not offered yet)
+- watch: A private watch on your own street, once Siren offers watches. (not offered yet)
 
 <details><summary>How this was measured</summary>
 

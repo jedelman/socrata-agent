@@ -6,9 +6,8 @@ import { readFileSync } from 'node:fs';
 import { stripQuoted, normalize } from '../src/gaps/text-utils.js';
 import { normalize as verifyNormalize } from '../scripts/verify-cases.js';
 import { KINDS, PANEL_TITLE, QUESTIONS_HEADING, T, gapTextViolations, gapCheck, worldClaimViolations, botText, ruleA } from '../src/gaps/kinds.js';
-import { publicTextViolations, publicTextFlags, publicTextMessage } from '../src/public-text.js';
+import { publicTextViolations, publicTextFlags, publicTextMessage, compileStreets } from '../src/public-text.js';
 import { GAPS } from '../src/gaps/norfolk.js';
-import { spawnSync } from 'node:child_process';
 
 const BUILT = JSON.parse(readFileSync(new URL('../data/gaps/norfolk.json', import.meta.url), 'utf8'));
 const NORFOLK_STREETS = JSON.parse(readFileSync(new URL('../data/gaps/norfolk-streets.json', import.meta.url), 'utf8')).streets;
@@ -202,20 +201,22 @@ test('botText: every built gap posts with a realistic link, dropping the demand 
   }
 });
 
-test('the street checks: a cold first call with the real street list stays far inside a Worker’s CPU limit', () => {
-  // A fresh process each time, so nothing is compiled or cached yet. The
-  // fastest of three runs, to keep a busy test machine from failing it.
-  const script = `
-    import { readFileSync } from 'node:fs';
-    import { publicTextViolations } from ${JSON.stringify(new URL('../src/public-text.js', import.meta.url).href)};
-    const streets = JSON.parse(readFileSync(${JSON.stringify(new URL('../data/gaps/norfolk-streets.json', import.meta.url).pathname)}, 'utf8')).streets;
-    const note = 'Which species were planted along the river since 2020, and how many removals were for dead trees citywide?';
-    const t = performance.now();
-    publicTextViolations(note, { streets });
-    process.stdout.write(String(performance.now() - t));`;
-  const runs = [0, 1, 2].map(() => Number(spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8' }).stdout));
-  assert.ok(runs.every(Number.isFinite), String(runs));
-  assert.ok(Math.min(...runs) < 10, `cold first call: ${runs.map((x) => x.toFixed(1)).join(', ')} ms`);
+test('the street checks build no regex from the street list, and the Worker compiles it at startup', () => {
+  // Wall-clock timings don't belong in npm test, which gates the deploy. What
+  // keeps a cold check cheap is that the street list becomes a Set, never a
+  // regex: count RegExp constructions while compiling and checking.
+  const Real = globalThis.RegExp;
+  let built = 0;
+  globalThis.RegExp = new Proxy(Real, { construct: (T, args) => (built++, new T(...args)), apply: (T, self, args) => (built++, T(...args)) });
+  try {
+    const streets = compileStreets(NORFOLK_STREETS);
+    publicTextViolations('Was the tree at 1500 bolling and Granby & 21st removed?', { streets });
+  } finally {
+    globalThis.RegExp = Real;
+  }
+  assert.equal(built, 0);
+  const worker = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
+  assert.match(worker, /const STREETS = \{ norfolk: compileStreets\(norfolkStreets\.streets\) \}/);
 });
 
 test('the street checks with the real list: species and ordinary words pass, addresses and corners are refused', () => {
@@ -231,6 +232,23 @@ test('the street checks with the real list: species and ordinary words pass, add
     'Norfolk City Code Sec. 42-15 on street trees?',
     'Zoning Ordinance section 4-2.3?',
     'Ordinance No. 48-512 adopted?',
+    // Years before a place that is also a street name.
+    'The 2025 Norfolk budget for Forestry',
+    'The 2023 Ocean View beach replenishment report',
+    'Results of the 2022 Lafayette River cleanup',
+    'The 2021 Chesapeake Bay TMDL plan for Norfolk',
+    'The 2024 Elizabeth River Project shoreline report',
+    'Minutes of the 2024 Granby Street streetscape hearing',
+    'In 2020 Norfolk planted 300 trees',
+    // Counts, amounts, decimals and times.
+    'Were 500 street trees removed last year?',
+    'How many of the 2,770 street tree removals had a street?',
+    'What did the FY2024 budget spend on tree removal ($1,250,000)?',
+    'How many trees were planted in 2.5 miles of the river?',
+    'About 300 Granby residents asked for trees',
+    'planted 200 dogwood and 30 oak trees',
+    'park and main',
+    '21st and 22nd of the month',
   ];
   for (const t of pass) assert.deepEqual(publicTextViolations(t, { streets }), [], t);
   const blocked = {
@@ -243,6 +261,23 @@ test('the street checks with the real list: species and ordinary words pass, add
     'call 757-664-4253': 'long_number',
     'Sec. 757-664-4253': 'long_number',
     'parcel 42-15': 'long_number',
+    // Lower case, ordinary words that are street names, ordinals and unit letters.
+    '1500 bolling': 'number_street',
+    'tree removed at 1500 granby?': 'number_street',
+    '1500 colley': 'number_street',
+    '1500 Church': 'number_street',
+    '1500 Main': 'number_street',
+    'Tree at 220 W 21st': 'number_street',
+    '1500 colley in ghent': 'number_street',
+    '1500B Bolling Ave': 'house_number',
+    '1500-B Bolling Ave': 'house_number',
+    '2024 Granby Street': 'house_number',
+    'granby and brambleton': 'intersection',
+    'ocean view and granby': 'intersection',
+    'corner of colley & 21st': 'intersection',
+    '21st and Colley': 'intersection',
+    'Granby and 21st': 'intersection',
+    'Was the tree at Granby & 21st removed?': 'intersection',
   };
   for (const [t, code] of Object.entries(blocked)) assert.ok(publicTextViolations(t, { streets }).includes(code), `${t} -> ${code}`);
 });

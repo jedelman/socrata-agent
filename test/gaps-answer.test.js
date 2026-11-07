@@ -9,15 +9,22 @@ import { systemPrompt } from '../src/prompt.js';
 import { pluginContext } from '../src/plugins.js';
 import { getCity } from '../src/cities/index.js';
 import { gapCheck } from '../src/gaps/kinds.js';
-import { absenceFor, gapStatementsFor, matchGaps, liveGaps, ABSENCE_ADAPTERS } from '../src/gaps/answer.js';
+import { absenceFor, gapStatementsFor, matchGaps, liveGaps, refilterUnanswered, ABSENCE_ADAPTERS } from '../src/gaps/answer.js';
 import { CASES } from '../src/gaps/cases.js';
 import { treesKey } from './fixtures/trees-live.js';
 import { gapsOffScenario } from './fixtures/gaps-off-scenario.js';
+import { buildGaps, Recorder } from '../scripts/build-gaps.js';
 import { saveTurn } from '../worker/conversations.js';
 import trees from '../plugins/trees-on-my-block.js';
+import { theRecord } from '../plugins/cases.js';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-const DATA = JSON.parse(read('data/gaps/norfolk.json'));
+// The gap file replayed from its stored responses against today's case files,
+// dated the day of the stored build: the code under test sees all 13 gaps
+// whatever day npm test runs, and a case-file edit the committed file hasn't
+// caught up with yet (CI's check-gaps job flags that) can't fail it.
+const TRACE = JSON.parse(read('data/gaps/norfolk.trace.json'));
+const DATA = (await buildGaps({ recorder: new Recorder({ responses: TRACE.responses }), today: TRACE.built, previous: JSON.parse(read('data/gaps/norfolk.json')) })).file;
 const STREETS = JSON.parse(read('data/gaps/norfolk-streets.json')).streets;
 const GAPS = { data: DATA, streets: STREETS };
 const norfolk = getCity('norfolk');
@@ -150,6 +157,36 @@ test('note_unanswered: refused after an excluded or withheld-column refusal; no 
   assert.deepEqual(ctx.unanswered[0], { answered: 'no', gaps: ['norfolk.311.restricted'] });
 });
 
+test('note_unanswered: the refusal rules hold whatever order the batch runs in', async () => {
+  const q = 'How many tree requests reached 311 citywide last year?';
+  const note = ['note_unanswered', { question: q, answered: 'no', gaps: ['norfolk.311.restricted'] }];
+  const restricted = ['query_dataset', { dataset_id: 'nbyu-xjez', soql: 'SELECT count(*) AS n' }];
+  for (const batch of [[note, restricted], [restricted, note]]) {
+    const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', gaps: GAPS, ...fakeWorld([{ tools: batch }, { text: 'I found no 311 records I can read.' }]) });
+    assert.deepEqual(out.unanswered, [{ answered: 'no', gaps: ['norfolk.311.restricted'] }], batch.map((b) => b[0]).join(', '));
+  }
+  const excluded = ['query_dataset', { dataset_id: 'cab7-wvn5', soql: 'SELECT count(*) AS n' }];
+  for (const batch of [[note, excluded], [excluded, note]]) {
+    const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', gaps: GAPS, ...fakeWorld([{ tools: batch }, { text: 'I found nothing I can read.' }]) });
+    assert.deepEqual(out.unanswered, [], batch.map((b) => b[0]).join(', '));
+  }
+});
+
+test('an address miss attaches no gap, and a tool still to run gets no statements', async () => {
+  const { fetchImpl } = fakeWorld([{ tools: [['block_report', { address: '99999 Nowhere Ln' }]] }, { text: 'I found no address matching that.' }], { socrata: () => [] });
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', fetchImpl, gaps: GAPS, indexes: { 'norfolk-legislation': { built: '2026-11-02', items: [] } } });
+  assert.deepEqual(out.gaps.shown, []);
+  const ctx = createContext({ city: norfolk });
+  ctx.gaps = GAPS;
+  ctx.attempted = [];
+  ctx.unanswered = [];
+  ctx.batchCalls = [{ name: 'trees_on_my_block', args: { address: '99999 Nowhere Ln' } }];
+  const r = await runTool(ctx, 'note_unanswered', { question: 'Was a city tree removed on my street?', answered: 'no', gaps: [NO_STREET] });
+  assert.deepEqual(r.statements, []);
+  assert.deepEqual(ctx.unanswered[0].gaps, [NO_STREET], 'noted, and checked again after the loop');
+  assert.deepEqual(refilterUnanswered(ctx, [])[0].gaps, [], 'the tool never read tree data');
+});
+
 test('gaps on: the world-claim rewrite fires with the addendum', async () => {
   const { fetchImpl, bodies } = fakeWorld([{ text: 'The tree inventory has not been re-surveyed since about 2000.' }, { text: 'The inventory’s own description, as I read it, dates its original survey to the late 1990s/early 2000s.' }]);
   const out = await ask({ question: 'How old is the inventory?', city: norfolk, apiKey: 'k', fetchImpl, gaps: GAPS });
@@ -239,6 +276,24 @@ test('on a live-sized trees answer, the caveats and what it couldn’t answer co
   assert.deepEqual(result.the_record.what_i_couldnt_answer, gapStatementsFor(DATA, 'norfolk-trees'));
   const off = await runLiveTrees(null);
   assert.equal('what_i_couldnt_answer' in off.result.the_record, false);
+});
+
+// With gaps off, trees_on_my_block returns what it did before gaps. On the
+// recorded live run its result was compared byte for byte with the merge base
+// (c5d7f58) when this was written. The test pins what gaps could change: the
+// key order with gaps off, and that gaps on differs only in the case file's
+// place and what_i_couldnt_answer. It doesn't freeze the rest, so the trees
+// branch's own changes to the result don't fail the deploy gate on merge.
+test('gaps off: trees_on_my_block keeps its key order, and gaps on changes only the case file', async () => {
+  const { ctx, result } = await runLiveTrees(null);
+  assert.deepEqual(Object.keys(result), ['address', 'near_you', 'on_your_street', 'civic_league', 'citywide', 'the_record', 'work_orders_cover', 'about_the_data']);
+  assert.deepEqual(result.the_record, theRecord(pluginContext(ctx), CASES['norfolk-trees']));
+  const on = await runLiveTrees(GAPS);
+  const { what_i_couldnt_answer, ...rest } = on.result.the_record;
+  assert.ok(what_i_couldnt_answer.length);
+  assert.equal(Object.keys(on.result).at(-1), 'the_record');
+  const back = Object.fromEntries(Object.keys(result).map((k) => [k, k === 'the_record' ? rest : on.result[k]]));
+  assert.equal(JSON.stringify(back), JSON.stringify(result));
 });
 
 test('gap bites read the tool’s value, not its content cut at 16,000 characters', async () => {

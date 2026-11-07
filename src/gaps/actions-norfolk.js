@@ -20,7 +20,7 @@ export const ACTIONS = [
   {
     id: 'a-watch-street',
     kind: 'watch',
-    text: 'A private watch on your own street, once Siren offers watches. Watches stay private to the person who sets them.',
+    text: 'A private watch on your own street, once Siren offers watches.',
     available: false,
   },
   { id: 'a-meeting-notice', kind: 'meeting_question', text: 'Does the City give residents notice before it removes a street tree, and where is that notice recorded?' },

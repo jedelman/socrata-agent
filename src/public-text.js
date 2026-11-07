@@ -30,17 +30,29 @@ export function normalizePublic(text) {
 }
 
 // Single-word street names that are also ordinary English words, tree
-// species or landscape words count as a street only with a suffix after them
-// ("Cherry St", not "cherry" or "Cherry").
-const COMMON = new Set(
-  (
+// species or landscape words. After a house number, a species counts as a
+// street only with a suffix ("200 cherry trees" passes, "200 Cherry St"
+// doesn't), and an ordinary word only where the phrase ends ("1500 Church").
+// At a corner, at least one side must be something else.
+const SPECIES = new Set(
+  // Tree species and plants (the inventory's common names among them).
+  'cherry dogwood birch poplar myrtle crape crapemyrtle cypress sycamore hickory hemlock spruce juniper locust catalpa mulberry walnut chestnut almond alder ash beech linden tulip redbud sweetgum gum magnolias oaks maples elms pines palmetto palm mimosa azalea camellia lilac jasmine wisteria honeysuckle thistle primrose poppy daisy orchid buttercup barberry bayberry blueberry dewberry boxwood redwood cedarwood peachtree appletree melon calla vine filbert'.split(' ')
+);
+const COMMON = new Set([
+  ...SPECIES,
+  ...(
     'park church main city hall water tree trees forest wood woods river bay lake shore beach ocean view hill hills spring summer winter fall field fields garden gardens grove meadow mill pine oak elm maple cedar willow holly magnolia laurel ivy rose lee virginia college school court ward union market bank bridge station harbor port point state county national liberty freedom hope grace faith may june west east north south center central first second third fourth fifth sixth seventh eighth ninth tenth high low long short wide broad little big old new end way ridge cove creek glen dale haven brook knoll terrace place square plaza row green white black brown gray red blue orange gold silver king queen prince princess duke lord general admiral federal ' +
-    // Tree species and plants (the inventory's common names among them).
-    'cherry dogwood birch poplar myrtle crape crapemyrtle cypress sycamore hickory hemlock spruce juniper locust catalpa mulberry walnut chestnut almond alder ash beech linden tulip redbud sweetgum gum magnolias oaks maples elms pines palmetto palm mimosa azalea camellia lilac jasmine wisteria honeysuckle thistle primrose poppy daisy orchid buttercup barberry bayberry blueberry dewberry boxwood redwood cedarwood peachtree appletree melon calla vine filbert ' +
     // Ordinary words that are also Norfolk street names.
     'light branch early front cross core bond clay ford gates abbey apex arbor ball bell bill blow bower bridle buck cap carriage cavern chapel circle citadel commander commercial commodore commonwealth congress console corporate cottage covenant crescent croft dare dean dell diesel dominion draper dune eagle earl easy eden enterprise esquire executive factory fawn finch flicker forge glade government granite gym hale halter hammock hardwood hardy harmony head heron highland hillside hunt hunter hunters inlet international jay jubilee lagoon lakeside lance land landing lead lens light lighthouse limestone link lion loam mace magazine maiden majestic major mallard marathon marina mariner mariners marsh mason melon memorial meridian middle midland military mission monarch monitor mooring noble orchard pace paddock painter parish patent patrician pearl pebble perch pike pilot pleasant plume pope portal presidential priory production progress quail queens quill ransom ray rebel reel regent reservoir resilience rich royale rush sandy security skyline smith standard sterling strand summit sunny sunset sunshine swan sylvan teal terminal tidal tides trinity typo valley victory villa village vista wake walker wall warehouse while widgeon wise worth york'
-  ).split(' ')
+  ).split(' '),
+]);
+// Nouns a count is usually of: "200 cherry trees", "300 Granby residents"
+// aren't addresses.
+const COUNTED = new Set(
+  'trees tree work orders order removals removal records record items item agenda datasets dataset columns column data days day times time years year people questions question requests request poles pole stumps stump permits permit complaints complaint calls dollars percent species cases hours weeks months feet foot ft inches miles acres homes houses residents plantings planting prunings pruning rows findings meetings votes members crews branches limbs lights blocks properties parcels lots units'.split(' ')
 );
+// Words before a year: "the 2025 Norfolk budget", "since 2020".
+const BEFORE_YEAR = new Set('the a an in of for since by from to until through during after before between fy calendar fiscal year this last next early late mid'.split(' '));
 const CONNECTORS = new Set(['and', '&', 'at']);
 
 const norm = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
@@ -74,18 +86,37 @@ function streetLookup(streets) {
   return compiled.get(streets);
 }
 
-/** Words, with where each starts and ends, and "&" as a word. */
+/**
+ * Words, with where each starts and ends, and "&" as a word. Digit groups
+ * joined by thousands separators become one number marked `grouped`
+ * ("2,770"); a number written right after another number and a ".", ":",
+ * "/" or "-" is marked `part` (decimals, times, dates).
+ */
 function tokens(t) {
-  return [...t.matchAll(/[\p{L}\p{N}]+(?:'[\p{L}]+)?|&/gu)].map((m) => ({ w: m[0].toLowerCase(), raw: m[0], start: m.index, end: m.index + m[0].length }));
+  const out = [];
+  for (const m of t.matchAll(/[\p{L}\p{N}]+(?:'[\p{L}]+)?|&/gu)) {
+    const tok = { w: m[0].toLowerCase(), raw: m[0], start: m.index, end: m.index + m[0].length };
+    const prev = out.at(-1);
+    if (prev && /^\d+$/.test(prev.w) && /^\d{3}$/.test(tok.w) && t.slice(prev.end, tok.start) === ',' && (prev.grouped || /^\d{1,3}$/.test(prev.w))) {
+      prev.w += tok.w;
+      prev.raw = t.slice(prev.start, tok.end);
+      prev.end = tok.end;
+      prev.grouped = true;
+      continue;
+    }
+    if (prev && /^\d/.test(tok.w) && /^\d+$/.test(prev.w) && /^[.:/-]$/.test(t.slice(prev.end, tok.start))) tok.part = true;
+    out.push(tok);
+  }
+  return out;
 }
 // Two words belong to one phrase when only spaces, or a period and spaces, sit between them.
 const joined = (t, a, b) => /^\.?\s+$/.test(t.slice(a.end, b.start));
-const capitalized = (raw) => /^\p{Lu}/u.test(raw);
+const ORDINAL = /^\d+(?:st|nd|rd|th)$/;
 
 /**
- * The street that starts at token i, if any: { end, strong }. Strong means it
- * carries a suffix or has more than one word; a bare one-word name counts only
- * when it is capitalized and not an ordinary word.
+ * The street that starts at token i, if any: { end, strong, name }. Strong
+ * means it carries a suffix or has more than one word. Case doesn't matter:
+ * residents and drafts write "1500 bolling" too.
  */
 function streetAt(t, toks, i, names) {
   for (let n = Math.min(4, toks.length - i); n >= 1; n--) {
@@ -94,9 +125,12 @@ function streetAt(t, toks, i, names) {
     const name = span.map((x) => x.w).join(' ');
     if (!names.has(name)) continue;
     const next = toks[i + n];
-    if (next && SUFFIXES.has(next.w) && joined(t, span.at(-1), next)) return { end: i + n + 1, strong: true };
-    if (n > 1) return { end: i + n, strong: true };
-    if (capitalized(span[0].raw) && !COMMON.has(name) && !/^\d/.test(name)) return { end: i + 1, strong: false };
+    // "street trees" and "street lights" are things, not a suffix.
+    const suffix = next && SUFFIXES.has(next.w) && joined(t, span.at(-1), next) && !nounStreet(toks, i + n);
+    if (suffix) return { end: i + n + 1, strong: true, name };
+    if (n > 1) return { end: i + n, strong: true, name };
+    if (/^\d/.test(name) && !ORDINAL.test(name)) return null;
+    return { end: i + 1, strong: false, name };
   }
   return null;
 }
@@ -105,7 +139,11 @@ function streetFrom(t, toks, i, names) {
   const plain = streetAt(t, toks, i, names);
   if (plain) return plain;
   const d = toks[i];
-  if (d && DIRECTIONS.has(d.w) && toks[i + 1] && joined(t, d, toks[i + 1])) return streetAt(t, toks, i + 1, names);
+  if (d && DIRECTIONS.has(d.w) && toks[i + 1] && joined(t, d, toks[i + 1])) {
+    const m = streetAt(t, toks, i + 1, names);
+    // "W 21st" is a street; a direction makes a bare name stronger only for ordinals.
+    if (m) return m;
+  }
   return null;
 }
 /** A street that ends just before token i (its suffix, if any, included). */
@@ -117,36 +155,82 @@ function streetEndingAt(t, toks, i, names) {
   }
   return best;
 }
+/** "street" or "streets" before "tree(s)" or "light(s)": a noun, not a suffix. */
+function nounStreet(toks, j) {
+  return (toks[j]?.w === 'street' || toks[j]?.w === 'streets') && /^(?:trees?|lights?|lighting)$/.test(toks[j + 1]?.w || '');
+}
+
+/**
+ * Where the street after a house number starts, when token i is one: 1 to 6
+ * digits, maybe with a unit letter ("1500B", "1500-B"). Not a number written
+ * with thousands separators or after another number, and not a year: a
+ * 19xx or 20xx number after "the", "in", "since" and the like.
+ */
+function houseNumberAt(t, toks, i) {
+  const tok = toks[i];
+  if (tok.grouped || tok.part || !/^\d{1,6}[a-z]?$/.test(tok.w)) return -1;
+  if (/^(?:19|20)\d{2}$/.test(tok.w) && i > 0 && BEFORE_YEAR.has(toks[i - 1].w)) return -1;
+  let k = i + 1;
+  if (/^\d+$/.test(tok.w) && toks[k] && /^[a-z]$/.test(toks[k].w) && t.slice(tok.end, toks[k].start) === '-') k++;
+  return toks[k] && joined(t, toks[k - 1], toks[k]) ? k : -1;
+}
+const YEAR = /^(?:19|20)\d{2}$/;
+// What ends a phrase after a street name: the end of the text, or . ? ! ; : ) "
+function endsPhrase(t, tok, next) {
+  const gap = t.slice(tok.end, next ? next.start : t.length);
+  return next ? /^\s*[.?!;:)"]/.test(gap) : true;
+}
 
 function numberStreet(t, toks, names) {
   for (let i = 0; i < toks.length - 1; i++) {
-    if (!/^\d{1,6}$/.test(toks[i].w) || !joined(t, toks[i], toks[i + 1])) continue;
-    if (streetFrom(t, toks, i + 1, names)) return true;
+    const k = houseNumberAt(t, toks, i);
+    if (k < 0) continue;
+    const m = streetFrom(t, toks, k, names);
+    if (!m) continue;
+    if (m.strong) return true;
+    // A bare one-word name after a number.
+    if (YEAR.test(toks[i].w)) continue; // "2025 Norfolk budget": a year
+    const next = toks[m.end];
+    const last = toks[m.end - 1];
+    if (SPECIES.has(m.name)) continue;
+    if (COMMON.has(m.name)) {
+      if (endsPhrase(t, last, next)) return true;
+      continue;
+    }
+    if (next && joined(t, last, next) && COUNTED.has(next.w)) continue;
+    return true;
   }
   return false;
 }
 
+/**
+ * A corner: street names on both sides of "and", "&" or "at". Case doesn't
+ * matter, but at least one side must carry a suffix, have more than one
+ * word, or be a name that isn't an ordinary word, a species or an ordinal,
+ * so "cherry and dogwood", "park and main" and "21st and 22nd" aren't corners.
+ */
 function intersection(t, toks, names) {
+  const distinctive = (m) => m.strong || (!COMMON.has(m.name) && !ORDINAL.test(m.name));
   for (let i = 1; i < toks.length - 1; i++) {
     if (!CONNECTORS.has(toks[i].w) || !joined(t, toks[i - 1], toks[i]) || !joined(t, toks[i], toks[i + 1])) continue;
     const left = streetEndingAt(t, toks, i, names);
     if (!left) continue;
-    // A bare one-word name counts only capitalized and not an ordinary word
-    // or species, so "cherry and dogwood" or "Birch and Poplar" isn't a corner.
-    if (streetFrom(t, toks, i + 1, names)) return true;
+    const right = streetFrom(t, toks, i + 1, names);
+    if (right && (distinctive(left) || distinctive(right))) return true;
   }
   return false;
 }
 
-/** A 1-6 digit number, an optional direction, up to 3 words that aren't stop words, then a suffix: "1500 W Bolling Ave". */
+/** A house number, an optional direction, up to 3 words that aren't stop words, then a suffix: "1500 W Bolling Ave". */
 function houseNumber(t, toks) {
   for (let i = 0; i < toks.length - 1; i++) {
-    if (!/^\d{1,6}$/.test(toks[i].w)) continue;
-    let k = i + 1;
+    const k0 = houseNumberAt(t, toks, i);
+    if (k0 < 0) continue;
+    let k = k0;
     if (DIRECTIONS.has(toks[k].w) && toks[k + 1] && joined(t, toks[k], toks[k + 1])) k++;
     for (let j = k; j < toks.length && j <= k + 3; j++) {
       if (!joined(t, toks[j - 1], toks[j])) break;
-      if (SUFFIXES.has(toks[j].w)) return true;
+      if (SUFFIXES.has(toks[j].w) && !nounStreet(toks, j)) return true;
       if (STOP.has(toks[j].w) || !/^\p{L}/u.test(toks[j].w)) break;
     }
   }
@@ -180,7 +264,8 @@ const BLOCKS = [
   ['mention', (t) => /(?:^|[\s(])@[a-z0-9_][a-z0-9_.-]{1,}/i.test(t)],
   ['link', (t) => /https?:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|org|net|gov|edu|io|us|info|me|co|ly|app|social)\b/i.test(t)],
   ['long_number', (t) => {
-    const u = withoutCitations(t);
+    // Amounts written with thousands separators ("$1,250,000") aren't parcel or account numbers.
+    const u = withoutCitations(t).replace(/\$?\b\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![,\d])/g, ' ');
     return /\b\d{7,}\b/.test(u.replace(/,/g, '')) || [...u.matchAll(/\b\d+(?:-\d+)+\b/g)].some((m) => !/^\d{4}-\d{2}-\d{2}$/.test(m[0]) && !/^(?:19|20)\d{2}-(?:19|20)?\d{2}$/.test(m[0]));
   }],
   ['coordinates', (t) => /-?\b\d{1,3}\.\d{2,}\s*,\s*-?\d{1,3}\.\d{2,}/.test(t)],
@@ -200,12 +285,15 @@ const BLOCKS = [
 export function publicTextViolations(text, { streets, ownPlace } = {}) {
   const t = normalizePublic(text);
   const out = [];
-  const toks = tokens(t);
-  if (houseNumber(t, toks)) out.push('house_number');
-  const sl = streetLookup(streets);
-  if (sl) {
-    if (numberStreet(t, toks, sl.names)) out.push('number_street');
-    if (intersection(t, toks, sl.names)) out.push('intersection');
+  // Addresses and corners need a digit or a connector; most notes skip the word checks.
+  if (/\d/.test(t) || /&|\b(?:and|at)\b/i.test(t)) {
+    const toks = tokens(t);
+    if (houseNumber(t, toks)) out.push('house_number');
+    const sl = streetLookup(streets);
+    if (sl) {
+      if (numberStreet(t, toks, sl.names)) out.push('number_street');
+      if (intersection(t, toks, sl.names)) out.push('intersection');
+    }
   }
   for (const [code, test] of BLOCKS) if (test(t)) out.push(code);
   if (typeof ownPlace === 'function') {
@@ -266,3 +354,8 @@ export function publicTextFlags(text, { allow = FLAG_ALLOWLIST } = {}) {
   if (ruleA(t).length) flags.push({ code: 'presupposes' });
   return flags;
 }
+
+// Compile the regexes (and ICU's Unicode property tables) at load, so a
+// Worker pays for them at startup rather than inside the first request's CPU
+// time. The text exercises every check; the result is thrown away.
+publicTextViolations('Warm-up: 1500 W Ab St and Ab, apt 4, a@b.org, 757-664-4253, @x.y https://x.org 1234567 36.85, -76.29 my house, who called, whose, Mr. X, why did the forester', { streets: compileStreets(['AB']) });

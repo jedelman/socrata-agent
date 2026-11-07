@@ -50,3 +50,20 @@ node bin/socrata-agent.js tool block_report '{"address":"810 Union St"}' > /dev/
 
 Model comparisons (`scripts/compare-models.js`) cost real money. Keep them small,
 and commit the output to `eval/`.
+
+### The gap file and its inputs
+
+`data/gaps/norfolk.json` is built from stored portal responses plus repo files:
+the case files (`data/cases/*.json`), the legislation index
+(`data/norfolk-legislation.json`) and the Norfolk profile
+(`src/cities/norfolk.js`). A PR that edits any of them, or `src/gaps/`, reruns
+
+```bash
+node scripts/build-gaps.js --offline
+npm run check:gaps
+```
+
+and commits `data/gaps` and `docs/gaps-norfolk.md` with the change. When two
+branches touch those inputs, whichever merges second reruns it before merging.
+CI's `check-gaps` job fails until it's done; `npm test`, which gates the
+deploy, only skips that check.

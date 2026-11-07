@@ -129,7 +129,8 @@
       ],
       "touches": [
         {
-          "tool": "block_report"
+          "tool": "block_report",
+          "field": "legislation"
         },
         {
           "tool": "find_legislation"
@@ -342,7 +343,7 @@
           "trace_n": 21
         }
       ],
-      "statement": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-06. I found the problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
+      "statement": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-06. I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
       "short": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read, measured 2026-11-06.",
       "questions": [
         {
@@ -475,21 +476,21 @@
               "dataset": "cmvv-agyb",
               "column": "trunk_diameter",
               "reason": "Read by this measure.",
-              "by": "Inc 4 catalog PR, for review",
+              "by": "Jason, approving the catalog",
               "date": "2026-11-06"
             },
             {
               "dataset": "cmvv-agyb",
               "column": "trunk_diameter_range",
               "reason": "Read by this measure.",
-              "by": "Inc 4 catalog PR, for review",
+              "by": "Jason, approving the catalog",
               "date": "2026-11-06"
             },
             {
               "dataset": "jz6u-9g3c",
               "column": "diameter_dbh",
               "reason": "Significant Trees is a separate dataset of nominated trees (its description: “Volunteers with the Norfolk Master Gardeners gather this data about significant trees in Norfolk.”), not the inventory’s records.",
-              "by": "Inc 4 catalog PR, for review",
+              "by": "Jason, approving the catalog",
               "date": "2026-11-06"
             }
           ],
@@ -1369,7 +1370,7 @@
               "dataset": "qzfe-wj25",
               "column": "contractor_cost",
               "reason": "A cost, not a link to a contract or invoice. Its description, in its words: “Cost of contractor labor and materials in completing the work order.”",
-              "by": "Inc 4 catalog PR, for review",
+              "by": "Jason, approving the catalog",
               "date": "2026-11-06"
             }
           ],
@@ -1626,7 +1627,7 @@
       "checked_live": "2026-11-06",
       "how_much": {
         "columns_absent": {
-          "pattern": "/(^|_)(notice|notif\\w*|post|posted|posting)(_|$)/i",
+          "pattern": "/notice|notif|post|hanger/i",
           "datasets": {
             "cmvv-agyb": 13,
             "qzfe-wj25": 32,
@@ -1699,7 +1700,7 @@
       ],
       "bites_when": [],
       "closed_when": {
-        "column_present": "/(^|_)(notice|notifw*|post|posted|posting)(_|$)/",
+        "column_present": "/notice|notif|post|hanger/",
         "null_share_at_most": 0.05
       },
       "state": "open",
@@ -1773,14 +1774,22 @@
       "checked_live": "2026-11-06",
       "how_much": {
         "columns_absent": {
-          "pattern": "/(^|_)(plan|planned|sched|scheduled|due|target)(_|$)/i",
+          "pattern": "/plan|sched|due|target|projected/i",
           "datasets": {
             "cmvv-agyb": 13,
             "qzfe-wj25": 32,
             "jz6u-9g3c": 13,
             "u85v-sad9": 12
           },
-          "siblings_cleared": [],
+          "siblings_cleared": [
+            {
+              "dataset": "qzfe-wj25",
+              "column": "planning_district",
+              "reason": "A place, the planning district a work order falls in, not a date.",
+              "by": "Gap review fixes, for Jason's review",
+              "date": "2026-11-07"
+            }
+          ],
           "siblings": [],
           "read": "2026-11-07T01:01:58.378Z"
         },
@@ -1900,7 +1909,7 @@
         }
       ],
       "closed_when": {
-        "column_present": "/(^|_)(plan|planned|sched|scheduled|due|target)(_|$)/",
+        "column_present": "/plan|sched|due|target|projected/",
         "null_share_at_most": 0.05
       },
       "state": "open",
@@ -2405,15 +2414,15 @@
   "not_a_gap": [
     {
       "id": "trunk-size",
-      "note": "trees_on_my_block reads only trunk_diameter_range; the fix that also reads trunk_diameter (Inc 5) is on branch ccr-159a72f4-joafbc-trees, not yet merged."
+      "note": "A limit of trees_on_my_block, which read only trunk_diameter_range, not of the records: Siren's own code to fix (Inc 5)."
     },
     {
       "id": "siren-config-survey-claim",
-      "note": "deployments/siren.config.js states a survey date as fact; being replaced on branch ccr-159a72f4-joafbc-trees (J25), not yet merged."
+      "note": "deployments/siren.config.js stated a survey date as fact: Siren's own text to fix (J25), not a gap in the records."
     },
     {
       "id": "trees-plugin-contract-hypothesis",
-      "note": "trees_on_my_block states a hypothesis about contract work; being replaced on branch ccr-159a72f4-joafbc-trees (J25), not yet merged."
+      "note": "trees_on_my_block stated a hypothesis about contract work: Siren's own text to fix (J25), not a gap in the records."
     }
   ],
   "actions": [
@@ -2449,7 +2458,7 @@
         "norfolk.work-orders.removal-no-street",
         "norfolk.work-orders.created-on-or-after-end"
       ],
-      "text": "A private watch on your own street, once Siren offers watches. Watches stay private to the person who sets them.",
+      "text": "A private watch on your own street, once Siren offers watches.",
       "available": false
     },
     {

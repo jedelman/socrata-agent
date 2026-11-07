@@ -211,10 +211,26 @@ export const GAPS = [
     actions: ['a-meeting-planned', 'a-foia-planned'],
     touches: [{ dataset: WO.id, where_includes: ["area = 'Forestry'"] }, { tool: 'trees_on_my_block' }],
     bites_when: [{ tool: 'trees_on_my_block', field: 'on_your_street', ok: true }],
-    closed_when: { column_present: '/(^|_)(plan|planned|sched|scheduled|due|target)(_|$)/', null_share_at_most: 0.05 },
-    concepts: { planned: { pattern: /(^|_)(plan|planned|sched|scheduled|due|target)(_|$)/i, datasets: TREE_DATASETS } },
+    closed_when: { column_present: '/plan|sched|due|target|projected/', null_share_at_most: 0.05 },
+    concepts: {
+      planned: {
+        // The spec's broad pattern (§4.1), so a schedule_date or plandate trips it.
+        pattern: /plan|sched|due|target|projected/i,
+        datasets: TREE_DATASETS,
+        cleared: [
+          {
+            dataset: WO.id,
+            column: 'planning_district',
+            reason: 'A place, the planning district a work order falls in, not a date.',
+            by: "Gap review fixes, for Jason's review",
+            date: '2026-11-07',
+          },
+        ],
+      },
+    },
     async measure(h) {
-      const cols = await h.run.columnsAbsent({ datasets: TREE_DATASETS, pattern: this.concepts.planned.pattern });
+      const k = this.concepts.planned;
+      const cols = await h.run.columnsAbsent({ datasets: k.datasets, pattern: k.pattern, cleared: k.cleared });
       const sd = await h.run.fieldDescription(WO.id, 'start_date');
       const sb = await statusBreakdown(h);
       const backlog = await h.run.query(WO.id, soql.share(W_OPEN, { with_end: 'end_date IS NOT NULL' }), 'Removals with status New Work Order or On-Going');
@@ -250,8 +266,9 @@ export const GAPS = [
     actions: ['a-meeting-notice'],
     touches: [{ dataset: WO.id, where_includes: ["area = 'Forestry'"] }, { tool: 'trees_on_my_block' }],
     bites_when: [],
-    closed_when: { column_present: '/(^|_)(notice|notif\w*|post|posted|posting)(_|$)/', null_share_at_most: 0.05 },
-    concepts: { notice: { pattern: /(^|_)(notice|notif\w*|post|posted|posting)(_|$)/i, datasets: TREE_DATASETS } },
+    closed_when: { column_present: '/notice|notif|post|hanger/', null_share_at_most: 0.05 },
+    // The spec's broad pattern (§4.1), with door hangers.
+    concepts: { notice: { pattern: /notice|notif|post|hanger/i, datasets: TREE_DATASETS } },
     async measure(h) {
       const cols = await h.run.columnsAbsent({ datasets: TREE_DATASETS, pattern: this.concepts.notice.pattern });
       const read = h.dateOf(cols.read);
@@ -289,7 +306,7 @@ export const GAPS = [
             dataset: WO.id,
             column: 'contractor_cost',
             reason: 'A cost, not a link to a contract or invoice. Its description, in its words: “Cost of contractor labor and materials in completing the work order.”',
-            by: 'Inc 4 catalog PR, for review',
+            by: 'Jason, approving the catalog',
             date: '2026-11-06',
           },
         ],
@@ -458,7 +475,7 @@ export const GAPS = [
       return {
         how_much: { columns_absent: cols, problem_codes: { codes: this.codes.map((c, i) => ({ value: c, n: [dead, diseased, damaged][i] })), read: v.read } },
         evidence: [...columnsEvidence(h, cols, TREE_DATASETS), h.ev.query(v)],
-        statement: `${T.columnsAbsentTopic({ concept: 'for tree condition, health or risk', datasets: TREE_DATASETS, topic: 'tree', read })} I found the ${codesLine} in ${sourceName(WO)}, as I read them on ${vread}.`,
+        statement: `${T.columnsAbsentTopic({ concept: 'for tree condition, health or risk', datasets: TREE_DATASETS, topic: 'tree', read })} I found ${codesLine} in ${sourceName(WO)}, as I read them on ${vread}.`,
         short: `I found no column for tree condition, health or risk in any of the ${TREE_DATASETS.length} tree datasets I read, measured ${read}.`,
         consequences: { q1: consequence, q2: consequence },
       };
@@ -481,13 +498,13 @@ export const GAPS = [
     siblings: {
       pattern: /trunk|diameter|dbh|(^|_)size(_|$)/i,
       cleared: [
-        { dataset: INV.id, column: 'trunk_diameter', reason: 'Read by this measure.', by: 'Inc 4 catalog PR, for review', date: '2026-11-06' },
-        { dataset: INV.id, column: 'trunk_diameter_range', reason: 'Read by this measure.', by: 'Inc 4 catalog PR, for review', date: '2026-11-06' },
+        { dataset: INV.id, column: 'trunk_diameter', reason: 'Read by this measure.', by: 'Jason, approving the catalog', date: '2026-11-06' },
+        { dataset: INV.id, column: 'trunk_diameter_range', reason: 'Read by this measure.', by: 'Jason, approving the catalog', date: '2026-11-06' },
         {
           dataset: 'jz6u-9g3c',
           column: 'diameter_dbh',
           reason: 'Significant Trees is a separate dataset of nominated trees (its description: “Volunteers with the Norfolk Master Gardeners gather this data about significant trees in Norfolk.”), not the inventory’s records.',
-          by: 'Inc 4 catalog PR, for review',
+          by: 'Jason, approving the catalog',
           date: '2026-11-06',
         },
       ],
@@ -607,7 +624,8 @@ export const GAPS = [
     where: { sources: [{ type: 'index', id: INDEX.id, name: INDEX.name }], scope: 'agenda items in public meetings', area: 'citywide' },
     questions: [{ qid: 'q1', text: 'Did the Council act on anything that affects my block?', blocks: 'part', answered_in_part_by: [{ index: INDEX.id, field: 'addresses' }] }],
     actions: ['a-source-legislation'],
-    touches: [{ tool: 'block_report' }, { tool: 'find_legislation' }],
+    // block_report only once it matched an address and read the index: a miss returns no legislation.
+    touches: [{ tool: 'block_report', field: 'legislation' }, { tool: 'find_legislation' }],
     bites_when: [{ tool: 'block_report', field: 'legislation', ok: true }],
     closed_when: { share_at_most: 0.05, over: 'whole' },
     async measure(h) {
@@ -652,7 +670,7 @@ export const RETIRED = Object.freeze([
 
 /** Siren's own bugs, which are not gaps in the records (§4.2). */
 export const NOT_A_GAP = Object.freeze([
-  { id: 'trunk-size', note: 'trees_on_my_block reads only trunk_diameter_range; the fix that also reads trunk_diameter (Inc 5) is on branch ccr-159a72f4-joafbc-trees, not yet merged.' },
-  { id: 'siren-config-survey-claim', note: 'deployments/siren.config.js states a survey date as fact; being replaced on branch ccr-159a72f4-joafbc-trees (J25), not yet merged.' },
-  { id: 'trees-plugin-contract-hypothesis', note: 'trees_on_my_block states a hypothesis about contract work; being replaced on branch ccr-159a72f4-joafbc-trees (J25), not yet merged.' },
+  { id: 'trunk-size', note: "A limit of trees_on_my_block, which read only trunk_diameter_range, not of the records: Siren's own code to fix (Inc 5)." },
+  { id: 'siren-config-survey-claim', note: "deployments/siren.config.js stated a survey date as fact: Siren's own text to fix (J25), not a gap in the records." },
+  { id: 'trees-plugin-contract-hypothesis', note: "trees_on_my_block stated a hypothesis about contract work: Siren's own text to fix (J25), not a gap in the records." },
 ]);

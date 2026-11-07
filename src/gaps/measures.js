@@ -21,8 +21,11 @@ const LOCATION = [
   /^street$/, /^address$/, /^street_number$/, /^gpin$/, /^parcel/, /^lat/, /^lon/, /^location$/, /_point$/, /^the_geom$/, /^census_tract/,
   // Stricter than the spec's list, so a near-name can't slip past it.
   /_address$/, /street_name$/, /^house_number$/,
-  // Places below the ward (I17): civic leagues, neighborhoods, precincts.
-  /^civic_league/, /^neighborhood/, /^precinct/,
+  // Places below the ward (I17): civic leagues, neighborhoods, precincts,
+  // superwards, planning districts, maintenance zones, census blocks, zip codes.
+  /^civic_league/, /^neighborhood/, /^precinct/, /^super_?ward(?!_district$)/, /^planning_district/, /^maintenance_zone/, /^census_block/, /^zip/,
+  // Coordinates and parcel ids under other names.
+  /_coordinate$/, /^geocoded/, /^tax_account/,
 ];
 // Ward-level counts need I17's small-count rule (at least 5, with a
 // complement of at least 5), which no check enforces yet. Until one does, a
@@ -44,14 +47,17 @@ export function identifierViolations(soql) {
   for (const m of code.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
     const name = m[0].toLowerCase();
     const before = code[m.index - 1];
-    if (before && /[A-Za-z0-9_.:@]/.test(before)) continue;
+    // Socrata's computed regions (`:@computed_region_abcd_1234`: census
+    // tracts, zip codes and the like) are places below the ward.
+    const region = before === '@' && code[m.index - 2] === ':' && name.startsWith('computed_region');
+    if (!region && before && /[A-Za-z0-9_.:@]/.test(before)) continue;
     if (NEVER.has(name) || isPersonColumn(name)) {
       out.push(`${m[0]} may not appear in a gap measure in any position.`);
       continue;
     }
     const after = code.slice(m.index + m[0].length);
     const nullTest = /^\s+is\s+(?:not\s+)?null\b/i.test(after);
-    if (isLocationColumn(name)) {
+    if (region || isLocationColumn(name)) {
       if (!nullTest) out.push(`${m[0]} is a location column: a gap measure may use it only as "${m[0]} IS NULL" or "IS NOT NULL".`);
     } else if (WARD.test(name) && !nullTest && !/\bas\s+$/i.test(code.slice(0, m.index))) {
       out.push(`${m[0]}: ward-level counts wait on the small-count check (I17); a gap measure may use it only as "${m[0]} IS NULL" or "IS NOT NULL".`);

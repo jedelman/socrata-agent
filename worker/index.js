@@ -14,6 +14,7 @@ import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import norfolkStreets from '../data/gaps/norfolk-streets.json';
 import norfolkGaps from '../data/gaps/norfolk.json';
+import { compileStreets } from '../src/public-text.js';
 import UI from './ui.html';
 import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
@@ -30,8 +31,9 @@ import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
 
 // Street names per city, used only to refuse addresses in text that could go
-// public (src/public-text.js); built by scripts/build-gaps.js.
-const STREETS = { norfolk: norfolkStreets.streets };
+// public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
+// at isolate startup, so no request pays for it in its CPU time.
+const STREETS = { norfolk: compileStreets(norfolkStreets.streets) };
 // Built gap files per city (scripts/build-gaps.js). An answer carries gaps only
 // when its deployment sets gaps.enabled (in a reviewed PR); none does yet.
 const GAPS = { norfolk: norfolkGaps };
