@@ -599,3 +599,28 @@ test('the admin page and the contributor guide promise a closed issue only once 
   assert.match(routine, /sync-request-issues\.js --plan --with-withdrawn > \/tmp\/plan\.json/);
   assert.match(routine, /create_if_missing: false, do nothing \(never create it\)/);
 });
+
+test('an issue withdrawn long enough ago to leave the feed is done: no rewrite, and it does not count toward the refusal', async () => {
+  const { isWithdrawnDone } = await import('../scripts/sync-request-issues.js');
+  const ids = ['aaaaaaaaaaaa', 'bbbbbbbbbbbb', 'cccccccccccc', 'dddddddddddd', 'eeeeeeeeeeee'];
+  // Closed by earlier syncs while the feed listed them, so their bodies carry the day.
+  const done = ids.map((id, i) => ({ number: i + 1, state: 'closed', state_reason: 'not_planned', title: 'Source request (withdrawn)', body: withdrawnBody(id, '2026-10-01') }));
+  const live = { id: 'ffffffffffff', source: 'Live', count: 1, status: 'accepted', notes: [] };
+  const [want] = plan([live], 'u', 'o/r');
+  const liveIssue = { number: 9, state: 'open', title: want.title, body: want.body };
+  // 30 days on, the feed no longer lists them: more than UNLISTED_LIMIT, and once every one of them.
+  assert.deepEqual(operations({ existing: [...done, liveIssue], requests: [live], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), []);
+  assert.deepEqual(operations({ existing: done, requests: [], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), []);
+  // GitHub may hand bodies back with CRLF line ends.
+  assert.ok(isWithdrawnDone({ ...done[0], body: done[0].body.replace(/\n/g, '\r\n') }, ids[0]));
+  // Done issues don't dilute the refusal either: one open unlisted issue among them is still "all of them".
+  const stray = { number: 20, state: 'open', title: 't', body: '<!-- source-request:111111111111 -->\nwords' };
+  assert.throws(() => operations({ existing: [...done, stray], requests: [], withdrawn: [], pageUrl: 'u', repo: 'o/r' }), /Refusing to close 1 of 1/);
+  // Not done: open, closed as completed, another title, or a body edited by hand.
+  for (const changed of [{ state: 'open' }, { state_reason: 'completed' }, { title: 'Source request: Tree permits' }, { body: `${done[0].body}\nedited` }]) {
+    assert.equal(isWithdrawnDone({ ...done[0], ...changed }, ids[0]), false, JSON.stringify(changed));
+  }
+  assert.equal(isWithdrawnDone(done[0], ids[1]), false, 'the body must be for its own id');
+  const ops = operations({ existing: [{ ...done[0], body: `${done[0].body}\nedited` }, liveIssue], requests: [live], withdrawn: [], pageUrl: 'u', repo: 'o/r' });
+  assert.deepEqual(ops, [{ op: 'update', number: 1, patch: { body: withdrawnBody(ids[0]) } }]);
+});
