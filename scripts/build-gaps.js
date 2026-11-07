@@ -195,7 +195,7 @@ export async function buildGaps({ cityId = 'norfolk', recorder, today, repoToday
     field: (fd) => ({ type: 'metadata', dataset: fd.dataset, field: fd.field, quote: fd.quote, url: fd.url, read: fd.read, trace_n: fd.trace_n }),
     finding: (f) => ({ type: 'finding', case: f.case, id: f.id, url: f.source.url, quote: f.quote, ...(f.selector ? { selector: f.selector } : {}), checked: f.checked, reverified: null }),
     catalog: (s) => ({ type: 'catalog_search', q: s.q, result_set_size: s.result_set_size, excluded: s.excluded, open_to_siren: s.results.filter((r) => r.open_to_siren).map((r) => ({ id: r.id, name: r.name })), url: s.url, read: s.read, trace_n: s.trace_n }),
-    values: (v) => ({ type: 'values', dataset: v.dataset, field: 'problem_description', values: v.values, pattern: v.pattern, matched: v.matched, url: v.url, read: v.read, trace_n: v.trace_n }),
+    values: (v) => ({ type: 'values', dataset: v.dataset, field: v.field, values: v.values, pattern: v.pattern, matched: v.matched, url: v.url, read: v.read, trace_n: v.trace_n }),
   };
   const helpers = {
     run,
