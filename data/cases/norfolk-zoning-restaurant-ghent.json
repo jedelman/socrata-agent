@@ -267,7 +267,7 @@
     }
   ],
   "pending": [
-    "Which Ghent district (HC-G1, HC-G2, HC-G3 or a commercial district) a given address is in: check the City's zoning map or ask for a zoning determination.",
+    "Which Ghent district (HC-G1, HC-G2, HC-G3 or a commercial district) a given address is in: Norfolk AIR (the City's GIS viewer) and the City's Zoning layer of its Planning map service show the district for each address; read it from there, then use Table 3.6.11 for that district.",
     "Whether a restaurant is allowed in that district: Table 3.6.11 (Historic and Cultural Conservation districts) shows restaurant as permitted-or-conditional (P/C) in HC-G3 and not permitted in HC-G1 or HC-G2 by the page image; a column-in-a-table cell can't be quoted exactly, so it is not a finding yet.",
     "Rules for converting a carriage house to a commercial use: not found in the ordinance sections read. Its carriage-house provisions found so far apply to the R-C (Ocean View) district and to flood-plain definitions."
   ]
