@@ -84,6 +84,42 @@ test('the positional identifier rule passes the spec queries and refuses locatio
   assert.deepEqual(identifierViolations('SELECT count(*) AS n WHERE planning_district IS NULL AND :@computed_region_abcd_1234 IS NOT NULL'), []);
 });
 
+test('the positional identifier rule: an explicit select list, no star outside count(*)', () => {
+  for (const q of ['SELECT *', 'SELECT * WHERE street IS NULL', 'SELECT DISTINCT *', 'SELECT :*, count(*) AS n GROUP BY :id', 'SELECT t.* WHERE x IS NULL', 'SELECT count(*) AS n, * WHERE x IS NULL', 'WHERE street IS NULL', "WHERE area = 'Forestry' LIMIT 5", 'SELECT trunk_diameter * 2 AS d']) {
+    assert.ok(identifierViolations(q).length, q);
+  }
+  for (const q of ['SELECT count(*) AS n WHERE street IS NULL', 'SELECT count( * ) AS n', "SELECT count(*) AS n WHERE note = '*'", 'SELECT status_code, count(*) AS n WHERE x * 2 > 3 GROUP BY status_code']) {
+    assert.deepEqual(identifierViolations(q), [], q);
+  }
+});
+
+test('the positional identifier rule: a column typed as a place is a location column, whatever its name', async () => {
+  assert.deepEqual(identifierViolations('SELECT count(*) AS n WHERE spot IS NULL'), []);
+  assert.ok(identifierViolations('SELECT spot', { locationColumns: ['spot'] }).length);
+  assert.ok(identifierViolations("SELECT count(*) WHERE within_box(Spot, 1, 2, 3, 4)", { locationColumns: ['spot'] }).length);
+  assert.deepEqual(identifierViolations('SELECT count(*) AS n WHERE spot IS NOT NULL', { locationColumns: ['spot'] }), []);
+  // MeasureRunner reads the types from the dataset's metadata before the query runs.
+  const asked = [];
+  const types = { spot: 'point', shape: 'multipolygon', place: 'location', route: 'line', untyped: '', status: 'text' };
+  const ctx = { trace: { steps: [] }, socrata: { isExcluded: () => false, meta: async () => ({ types }), query: async (id, q) => {
+    asked.push(q);
+    ctx.trace.steps.push({ n: ctx.trace.steps.length + 1, url: `u${asked.length}`, soql: q });
+    return [{ n: '1' }];
+  } } };
+  const run = new MeasureRunner({ ctx, readOf: () => '2026-11-06T22:00:00Z' });
+  for (const col of ['spot', 'shape', 'place', 'route', 'untyped']) {
+    await assert.rejects(run.query('abcd-1234', `SELECT ${col}, count(*) AS n GROUP BY ${col}`), IdentifierRuleError, col);
+    await assert.rejects(run.query('abcd-1234', `SELECT count(*) AS n WHERE within_circle(${col}, 36.8, -76.2, 100)`), IdentifierRuleError, col);
+  }
+  assert.deepEqual(asked, [], 'refused before the query is sent');
+  await run.query('abcd-1234', 'SELECT status, count(*) AS n WHERE spot IS NULL GROUP BY status');
+  assert.equal(asked.length, 1);
+  // The real client stores each column's type when it reads a dataset's metadata.
+  const city = getCity('norfolk');
+  const real = createContext({ city, fetchImpl: async () => new Response(JSON.stringify({ name: 'X', columns: [{ fieldName: 'Spot', dataTypeName: 'point' }, { fieldName: ':id', dataTypeName: 'meta_data' }] })) });
+  assert.deepEqual((await real.socrata.meta('abcd-1234')).types, { spot: 'point' });
+});
+
 test('the catalog: unique ids, never a retired one, checked live, approved entries only', () => {
   const ids = norfolk.GAPS.map((g) => g.id);
   assert.equal(new Set(ids).size, ids.length);
@@ -296,7 +332,7 @@ test('catalogSearchRaw: excluded results are counted, never named; restricted on
 });
 
 test('values_absent refuses to say "none matching" at its 200-value cap', async () => {
-  const ctx = { trace: { steps: [] }, socrata: { query: async (id, q) => {
+  const ctx = { trace: { steps: [] }, socrata: { isExcluded: () => false, meta: async () => ({ types: { problem_description: 'text' } }), query: async (id, q) => {
     ctx.trace.steps.push({ n: 1, url: 'u', soql: q });
     return Array.from({ length: 200 }, (_, i) => ({ v: `code ${i}`, n: '1' }));
   } } };
@@ -371,7 +407,7 @@ test('a finding gone stale or unverified takes its gap off the board', async () 
 test('median_age is exact, with the second row when n is even', async () => {
   const calls = [];
   const rows = { 'OFFSET 1': [{ d: '2024-01-01T00:00:00' }], 'OFFSET 2': [{ d: '2024-01-03T00:00:00' }] };
-  const ctx = { trace: { steps: [] }, socrata: { query: async (id, q) => {
+  const ctx = { trace: { steps: [] }, socrata: { isExcluded: () => false, meta: async () => ({ types: { d: 'calendar_date', id: 'text', x: 'number' } }), query: async (id, q) => {
     calls.push(q);
     ctx.trace.steps.push({ n: ctx.trace.steps.length + 1, url: `u${calls.length}`, soql: q });
     return rows[q.match(/OFFSET \d+/)[0]];

@@ -100,7 +100,7 @@ export function clampLimit(soql) {
 
 // Top-level clause boundaries in a SoQL $query, outside literals and parentheses.
 const CLAUSES = /\b(select|where|group\s+by|having|order\s+by|limit|offset|search)\b/gi;
-function topLevelClauses(soql) {
+export function topLevelClauses(soql) {
   const code = stripLiterals(soql);
   const depthAt = [];
   let d = 0;
@@ -236,8 +236,11 @@ export class Socrata {
 
   remember(id, v) {
     if (!this.metaCache) this.metaCache = new Map();
-    const columns = (v.columns || []).map((c) => c.fieldName).filter((f) => f && !f.startsWith(':'));
-    this.metaCache.set(id, { name: v.name || '', columns, parent: v.modifyingViewUid || null });
+    const data = (v.columns || []).filter((c) => c.fieldName && !c.fieldName.startsWith(':'));
+    const columns = data.map((c) => c.fieldName);
+    // Each data column's Socrata type, for checks that go by type, not name.
+    const types = Object.fromEntries(data.map((c) => [c.fieldName.toLowerCase(), String(c.dataTypeName || '')]));
+    this.metaCache.set(id, { name: v.name || '', columns, types, parent: v.modifyingViewUid || null });
     this.names.set(id, v.name || '');
   }
 

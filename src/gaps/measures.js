@@ -8,7 +8,7 @@
 // what the queries returned, so `build-gaps --check` can replay the stored
 // responses and get the same output.
 
-import { ACCESS, stripLiterals, checkSingleDataset, isPersonColumn } from '../socrata.js';
+import { ACCESS, stripLiterals, checkSingleDataset, isPersonColumn, topLevelClauses } from '../socrata.js';
 import { normalize } from './text-utils.js';
 
 // --- The positional identifier rule ----------------------------------------
@@ -33,9 +33,18 @@ const LOCATION = [
 const WARD = /^(?:ward|ward_district|super_ward_district)$/;
 export const isLocationColumn = (name) => LOCATION.some((re) => re.test(String(name).toLowerCase()));
 const NEVER = new Set(['assigned_crew']);
+// Socrata types that hold a place, whatever the column is called. A column of
+// one of these types is a location column (checked live against the views
+// API's dataTypeName, 2026-11-07: location, point, multipoint, line,
+// multiline, polygon, multipolygon).
+export const LOCATION_TYPES = new Set(['location', 'point', 'multipoint', 'line', 'multiline', 'polygon', 'multipolygon']);
 
-/** Violations of the positional identifier rule in one SoQL query ([] if none). */
-export function identifierViolations(soql) {
+/**
+ * Violations of the positional identifier rule in one SoQL query ([] if
+ * none). `locationColumns` adds columns that are location columns by their
+ * type (MeasureRunner reads them from the dataset's metadata).
+ */
+export function identifierViolations(soql, { locationColumns = [] } = {}) {
   let code;
   try {
     code = stripLiterals(soql);
@@ -44,6 +53,15 @@ export function identifierViolations(soql) {
     return [String(err.message)];
   }
   const out = [];
+  // An explicit select list, with a star only inside count(*): SELECT *,
+  // DISTINCT *, :* and a query with no SELECT all return every column,
+  // location columns among them, whatever the names in the query say.
+  const sel = topLevelClauses(soql).find((c) => c.kw === 'select');
+  if (!sel) out.push('A gap measure needs an explicit SELECT list.');
+  else if (code.slice(sel.bodyStart, sel.end).replace(/\bcount\s*\(\s*\*\s*\)/gi, '').includes('*')) {
+    out.push('A gap measure may not select * (SELECT *, DISTINCT * or :*): name each column. Only count(*) may hold a star.');
+  }
+  const typed = new Set(locationColumns.map((c) => String(c).toLowerCase()));
   for (const m of code.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
     const name = m[0].toLowerCase();
     const before = code[m.index - 1];
@@ -57,7 +75,7 @@ export function identifierViolations(soql) {
     }
     const after = code.slice(m.index + m[0].length);
     const nullTest = /^\s+is\s+(?:not\s+)?null\b/i.test(after);
-    if (region || isLocationColumn(name)) {
+    if (region || isLocationColumn(name) || typed.has(name)) {
       if (!nullTest) out.push(`${m[0]} is a location column: a gap measure may use it only as "${m[0]} IS NULL" or "IS NOT NULL".`);
     } else if (WARD.test(name) && !nullTest && !/\bas\s+$/i.test(code.slice(0, m.index))) {
       out.push(`${m[0]}: ward-level counts wait on the small-count check (I17); a gap measure may use it only as "${m[0]} IS NULL" or "IS NOT NULL".`);
@@ -66,8 +84,8 @@ export function identifierViolations(soql) {
   return out;
 }
 
-export function checkMeasureSoql(soql) {
-  const v = identifierViolations(soql);
+export function checkMeasureSoql(soql, opts) {
+  const v = identifierViolations(soql, opts);
   if (v.length) throw new IdentifierRuleError(`${v.join(' ')} Query: ${soql}`);
 }
 export class IdentifierRuleError extends Error {}
@@ -136,14 +154,32 @@ export class MeasureRunner {
 
   /** A query measure: rows plus where and when they were read. */
   async query(dataset, q, label) {
+    // By name first, before any request; then by the dataset's column types.
     checkMeasureSoql(q);
     const key = `${dataset}\n${q}`;
     if (!this.queries.has(key)) {
+      checkMeasureSoql(q, { locationColumns: await this.locationColumns(dataset) });
       const rows = await this.ctx.socrata.query(dataset, q, { tool: `${this.catalogName}: ${label || dataset}`, access: ACCESS.GENERIC });
       const step = this.lastStep();
       this.queries.set(key, { dataset, soql: this.ctx.trace.steps.at(-1).soql, rows, ...step });
     }
     return this.queries.get(key);
+  }
+
+  /**
+   * The dataset's columns whose Socrata type holds a place, from its
+   * metadata. That's the request query() makes anyway for its name and
+   * person-column checks (the "check dataset name" step, or the describe
+   * already made in this build), so it adds none. A column with no type
+   * counts as a location column. An excluded dataset is refused by query()
+   * before any request, so its metadata isn't read.
+   */
+  async locationColumns(dataset) {
+    const s = this.ctx.socrata;
+    if (s.isExcluded(dataset)) return [];
+    const m = await s.meta(dataset);
+    if (!m?.types) throw new MeasureChange(`No column types for ${dataset}.`);
+    return Object.entries(m.types).filter(([, t]) => !t || LOCATION_TYPES.has(t.toLowerCase())).map(([f]) => f);
   }
 
   /** Metadata at GENERIC: name, description, rowsUpdatedAt and the data columns. */
