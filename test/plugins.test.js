@@ -252,6 +252,7 @@ test('the_record serves only checked findings, and puts every source in the trac
 });
 
 import caseFile from '../plugins/case-file.js';
+import zoningAtAddress, { pointQuery } from '../plugins/zoning-at-address.js';
 
 test('case_file serves a record with no address, including the rules', async () => {
   const { result, trace } = await checkPlugin(caseFile, { city: norfolk, args: { topic: 'norfolk-trees' }, respond: () => [] });
@@ -271,4 +272,40 @@ test('the case verifier fails on a missing quote, and on a source unreachable to
   assert.equal(judge({ unreachable: true, checked: '2026-11-01', now }), 'warn', 'blocked from here, verified recently');
   assert.equal(judge({ unreachable: true, checked: '2026-09-01', now }), 'fail', `over ${STALE_DAYS} days`);
   assert.equal(judge({ unreachable: true, now }), 'fail', 'never verified');
+});
+
+// Fakes shaped like the live answers on 2026-11-07 (1300 Colley Ave).
+function respondZoning(url) {
+  if (url.includes('/resource/ere7-kake'))
+    return [{ full_address: '1300 COLLEY AVENUE', gpin: '1428629504', house_number: '1300', full_street_name: 'COLLEY AVENUE', street_name: 'COLLEY', ward_district: '2', parcel_centroid_latitude: '36.86666037', parcel_centroid_longitude: '-76.29843391', census_tract_number: '37', civic_league: 'Ghent Neighborhood League' }];
+  if (url.includes('/FeatureServer/1/query')) return { features: [{ attributes: { ZONE: 'C-C', TYPE: 'Commercial', url: 'https://www.norfolkva.gov/NorfolkZoningOrdinance/#c-c' } }] };
+  if (url.includes('/FeatureServer/6/query')) return { features: [{ attributes: { NAME: 'Colley Avenue Pedestrian Commercial Overlay' } }, { attributes: { NAME: 'Coastal Resilience Overlay' } }] };
+  throw new Error(`unexpected request ${url}`);
+}
+
+test('zoning_at_address passes conformance and reports district and overlays by place', async () => {
+  const { result, trace, resources, requests } = await checkPlugin(zoningAtAddress, { city: norfolk, args: { address: '1300 Colley Ave' }, respond: respondZoning });
+  assert.deepEqual(result.district.map((d) => d.zone), ['C-C']);
+  assert.deepEqual(result.overlays, ['Colley Avenue Pedestrian Commercial Overlay', 'Coastal Resilience Overlay']);
+  assert.match(result.matched_on, /parcel centroid/);
+  assert.ok(requests.some((u) => u.includes('/FeatureServer/1/query')) && requests.some((u) => u.includes('/FeatureServer/6/query')));
+  assert.ok(trace.some((s) => /zoning district/.test(s.tool)));
+  assert.ok(resources.links.some((l) => /Zoning Ordinance/.test(l.title)));
+  assert.doesNotMatch(JSON.stringify(result), /owner|resident/i);
+});
+
+test('zoning_at_address asks only for fields each layer has', () => {
+  const u = decodeURIComponent(pointQuery(1, -76.298, 36.866, 'ZONE,TYPE,url'));
+  assert.match(u, /FeatureServer\/1\/query/);
+  assert.match(u, /geometry=-76.298,36.866/);
+});
+
+test('zoning_at_address keeps going when the map service fails', async () => {
+  const { result } = await checkPlugin(zoningAtAddress, {
+    city: norfolk,
+    args: { address: '1300 Colley Ave' },
+    respond: (url) => (url.includes('/FeatureServer/6/') ? { error: { message: 'down' } } : respondZoning(url)),
+  });
+  assert.equal(result.district[0].zone, 'C-C');
+  assert.match(result.overlays.error, /down/);
 });
