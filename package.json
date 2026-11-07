@@ -12,6 +12,8 @@
     "bin",
     "src",
     "data",
+    "!data/gaps/*.candidates.json",
+    "!data/gaps/*.trace.json",
     "plugins",
     "deployments",
     "README.md",
@@ -26,7 +28,10 @@
     "deploy": "wrangler deploy",
     "build:norfolk": "node scripts/build-norfolk-legislation.js",
     "compare": "node scripts/compare-models.js",
-    "verify:cases": "node scripts/verify-cases.js"
+    "verify:cases": "node scripts/verify-cases.js",
+    "build:gaps": "node scripts/build-gaps.js",
+    "check:gaps": "node scripts/build-gaps.js --check",
+    "find:gaps": "node scripts/find-gaps.js"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

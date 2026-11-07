@@ -1,0 +1,249 @@
+// Gap text: rules A to C, the public-text checks, the copied helpers, and the
+// bot text (docs/gaps.md §6, §10.3, §15 item 3).
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { stripQuoted, normalize } from '../src/gaps/text-utils.js';
+import { normalize as verifyNormalize } from '../scripts/verify-cases.js';
+import { KINDS, PANEL_TITLE, QUESTIONS_HEADING, T, gapTextViolations, gapCheck, worldClaimViolations, botText, ruleA } from '../src/gaps/kinds.js';
+import { publicTextViolations, publicTextFlags, publicTextMessage } from '../src/public-text.js';
+import { GAPS } from '../src/gaps/norfolk.js';
+import { spawnSync } from 'node:child_process';
+
+const BUILT = JSON.parse(readFileSync(new URL('../data/gaps/norfolk.json', import.meta.url), 'utf8'));
+const NORFOLK_STREETS = JSON.parse(readFileSync(new URL('../data/gaps/norfolk-streets.json', import.meta.url), 'utf8')).streets;
+
+// The original stripQuoted isn't exported (src/voice.js stays unchanged), so
+// the test lifts its source.
+function originalStripQuoted() {
+  const src = readFileSync(new URL('../src/voice.js', import.meta.url), 'utf8');
+  const body = src.match(/function stripQuoted\(text\) \{([\s\S]*?)\n\}/)[1];
+  return new Function('text', body);
+}
+
+const CORPUS = [
+  'There is a "quoted thing" here.',
+  'A 6" pipe and "then a quote" and “curly quotes” too.',
+  '> A block quote\nand a line after',
+  'Code `there is` and ```\nthere are\n```',
+  'Soft­hyphen, non breaking, “smart” ‘quotes’ – dashes — and &amp; &nbsp; &#39;x&#39; &quot;y&quot;',
+  'Mixed   whitespace\n\tand CASE.',
+  '',
+];
+
+test('the copied stripQuoted and normalize behave like their originals', () => {
+  const orig = originalStripQuoted();
+  for (const s of CORPUS) {
+    assert.equal(stripQuoted(s), orig(s), JSON.stringify(s));
+    assert.equal(normalize(s), verifyNormalize(s), JSON.stringify(s));
+  }
+});
+
+const D = '2026-11-06';
+const WO = { id: 'qzfe-wj25', phrase: "the City's Work Orders records" };
+const INV = { id: 'cmvv-agyb', phrase: 'the City Tree Inventory', pronoun: 'it' };
+
+// The spec's §6.1 rows, rendered from the templates with large and small values.
+function rendered(n) {
+  return {
+    share: T.share({ part: 582 * n, whole: 2378 * n, scope: 'Forestry removal work orders', status: ['Complete'], absent: 'with no street', source: WO, span: { from: '2020-08-05', through: '2026-10-30' }, read: D }),
+    window: T.windowLine({ whole: 272 * n, part: 24 * n, status: ['Complete'], since: '2025-11-06', absent: 'no street', also: { part: 22 * n, absent: 'no ward or civic league' }, read: D }),
+    status: T.statusLine({ whole: 353 * n, part: 85 * n, status: ['New Work Order', 'On-Going'], absent: 'no street', read: D }),
+    columns: `${T.columnsAbsent({ concept: 'for a planned or scheduled date', count: 32, source: WO, read: D })} ${T.fieldQuote({ field: 'start_date', quote: 'Date the work on the work order began.' })}`,
+    topic: T.columnsAbsentTopic({ concept: 'for notice to residents', datasets: ['cmvv-agyb', 'qzfe-wj25'], topic: 'tree', read: D }),
+    backlog: T.backlog({ whole: 353 * n, scope: 'Forestry removal work orders', status: ['New Work Order', 'On-Going'], with_end: 50 * n, median_days: 941, read: D }),
+    late: T.createdOnOrAfterEnd({ whole: 360 * n, scope: 'Forestry removal work orders', status: ['Complete'], from: '2025-11-06', through: '2026-11-05', part: 115 * n, before: 22 * n, same: 93 * n, source: WO, read: D }),
+    stale: `${T.stale({ owner: "The City Tree Inventory's", source: INV, read: D, quote: 'No official re-inventory has been conducted since then.' })} I found no column dating each record among its 13 data columns, as I read them on ${D}.`,
+    contract: `${T.partOf({ what: 'a contractor cost above zero', part: 563 * n, whole: 2378 * n, scope: 'of its Forestry removal work orders', status: ['Complete'], read: D })} ${T.findingQuote({ who: "The City's FY2024 adopted budget", quote: 'The contract is used to remove decaying or diseased trees', checked: '2026-11-04' })}`,
+    catalog: T.catalogSearch({ portal: "Norfolk's open data", searches: [{ q: 'line clearance', result_set_size: 0, open: 0, names: [] }, { q: 'Dominion', result_set_size: 4 * n, open: 4 * n, names: ['Street Light Outages'] }], read: D }),
+    values: T.valuesAbsent({ count: 18 * n, what: 'problem descriptions on Forestry work orders', source: WO, terms: ['utility', 'Dominion'], read: D }),
+    restricted: T.restricted({ name: 'MyNorfolk 311 requests', id: 'nbyu-xjez', read: D, reason: 'MyNorfolk 311 requests are not available to open-ended queries.' }),
+    index: T.index({ part: 681 * n, whole: 1437 * n, what: 'agenda items', absent: 'no street address', index: "Siren's agenda index", built: '2026-11-02', from: '2023-07-11', through: '2026-10-22', consequence: "I can't match them to a block" }),
+    part: T.consequencePart({ source: WO, finding: `I found ${582 * n} of ${2378 * n} with no street`, measured: D, tail: "so a street search can't find them" }),
+    all: T.consequenceAll({ concept: 'for a planned or scheduled date', datasets: ['cmvv-agyb', 'qzfe-wj25'], topic: 'tree', measured: D }),
+    restrictedQ: T.consequenceRestricted({ name: 'MyNorfolk 311 requests', read: D }),
+    unmeasured: T.unmeasured({ today: '2026-11-13', last: D }),
+  };
+}
+
+test('every template passes the voice check and rules A and B, with large and small values', () => {
+  for (const n of [1, 1000]) {
+    for (const [k, s] of Object.entries(rendered(n))) assert.deepEqual(gapCheck(s, k === 'part' || k === 'all' || k === 'restrictedQ' ? 'consequence' : 'statement'), [], `${k}: ${s}`);
+  }
+});
+
+test('labels, titles, headers and the panel title are noun phrases', () => {
+  for (const s of [...Object.values(KINDS), PANEL_TITLE, QUESTIONS_HEADING, ...GAPS.map((g) => g.title)]) assert.deepEqual(gapCheck(s, 'title'), [], s);
+});
+
+test('world claims, hedges, predictions and undated numbers fail', () => {
+  const mustFail = [
+    'The tree inventory has not been re-surveyed since about 2000.',
+    'There will be more removals next month.',
+    'Contract removals may not appear in these records, and the City probably does not log them.',
+    "Work done under separate contracts may not appear in the City's Work Orders records (qzfe-wj25).",
+    'The City does not record a planned date.',
+    'I found 582 of 2,378 removals with no street.',
+    'Removals are missing from the records, as I read them on 2026-11-06.',
+    '582 removals have no street (2026-11-06).',
+    // A sentence that starts with a digit, a quote or a lowercase word gets no
+    // frame or date from the sentence before it.
+    'I found 582 of 2,378 removals with no street, as I read them on 2026-11-06. 24 have no ward.',
+    'I found 5 removals, as I read them on 2026-11-06. “Complete” covers 22 with no ward.',
+    'I found 5 removals, as I read them on 2026-11-06. and 22 have no ward.',
+    // Rule A's negation, at a sentence's start or in capitals.
+    'Does not include contract work. I found 5, as I read them on 2026-11-06.',
+    'The City DOES NOT record it.',
+  ];
+  for (const s of mustFail) assert.ok(gapCheck(s, 'statement').length, s);
+  assert.deepEqual(ruleA("I don't query it. Siren doesn't send requests; you do."), []);
+  assert.ok(ruleA('The City didn’t record it.').length, 'curly apostrophes count');
+  assert.deepEqual(ruleA('It says: “Trees may be removed.”'), [], 'quotes are stripped first');
+  // Abbreviations don't end a sentence.
+  assert.deepEqual(gapCheck('Under Va. Code § 2.2-3704, I found 5 requests, as I read them on 2026-11-06.', 'statement'), []);
+});
+
+test('rule C refuses digits and verbs in titles', () => {
+  assert.ok(gapTextViolations('582 removals with no street', 'title').length);
+  assert.ok(gapTextViolations('The street is missing', 'label').length);
+  assert.deepEqual(gapTextViolations('MyNorfolk 311 requests: out of Siren’s reach by rule', 'title'), []);
+  assert.throws(() => gapTextViolations('x', 'nonsense'), /Unknown gap text type/);
+});
+
+test('steward notes may hold digits only as dates, ids or stored measures', () => {
+  assert.deepEqual(gapTextViolations('Measured again on 2026-11-13 for qzfe-wj25: 582 of 2,378.', 'steward_note', { measures: [582, 2378] }), []);
+  assert.ok(gapTextViolations('About 600 of them.', 'steward_note', { measures: [582] }).length);
+});
+
+test('worldClaimViolations catches world claims and predictions, not hedges addressed to the reader', () => {
+  assert.equal(worldClaimViolations('The inventory has not been re-surveyed since about 2000.').length, 1);
+  assert.equal(worldClaimViolations('There will be a hearing.').length, 1);
+  assert.deepEqual(worldClaimViolations('You may want to call the Clerk. I found 3 work orders.'), []);
+});
+
+const STREETS = ['BOLLING', 'COLONIAL', 'COLLEY', 'GRANBY', 'OCEAN VIEW', 'MAIN', 'PARK'];
+
+test('publicTextViolations: the spec examples hold both ways', () => {
+  const blocked = {
+    '1500 Bolling Ave': 'house_number',
+    '1500 BOLLING': 'number_street',
+    'corner of Bolling and Colonial': 'intersection',
+    'the 1500 block of Bolling Ave': 'block_of',
+    'Did 3 Colley Avenue trees get removed?': 'house_number',
+    'apt 4 trees?': 'unit',
+    'mail me at a@b.org': 'email',
+    'call 757-664-4253': 'phone',
+    'ask @someone.bsky.social': 'mention',
+    'see https://example.com': 'link',
+    'parcel 1234567': 'long_number',
+    'at 36.85, -76.29': 'coordinates',
+    'the tree in my yard': 'parcel_grain',
+    'who complained about it?': 'person_pointing',
+    'whose tree was it?': 'person_pointing',
+    'Mrs. Smith asked': 'named_person',
+    'why did the forester do it?': 'role_blame',
+  };
+  for (const [t, code] of Object.entries(blocked)) assert.ok(publicTextViolations(t, { streets: STREETS }).includes(code), `${t} -> ${code}`);
+  const pass = ['683 of 2,770 work orders', 'I found 60 with no street', 'Was a city tree removed on my street?', 'Which streets had city tree removals last year?', 'Did the Council act on anything that affects my block?', 'park and main', 'Between FY2021-FY2024 and 2020-2026?', 'Siren drafted this from public records on 2026-11-06.'];
+  for (const t of pass) assert.deepEqual(publicTextViolations(t, { streets: STREETS }), [], t);
+});
+
+test('publicTextViolations normalizes first, and own_place refuses the asker’s own place', () => {
+  assert.ok(publicTextViolations('1500 Bol­ling Ave', { streets: STREETS }).includes('house_number'));
+  assert.ok(publicTextViolations('ｍｙ ｈｏｕｓｅ', {}).includes('parcel_grain'), 'NFKC');
+  const own = (p) => p === 'ghent' || p === 'ward 2';
+  assert.ok(publicTextViolations('Are trees in Ghent pruned?', { ownPlace: own }).includes('own_place'));
+  assert.deepEqual(publicTextViolations('Are trees pruned citywide?', { ownPlace: own }), []);
+});
+
+test('refusals say what to change and never repeat the text', () => {
+  const msg = publicTextMessage(publicTextViolations('1500 Bolling Ave, call 757-664-4253', { streets: STREETS }));
+  assert.match(msg, /house numbers/);
+  assert.match(msg, /phone/);
+  assert.doesNotMatch(msg, /Bolling|757/);
+});
+
+test('publicTextFlags hint without blocking', () => {
+  const f = publicTextFlags('Does the Ghent Civic League manager know? It will happen.');
+  assert.deepEqual(f.map((x) => x.code).sort(), ['capitalized_words', 'person', 'presupposes']);
+});
+
+const GAP = { kind: 'missing_field', state: 'open', measured: '2026-11-06', short: 'I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06.' };
+
+test('botText: the spec example, within 300 graphemes with the link', () => {
+  const r = botText(GAP, { raised: 14, as_of: '2026-11-20' }, { today: '2026-11-20', link: 'https://example.org/requests#g1' });
+  assert.ok(r.ok, r.reason);
+  assert.equal(
+    r.text,
+    'Gap in the records Siren reads: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06. Questions linked to it were raised 14 times through Siren as of 2026-11-20; one person can raise more than once. https://example.org/requests#g1'
+  );
+  assert.ok(botText({ ...GAP, kind: 'restricted', short: "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-06." }, null, { today: '2026-11-07' }).text.startsWith("Out of Siren's reach by rule:"));
+});
+
+test('botText refuses stale, non-open, over-long and failing text', () => {
+  assert.equal(botText(GAP, null, { today: '2026-11-21' }).ok, false, 'older than 14 days');
+  assert.equal(botText({ ...GAP, state: 'closing' }, null, { today: '2026-11-07' }).ok, false);
+  assert.equal(botText({ ...GAP, state: 'unmeasured_today' }, null, { today: '2026-11-07' }).ok, false);
+  assert.equal(botText(GAP, null, { today: '2026-11-07', link: `https://x.org/${'a'.repeat(200)}` }).ok, false, 'too long with the link');
+  assert.equal(botText({ ...GAP, short: 'Removals may not appear in the records.' }, null, { today: '2026-11-07' }).ok, false);
+  assert.equal(botText(GAP, { raised: 3 }, { today: '2026-11-07' }).ok, false, 'an undated count');
+});
+
+test('botText: every built gap posts with a realistic link, dropping the demand line when it runs over', () => {
+  const link = 'https://jason-edelman.org/ask-siren/requests#g1';
+  for (const g of BUILT.gaps) {
+    const today = g.measured;
+    const plain = botText(g, null, { today, link, streets: NORFOLK_STREETS });
+    assert.ok(plain.ok, `${g.id}: ${plain.reason}`);
+    const withDemand = botText(g, { raised: 3, as_of: today }, { today, link, streets: NORFOLK_STREETS });
+    assert.ok(withDemand.ok, `${g.id}: ${withDemand.reason}`);
+    if (withDemand.demand_dropped) assert.equal(withDemand.text, plain.text);
+    else assert.match(withDemand.text, /raised 3 times through Siren/);
+  }
+});
+
+test('the street checks: a cold first call with the real street list stays far inside a Worker’s CPU limit', () => {
+  // A fresh process each time, so nothing is compiled or cached yet. The
+  // fastest of three runs, to keep a busy test machine from failing it.
+  const script = `
+    import { readFileSync } from 'node:fs';
+    import { publicTextViolations } from ${JSON.stringify(new URL('../src/public-text.js', import.meta.url).href)};
+    const streets = JSON.parse(readFileSync(${JSON.stringify(new URL('../data/gaps/norfolk-streets.json', import.meta.url).pathname)}, 'utf8')).streets;
+    const note = 'Which species were planted along the river since 2020, and how many removals were for dead trees citywide?';
+    const t = performance.now();
+    publicTextViolations(note, { streets });
+    process.stdout.write(String(performance.now() - t));`;
+  const runs = [0, 1, 2].map(() => Number(spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8' }).stdout));
+  assert.ok(runs.every(Number.isFinite), String(runs));
+  assert.ok(Math.min(...runs) < 10, `cold first call: ${runs.map((x) => x.toFixed(1)).join(', ')} ms`);
+});
+
+test('the street checks with the real list: species and ordinary words pass, addresses and corners are refused', () => {
+  const streets = NORFOLK_STREETS;
+  const pass = [
+    'Which species were planted: cherry and dogwood trees?',
+    'Records of birch and poplar removals',
+    'Records of Birch and Poplar removals',
+    'Planting records for the 200 cherry trees along the river',
+    'Removals after 2 light poles came down',
+    'Are street trees protected citywide?',
+    'Under Va. Code § 2.2-3704, what records exist?',
+    'Norfolk City Code Sec. 42-15 on street trees?',
+    'Zoning Ordinance section 4-2.3?',
+    'Ordinance No. 48-512 adopted?',
+  ];
+  for (const t of pass) assert.deepEqual(publicTextViolations(t, { streets }), [], t);
+  const blocked = {
+    '1500 BOLLING': 'number_street',
+    'Was the tree at 1500 Bolling removed?': 'number_street',
+    '1500 W 21st St': 'number_street',
+    'Granby St and Brambleton Ave': 'intersection',
+    'Granby St. and Brambleton': 'intersection',
+    'the corner of Colley Ave & 21st St': 'intersection',
+    'call 757-664-4253': 'long_number',
+    'Sec. 757-664-4253': 'long_number',
+    'parcel 42-15': 'long_number',
+  };
+  for (const [t, code] of Object.entries(blocked)) assert.ok(publicTextViolations(t, { streets }).includes(code), `${t} -> ${code}`);
+});
+

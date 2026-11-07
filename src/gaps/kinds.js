@@ -67,7 +67,7 @@ export const T = Object.freeze({
   backlog: ({ whole, scope, status, with_end, median_days, read }) =>
     `I found ${fmt(whole)} ${scope} with status ${quoteStatuses(status)} (${fmt(with_end)} of them with an end date), a median of ${fmt(median_days)} days since created, as I read them on ${read}.`,
   createdOnOrAfterEnd: ({ whole, scope, status, from, through, part, before, same, source, read }) =>
-    `Of ${fmt(whole)} ${scope} with status ${quoteStatuses(status)} and an end date from ${from} through ${through}, I found ${fmt(part)} (${pct(part, whole)}%) whose end date falls on or before the day the order was created (${fmt(before)} before it, ${fmt(same)} the same day), in ${sourceName(source)}, as I read them on ${read}.`,
+    `Of ${fmt(whole)} ${scope} with status ${quoteStatuses(status)} and an end date from ${from} through ${through}, I found ${fmt(part)} (${pct(part, whole)}%) with an end date on or before the day they were created (${fmt(before)} before it, ${fmt(same)} the same day), in ${sourceName(source)}, as I read them on ${read}.`,
   /** stale: the source dates its own observations, quoted whole. */
   stale: ({ owner, source, read, quote }) => `${owner} own description (${source.id}), as I read it on ${read}, says: “${quote}”`,
   /** A finding quoted, never its claim. */
@@ -76,7 +76,7 @@ export const T = Object.freeze({
   partOf: ({ what, part, whole, scope, status, read }) =>
     `I found ${what} on ${fmt(part)} of ${fmt(whole)} ${scope}${status ? ` with status ${quoteStatuses(status)}` : ''} (${pct(part, whole)}%), as I read them on ${read}.`,
   catalogSearch: ({ portal, searches, read }) =>
-    `I found ${searches.map((s, i) => `${i === 0 ? '' : i === searches.length - 1 ? ', and ' : ', '}${fmt(s.result_set_size)} ${i === 0 ? `datasets in ${portal}'s catalog for the search` : 'for'} “${s.q}”${s.open && s.result_set_size ? `, ${s.open === s.result_set_size ? 'all ' : `${fmt(s.open)} `}open to Siren: ${s.names.join(', ')}` : ''}`).join('')} (searched ${read}).`,
+    `I found ${searches.map((s, i) => `${i === 0 ? '' : i === searches.length - 1 ? ', and ' : ', '}${fmt(s.result_set_size)} ${i === 0 ? `datasets in ${portal} catalog for the search` : 'for'} “${s.q}”${s.open && s.result_set_size ? `, ${s.open === s.result_set_size ? 'all ' : `${fmt(s.open)} `}open to Siren: ${s.names.join(', ')}` : ''}`).join('')} (searched ${read}).`,
   valuesAbsent: ({ count, what, source, terms, read }) =>
     `I found ${fmt(count)} ${what} in ${sourceName(source)}, none matching ${list(terms.map((t) => `“${t}”`), 'or')}, as I read them on ${read}.`,
   restricted: ({ name, id, read, reason }) =>
@@ -105,7 +105,8 @@ const RULE_A_WORDS = new RegExp(
   'gi'
 );
 // "does not", "didn't" and the rest, unless the subject is "I" or "Siren".
-const RULE_A_NEGATION = new RegExp(`(?<!\\b(?:I|Siren) )\\b(?:does|do|did)(?:n${APOS}t| not)\\b`, 'g');
+// Case-insensitive, so "Does not ..." at a sentence's start and "DOES NOT" count.
+const RULE_A_NEGATION = new RegExp(`(?<!\\b(?:I|Siren) )\\b(?:does|do|did)(?:n${APOS}t| not)\\b`, 'gi');
 
 const hits = (re, text) => [...text.matchAll(re)].map((m) => m[0]);
 
@@ -143,7 +144,10 @@ export function sentences(text) {
     return `\u0000${spans.length - 1}\u0000`;
   });
   return prot
-    .split(/(?<=[.?!;])\s+(?=[A-Z])/)
+    // Any sentence start counts (a digit, a quote, a lowercase word), so a
+    // sentence can't borrow the frame or date of the one before it. Common
+    // abbreviations ("Va.", "No.", "St.", "Sec.") don't end a sentence.
+    .split(/(?<=[.?!;])(?<!\b(?:Va|No|Nos|St|Sec|Secs|Mr|Mrs|Ms|Mx|Dr|Ave|Rd|Blvd|Inc|Jr|Sr|Co|Corp|vs|Ch|Art|U\.S|e\.g|i\.e)\.)\s+(?=\S)/)
     .map((s) => s.replace(/\u0000(\d+)\u0000/g, (_, i) => spans[Number(i)]))
     .filter((s) => s.trim());
 }
@@ -255,7 +259,9 @@ const daysBetween = (a, b) => Math.floor((Date.parse(`${b}T00:00:00Z`) - Date.pa
  * `today` (YYYY-MM-DD). Every check runs before the link is appended, and the
  * whole post, link included, stays within 300 graphemes.
  * demand: { raised, as_of } (raises of questions code linked to the gap).
- * Returns { ok: true, text } or { ok: false, reason }.
+ * When the post with the demand line would run over, the demand line is
+ * dropped (and `demand_dropped` set). Returns { ok: true, text } or
+ * { ok: false, reason }.
  */
 export function botText(gap, demand = null, { today, link = '', streets } = {}) {
   if (!gap || typeof gap !== 'object') return { ok: false, reason: 'no gap' };
@@ -266,15 +272,21 @@ export function botText(gap, demand = null, { today, link = '', streets } = {}) 
   const age = daysBetween(measured, today);
   if (!(age >= 0 && age <= BOT_MAX_AGE_DAYS)) return { ok: false, reason: `the measure is ${age} days old; the bot posts only measures at most ${BOT_MAX_AGE_DAYS} days old` };
   if (!gap.short) return { ok: false, reason: 'the gap has no short statement' };
-  let text = `${BOT_PREFIX[gap.kind] || DEFAULT_PREFIX} ${gap.short}`;
+  const base = `${BOT_PREFIX[gap.kind] || DEFAULT_PREFIX} ${gap.short}`;
+  let demandLine = '';
   if (demand && Number(demand.raised) > 0) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(demand.as_of || ''))) return { ok: false, reason: 'the demand count has no date' };
     const n = Number(demand.raised);
-    text += ` Questions linked to it were raised ${fmt(n)} time${n === 1 ? '' : 's'} through Siren as of ${demand.as_of}; one person can raise more than once.`;
+    demandLine = ` Questions linked to it were raised ${fmt(n)} time${n === 1 ? '' : 's'} through Siren as of ${demand.as_of}; one person can raise more than once.`;
   }
-  const bad = [...gapCheck(text, 'bot'), ...publicTextViolations(text, { streets })];
-  if (bad.length) return { ok: false, reason: `the text fails a check: ${bad[0]}` };
-  const out = link ? `${text} ${link}` : text;
-  if (graphemes(out) > BOT_MAX_GRAPHEMES) return { ok: false, reason: `the post is ${graphemes(out)} graphemes; the limit is ${BOT_MAX_GRAPHEMES}` };
-  return { ok: true, text: out };
+  // With the demand line first; when the post would run over, without it.
+  let last = null;
+  for (const text of demandLine ? [base + demandLine, base] : [base]) {
+    const bad = [...gapCheck(text, 'bot'), ...publicTextViolations(text, { streets })];
+    if (bad.length) return { ok: false, reason: `the text fails a check: ${bad[0]}` };
+    const out = link ? `${text} ${link}` : text;
+    if (graphemes(out) <= BOT_MAX_GRAPHEMES) return { ok: true, text: out, ...(demandLine && text === base ? { demand_dropped: true } : {}) };
+    last = out;
+  }
+  return { ok: false, reason: `the post is ${graphemes(last)} graphemes; the limit is ${BOT_MAX_GRAPHEMES}` };
 }

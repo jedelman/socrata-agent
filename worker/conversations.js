@@ -34,7 +34,8 @@ export async function saveTurn(kv, uid, id, conv, { city, question, answer, tool
     at: new Date(now).toISOString(),
     question: String(question).slice(0, QUESTION_CHARS),
     answer: String(answer).slice(0, ANSWER_CHARS),
-    tools: tools.map((t) => ({ name: t.name, args: t.args, result: clipResult(String(t.content)) })),
+    // note_unanswered keeps only what was noted, never the drafted question.
+    tools: tools.map((t) => ({ name: t.name, args: t.name === 'note_unanswered' ? { answered: t.args?.answered, gaps: t.args?.gaps } : t.args, result: clipResult(String(t.content)) })),
   }].slice(-MAX_TURNS);
   const next = { city, created: conv?.created || new Date(now).toISOString(), turns };
   await kv.put(key(uid, id), JSON.stringify(next), { expirationTtl: ttl(days) });

@@ -43,6 +43,14 @@ jobs:
           set +e
           node scripts/verify-cases.js --write --archive | tee verify.log
           echo "VERIFY_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+      - name: Recompute the gap file's parts that come from case files
+        # Read-only replay of the stored portal responses (no network), so
+        # the gap file's finding evidence changes in the same PR as the
+        # case files it quotes.
+        if: github.event_name != 'push'
+        run: |
+          if git diff --quiet -- data/cases; then echo "No changes to case files."; exit 0; fi
+          node scripts/build-gaps.js --offline
       - name: Open a pull request with the new evidence
         if: github.event_name != 'push'
         env:
@@ -53,7 +61,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git add data/cases
+          git add data/cases data/gaps docs/gaps-norfolk.md
           git commit -m "Case files: archive snapshots and evidence, $(date -u +%Y-%m-%d)"
           git push -u origin "$branch"
           {

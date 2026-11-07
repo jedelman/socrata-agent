@@ -11,6 +11,9 @@ import { systemPrompt } from './prompt.js';
 import { voiceViolations, REWRITE_INSTRUCTION } from './voice.js';
 import { tracedHttp } from './plugins.js';
 import { openrouterProvider } from './providers/openrouter.js';
+import { worldClaimViolations, GAP_REWRITE_ADDENDUM } from './gaps/kinds.js';
+import { matchGaps, gapItem, citeCatalog, classifyRefusal, refilterUnanswered, absenceFor, gapsMarkdown } from './gaps/answer.js';
+import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
@@ -46,7 +49,11 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
  * so an answer built on them still shows where its data came from.
  * `apiKey` is the key for the model's provider (see keyNameFor). `effort`
  * (low|medium|high|xhigh|max) applies to Claude models only.
- * Returns { answer, trace, resources, voice, cost, model, steps }.
+ * `gaps` (off by default) is { data, streets?, absenceLines? }: a built gap
+ * file (data/gaps/<city>.json) and options (docs/gaps.md §8). With gaps off,
+ * every output is byte-identical to a build without gaps.
+ * Returns { answer, trace, resources, voice, cost, model, steps }, plus
+ * { gaps, unanswered, fallback } when gaps are on.
  */
 export async function ask({
   question,
@@ -65,11 +72,24 @@ export async function ask({
   plugins = [],
   onEvent = () => {},
   onCost = () => {},
+  gaps = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // A bad setting must never make the tool loop unbounded.
   maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
   const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
+  const gapsOn = Boolean(gaps?.data);
+  const today = new Date().toISOString().slice(0, 10);
+  if (gapsOn) {
+    ctx.gaps = { data: gaps.data, streets: gaps.streets, absenceLines: gaps.absenceLines === true };
+    ctx.attempted = [];
+    ctx.unanswered = [];
+    // Each tool's value as it returned, for the gap predicates: content is
+    // cut at RESULT_CHARS, and a cut JSON value doesn't parse.
+    ctx.toolValues = [];
+  }
+  // Absence lines date their reading as the gap statements do (America/New_York).
+  const gapDay = gapsOn ? buildDate() : null;
   if (carried.length) {
     await ctx.trace.record(
       {
@@ -85,15 +105,16 @@ export async function ask({
     ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl, referer });
   llm.init({
-    systemPrompt: systemPrompt(city, new Date().toISOString().slice(0, 10)),
+    systemPrompt: gapsOn ? systemPrompt(city, today, { gaps: true }) : systemPrompt(city, today),
     history,
     question,
-    toolDefs: toolsFor(city, plugins),
+    toolDefs: gapsOn ? toolsFor(city, plugins, { gaps: gaps.data }) : toolsFor(city, plugins),
   });
   let cost = 0;
   let answer = '';
   let steps = 0;
   let refusal = null;
+  let fallback = false;
   const spend = (usd) => {
     cost += usd;
     onCost(usd);
@@ -105,12 +126,14 @@ export async function ask({
     spend(out.cost);
     if (out.refusal) {
       refusal = out.refusal;
+      fallback = true;
       answer = "I can't answer that one: the model declined it. The queries I ran before it stopped are in the trace below.";
       break;
     }
     if (!out.calls.length || lastStep) {
       answer = out.text;
       if (!answer) {
+        fallback = true;
         answer = out.truncated
           ? 'I ran out of room before I could finish. The queries I ran are in the trace below.'
           : lastStep
@@ -122,16 +145,28 @@ export async function ask({
     steps++;
     llm.appendAssistant();
     const results = [];
-    for (const call of out.calls) {
+    for (const [i, call] of out.calls.entries()) {
       let content;
       let isError = false;
+      let value;
+      if (gapsOn) {
+        ctx.batchCalls = out.calls.slice(i + 1).map((c) => ({ name: c.name, args: c.args }));
+        ctx.toolResults = toolResults;
+      }
       try {
         if (call.error) throw new Error(call.error);
         onEvent({ type: 'tool', name: call.name, args: call.args });
-        content = JSON.stringify(await runTool(ctx, call.name, call.args));
+        value = await runTool(ctx, call.name, call.args);
+        content = JSON.stringify(value);
       } catch (err) {
         isError = true;
         content = JSON.stringify({ error: String(err?.message || err) });
+        if (gapsOn) ctx.attempted.push({ name: call.name, ok: false, ...(classifyRefusal(ctx.socrata, err?.message || err) || {}) });
+      }
+      if (gapsOn && !isError) {
+        ctx.attempted.push({ name: call.name, ok: true });
+        ctx.toolValues.push({ name: call.name, value });
+        absenceFor(ctx, call.name, value, gapDay);
       }
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
@@ -140,20 +175,33 @@ export async function ask({
     llm.appendToolResults(results, steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null);
   }
 
-  // Voice check: one rewrite, then report honestly if it still fails.
-  let violations = refusal ? [] : voiceViolations(answer);
+  // Voice check: one rewrite, then report honestly if it still fails. With
+  // gaps on, world claims and predictions are caught in the same rewrite.
+  const check = gapsOn ? (a) => [...voiceViolations(a), ...worldClaimViolations(a)] : voiceViolations;
+  let violations = refusal ? [] : check(answer);
   let rewritten = false;
   if (violations.length) {
     onEvent({ type: 'rewrite', violations });
     llm.appendAssistant();
-    llm.appendUser(REWRITE_INSTRUCTION);
+    llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
     const out = await llm.complete({ allowTools: false });
     spend(out.cost);
     if (out.text && !out.refusal) {
       answer = out.text;
       rewritten = true;
-      violations = voiceViolations(answer);
+      violations = check(answer);
     }
+  }
+
+  // Gaps: attached by code from what this turn ran, never by the model.
+  let gapOut = null;
+  let unanswered = [];
+  if (gapsOn) {
+    unanswered = refilterUnanswered(ctx, toolResults);
+    ctx.unanswered = unanswered;
+    const m = fallback || refusal ? { shown: [], more: 0 } : matchGaps(ctx, toolResults);
+    if (m.shown.length) await citeCatalog(ctx, m.shown.length + m.more);
+    gapOut = { shown: m.shown.map((x) => gapItem(x, ctx)), more: m.more, measured: gaps.data.built, noted: unanswered.length > 0 };
   }
 
   return {
@@ -167,9 +215,11 @@ export async function ask({
     toolResults,
     suggestions: ctx.suggestions,
     ...(refusal ? { refusal } : {}),
+    ...(gapsOn ? { gaps: gapOut, unanswered, fallback } : {}),
     markdown: {
       trace: ctx.trace.toMarkdown(),
       resources: ctx.resources.toMarkdown(),
+      ...(gapsOn ? { gaps: gapsMarkdown(gapOut) } : {}),
     },
   };
 }

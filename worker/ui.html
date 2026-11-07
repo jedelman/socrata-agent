@@ -308,6 +308,17 @@ $('#log').addEventListener('submit', async (e) => {
     f.querySelector('button').disabled = true;
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
+// What the records couldn't answer (docs/gaps.md §8.5). Only with gaps on;
+// code-written text, escaped, never through md().
+function renderGaps(g) {
+  if (!g?.shown?.length) return '';
+  const today = new Date().toISOString().slice(0, 10);
+  const stale = (d) => (Date.parse(today) - Date.parse(d)) / 864e5 > 14;
+  // Open when a gap bit or was named, or the question was noted as unanswered (§8.5).
+  const open = g.noted || g.shown.some((x) => x.bit || x.named);
+  const n = g.shown.length + (g.more || 0);
+  return `<details class="gaps"${open ? ' open' : ''}><summary>What I couldn't answer from the records I read <small>(${n})</small></summary><ul class="plain">${g.shown.map((x) => `<li><span class="role">${esc(x.label)}</span> <strong>${esc(x.title)}</strong><br>${esc(x.statement)}<br><small>measured ${esc(x.measured)}${stale(x.measured) ? ' · due for a re-check' : ''}${x.notice ? ` · ${esc(x.notice)}` : ''}</small>${x.absence ? `<br><small>${esc(x.absence)}</small>` : ''}</li>`).join('')}${g.more ? `<li><small>${esc(g.more)} more in the gap catalog</small></li>` : ''}</ul></details>`;
+}
 function renderTrace(t) {
   if (!t?.length) return '';
   return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
@@ -469,7 +480,7 @@ $('#f').addEventListener('submit', async (e) => {
       conversationId = data.conversation;
       $('#conv-forget').hidden = false;
     }
-    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderSuggestions(data.suggestions)}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
+    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderGaps(data.gaps)}${renderSuggestions(data.suggestions)}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
   } catch (err) {
     a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
   } finally {

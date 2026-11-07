@@ -113,6 +113,18 @@ generic mode.
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).
+- `src/gaps/` is the gap catalog (docs/gaps.md): what the records Siren reads
+  can't show. `norfolk.js` holds the entries, `measures.js` the fixed measure
+  menu (GENERIC access, the positional identifier rule: location columns only
+  as `IS [NOT] NULL`), `kinds.js` the templates and text rules, `answer.js`
+  gaps in answers. `scripts/build-gaps.js` writes `data/gaps/norfolk.json`
+  (bundled), its trace and `norfolk-streets.json` (Address Information street
+  names, used only to refuse addresses in public text); `--offline` recomputes
+  the parts from repo files, `--check` replays and must match (run by
+  `npm test`; the legislation and archive workflows run `--offline`).
+  `scripts/find-gaps.js` writes gitignored candidates, never committed or
+  shipped. Gaps stay off unless a deployment sets `gaps.enabled`, which waits
+  on the trees branch's config fix (J25).
 
 ## Checks before pushing
 

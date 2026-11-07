@@ -313,6 +313,33 @@ export class Socrata {
       });
   }
 
+  /**
+   * The catalog search as the gap builder needs it: the raw resultSetSize,
+   * and each result marked by whether Siren may open it. Excluded datasets
+   * are counted but never named. searchCatalog itself is unchanged.
+   */
+  async catalogSearchRaw(q, limit = 20) {
+    const params = new URLSearchParams({ domains: this.domain, only: 'dataset', limit: String(limit) });
+    if (q) params.set('q', q);
+    const url = `https://api.us.socrata.com/api/catalog/v1?${params}`;
+    const data = await this.getJSON(url, { tool: 'search datasets (raw counts)', soql: q ? `q=${q}` : 'all' });
+    const results = (data.results || []).map((r) => r.resource);
+    const excluded = results.filter((r) => this.isExcluded(r.id, r.name));
+    // Sorted by id, so the same catalog gives the same order every time.
+    // `returned` says how many results this page held; a caller that needs
+    // the whole set checks it against result_set_size.
+    return {
+      q: q || '',
+      result_set_size: Number(data.resultSetSize ?? results.length),
+      returned: results.length,
+      excluded: excluded.length,
+      results: results
+        .filter((r) => !this.isExcluded(r.id, r.name))
+        .map((r) => ({ id: r.id, name: r.name, open_to_siren: !this.restricted(r.id) }))
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    };
+  }
+
   async describe(id, { access = ACCESS.GENERIC } = {}) {
     checkId(id);
     if (access === ACCESS.GENERIC && this.restricted(id)) throw new Error(this.restricted(id).reason);

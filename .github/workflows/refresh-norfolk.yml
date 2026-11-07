@@ -13,14 +13,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: node scripts/build-norfolk-legislation.js
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
+      - name: Recompute the gap file's parts that come from repo files
+        # Read-only: replays the stored portal responses, no network. Keeps
+        # data/gaps in step with the new index, so the replay test in npm test
+        # (and the deploy it gates) stays green. Only when the index changed.
+        run: |
+          if git diff --quiet -- data/norfolk-legislation.json; then echo "Index unchanged"; exit 0; fi
+          npm ci
+          node scripts/build-gaps.js --offline
       - name: Commit if changed
         run: |
-          if git diff --quiet -- data/; then echo "No changes"; exit 0; fi
+          if git diff --quiet -- data/ docs/; then echo "No changes"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/norfolk-legislation.json
+          git add data/norfolk-legislation.json data/gaps docs/gaps-norfolk.md
           git commit -m "Refresh Norfolk legislation index"
           git push

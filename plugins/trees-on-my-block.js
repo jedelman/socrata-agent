@@ -173,7 +173,6 @@ export default definePlugin({
       on_your_street: onStreet,
       civic_league: league,
       citywide: city,
-      the_record: theRecord(ctx, treesCase),
       work_orders_cover: first ? { from: first, to: last, years: Math.round(years * 10) / 10 } : null,
       about_the_data: [
         "The inventory's own description says it was first taken in the late 1990s/early 2000s by the Norfolk Master Gardeners and that no official re-inventory has been done since by City officials or ISA Certified Arborists, though City staff update records over time. It records no tree condition, and most trees have no trunk size recorded.",
@@ -183,6 +182,10 @@ export default definePlugin({
         'Stump grinding usually follows a removal, so it is counted separately, not added to removals.',
         'Inventory rows labeled "PRIVATE TREES" are left out of every count. About 42% of the inventoried trees are crape myrtles, small ornamentals with different pruning needs from large shade trees.',
       ],
+      // Last: the case file is the longest part, so when the agent cuts a
+      // result at 16,000 characters the cut falls in it, not in the caveats
+      // above.
+      the_record: theRecord(ctx, treesCase),
     };
   },
 });
