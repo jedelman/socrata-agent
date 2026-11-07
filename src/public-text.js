@@ -51,8 +51,6 @@ const COMMON = new Set([
 const COUNTED = new Set(
   'trees tree work orders order removals removal records record items item agenda datasets dataset columns column data days day times time years year people questions question requests request poles pole stumps stump permits permit complaints complaint calls dollars percent species cases hours weeks months feet foot ft inches miles acres homes houses residents plantings planting prunings pruning rows findings meetings votes members crews branches limbs lights blocks properties parcels lots units'.split(' ')
 );
-// Words before a year: "the 2025 Norfolk budget", "since 2020".
-const BEFORE_YEAR = new Set('the a an in of for since by from to until through during after before between fy calendar fiscal year this last next early late mid'.split(' '));
 const CONNECTORS = new Set(['and', '&', 'at']);
 
 const norm = (s) => String(s).trim().toLowerCase().replace(/\s+/g, ' ');
@@ -163,13 +161,14 @@ function nounStreet(toks, j) {
 /**
  * Where the street after a house number starts, when token i is one: 1 to 6
  * digits, maybe with a unit letter ("1500B", "1500-B"). Not a number written
- * with thousands separators or after another number, and not a year: a
- * 19xx or 20xx number after "the", "in", "since" and the like.
+ * with thousands separators or after another number. A number that could be
+ * a year (1900 to 2099) is still a house number here, whatever word comes
+ * before it: "from 1950 Granby St" is an address. Whether it's a year is
+ * decided only from what follows (numberStreet, houseNumber).
  */
 function houseNumberAt(t, toks, i) {
   const tok = toks[i];
   if (tok.grouped || tok.part || !/^\d{1,6}[a-z]?$/.test(tok.w)) return -1;
-  if (/^(?:19|20)\d{2}$/.test(tok.w) && i > 0 && BEFORE_YEAR.has(toks[i - 1].w)) return -1;
   let k = i + 1;
   if (/^\d+$/.test(tok.w) && toks[k] && /^[a-z]$/.test(toks[k].w) && t.slice(tok.end, toks[k].start) === '-') k++;
   return toks[k] && joined(t, toks[k - 1], toks[k]) ? k : -1;
@@ -187,12 +186,20 @@ function numberStreet(t, toks, names) {
     if (k < 0) continue;
     const m = streetFrom(t, toks, k, names);
     if (!m) continue;
+    // A suffix or a name of more than one word after any number, a year
+    // included, is an address: "from 1950 Granby St", "the 2024 Ocean View".
     if (m.strong) return true;
     // A bare one-word name after a number.
-    if (YEAR.test(toks[i].w)) continue; // "2025 Norfolk budget": a year
     const next = toks[m.end];
     const last = toks[m.end - 1];
     if (SPECIES.has(m.name)) continue;
+    // After a year-like number, a bare name reads as an address only where
+    // one would sit: after "at", or ending the phrase ("from 1950 Colley?").
+    // "The 2025 Norfolk budget" and "In 2020 Norfolk planted" pass.
+    if (YEAR.test(toks[i].w)) {
+      if ((i > 0 && toks[i - 1].w === 'at') || endsPhrase(t, last, next)) return true;
+      continue;
+    }
     if (COMMON.has(m.name)) {
       if (endsPhrase(t, last, next)) return true;
       continue;

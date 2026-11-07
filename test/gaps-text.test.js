@@ -145,6 +145,12 @@ test('publicTextViolations: the spec examples hold both ways', () => {
   for (const [t, code] of Object.entries(blocked)) assert.ok(publicTextViolations(t, { streets: STREETS }).includes(code), `${t} -> ${code}`);
   const pass = ['683 of 2,770 work orders', 'I found 60 with no street', 'Was a city tree removed on my street?', 'Which streets had city tree removals last year?', 'Did the Council act on anything that affects my block?', 'park and main', 'Between FY2021-FY2024 and 2020-2026?', 'Siren drafted this from public records on 2026-11-06.'];
   for (const t of pass) assert.deepEqual(publicTextViolations(t, { streets: STREETS }), [], t);
+  // A year-like house number after of/from/by/the/to is still an address, with or without the street list.
+  for (const t of ['from 1950 Granby St', 'by 2001 Colley Ave', 'the 2010 Bolling Ave tree', 'to 1999 W Ocean View Ave']) {
+    assert.ok(publicTextViolations(t).includes('house_number'), t);
+    assert.ok(publicTextViolations(t, { streets: STREETS }).includes('house_number'), t);
+  }
+  for (const t of ['since 1950', 'in 2024 the City', 'from 2019 to 2024 the City removed 300 trees']) assert.deepEqual(publicTextViolations(t, { streets: STREETS }), [], t);
 });
 
 test('publicTextViolations normalizes first, and own_place refuses the asker’s own place', () => {
@@ -232,14 +238,14 @@ test('the street checks with the real list: species and ordinary words pass, add
     'Norfolk City Code Sec. 42-15 on street trees?',
     'Zoning Ordinance section 4-2.3?',
     'Ordinance No. 48-512 adopted?',
-    // Years before a place that is also a street name.
+    // Years before a bare one-word name that is also a street name, mid-phrase.
     'The 2025 Norfolk budget for Forestry',
-    'The 2023 Ocean View beach replenishment report',
     'Results of the 2022 Lafayette River cleanup',
-    'The 2021 Chesapeake Bay TMDL plan for Norfolk',
-    'The 2024 Elizabeth River Project shoreline report',
-    'Minutes of the 2024 Granby Street streetscape hearing',
     'In 2020 Norfolk planted 300 trees',
+    // Years followed by no street at all.
+    'since 1950',
+    'in 2024 the City',
+    'Removals from 2019 to 2024',
     // Counts, amounts, decimals and times.
     'Were 500 street trees removed last year?',
     'How many of the 2,770 street tree removals had a street?',
@@ -272,6 +278,18 @@ test('the street checks with the real list: species and ordinary words pass, add
     '1500B Bolling Ave': 'house_number',
     '1500-B Bolling Ave': 'house_number',
     '2024 Granby Street': 'house_number',
+    // A year-like number is an address when a street follows, whatever comes
+    // before it: the word before is never enough to call it a year.
+    'from 1950 Granby St': 'house_number',
+    'by 2001 Colley Ave': 'house_number',
+    'of 1999 Bolling Ave': 'house_number',
+    'Minutes of the 2024 Granby Street streetscape hearing': 'number_street',
+    'The 2023 Ocean View beach replenishment report': 'number_street',
+    // Chesapeake Bay and Elizabeth River are also Norfolk street names.
+    'The 2021 Chesapeake Bay TMDL plan for Norfolk': 'number_street',
+    'The 2024 Elizabeth River Project shoreline report': 'number_street',
+    'Was the tree from 1950 Colley?': 'number_street',
+    'the tree at 2001 Colley in ghent': 'number_street',
     'granby and brambleton': 'intersection',
     'ocean view and granby': 'intersection',
     'corner of colley & 21st': 'intersection',
