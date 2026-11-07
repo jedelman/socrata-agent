@@ -7,9 +7,12 @@ Siren) and, after the nightly sync, as GitHub issues labeled
 [`source-request`](https://github.com/jedelman/socrata-agent/issues?q=label%3Asource-request).
 The notes people write about what they wanted to know are reviewed too, one
 by one: a note appears on the list and in the issue only after the steward
-approves it. If the steward takes a request off the list, the next sync
-closes its issue and replaces the issue's text with a line saying it was
-removed; comments on the issue are left as they are. That doesn't erase the
+approves it. If the steward takes a request off the list, its issue is
+closed only once the nightly sync runs with `--with-withdrawn` (see
+[request-sync-routine.md](request-sync-routine.md)): that sync closes the
+issue and replaces its text with a line saying it was removed, leaving
+comments as they are. Until the sync runs that way, the steward closes the
+issue by hand. Either way, that doesn't erase the
 request's words from GitHub: the old title stays in the issue's timeline and
 earlier text in its edit history, a note the steward later deleted included.
 For text that names a person or a home, the steward deletes the issue by hand.

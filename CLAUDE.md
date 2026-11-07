@@ -77,10 +77,10 @@ generic mode.
   `request-deleted:<hash>` (deleted note ids), so a stale raise can't undo a
   decision or bring a deleted note back. Stored and public dates are days,
   never finer. `POST /api/requests` returns a count only for a request that
-  is already public. `GET /api/requests` never writes to KV (Free plan: 1,000
-  writes a day, shared with every question): `awaiting_review` counts only
-  requests first received before `awaiting_review_before` (today, UTC), so a
-  raise can't move it, and the feed is cached per location for five minutes.
+  is already public. `GET /api/requests` says nothing about requests or
+  notes awaiting review, not even how many, never writes to KV (Free plan:
+  1,000 writes a day, shared with every question), and is cached per
+  location for five minutes.
   A request accepted once carries `was_public`; if it leaves the list,
   `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
@@ -121,7 +121,8 @@ generic mode.
   (bundled), its trace and `norfolk-streets.json` (Address Information street
   names, used only to refuse addresses in public text); `--offline` recomputes
   the parts from repo files, `--check` replays and must match (run by
-  `npm test`; the legislation and archive workflows run `--offline`).
+  `npm test`; until Jason decides on automation, `--offline` is run by hand
+  after the legislation index or case files change, see CONTRIBUTING.md).
   `scripts/find-gaps.js` writes gitignored candidates, never committed or
   shipped. Gaps stay off unless a deployment sets `gaps.enabled`, which waits
   on the trees branch's config fix (J25).

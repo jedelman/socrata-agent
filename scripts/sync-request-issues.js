@@ -28,8 +28,11 @@
 // the feed carries a `withdrawn` list, so a feed from an unconfigured site
 // closes nothing, and it refuses to close every issue (or more than
 // UNLISTED_LIMIT) that way without --close-unlisted, so a feed from the
-// wrong or an empty namespace can't blank the mirror. Plan mode leaves
-// unlisted issues alone.
+// wrong or an empty namespace can't blank the mirror. An issue already in
+// the withdrawn shape (closed as not planned, the fixed title and body) is
+// left alone and not counted, so requests withdrawn long enough ago to have
+// left the feed can't trip that refusal. Plan mode leaves unlisted issues
+// alone.
 //
 //   REQUESTS_URL=https://jason-edelman.org/ask-siren/api/requests \
 //   GITHUB_REPOSITORY=owner/repo node scripts/sync-request-issues.js --plan [--with-withdrawn]
@@ -144,6 +147,22 @@ export function plan(requests, pageUrl, repo, withdrawn = []) {
 export const UNLISTED_LIMIT = 3;
 
 /**
+ * Whether an issue is already in the withdrawn shape: closed as not planned
+ * (or with no reason recorded), the fixed title, and the fixed body for its
+ * id, with or without a day. A request withdrawn long enough ago to have left
+ * the feed's `withdrawn` list (WITHDRAWN_DAYS) is done; rewriting its body
+ * to drop the day would change nothing that matters and would count toward
+ * the refusal below, which could then stop every later sync.
+ */
+export function isWithdrawnDone(issue, id) {
+  if (issue.state !== 'closed' || (issue.state_reason && issue.state_reason !== 'not_planned')) return false;
+  if (issue.title !== withdrawnTitle()) return false;
+  const body = String(issue.body || '').replace(/\r\n/g, '\n');
+  const day = body.match(/ on (\d{4}-\d{2}-\d{2})\.$/)?.[1];
+  return body === withdrawnBody(id) || (Boolean(day) && body === withdrawnBody(id, day));
+}
+
+/**
  * What applying directly does to the existing labeled issues, as plain data:
  * [{op: 'create', title, body, labels}] and [{op: 'update', number, patch}].
  * `withdrawn` is the feed's list, or undefined when the feed has none; only a
@@ -172,7 +191,9 @@ export function operations({ existing, requests, withdrawn, pageUrl, repo, close
   }
   if (Array.isArray(withdrawn)) {
     const known = new Set(wanted.map((w) => w.id));
-    const marked = issues.filter((i) => MARKER.test(i.body || ''));
+    // Issues already withdrawn are done: not rewritten, and not counted
+    // below, so they can neither trip the refusal nor dilute it.
+    const marked = issues.filter((i) => MARKER.test(i.body || '') && !isWithdrawnDone(i, i.body.match(MARKER)[1]));
     const before = ops.length;
     for (const issue of marked) {
       const id = issue.body.match(MARKER)[1];

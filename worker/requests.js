@@ -244,27 +244,16 @@ async function listRequests(kv) {
 }
 
 /**
- * How many requests await review, counting only those first received before
- * `day`: a live count would let anyone test whether someone else already
- * asked for a source, by raising it and watching the number. A raise today
- * either adds to a request already counted or makes one first received today,
- * so it can't move this number. No write, so the public read can't fail on
- * KV's write limits. Pure.
- */
-export function awaitingBefore(rows, day) {
-  return rows.filter(([, r]) => (r.status || 'new') === 'new' && String(asDay(r.first) || '') < day).length;
-}
-
-/**
- * The public list: accepted and fulfilled requests, most wanted first; how
- * many requests received before today await review (and that day); and the
- * requests that were public and no longer are, withdrawn in the last
+ * The public list: accepted and fulfilled requests, most wanted first, and
+ * the requests that were public and no longer are, withdrawn in the last
  * WITHDRAWN_DAYS (id and the day of that decision only), so the mirror can
- * close them. Reads only.
+ * close them. Nothing about requests or notes the steward hasn't reviewed,
+ * not even how many there are: a count would let anyone test whether
+ * someone else asked for a source, by raising it and watching the number.
+ * Reads only, so the public read can't fail on KV's write limits.
  */
 export async function publicRequests(kv, now = Date.now()) {
   const rows = await listRequests(kv);
-  const day = dayOf(now);
   const since = dayOf(now - WITHDRAWN_DAYS * 86400000);
   const shown = rows.filter(([, r]) => PUBLIC.has(r.status || 'new')).map(([k, r]) => publicView(k, r));
   shown.sort((a, b) => (a.status === b.status ? b.count - a.count : a.status === 'accepted' ? -1 : 1));
@@ -274,7 +263,7 @@ export async function publicRequests(kv, now = Date.now()) {
     // A withdrawal with no day (never expected) is kept rather than dropped.
     .filter((w) => !w.day || w.day >= since)
     .sort((a, b) => (a.id < b.id ? -1 : 1));
-  return { requests: shown, awaiting_review: awaitingBefore(rows, day), awaiting_review_before: day, withdrawn };
+  return { requests: shown, withdrawn };
 }
 
 /** Steward decision. `extra` may carry steward_note (public) or fulfilled_by (a PR or commit URL). */

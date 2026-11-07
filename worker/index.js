@@ -464,7 +464,7 @@ export default {
     if (req.method === 'GET' && path === '/api/requests') {
       // No `withdrawn` here: the mirror closes unlisted issues only when the
       // feed carries that list, so an unconfigured site closes nothing.
-      if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
+      if (!env.LIMITS) return json({ requests: [] });
       return cachedFeed(url, ctx, async () => json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' }));
     }
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.

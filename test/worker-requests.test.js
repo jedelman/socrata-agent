@@ -79,13 +79,20 @@ test('the steward routes refuse anyone who is not a signed-in steward', { skip: 
   assert.ok(Array.isArray(feed.withdrawn));
 });
 
-test('GET /api/requests on a site without storage carries no withdrawn list', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
+test('GET /api/requests on a site without storage carries no withdrawn list and no count', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
   const w = await loadWorker();
   const res = await w.fetch(new Request('https://x.org/api/requests'), {}, {});
   const body = await res.json();
   assert.equal(res.status, 200);
-  assert.deepEqual(body.requests, []);
-  assert.ok(!('withdrawn' in body), 'so a direct sync against it closes nothing');
+  assert.deepEqual(body, { requests: [] }, 'no withdrawn list, so a direct sync against it closes nothing');
+});
+
+test('GET /api/requests says nothing about requests awaiting review', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
+  const w = await loadWorker();
+  const e = env();
+  await w.fetch(post('/api/requests', { source: 'Unreviewed source', need: 'q', public: true }), e, {});
+  const body = await (await w.fetch(new Request('https://x.org/api/requests'), e, {})).json();
+  assert.deepEqual(body, { requests: [], withdrawn: [] });
 });
 
 const feedFetch = (feed, { status = 200 } = {}) => async (url) => {
