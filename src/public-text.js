@@ -174,6 +174,9 @@ function houseNumberAt(t, toks, i) {
   return toks[k] && joined(t, toks[k - 1], toks[k]) ? k : -1;
 }
 const YEAR = /^(?:19|20)\d{2}$/;
+// City and region names that are also Norfolk street names. After a year
+// ("The 2025 Norfolk budget") they're read like ordinary words.
+const CITY_WORDS = new Set(['norfolk', 'virginia', 'chesapeake', 'portsmouth', 'hampton']);
 // What ends a phrase after a street name: the end of the text, or . ? ! ; : ) "
 function endsPhrase(t, tok, next) {
   const gap = t.slice(tok.end, next ? next.start : t.length);
@@ -193,10 +196,12 @@ function numberStreet(t, toks, names) {
     const next = toks[m.end];
     const last = toks[m.end - 1];
     if (SPECIES.has(m.name)) continue;
-    // After a year-like number, a bare name reads as an address only where
-    // one would sit: after "at", or ending the phrase ("from 1950 Colley?").
-    // "The 2025 Norfolk budget" and "In 2020 Norfolk planted" pass.
-    if (YEAR.test(toks[i].w)) {
+    // After a year-like number, an ordinary word or a city or region name
+    // reads as an address only where one would sit: after "at", or ending the
+    // phrase. "The 2025 Norfolk budget" and "In 2020 Norfolk planted" pass.
+    // Any other name is a street as after any number: "near 1950 Granby,
+    // Norfolk" and "the 1900 Granby block" are addresses.
+    if (YEAR.test(toks[i].w) && (COMMON.has(m.name) || CITY_WORDS.has(m.name))) {
       if ((i > 0 && toks[i - 1].w === 'at') || endsPhrase(t, last, next)) return true;
       continue;
     }

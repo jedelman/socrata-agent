@@ -53,9 +53,12 @@ Each one is for Jason to accept into the spec, or to send back.
    a name that isn't an ordinary word, species or ordinal. A 19xx or 20xx
    number is never called a year by the word before it: before a suffix or a
    street name of more than one word it's a house number ("from 1950 Granby
-   St", "the 2024 Ocean View report"). Before a bare one-word name it's a
-   year mid-phrase ("The 2025 Norfolk budget") and an address after "at" or
-   at the end of a phrase ("from 1950 Colley?"). "street trees" and "street lights" aren't suffixes.
+   St", "the 2024 Ocean View report"), and before any other bare one-word
+   name it's a house number as any number is ("near 1950 Granby, Norfolk",
+   "the 1900 Granby block"; so "the 2022 Lafayette River cleanup" is refused
+   too). Only before an ordinary word or a city or region name (Norfolk,
+   Virginia, Chesapeake, Portsmouth, Hampton) is it a year mid-phrase ("The
+   2025 Norfolk budget"), and an address after "at" or at the end of a phrase. "street trees" and "street lights" aren't suffixes.
    Comma-grouped numbers ("2,770", "$1,250,000") are neither house numbers
    nor long numbers. A house number may carry a unit letter ("1500B",
    "1500-B").

@@ -241,9 +241,11 @@ test('the street checks with the real list: species and ordinary words pass, add
     'Norfolk City Code Sec. 42-15 on street trees?',
     'Zoning Ordinance section 4-2.3?',
     'Ordinance No. 48-512 adopted?',
-    // Years before a bare one-word name that is also a street name, mid-phrase.
+    // Years before a city name or an ordinary word that is also a street name, mid-phrase.
     'The 2025 Norfolk budget for Forestry',
-    'Results of the 2022 Lafayette River cleanup',
+    'The 2024 Chesapeake tree survey',
+    'In 2019 Hampton planted 40 oaks',
+    'The 2023 park bond results',
     'In 2020 Norfolk planted 300 trees',
     // Years followed by no street at all.
     'since 1950',
@@ -293,6 +295,16 @@ test('the street checks with the real list: species and ordinary words pass, add
     'The 2024 Elizabeth River Project shoreline report': 'number_street',
     'Was the tree from 1950 Colley?': 'number_street',
     'the tree at 2001 Colley in ghent': 'number_street',
+    // After a year-like number, any other bare name mid-phrase is a street, as
+    // after any number; a landmark that shares a street's name is refused too.
+    'The tree in front of 1950 Colley was cut down': 'number_street',
+    'The oak by 1950 Granby is gone': 'number_street',
+    'tree removed near 1950 Granby, Norfolk': 'number_street',
+    'the 1900 Granby block': 'number_street',
+    'Was the tree near 2010 Bolling removed last week': 'number_street',
+    'what about 2001 Colley, the house with the oak': 'number_street',
+    'near 2001 colley av': 'number_street',
+    'Results of the 2022 Lafayette River cleanup': 'number_street',
     'granby and brambleton': 'intersection',
     'ocean view and granby': 'intersection',
     'corner of colley & 21st': 'intersection',
