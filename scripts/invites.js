@@ -58,37 +58,43 @@ async function keyFor(arg) {
   return inviteKey(a);
 }
 
-// A request record as the Worker reads it: deleted notes dropped and the
-// stored decision laid over it (see worker/requests.js).
-function readRequest(key) {
-  const r = JSON.parse(wrangler(['get', key, '--text']) || '{}');
-  const deleted = readOptionalJson(deletedKey(key));
-  const decision = readOptionalJson(decisionKey(key));
-  return { r: stewardView(r, Array.isArray(deleted) ? deleted : [], decision), deleted: Array.isArray(deleted) ? deleted : [] };
-}
-// A key that may be missing: only wrangler's "Value not found" counts as
-// empty. Any other failure (auth, network, rate limit) is thrown, so a failed
-// read never stands in for an empty tombstone that a delete would overwrite.
-function readOptionalJson(key) {
-  if (dry) return null;
-  let out;
-  try {
-    out = wrangler(['get', key, '--text']).trim();
-  } catch (err) {
-    if (/value not found/i.test(String(err?.stdout || ''))) return null;
-    throw err;
-  }
-  return out && !/value not found/i.test(out) ? JSON.parse(out) : null;
+// The names of the keys that start with `prefix`, from one `kv key list`.
+// Optional keys are found this way, never by a `get` that might miss: a
+// missing key is just not listed, in local and remote mode alike, so no
+// error text is parsed (remote `get` of a missing key exits 1 with "404: Not
+// Found"; local prints "Value not found"). Any failure of the list throws.
+// The list is as eventually consistent as KV itself: a side key written in
+// the last minute elsewhere may not be listed yet (see worker/requests.js on
+// two steward actions inside the propagation window).
+function keyNames(prefix) {
+  if (dry) return new Set();
+  return new Set((JSON.parse(wrangler(['list', '--prefix', prefix]) || '[]') || []).map((k) => k.name));
 }
 
+// The side keys of one request that exist: its tombstone and its decision.
+const sideKeysOf = (key) => new Set([...keyNames(deletedKey(key)), ...keyNames(decisionKey(key))]);
+
+// A request record as the Worker reads it: deleted notes dropped and the
+// stored decision laid over it (see worker/requests.js). `sides` is the set
+// of side keys that exist (sideKeysOf, or one listing for every request);
+// only those are read, and a failed read throws, so a failed read never
+// stands in for an empty tombstone that a delete would overwrite.
+function readRequest(key, sides = sideKeysOf(key)) {
+  const r = JSON.parse(wrangler(['get', key, '--text']) || '{}');
+  const deleted = readOptionalJson(deletedKey(key), sides);
+  const decision = readOptionalJson(decisionKey(key), sides);
+  return { r: stewardView(r, Array.isArray(deleted) ? deleted : [], decision), deleted: Array.isArray(deleted) ? deleted : [] };
+}
+function readOptionalJson(key, sides) {
+  if (dry || !sides.has(key)) return null;
+  const out = wrangler(['get', key, '--text']).trim();
+  return out ? JSON.parse(out) : null;
+}
+
+// Whether a key exists, by listing it (see keyNames). Any failure throws.
 function exists(key) {
   if (dry) return true;
-  try {
-    const out = wrangler(['get', key, '--text']).trim();
-    return Boolean(out) && !/value not found/i.test(out);
-  } catch {
-    return false;
-  }
+  return keyNames(key).has(key);
 }
 
 async function main() {
@@ -129,7 +135,9 @@ async function main() {
     // delete; [private] notes (sent before requests were public) are shown
     // here but never on the public list, even if approved.
     const keys = JSON.parse(wrangler(['list', '--prefix', 'request:']) || '[]');
-    const rows = keys.map(({ name }) => [name, normalizeRecord(readRequest(name).r)]).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
+    // Every request's side keys from two listings, not two reads per request.
+    const sides = new Set([...keyNames('request-deleted:'), ...keyNames('request-decision:')]);
+    const rows = keys.map(({ name }) => [name, normalizeRecord(readRequest(name, sides).r)]).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
     const only = opt('status', '');
     for (const [name, r] of rows) {
       if (only && (r.status || 'new') !== only) continue;
