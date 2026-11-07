@@ -252,7 +252,7 @@ test('the_record serves only checked findings, and puts every source in the trac
 });
 
 import caseFile from '../plugins/case-file.js';
-import zoningAtAddress, { pointQuery } from '../plugins/zoning-at-address.js';
+import parcelInventory, { SERVICES, cleanAttributes, identifyUrl } from '../plugins/parcel-inventory.js';
 
 test('case_file serves a record with no address, including the rules', async () => {
   const { result, trace } = await checkPlugin(caseFile, { city: norfolk, args: { topic: 'norfolk-trees' }, respond: () => [] });
@@ -274,38 +274,52 @@ test('the case verifier fails on a missing quote, and on a source unreachable to
   assert.equal(judge({ unreachable: true, now }), 'fail', 'never verified');
 });
 
-// Fakes shaped like the live answers on 2026-11-07 (1300 Colley Ave).
-function respondZoning(url) {
+// Fakes shaped like the live identify answers on 2026-11-07 (1300 Colley Ave).
+function respondParcel(url) {
   if (url.includes('/resource/ere7-kake'))
     return [{ full_address: '1300 COLLEY AVENUE', gpin: '1428629504', house_number: '1300', full_street_name: 'COLLEY AVENUE', street_name: 'COLLEY', ward_district: '2', parcel_centroid_latitude: '36.86666037', parcel_centroid_longitude: '-76.29843391', census_tract_number: '37', civic_league: 'Ghent Neighborhood League' }];
-  if (url.includes('/FeatureServer/1/query')) return { features: [{ attributes: { ZONE: 'C-C', TYPE: 'Commercial', url: 'https://www.norfolkva.gov/NorfolkZoningOrdinance/#c-c' } }] };
-  if (url.includes('/FeatureServer/6/query')) return { features: [{ attributes: { NAME: 'Colley Avenue Pedestrian Commercial Overlay' } }, { attributes: { NAME: 'Coastal Resilience Overlay' } }] };
+  const svc = url.match(/OpenData\/([A-Za-z_]+)\/MapServer\/identify/)?.[1];
+  const R = {
+    Planning: [
+      { layerName: 'Zoning', attributes: { OBJECTID: '1', ZONE: 'C-C', last_edited_user: 'MSTRALE', 'Shape.STArea()': '1' } },
+      { layerName: 'Zoning Overlays', attributes: { NAME: 'Colley Avenue Pedestrian Commercial Overlay', URL: 'Null' } },
+      { layerName: 'Future Land Use', attributes: { LANDUSE: 'Commercial' } },
+    ],
+    Maps: [
+      { layerName: 'Wards', attributes: { WARD: '2', WARD_REP: 'Courtney Doyle' } },
+      { layerName: 'Civic Leagues', attributes: { LEAGUE: 'Ghent Neighborhood League', PRESIDENT: 'A Private Person', PRES_ADDRE: 'P.O. Box 1', E_MAIL: 'someone@example.org', MTG_FREQUE: '3rd Wednesday' } },
+    ],
+    Environmental: [{ layerName: 'FIRM', attributes: { FLD_ZONE: '0.2 PCT ANNUAL CHANCE FLOOD HAZARD', SFHA_TF: 'F' } }],
+    Public_Safety: [{ layerName: 'Police Precincts', attributes: { PRECINCT: '1' } }],
+    Parcels: [{ layerName: 'Parcels', attributes: { GPIN: '1428629504', TAX_ACCT: '08881900' } }],
+  };
+  if (svc === 'RPOS') return { error: { message: 'down' } };
+  if (svc) return { results: R[svc] || [] };
   throw new Error(`unexpected request ${url}`);
 }
 
-test('zoning_at_address passes conformance and reports district and overlays by place', async () => {
-  const { result, trace, resources, requests } = await checkPlugin(zoningAtAddress, { city: norfolk, args: { address: '1300 Colley Ave' }, respond: respondZoning });
-  assert.deepEqual(result.district.map((d) => d.zone), ['C-C']);
-  assert.deepEqual(result.overlays, ['Colley Avenue Pedestrian Commercial Overlay', 'Coastal Resilience Overlay']);
-  assert.match(result.matched_on, /parcel centroid/);
-  assert.ok(requests.some((u) => u.includes('/FeatureServer/1/query')) && requests.some((u) => u.includes('/FeatureServer/6/query')));
-  assert.ok(trace.some((s) => /zoning district/.test(s.tool)));
+test('parcel_inventory passes conformance and inventories every layer in one call per service', async () => {
+  const { result, trace, resources, requests } = await checkPlugin(parcelInventory, { city: norfolk, args: { address: '1300 Colley Ave' }, respond: respondParcel });
+  assert.equal(requests.filter((u) => u.includes('/MapServer/identify')).length, SERVICES.length);
+  assert.equal(result.layers.Planning.find((l) => l.layer === 'Zoning').ZONE, 'C-C');
+  assert.equal(result.layers.Parcels[0].GPIN, '1428629504');
+  assert.match(result.layers.RPOS.error, /down/);
+  assert.ok(trace.some((s) => /map layers at parcel centroid/.test(s.tool)));
   assert.ok(resources.links.some((l) => /Zoning Ordinance/.test(l.title)));
-  assert.doesNotMatch(JSON.stringify(result), /owner|resident/i);
 });
 
-test('zoning_at_address asks only for fields each layer has', () => {
-  const u = decodeURIComponent(pointQuery(1, -76.298, 36.866, 'ZONE,TYPE,url'));
-  assert.match(u, /FeatureServer\/1\/query/);
-  assert.match(u, /geometry=-76.298,36.866/);
+test('parcel_inventory withholds people, editors and bookkeeping, and keeps elected officials', async () => {
+  const { result } = await checkPlugin(parcelInventory, { city: norfolk, args: { address: '1300 Colley Ave' }, respond: respondParcel });
+  const text = JSON.stringify(result.layers);
+  assert.doesNotMatch(text, /A Private Person|P\.O\. Box 1|someone@example|MSTRALE|STArea|OBJECTID|"Null"/);
+  assert.match(text, /Courtney Doyle/);
+  assert.match(text, /3rd Wednesday/);
+  assert.deepEqual(result.withheld_fields, ['Civic Leagues: E_MAIL', 'Civic Leagues: PRESIDENT', 'Civic Leagues: PRES_ADDRE']);
 });
 
-test('zoning_at_address keeps going when the map service fails', async () => {
-  const { result } = await checkPlugin(zoningAtAddress, {
-    city: norfolk,
-    args: { address: '1300 Colley Ave' },
-    respond: (url) => (url.includes('/FeatureServer/6/') ? { error: { message: 'down' } } : respondZoning(url)),
-  });
-  assert.equal(result.district[0].zone, 'C-C');
-  assert.match(result.overlays.error, /down/);
+test('parcel_inventory field rules work on map aliases too', () => {
+  const { attributes, dropped } = cleanAttributes({ 'President Address': 'x', 'President Email': 'y', President: 'z', 'Meeting Time': '6:00 pm', 'Owner Name': 'q', 'Sector Color': 'BLUE' });
+  assert.deepEqual(Object.keys(attributes), ['Meeting Time', 'Sector Color']);
+  assert.equal(dropped.length, 4);
+  assert.match(decodeURIComponent(identifyUrl('Planning', -76.298, 36.866)), /OpenData\/Planning\/MapServer\/identify\?geometry=-76.298,36.866/);
 });
