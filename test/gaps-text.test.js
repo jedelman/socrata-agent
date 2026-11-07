@@ -8,8 +8,11 @@ import { normalize as verifyNormalize } from '../scripts/verify-cases.js';
 import { KINDS, PANEL_TITLE, QUESTIONS_HEADING, T, gapTextViolations, gapCheck, worldClaimViolations, botText, ruleA } from '../src/gaps/kinds.js';
 import { publicTextViolations, publicTextFlags, publicTextMessage, compileStreets } from '../src/public-text.js';
 import { GAPS } from '../src/gaps/norfolk.js';
+import { replayedGaps } from './fixtures/gaps-pinned.js';
 
-const BUILT = JSON.parse(readFileSync(new URL('../data/gaps/norfolk.json', import.meta.url), 'utf8'));
+// Replayed against the pinned case files: a gap off the board or unmeasured
+// in the committed file is a normal state, not a failure of these checks.
+const BUILT = await replayedGaps();
 const NORFOLK_STREETS = JSON.parse(readFileSync(new URL('../data/gaps/norfolk-streets.json', import.meta.url), 'utf8')).streets;
 
 // The original stripQuoted isn't exported (src/voice.js stays unchanged), so

@@ -15,6 +15,7 @@ import { MeasureChange } from '../src/gaps/measures.js';
 import { createContext } from '../src/agent.js';
 import { getCity } from '../src/cities/index.js';
 import { spawnSync } from 'node:child_process';
+import { pinnedRepo, replayedGaps } from './fixtures/gaps-pinned.js';
 
 const NO_STREET_ID = 'norfolk.work-orders.removal-no-street';
 
@@ -23,12 +24,15 @@ const FILE = JSON.parse(read('data/gaps/norfolk.json'));
 const TRACE = JSON.parse(read('data/gaps/norfolk.trace.json'));
 const STREETS = JSON.parse(read('data/gaps/norfolk-streets.json')).streets;
 const replay = () => new Recorder({ responses: TRACE.responses });
-// The committed file is checked for what holds whatever day it was rebuilt
-// (its shape, its dates, its text). What depends on today's case files, index
-// and profile is checked on a replay against them, dated the day of the
-// stored build, so a case-file edit or a finding's age can't fail npm test,
-// which gates the deploy. CI's check-gaps job holds the committed file to it.
-const FULL = (await buildGaps({ recorder: replay(), today: TRACE.built, previous: FILE })).file;
+// The committed file is checked only for what holds in every state the spec
+// allows: every catalog entry on the board or off it with a reason, its
+// schema, the identifier rule, nothing excluded. A steward marking a cited
+// finding unverified, or a measure failing, is a normal state of it, and npm
+// test gates the deploy. Everything else is checked on FULL: a replay of the
+// stored responses against the pinned case files (test/fixtures/gaps-pinned.js),
+// dated the day of the stored build.
+const FULL = await replayedGaps();
+const CASE_FILE = JSON.parse(pinnedRepo('data/cases/norfolk-trees.json'));
 
 // The spec's §4.4 queries (W and C spelled out).
 const W = "area = 'Forestry' AND primary_task_description = 'Removal'";
@@ -131,34 +135,41 @@ test('the catalog: unique ids, never a retired one, checked live, approved entri
     assert.ok(g.questions.length >= 1 && g.questions.length <= 4, g.id);
     for (const q of g.questions) assert.ok(q.text.length <= 160 && q.text.endsWith('?'), q.text);
   }
-  const pids = [...FILE.gaps.map((g) => g.public_id), ...FILE.gaps.flatMap((g) => g.questions.map((q) => q.public_id)), ...FILE.actions.map((a) => a.public_id)];
+  const pids = [...FULL.gaps.map((g) => g.public_id), ...FULL.gaps.flatMap((g) => g.questions.map((q) => q.public_id)), ...FULL.actions.map((a) => a.public_id)];
   assert.equal(new Set(pids).size, pids.length, 'public ids are unique across types');
   assert.equal(FULL.gaps.find((g) => g.id === norfolk.GAPS[0].id).public_id, gapPublicId(norfolk.GAPS[0].id));
 });
 
 test('the built file fits its schema, and unknown keys (a cause) fail', () => {
   assert.deepEqual(validateGapFile(FILE), []);
-  const g = structuredClone(FILE.gaps[0]);
+  assert.deepEqual(validateGapFile(FULL), []);
+  const g = structuredClone(FULL.gaps[0]);
   g.why = 'a guess';
   assert.ok(validateGap(g).some((e) => /unknown key "why"/.test(e)));
-  const h = structuredClone(FILE.gaps[0]);
+  const h = structuredClone(FULL.gaps[0]);
   h.how_much.cause = 'x';
   assert.ok(validateGap(h).length);
 });
 
-test('the built file accounts for all 13 entries, on the board or off it with a reason, every number traced and dated', () => {
+test('the committed file accounts for every catalog entry, on the board or off it with a reason, and its measures keep the identifier rule', () => {
   const on = FILE.gaps.map((g) => g.id);
   const off = FILE.off_board.map((o) => o.id);
   assert.deepEqual([...on, ...off].sort(), norfolk.GAPS.map((g) => g.id).sort());
+  for (const g of FILE.gaps) assert.ok(['open', 'closing', 'unmeasured_today'].includes(g.state), g.id);
   for (const o of FILE.off_board) {
     assert.match(o.state, /^[a-z_]+$/, o.id);
     assert.ok(typeof o.reason === 'string' && o.reason.length > 10, o.id);
   }
-  // Replayed against the stored day, every entry is on the board.
+  const measures = FILE.gaps.flatMap((g) => g.evidence.filter((e) => e.type === 'query'));
+  assert.ok(measures.length > 0);
+  for (const e of measures) assert.deepEqual(identifierViolations(e.soql), [], e.soql);
+});
+
+test('every entry is on the board in the replay, every number traced and dated', () => {
   assert.equal(FULL.gaps.length, 13);
   assert.deepEqual(FULL.off_board, []);
   const urls = new Set(TRACE.steps.map((s) => s.url));
-  for (const g of FILE.gaps) {
+  for (const g of FULL.gaps) {
     assert.ok(['open', 'closing'].includes(g.state), g.id);
     for (const e of g.evidence) {
       if (e.url && e.type !== 'finding') assert.ok(urls.has(e.url), `${g.id}: ${e.url} is in the trace`);
@@ -172,21 +183,21 @@ test('the built file accounts for all 13 entries, on the board or off it with a 
 });
 
 test('every gap string passes its checks, and general questions and actions pass the public-text checks', () => {
-  for (const g of FILE.gaps) {
+  for (const g of FULL.gaps) {
     assert.deepEqual(gapTextProblems(g, { entry: norfolk.GAPS.find((e) => e.id === g.id), streets: STREETS }), [], g.id);
     for (const q of g.questions) assert.deepEqual(publicTextViolations(q.text, { streets: STREETS }), [], q.text);
   }
   // The builder runs the public-text checks on code-written text too, as botText does.
-  const g = structuredClone(FILE.gaps.find((x) => x.id === 'norfolk.work-orders.created-on-or-after-end'));
+  const g = structuredClone(FULL.gaps.find((x) => x.id === 'norfolk.work-orders.created-on-or-after-end'));
   g.statement = g.statement.replace('with an end date on or before', 'whose end date falls on or before');
   assert.ok(gapTextProblems(g, { entry: norfolk.GAPS.find((e) => e.id === g.id), streets: STREETS }).some((p) => /^statement: person_pointing/.test(p)));
-  for (const a of FILE.actions) for (const s of [a.text, a.draft?.body, a.draft?.frame, a.draft?.leave_out].filter(Boolean)) {
+  for (const a of FULL.actions) for (const s of [a.text, a.draft?.body, a.draft?.frame, a.draft?.leave_out].filter(Boolean)) {
     assert.deepEqual([...gapCheck(s, 'action'), ...publicTextViolations(s, { streets: STREETS })], [], s);
   }
 });
 
 test('blocks "all" has a topic-wide columns_absent; the topic covers its catalog hits', () => {
-  for (const g of FILE.gaps) for (const q of g.questions.filter((x) => x.blocks === 'all' && g.kind !== 'restricted')) {
+  for (const g of FULL.gaps) for (const q of g.questions.filter((x) => x.blocks === 'all' && g.kind !== 'restricted')) {
     for (const d of g.topic.datasets) assert.ok(d in g.how_much.columns_absent.datasets, `${g.id} ${q.qid} ${d}`);
   }
   assert.ok(FULL.gaps.find((g) => g.id === 'norfolk.utility.line-clearance'));
@@ -200,29 +211,31 @@ test('restricted gaps carry policy evidence and only aggregate actions; no exclu
   assert.deepEqual(r.evidence.map((e) => e.type), ['policy']);
   assert.equal(read(r.evidence[0].file).split('\n')[r.evidence[0].line - 1].includes("id: 'nbyu-xjez'"), true);
   for (const id of r.actions) {
-    const a = FILE.actions.find((x) => x.id === id);
+    const a = FULL.actions.find((x) => x.id === id);
     assert.equal(a.aggregate_only, true);
     assert.doesNotMatch(a.text, ROW_LEVEL);
   }
   const excluded = ['cab7-wvn5', 'uxgi-fkzu', '7qie-z5gv', '4dwc-v3t8', 'ei2q-6g8n', 'jf3j-u4s7', 'fcqe-uvnb', '393b-ph9i', 'p5hy-7rkp'];
-  const text = JSON.stringify(FILE);
-  for (const id of excluded) assert.equal(text.includes(id), false, id);
-  assert.equal(text.includes('assigned_crew'), false);
-  assert.equal(text.includes('rows.csv'), false, 'the board never links a full CSV');
+  // Privacy holds in every state the committed file can be in.
+  for (const text of [JSON.stringify(FILE), JSON.stringify(FULL)]) {
+    for (const id of excluded) assert.equal(text.includes(id), false, id);
+    assert.equal(text.includes('assigned_crew'), false);
+    assert.equal(text.includes('rows.csv'), false, 'the board never links a full CSV');
+  }
 });
 
 test('findings appear only as their quotes, never their claims', () => {
-  const cases = JSON.parse(read('data/cases/norfolk-trees.json'));
-  const finding = (e) => cases.findings.find((x) => x.id === e.id);
-  for (const g of FULL.gaps) for (const e of g.evidence.filter((x) => x.type === 'finding')) assert.equal(e.quote, finding(e).quote);
-  // The committed file may trail a case-file edit (check-gaps catches that), but it never carries a claim.
-  for (const g of [...FILE.gaps, ...FULL.gaps]) for (const e of g.evidence.filter((x) => x.type === 'finding')) {
-    if (finding(e)) assert.equal(JSON.stringify(g).includes(finding(e).claim), false, `${g.id} carries no claim`);
+  const finding = (e) => CASE_FILE.findings.find((x) => x.id === e.id);
+  const quoting = FULL.gaps.filter((g) => g.evidence.some((x) => x.type === 'finding'));
+  assert.ok(quoting.length >= 3);
+  for (const g of quoting) for (const e of g.evidence.filter((x) => x.type === 'finding')) {
+    assert.equal(e.quote, finding(e).quote);
+    assert.equal(JSON.stringify(g).includes(finding(e).claim), false, `${g.id} carries no claim`);
   }
 });
 
 test('records-request drafts use records_to_request verbatim, with strikes checked', () => {
-  const cases = JSON.parse(read('data/cases/norfolk-trees.json'));
+  const cases = CASE_FILE;
   const a = FULL.actions.find((x) => x.id === 'a-foia-trees-per-order');
   assert.equal(a.draft.source.text, cases.records_to_request[1]);
   assert.equal(a.draft.body.includes('priority'), false);
@@ -235,21 +248,20 @@ test('records-request drafts use records_to_request verbatim, with strikes check
   assert.ok(ACTIONS.find((x) => x.id === 'a-foia-planned').needs, 'drafts that need a case-file entry carry no text');
 });
 
-// Repo inputs the build reads offline change on their own schedules: the
-// weekly legislation refresh and the monthly case-file archive job both run
-// `build-gaps --offline` and commit its output with theirs, and a case-file or
-// profile edit reruns it in the same PR. A change that skips that step fails
-// CI's check-gaps job (`npm run check:gaps`), with the fix in the message.
-// Here it skips, naming the fix: npm test gates the deploy, and a gap file a
-// step behind its inputs is no reason to stop one (findings that no longer
-// match are kept out of answers at run time).
+// Repo inputs the build reads offline change on their own schedules (the
+// weekly legislation refresh, the monthly case-file archive PR, case-file and
+// profile edits), and the gap build is rerun by hand after them
+// (CONTRIBUTING.md). Here it skips, naming the fix: npm test gates the
+// deploy, and a gap file a step behind its inputs is no reason to stop one
+// (findings that no longer match are kept out of answers at run time).
 test('--check: replaying the stored responses rebuilds every committed file byte for byte', async (t) => {
   const diffs = await checkGaps();
-  if (diffs.length) t.skip(`run node scripts/build-gaps.js --offline and commit data/gaps and docs/gaps-norfolk.md (CI's check-gaps job fails until then): ${diffs.join(' ')}`);
+  if (diffs.length) t.skip(`run node scripts/build-gaps.js --offline and commit data/gaps and docs/gaps-norfolk.md: ${diffs.join(' ')}`);
 });
 
 test('stateChanges: an offline rebuild that moves a gap on or off the board, or changes its state, is a change', () => {
   assert.deepEqual(stateChanges(FILE, structuredClone(FILE)), []);
+  assert.deepEqual(stateChanges(FULL, structuredClone(FULL)), []);
   const g = FULL.gaps.find((x) => x.id === 'norfolk.utility.line-clearance');
   const before = { gaps: [g], off_board: [] };
   const after = { gaps: [], off_board: [{ id: g.id, state: 'evidence_unverified', reason: 'x' }] };
@@ -259,14 +271,14 @@ test('stateChanges: an offline rebuild that moves a gap on or off the board, or 
 
 test('--offline: parts from repo files are recomputed and dated the day of the rebuild; live measures keep their date', async () => {
   const repo = (p) => {
-    const text = read(p);
+    const text = pinnedRepo(p);
     if (p !== 'data/norfolk-legislation.json') return text;
     const idx = JSON.parse(text);
     idx.built = '2026-11-09T09:17:00.000Z';
     idx.items = idx.items.slice(0, 100);
     return JSON.stringify(idx);
   };
-  const out = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: '2026-11-09', previous: FILE, repo });
+  const out = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: '2026-11-09', previous: FULL, repo });
   assert.equal(out.file.built, TRACE.built);
   assert.equal(out.file.rebuilt, '2026-11-09');
   assert.equal(out.trace.rebuilt, '2026-11-09');
@@ -353,8 +365,8 @@ test('the builder runs every request at GENERIC access, and output is determinis
     return d.call(this, id, opts);
   };
   try {
-    const a = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FILE });
-    const b = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FILE });
+    const a = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FULL, repo: pinnedRepo });
+    const b = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FULL, repo: pinnedRepo });
     assert.equal(JSON.stringify(a.file), JSON.stringify(b.file));
     assert.ok(seen.length > 10);
     assert.ok(seen.every((x) => x === ACCESS.GENERIC), `access levels seen: ${[...new Set(seen)]}`);
@@ -371,13 +383,13 @@ test('a gap whose text fails is isolated: it keeps its last good measurement, an
       : g
   );
   const catalogs = { norfolk: { ...CATALOGS.norfolk, catalog: { ...norfolk, GAPS: bad } } };
-  const out = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FILE, catalogs });
+  const out = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FULL, catalogs, repo: pinnedRepo });
   const g = out.file.gaps.find((x) => x.id === 'norfolk.work-orders.no-notice-field');
   assert.equal(g.state, 'unmeasured_today');
-  assert.equal(g.last_good, FILE.built);
-  assert.equal(g.notice, `I couldn't measure this on ${TRACE.built}. I show my last measurement, from ${FILE.built}.`);
+  assert.equal(g.last_good, FULL.built);
+  assert.equal(g.notice, `I couldn't measure this on ${TRACE.built}. I show my last measurement, from ${FULL.built}.`);
   assert.equal(out.file.gaps.filter((x) => x.state !== 'unmeasured_today').length, 12);
-  const fresh = await buildGaps({ recorder: replay(), today: TRACE.built, previous: null, catalogs });
+  const fresh = await buildGaps({ recorder: replay(), today: TRACE.built, previous: null, catalogs, repo: pinnedRepo });
   assert.ok(fresh.file.off_board.some((o) => o.id === 'norfolk.work-orders.no-notice-field'), 'with no last good, it stays off the board');
 });
 
@@ -385,13 +397,13 @@ test('an identifier-rule violation aborts the whole build before its request', a
   const bad = [{ ...norfolk.GAPS[0], measure: async (h) => h.run.query('qzfe-wj25', "SELECT count(*) WHERE street = 'BOLLING'") }];
   const catalogs = { norfolk: { ...CATALOGS.norfolk, catalog: { ...norfolk, GAPS: bad } } };
   const rec = replay();
-  await assert.rejects(buildGaps({ recorder: rec, today: TRACE.built, catalogs }), IdentifierRuleError);
+  await assert.rejects(buildGaps({ recorder: rec, today: TRACE.built, catalogs, repo: pinnedRepo }), IdentifierRuleError);
   assert.equal(rec.missing.some((u) => u.includes('BOLLING')), false);
 });
 
 test('a finding gone stale or unverified takes its gap off the board', async () => {
   const repo = (p) => {
-    const text = read(p);
+    const text = pinnedRepo(p);
     if (p !== 'data/cases/norfolk-trees.json') return text;
     const doc = JSON.parse(text);
     for (const f of doc.findings) if (f.id === 'contract-removal') f.checked = '2026-09-01';

@@ -13,18 +13,17 @@ import { absenceFor, gapStatementsFor, matchGaps, liveGaps, refilterUnanswered, 
 import { CASES } from '../src/gaps/cases.js';
 import { treesKey } from './fixtures/trees-live.js';
 import { gapsOffScenario } from './fixtures/gaps-off-scenario.js';
-import { buildGaps, Recorder } from '../scripts/build-gaps.js';
+import { replayedGaps, PINNED_CASES } from './fixtures/gaps-pinned.js';
 import { saveTurn } from '../worker/conversations.js';
 import trees from '../plugins/trees-on-my-block.js';
 import { theRecord } from '../plugins/cases.js';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-// The gap file replayed from its stored responses against today's case files,
-// dated the day of the stored build: the code under test sees all 13 gaps
-// whatever day npm test runs, and a case-file edit the committed file hasn't
-// caught up with yet (CI's check-gaps job flags that) can't fail it.
-const TRACE = JSON.parse(read('data/gaps/norfolk.trace.json'));
-const DATA = (await buildGaps({ recorder: new Recorder({ responses: TRACE.responses }), today: TRACE.built, previous: JSON.parse(read('data/gaps/norfolk.json')) })).file;
+// The gap file replayed from its stored responses against the pinned case
+// files, dated the day of the stored build: the code under test sees all 13
+// gaps whatever day npm test runs and whatever state the committed gap file
+// and case files are in (a steward may mark a cited finding unverified).
+const DATA = await replayedGaps();
 const STREETS = JSON.parse(read('data/gaps/norfolk-streets.json')).streets;
 const GAPS = { data: DATA, streets: STREETS };
 const norfolk = getCity('norfolk');
@@ -346,14 +345,14 @@ test('a tool that read no topic dataset (an address-lookup miss) attaches no top
 test('a gap whose quoted finding is no longer verified in the bundled case file stays out of answers', () => {
   const quoting = DATA.gaps.filter((g) => g.evidence.some((e) => e.type === 'finding'));
   assert.ok(quoting.length >= 1);
-  assert.equal(liveGaps(DATA).length, DATA.gaps.length, 'all hold today');
-  const cases = structuredClone(CASES);
+  assert.equal(liveGaps(DATA, PINNED_CASES).length, DATA.gaps.length, 'all hold against the case files DATA was built from');
+  const cases = structuredClone(PINNED_CASES);
   const f = cases['norfolk-trees'].findings.find((x) => x.id === 'dominion');
   f.unverified = true;
   const live = liveGaps(DATA, cases).map((g) => g.id);
   assert.equal(live.includes('norfolk.utility.line-clearance'), false);
   assert.equal(live.length, DATA.gaps.length - 1);
-  const changed = structuredClone(CASES);
+  const changed = structuredClone(PINNED_CASES);
   changed['norfolk-trees'].findings.find((x) => x.id === 'contract-removal').quote += ' (edited)';
   assert.equal(liveGaps(DATA, changed).some((g) => g.id === 'norfolk.work-orders.no-contract-link'), false);
 });
@@ -363,7 +362,9 @@ test('note_unanswered drops the gaps property when no gap is live', () => {
   const tool = toolsFor(norfolk, [], { gaps: empty }).find((t) => t.function.name === 'note_unanswered');
   assert.equal('gaps' in tool.function.parameters.properties, false);
   const full = toolsFor(norfolk, [], { gaps: DATA }).find((t) => t.function.name === 'note_unanswered');
-  assert.equal(full.function.parameters.properties.gaps.items.enum.length, DATA.gaps.length);
+  // The enum is the live gaps: those whose quoted findings still hold in the bundled case files.
+  assert.deepEqual(full.function.parameters.properties.gaps.items.enum, liveGaps(DATA).map((g) => g.id));
+  assert.ok(liveGaps(DATA).length >= 1);
 });
 
 test('absence lines: only with the option on, only when the street shows no removal, and they pass the checks', async () => {
