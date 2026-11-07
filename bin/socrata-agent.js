@@ -82,8 +82,9 @@ async function loadGaps(city, gapsConfig) {
     const data = JSON.parse(await readFile(new URL(`../data/gaps/${city.id}.json`, import.meta.url), 'utf8'));
     const streets = JSON.parse(await readFile(new URL(`../data/gaps/${city.id}-streets.json`, import.meta.url), 'utf8')).streets;
     return { data, streets, absenceLines: values['absence-lines'] || gapsConfig?.absenceLines === true };
-  } catch {
-    console.error(`warning: data/gaps/${city.id}.json not found; run scripts/build-gaps.js`);
+  } catch (err) {
+    // A missing file and a broken one are different problems; say which. Gaps stay off either way.
+    console.error(`warning: gaps are off: ${err?.code === 'ENOENT' ? `data/gaps/${city.id}.json or its street list is missing; run scripts/build-gaps.js` : `couldn't read the gap files (${err?.message || err})`}`);
     return null;
   }
 }

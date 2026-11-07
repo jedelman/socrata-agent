@@ -5,8 +5,8 @@
 // `touches` predicates matches what this turn actually ran (a trace step, a
 // tool, a case cite, or a refusal), and it "bit" when one of its `bites_when`
 // predicates matched (the turn filtered on the gap's field, a tool returned
-// the part the gap is about, or an absence line fired). Steps that errored
-// don't count. With gaps off nothing here runs, and every answer is
+// the part the gap is about, or an absence line fired). Steps that errored,
+// and every step of a tool call that threw, don't count. With gaps off nothing here runs, and every answer is
 // byte-identical to one built without this file.
 
 import { KIND_ORDER, ruleA, gapCheck, fmt, pct, quoteStatuses } from './kinds.js';
