@@ -30,7 +30,7 @@ import {
   pushAuthorization, authorizeUrl, exchangeCode, checkTokenResponse, revokeAll,
 } from './atproto-oauth.js';
 import {
-  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, countRate, bumpRate, useFlowOnce, purgeExpired, endorseDb, dbSetupError, StorageError,
+  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, useFlowOnce, purgeExpired, endorseDb, dbSetupError, StorageError,
 } from './endorsements.js';
 import { cachedPublicList } from './public-list.js';
 
@@ -222,7 +222,7 @@ const resolverOpts = (env, fetchImpl, signal) => ({ fetchImpl, signal, dohUrl: e
  * Steps 3 to 15 of a login start (the gate and origin checks are the route's).
  * -> { ok: true, redirect, cookie } | { ok: false, status, code, error }
  */
-export async function startBlueskyLogin({ body, env, db, visitor, base, fetchImpl = fetch, now = Date.now(), timeoutMs = LOGIN_DEADLINE_MS, maxCookieBytes = MAX_COOKIE_BYTES }) {
+export async function startBlueskyLogin({ body, env, visitor, base, fetchImpl = fetch, now = Date.now(), timeoutMs = LOGIN_DEADLINE_MS, maxCookieBytes = MAX_COOKIE_BYTES }) {
   const fail = (code) => ({ ok: false, status: LOGIN_STATUS[code] || 502, code, error: LOGIN_ERRORS[code] || LOGIN_ERRORS.as_refused });
   // 3. Parse the input before charging anything.
   const parsed = parseAccountInput(body?.account);
@@ -232,23 +232,12 @@ export async function startBlueskyLogin({ body, env, db, visitor, base, fetchImp
   if (!ids) return fail('not_set_up');
 
   // 4. Limits, before any outbound fetch, stopping at the first that fails.
+  // All three are Rate Limiting bindings: a login start makes no D1 call at
+  // all, so nobody who hasn't finished a sign-in can spend the account's
+  // daily D1 rows, which Siren shares with every other Worker on the account.
   if (!(await allowed(env.BSKY_VISITOR_RL, `login:${visitor}`))) return fail('busy');
-  // The hourly per-visitor count, in D1 (a failed read fails closed).
-  const evKey = `bl:${new Date(now).toISOString().slice(0, 13)}:${visitor}`;
-  let used;
-  try {
-    used = await countRate(db, evKey, now);
-  } catch {
-    return fail('busy');
-  }
-  if (used >= setting(env.BSKY_LOGIN_PER_VISITOR_HOURLY, 60, { min: 1 })) return fail('busy');
   if (!(await allowed(env.BSKY_INPUT_RL, `login:${await hmacHex(env.INVITE_SECRET, `bsky-acct:${input}`, 32)}`))) return fail('busy');
   if (!(await allowed(env.BSKY_SITE_RL, 'login'))) return fail('busy');
-  try {
-    await bumpRate(db, evKey, boundary(now, 'hour', 2)).run();
-  } catch {
-    console.error('bluesky login: event write failed');
-  }
 
   // 5. One deadline for every fetch below.
   const deadline = AbortSignal.timeout(timeoutMs);
@@ -438,12 +427,11 @@ export async function handleLogin(req, env, ctx, base, deps = {}) {
     return jsonResponse({ error: LOGIN_ERRORS.not_here, code: 'not_here' }, 403);
   }
   const out = await startBlueskyLogin({
-    body: await readJson(req), env, db: endorseDb(env), visitor: await bskyVisitor(req, env, 'bsky-login'), base,
+    body: await readJson(req), env, visitor: await bskyVisitor(req, env, 'bsky-login'), base,
     fetchImpl: deps.fetchImpl || fetch, now: deps.now ?? Date.now(),
     ...(deps.timeoutMs ? { timeoutMs: deps.timeoutMs } : {}), ...(deps.maxCookieBytes ? { maxCookieBytes: deps.maxCookieBytes } : {}),
   });
   if (!out.ok) return jsonResponse({ error: out.error, code: out.code }, out.status);
-  purgeLater(env, ctx);
   return jsonResponse({ ok: true, redirect: out.redirect }, 200, { 'Set-Cookie': out.cookie });
 }
 

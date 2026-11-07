@@ -480,6 +480,21 @@ dbTest('purges are bounded per statement, and the cron purge finishes a backlog'
   assert.equal((await countFor(w.db, w.ids.open1, { now: NOW })).n, 1, 'the tally followed');
 });
 
+dbTest('purges report rows deleted, not D1 meta.changes (which counts the tally triggers too)', async () => {
+  const w = await world();
+  for (let n = 0; n < 6; n++) await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, `x${n}`), 0, T - 10);
+  // The fake reports changes as D1 does: a DELETE of 2 rows also updates
+  // the tally twice and deletes it once it reaches 0.
+  const probe = await w.db.prepare('DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements LIMIT 2)').run();
+  assert.ok(probe.meta.changes > 2, `meta.changes ${probe.meta.changes} counts trigger writes`);
+  assert.deepEqual(await purgeExpired(w.db, NOW, { limit: 4 }), { endorsements: 4, rates: 0, flows: 0 });
+  // With exactly `limit` rows left, purgeAll stops after the round that finds none.
+  for (let n = 0; n < 4; n++) await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, `y${n}`), 0, T - 10);
+  const mark = w.db.ops.length;
+  assert.deepEqual(await purgeAll(w.db, NOW, { limit: 5 }), { endorsements: 4, rates: 0, flows: 0 });
+  assert.equal(w.db.ops.length - mark, 1, 'a short round ends it: one batch, not two');
+});
+
 dbTest('orphans: rows that outlive a decision are swept where the list is computed', async () => {
   const w = await world();
   await go(w, w.ids.open1, await session(1));

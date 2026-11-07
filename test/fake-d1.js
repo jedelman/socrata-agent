@@ -2,8 +2,9 @@
 // worker/endorsements.js and worker/bluesky.js really runs, against the real
 // migrations in migrations/. It implements what Siren uses: prepare, bind,
 // first, all, run and batch (one transaction, all or nothing), and D1's
-// limit of 100 bound parameters per statement. It keeps an op log and can be
-// told to fail, for the storage-error tests.
+// limit of 100 bound parameters per statement, and reports meta.changes the
+// way D1 does (trigger writes included). It keeps an op log and can be told
+// to fail, for the storage-error tests.
 //
 // node:sqlite is new (Node 22.5+). Where it's missing, `D1_SKIP` is a reason
 // string and the tests that need a database skip; everything else still runs.
@@ -80,17 +81,20 @@ export function fakeD1({ migrate = true } = {}) {
     },
   };
 
+  const totalChanges = () => Number(db.prepare('SELECT total_changes() AS n').get().n);
+
   function exec(sql, params) {
     check(params);
     const writes = !/^\s*(select|with|explain)\b/i.test(sql);
     if (writes && d1.failWrites) throw new Error('D1_ERROR: fake write failure');
     const st = db.prepare(sql);
-    if (RETURNS_ROWS.test(sql)) {
-      const results = st.all(...params).map((r) => ({ ...r }));
-      return { success: true, results, meta: { changes: writes ? results.length : 0 } };
-    }
-    const { changes } = st.run(...params);
-    return { success: true, results: [], meta: { changes: Number(changes) } };
+    // meta.changes as D1 reports it: every row the statement changed,
+    // including its triggers' writes (measured on local D1, wrangler 4.147,
+    // 2026-11-06: one DELETE of 50 endorsements reports 100). SQLite's
+    // total_changes() counts trigger writes too; its delta is that number.
+    const before = totalChanges();
+    const results = RETURNS_ROWS.test(sql) ? st.all(...params).map((r) => ({ ...r })) : (st.run(...params), []);
+    return { success: true, results, meta: { changes: writes ? totalChanges() - before : 0 } };
   }
 
   function statement(sql, params) {

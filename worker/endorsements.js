@@ -22,8 +22,10 @@
 // counted or reported, and are deleted by purgeExpired: daily by the cron
 // (purgeAll; the rollout makes it a requirement for switching the flag on),
 // and also where the public list and the admin page are computed and after
-// endorse, unendorse and sign-in starts. The orphan sweep never runs on a
-// person's own action.
+// endorse and unendorse. The orphan sweep never runs on a person's own action.
+// A login start makes no D1 call: nothing that hasn't finished a sign-in
+// spends the account's daily D1 rows. With the flag off, the steward's
+// `node scripts/invites.js endorsements-purge` keeps deletion going.
 //
 // Nothing here runs unless BLUESKY_LOGIN is "true" (endorseDb): with the flag
 // unset, no D1 call happens anywhere. Every statement is prepared, with bound
@@ -117,9 +119,9 @@ export const SQL = Object.freeze({
   clearIn: (n) => `DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements WHERE request_id IN (${slots(n, 2)}) LIMIT ?1) RETURNING request_id`,
   // Bounded, so a month's cohort expiring in the same second is deleted over
   // a few purges instead of in one statement.
-  purgeEndorsements: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 LIMIT ?2)',
-  purgeRates: 'DELETE FROM bsky_rate_counts WHERE k IN (SELECT k FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ?1 LIMIT ?2)',
-  purgeFlows: 'DELETE FROM bsky_flows_used WHERE sh IN (SELECT sh FROM bsky_flows_used INDEXED BY bsky_flows_used_exp WHERE exp <= ?1 LIMIT ?2)',
+  purgeEndorsements: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 LIMIT ?2) RETURNING eh',
+  purgeRates: 'DELETE FROM bsky_rate_counts WHERE k IN (SELECT k FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ?1 LIMIT ?2) RETURNING k',
+  purgeFlows: 'DELETE FROM bsky_flows_used WHERE sh IN (SELECT sh FROM bsky_flows_used INDEXED BY bsky_flows_used_exp WHERE exp <= ?1 LIMIT ?2) RETURNING sh',
   useFlow: 'INSERT INTO bsky_flows_used (sh, exp) VALUES (?1, ?2) ON CONFLICT (sh) DO NOTHING RETURNING sh',
 });
 
@@ -172,11 +174,6 @@ export async function readRates(db, keys, now = Date.now()) {
   const { results } = await db.prepare(SQL.rates(keys.length)).bind(secs(now), ...keys).all();
   for (const r of results || []) out.set(r.k, Number(r.n) || 0);
   return out;
-}
-
-/** One rate-counter row's count. */
-export async function countRate(db, key, now = Date.now()) {
-  return (await readRates(db, [key], now)).get(key) || 0;
 }
 
 /** The statement that adds one to a rate counter (for a batch). */
@@ -433,18 +430,19 @@ export async function countFor(db, id, { now = Date.now() } = {}) {
 }
 
 // Rows of each kind one purge may delete. A backlog beyond it goes over the
-// next purges (the daily cron, list and admin loads, endorse, unendorse and
-// sign-in), never in one burst of row writes.
+// next purges (the daily cron, list and admin loads, endorse and unendorse),
+// never in one burst of row writes.
 export const PURGE_LIMIT = 500;
 
 /**
  * Delete rows past their expiry, up to `limit` of each kind: endorsements
  * (12 to 13 months), rate counters (about a day) and single-use markers (up
  * to two hours). Run by the daily cron, where the public list or the admin
- * page is computed, and after endorse, unendorse and sign-in starts. It
- * deletes only expired rows, so when it runs says nothing about anyone.
- * The tallies follow by trigger. One batch: one query.
- * -> { endorsements, rates, flows } rows deleted
+ * page is computed, and after endorse and unendorse. It deletes only expired
+ * rows, so when it runs says nothing about anyone. The tallies follow by
+ * trigger. One batch: one query.
+ * -> { endorsements, rates, flows } rows deleted, counted by RETURNING: D1's
+ * meta.changes also counts the trigger's writes to the tallies.
  */
 export async function purgeExpired(db, now = Date.now(), { limit = PURGE_LIMIT } = {}) {
   const t = secs(now);
@@ -453,7 +451,8 @@ export async function purgeExpired(db, now = Date.now(), { limit = PURGE_LIMIT }
     db.prepare(SQL.purgeRates).bind(t, limit),
     db.prepare(SQL.purgeFlows).bind(t, limit),
   ]));
-  return { endorsements: out[0].meta?.changes || 0, rates: out[1].meta?.changes || 0, flows: out[2].meta?.changes || 0 };
+  const n = (r) => (r.results || []).length;
+  return { endorsements: n(out[0]), rates: n(out[1]), flows: n(out[2]) };
 }
 
 /**

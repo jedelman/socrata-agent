@@ -3,12 +3,14 @@
 // target env has BLUESKY_LOGIN = "true" and binds SIREN_DB, as the Worker does.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, delimiter } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { requestKey, publicId } from '../worker/requests.js';
+import { endorsementId } from '../worker/endorsements.js';
+import { D1_SKIP, migrations } from './fake-d1.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'scripts', 'invites.js');
@@ -24,7 +26,9 @@ const SKIP = process.platform === 'win32' ? 'the npx stub is a POSIX script' : w
 
 // A stand-in for `npx wrangler kv key ...` over a JSON file, and for
 // `npx wrangler d1 execute ...`, which fails as wrangler 4.147 does without a
-// binding (STUB_D1=missing) or answers with STUB_D1_TALLY's count.
+// binding (STUB_D1=missing), runs the SQL against a real SQLite file with the
+// migrations applied (STUB_DB, where node:sqlite exists), or answers with
+// STUB_D1_TALLY's count.
 const STUB = `#!/usr/bin/env node
 const fs = require('fs');
 const a = process.argv.slice(2);
@@ -54,6 +58,18 @@ if (a[1] === 'd1' && a[2] === 'execute') {
     process.exit(1);
   }
   const sql = a[a.indexOf('--command') + 1];
+  if (process.env.STUB_DB) {
+    // Run the CLI's SQL for real, one result array per statement, as wrangler does.
+    const { DatabaseSync } = require('node:sqlite');
+    const db = new DatabaseSync(process.env.STUB_DB);
+    const out = sql.split(';').map((q) => q.trim()).filter(Boolean).map((q) => {
+      const st = db.prepare(q);
+      return { results: /^select\\b|\\breturning\\b/i.test(q) ? st.all().map((r) => ({ ...r })) : (st.run(), []) };
+    });
+    db.close();
+    process.stdout.write(JSON.stringify(out));
+    process.exit(0);
+  }
   if (/SELECT request_id, n/.test(sql)) {
     process.stdout.write(JSON.stringify([{ results: [] }, { results: JSON.parse(process.env.STUB_D1_TALLY || '[]') }]));
   } else {
@@ -67,7 +83,7 @@ process.exit(3);
 const flagOn = (toml) => toml.replace('PUBLIC_ORIGIN = "https://jason-edelman.org"', 'PUBLIC_ORIGIN = "https://jason-edelman.org"\nBLUESKY_LOGIN = "true"');
 const withDb = (toml) => `${toml}\n[[env.siren.d1_databases]]\nbinding = "SIREN_DB"\ndatabase_name = "siren"\ndatabase_id = "00000000-0000-0000-0000-000000000000"\n`;
 
-async function setup(t, toml, extraEnv = {}) {
+async function setup(t, toml, extraEnv = {}, { devVars } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'siren-cli-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const bin = join(dir, 'bin');
@@ -76,6 +92,7 @@ async function setup(t, toml, extraEnv = {}) {
   chmodSync(join(bin, 'npx'), 0o755);
   const config = join(dir, 'wrangler.toml');
   writeFileSync(config, toml);
+  if (devVars) writeFileSync(join(dir, '.dev.vars'), devVars);
   const key = await requestKey('Test source');
   const id = publicId(key);
   const store = join(dir, 'store.json');
@@ -83,21 +100,17 @@ async function setup(t, toml, extraEnv = {}) {
   const log = join(dir, 'log.jsonl');
   writeFileSync(log, '');
   const run = (...args) => {
-    try {
-      const stderr = execFileSync(process.execPath, [CLI, ...args, '--config', config], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, STUB_STORE: store, STUB_LOG: log, ...extraEnv },
-      });
-      return { code: 0, out: stderr };
-    } catch (err) {
-      return { code: err.status, out: `${err.stdout || ''}${err.stderr || ''}` };
-    }
+    const r = spawnSync(process.execPath, [CLI, ...args, '--config', config], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, STUB_STORE: store, STUB_LOG: log, ...extraEnv },
+    });
+    return { code: r.status, out: `${r.stdout || ''}${r.stderr || ''}` };
   };
   const calls = () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const record = () => JSON.parse(JSON.parse(readFileSync(store, 'utf8'))[key]);
-  return { id, run, calls, record };
+  return { id, run, calls, record, dir };
 }
 
 const d1Calls = (calls) => calls.filter((c) => c[1] === 'd1');
@@ -161,4 +174,101 @@ test('--endorsements and --no-endorsements override the flag; the read commands 
   assert.notEqual(listed.code, 0);
   assert.match(listed.out, /binds no SIREN_DB/);
   assert.deepEqual(d1Calls(bare.calls()), []);
+});
+
+// A SQLite file with the real migrations, for the stub to run the CLI's SQL against.
+async function realDb(t, s) {
+  const { DatabaseSync } = await import('node:sqlite');
+  const file = join(s.dir, 'siren.sqlite');
+  const db = new DatabaseSync(file);
+  for (const m of migrations()) db.exec(m.sql);
+  t.after(() => db.close());
+  const rows = (table) => db.prepare(`SELECT * FROM ${table}`).all().map((r) => ({ ...r }));
+  const put = (table, cols, vals) => db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`).run(...vals);
+  return { file, rows, put };
+}
+const SQL_SKIP = SKIP || D1_SKIP;
+const NOW_S = Math.floor(Date.now() / 1000);
+const FAR = NOW_S + 400 * 86400;
+
+test("a decision's SQL, run for real: the tally is frozen into the request, then the rows are deleted", { skip: SQL_SKIP }, async (t) => {
+  const s = await setup(t, withDb(flagOn(REAL_TOML)));
+  const db = await realDb(t, s);
+  for (const [i, y] of [[1, 1], [2, 0], [3, null]]) db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], [await endorsementId('k', s.id, `e${i}`), s.id, y, FAR]);
+  db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['0'.repeat(32), s.id, 0, NOW_S - 5]);
+  db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['1'.repeat(32), 'abcdefabcdef', 0, FAR]);
+  process.env.STUB_DB = db.file;
+  t.after(() => delete process.env.STUB_DB);
+  const out = s.run('request-fulfilled', s.id, '--by', 'https://github.com/o/r/pull/9');
+  assert.equal(out.code, 0, out.out);
+  assert.deepEqual(s.record().endorsements_at_decision, { n: 3, young: 1, unknown: 1 }, 'the expired row is deleted before counting');
+  assert.deepEqual(db.rows('endorsements').map((r) => r.request_id), ['abcdefabcdef'], "only another request's row is left");
+  assert.deepEqual(db.rows('endorsement_counts').map((r) => [r.request_id, r.n]), [['abcdefabcdef', 1]]);
+});
+
+test('endorsements-purge, flag off: deletes expired rows of every kind and keeps live ones', { skip: SQL_SKIP }, async (t) => {
+  const s = await setup(t, withDb(REAL_TOML));
+  const db = await realDb(t, s);
+  db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['a'.repeat(32), s.id, 0, NOW_S - 5]);
+  db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), s.id, 0, FAR]);
+  db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:old:x', 1, NOW_S - 5]);
+  db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:new:x', 1, FAR]);
+  db.put('bsky_flows_used', ['sh', 'exp'], ['f'.repeat(32), NOW_S - 5]);
+  process.env.STUB_DB = db.file;
+  t.after(() => delete process.env.STUB_DB);
+  const out = s.run('endorsements-purge');
+  assert.equal(out.code, 0, out.out);
+  assert.match(out.out, /Deleted 1 endorsement, 1 rate counter and 1 sign-in marker past their expiry/);
+  assert.deepEqual(db.rows('endorsements').map((r) => r.eh), ['b'.repeat(32)]);
+  assert.deepEqual(db.rows('bsky_rate_counts').map((r) => r.k), ['ed:new:x']);
+  assert.deepEqual(db.rows('bsky_flows_used'), []);
+  assert.deepEqual(db.rows('endorsement_counts').map((r) => r.n), [1], 'the tally followed');
+});
+
+test('endorsements-purge --all: refused while the flag is on; with it off, every Bluesky row goes', { skip: SQL_SKIP }, async (t) => {
+  const on = await setup(t, withDb(flagOn(REAL_TOML)));
+  const dbOn = await realDb(t, on);
+  dbOn.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), on.id, 0, FAR]);
+  process.env.STUB_DB = dbOn.file;
+  t.after(() => delete process.env.STUB_DB);
+  const refused = on.run('endorsements-purge', '--all');
+  assert.notEqual(refused.code, 0);
+  assert.match(refused.out, /still sets BLUESKY_LOGIN/);
+  assert.equal(dbOn.rows('endorsements').length, 1, 'nothing deleted');
+
+  const off = await setup(t, withDb(REAL_TOML));
+  const db = await realDb(t, off);
+  db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), off.id, 1, FAR]);
+  db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:new:x', 1, FAR]);
+  db.put('bsky_flows_used', ['sh', 'exp'], ['f'.repeat(32), FAR]);
+  process.env.STUB_DB = db.file;
+  const out = off.run('endorsements-purge', '--all');
+  assert.equal(out.code, 0, out.out);
+  assert.match(out.out, new RegExp(`${off.id}\\s+1\\s+deleting`), 'the totals are printed before they go');
+  for (const table of ['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'bsky_flows_used']) assert.deepEqual(db.rows(table), [], table);
+});
+
+test('--local reads .dev.vars: BLUESKY_LOGIN=true there turns on the freeze, as wrangler dev would', { skip: SKIP }, async (t) => {
+  const tally = JSON.stringify([{ request_id: publicId(await requestKey('Test source')), n: 2, young: 0, unknown: 0 }]);
+  const s = await setup(t, withDb(REAL_TOML), { STUB_D1_TALLY: tally }, { devVars: 'BLUESKY_LOGIN=true\nINVITE_SECRET=x\n' });
+  const out = s.run('request-decline', s.id, '--local');
+  assert.equal(out.code, 0, out.out);
+  assert.equal(s.record().endorsements_at_decision?.n, 2);
+  const d1 = d1Calls(s.calls());
+  assert.equal(d1.length, 2);
+  assert.ok(d1.every((c) => c.includes('--local') && !c.includes('--remote')));
+  // Without --local, .dev.vars doesn't count: the deployed config has no flag.
+  const remote = await setup(t, withDb(REAL_TOML), { STUB_D1: 'missing' }, { devVars: 'BLUESKY_LOGIN=true\n' });
+  assert.equal(remote.run('request-decline', remote.id).code, 0);
+  assert.deepEqual(d1Calls(remote.calls()), []);
+});
+
+test("a config wrangler can't read: decisions refuse before writing, and name the flags that bypass it", { skip: SKIP }, async (t) => {
+  const s = await setup(t, 'this is = = not toml [[[');
+  const out = s.run('request-decline', s.id);
+  assert.notEqual(out.code, 0);
+  assert.match(out.out, /--no-endorsements/);
+  assert.equal(s.record().status, 'accepted');
+  assert.equal(s.run('request-decline', s.id, '--no-endorsements').code, 0);
+  assert.equal(s.record().status, 'declined');
 });

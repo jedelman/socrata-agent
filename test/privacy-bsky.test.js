@@ -78,7 +78,8 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
   // Rate counters: no part of the eid or the email uid, no other counter's
   // visitor hash, and no request id; so they can't be joined to endorsements.
   const rates = tables.bsky_rate_counts.map((r) => r.k);
-  assert.ok(rates.some((k) => k.startsWith('ed:')) && rates.some((k) => k.startsWith('ev:')) && rates.some((k) => k.startsWith('bl:')));
+  assert.ok(rates.some((k) => k.startsWith('ed:')) && rates.some((k) => k.startsWith('ev:')));
+  assert.ok(!rates.some((k) => k.startsWith('bl:')), 'a login start writes no counter');
   const endorsementIds = tables.endorsements.map((r) => r.eh);
   for (const k of [...rates, ...kvKeys.filter((x) => x.startsWith('login-rate:'))]) {
     for (const secretish of [eid, uid, ...endorsementIds]) for (const run of hexRuns(secretish, 16)) assert.ok(!k.includes(run), `${k} carries part of an id`);
@@ -118,7 +119,8 @@ test('the "What Siren keeps" panel matches the retention the code and the rollou
   // Deletion doesn't wait for visitors: the daily cron, turned on with the flag.
   const cron = toml.match(/^# crons = \["(\d+) (\d+) \* \* \*"\]$/m);
   assert.ok(cron, 'wrangler.toml carries the daily cron, for the flag-flip PR to uncomment');
-  assert.match(index, /async scheduled\([^)]*\) \{\s*const db = endorseDb\(env\);\s*if \(db\) ctx\.waitUntil\(purgeAll\(db\)/);
+  assert.match(index, /async scheduled\([^)]*\) \{\s*scheduledPurge\(env, ctx\);/);
+  assert.match(read('worker/admin.js'), /export function scheduledPurge\(env, ctx\) \{\s*const db = endorseDb\(env\);[\s\S]{0,120}purgeAll\(db\)/);
   assert.match(doc, /Flip the flag and turn on the cleanup[\s\S]{0,300}crons = \["17 7 \* \* \*"\]/);
   assert.equal(`${cron[1]} ${cron[2]}`, '17 7');
   // Counters expire an hour after the UTC day ends (endorsements.js eventExpiry);
@@ -139,4 +141,12 @@ test('the "What Siren keeps" panel matches the retention the code and the rollou
   // D1 Time Travel: deleted rows stay restorable for 7 days on Free.
   assert.match(panel, /restorable history of it for 7 days[^.]*recover a deleted entry for up to 7 days/);
   assert.match(doc, /Time Travel\): 7 days on the\s+Workers Free plan/);
+  // That history pairs an endorsement with its counters: the page says what that shows.
+  assert.match(panel, /match an endorsement with the counters written alongside it, which can show which network and which Bluesky server/);
+  assert.match(panel, /daily codes for your Bluesky server and its domain/);
+  // A login start keeps nothing, so the panel promises nothing about one.
+  assert.ok(!/start a sign-in/i.test(panel));
+  // The D1 limits are the account's, and Jason decides before the flag flips.
+  assert.match(doc, /D1 daily limits are per account, not per database/);
+  assert.match(doc, /Before rollout step 5, Jason decides/);
 });

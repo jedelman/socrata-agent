@@ -8,8 +8,10 @@
 //   node scripts/invites.js revoke SIREN-ABCDE-FGHJK      (or the hash from list)
 //   node scripts/invites.js waitlist > ~/siren-waitlist.csv
 //   node scripts/invites.js waitlist-remove someone@example.org
-//   node scripts/invites.js endorsements                 (Bluesky endorsement counts)
+//   node scripts/invites.js endorsements                 (Bluesky endorsement counts; deletes expired endorsements first)
 //   node scripts/invites.js endorsements-clear <id>      (delete one request's endorsements)
+//   node scripts/invites.js endorsements-purge           (delete expired Bluesky rows, as the daily cron does)
+//   node scripts/invites.js endorsements-purge --all     (delete every Bluesky row; only with the flag off)
 //
 // Options: --env <name> (default siren), --local (wrangler dev's local KV
 // and D1 instead of the deployed ones), --config <file> (another wrangler config),
@@ -23,8 +25,16 @@
 // flag on and D1 failing, they refuse before writing anything.
 // --endorsements freezes and clears whenever SIREN_DB is bound, whatever the
 // flag says (for endorsements left from before the flag was turned off);
-// --no-endorsements never touches D1. `endorsements` and
-// `endorsements-clear` need only the binding.
+// --no-endorsements never touches D1. `endorsements`, `endorsements-clear`
+// and `endorsements-purge` need only the binding: with the flag off the
+// Worker deletes nothing, so `endorsements-purge` is how the retention
+// promised on the requests page keeps holding (docs/bluesky-endorsements.md,
+// "Turning the flag off").
+//
+// The env's config is read through wrangler's unstable_readConfig and
+// unstable_getVarsForDev. If a wrangler upgrade breaks them, decisions fail
+// before writing anything; --no-endorsements (no D1) or --endorsements (D1
+// whenever wrangler finds SIREN_DB) decide without them.
 //
 // Each browser or device that redeems a code uses one of its --uses (default
 // 3). Codes are stored only as hashes, so a lost code can't be looked up
@@ -79,6 +89,13 @@ function d1(sql) {
   return (Array.isArray(out) ? out : [out]).map((r) => r.results || []);
 }
 
+class ConfigReadError extends Error {
+  constructor(cause) {
+    super(`Couldn't read env "${env}" from the wrangler config (${String(cause?.message || cause).split('\n')[0]}). Nothing was written. `
+      + "If wrangler's config API changed in an upgrade, decide with --no-endorsements (no D1) or --endorsements (freeze and clear through `wrangler d1 execute`).");
+  }
+}
+
 // Where the target env stands on endorsements, from its wrangler config:
 // { flag, bound }. Read with wrangler's own config reader, so env
 // inheritance and JSON configs work as they do for deploys.
@@ -91,28 +108,39 @@ async function endorsementConfig() {
   } catch {
     throw new Error("Can't read the wrangler config: run `npm install` first (wrangler is a dev dependency).");
   }
-  const { unstable_readConfig: readConfig, unstable_getVarsForDev: varsForDev } = wranglerApi;
-  const config = readConfig({ config: opt('config'), env }, { hideWarnings: true });
-  let vars = config.vars || {};
-  if (where === '--local') {
-    const dev = varsForDev(config.configPath, undefined, vars, env, true);
-    vars = Object.fromEntries(Object.entries(dev).map(([k, v]) => [k, v && typeof v === 'object' && 'value' in v ? v.value : v]));
+  try {
+    const { unstable_readConfig: readConfig, unstable_getVarsForDev: varsForDev } = wranglerApi;
+    const config = readConfig({ config: opt('config'), env }, { hideWarnings: true });
+    let vars = config.vars || {};
+    if (where === '--local') {
+      const dev = varsForDev(config.configPath, undefined, vars, env, true);
+      vars = Object.fromEntries(Object.entries(dev).map(([k, v]) => [k, v && typeof v === 'object' && 'value' in v ? v.value : v]));
+    }
+    endorseConfig = {
+      flag: vars.BLUESKY_LOGIN === 'true',
+      bound: (config.d1_databases || []).some((d) => d.binding === 'SIREN_DB'),
+    };
+  } catch (err) {
+    throw new ConfigReadError(err);
   }
-  endorseConfig = {
-    flag: vars.BLUESKY_LOGIN === 'true',
-    bound: (config.d1_databases || []).some((d) => d.binding === 'SIREN_DB'),
-  };
   return endorseConfig;
 }
 
 // Should a decision freeze and clear endorsements? See the header.
 async function decisionTouchesD1() {
   if (flag('no-endorsements')) return false;
-  const { flag: on, bound } = await endorsementConfig();
   if (flag('endorsements')) {
+    let bound;
+    try {
+      ({ bound } = await endorsementConfig());
+    } catch (err) {
+      if (!(err instanceof ConfigReadError)) throw err;
+      return true; // wrangler d1 execute fails on its own, before any write, if SIREN_DB isn't bound
+    }
     if (!bound) throw new Error(`--endorsements: env "${env}" binds no SIREN_DB in its wrangler config. Nothing was decided.`);
     return true;
   }
+  const { flag: on, bound } = await endorsementConfig();
   return on && bound;
 }
 
@@ -127,6 +155,29 @@ function endorsementTally(id) {
   const where = id ? ` WHERE request_id = ${sqlId(id)}` : '';
   const [, rows = []] = d1(`DELETE FROM endorsements WHERE exp <= ${now}; SELECT request_id, n, young, unknown FROM endorsement_counts${where}`);
   return new Map(rows.map((r) => [r.request_id, { n: Number(r.n) || 0, young: Number(r.young) || 0, unknown: Number(r.unknown) || 0 }]));
+}
+
+// Delete Bluesky rows whose expiry is at or before `cutoff` (seconds), as the
+// Worker's purgeExpired does: at most PURGE_ROWS of each kind per statement,
+// repeated until a round comes up short. Counted by RETURNING, since D1's
+// meta.changes also counts the tally triggers. -> rows deleted, by kind
+const PURGE_ROWS = 500;
+function purgeBefore(cutoff) {
+  const t = sqlInt(cutoff);
+  const total = { endorsements: 0, rates: 0, flows: 0 };
+  for (let round = 0; round < 200; round++) {
+    const out = d1([
+      `DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ${t} LIMIT ${PURGE_ROWS}) RETURNING eh`,
+      `DELETE FROM bsky_rate_counts WHERE k IN (SELECT k FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ${t} LIMIT ${PURGE_ROWS}) RETURNING k`,
+      `DELETE FROM bsky_flows_used WHERE sh IN (SELECT sh FROM bsky_flows_used INDEXED BY bsky_flows_used_exp WHERE exp <= ${t} LIMIT ${PURGE_ROWS}) RETURNING sh`,
+    ].join('; '));
+    const n = [out[0] || [], out[1] || [], out[2] || []].map((r) => r.length);
+    total.endorsements += n[0];
+    total.rates += n[1];
+    total.flows += n[2];
+    if (n.every((x) => x < PURGE_ROWS)) break;
+  }
+  return total;
 }
 
 // Delete every endorsement on one request (the tallies follow by trigger).
@@ -238,6 +289,20 @@ async function main() {
     const c = endorsementTally(publicId(key)).get(publicId(key));
     clearEndorsements(publicId(key));
     console.error(`${cur.source}: ${c?.n || 0} endorsement${c?.n === 1 ? '' : 's'} cleared.`);
+  } else if (cmd === 'endorsements-purge') {
+    // Retention without the Worker: expired rows by default, every Bluesky row
+    // with --all (when the feature is being switched off for good, or the
+    // flag is off and the steward won't keep purging).
+    await needD1();
+    let cutoff = Math.floor(Date.now() / 1000);
+    if (flag('all')) {
+      if ((await endorsementConfig()).flag) throw new Error(`Env "${env}" still sets BLUESKY_LOGIN = "true", so new rows would keep arriving. Deploy with the flag off first, then purge. Nothing was deleted.`);
+      const counts = endorsementTally();
+      for (const [id, c] of counts) console.log(`${id}  ${String(c.n).padStart(4)}  deleting (${c.young} young, ${c.unknown} unknown age)`);
+      cutoff = Number.MAX_SAFE_INTEGER;
+    }
+    const n = purgeBefore(cutoff);
+    console.error(!dry ? `Deleted ${n.endorsements} endorsement${n.endorsements === 1 ? '' : 's'}, ${n.rates} rate counter${n.rates === 1 ? '' : 's'} and ${n.flows} sign-in marker${n.flows === 1 ? '' : 's'}${flag('all') ? ': every Bluesky row' : ' past their expiry'}.` : 'Dry run: nothing deleted.');
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -246,7 +311,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id>  [--endorsements | --no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | endorsements | endorsements-clear <id> | endorsements-purge [--all]  [--endorsements | --no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

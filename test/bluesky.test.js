@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   handleLogin, handleCallback, handleMe, handleLogout, handleEndorse, handleUnendorse, handleForget, handleMetadata,
-  sealSession, openSession, sessionCookie, bskyVisitor, blueskyReady, blueskySetupError, metadataReady, BSKY_COOKIE, FLOW_COOKIE, FLOW_PURPOSE,
+  sealSession, openSession, sessionCookie, blueskyReady, blueskySetupError, metadataReady, BSKY_COOKIE, FLOW_COOKIE, FLOW_PURPOSE,
 } from '../worker/bluesky.js';
 import { seal, hmacHex } from '../worker/crypto.js';
 import { signSession } from '../worker/invites.js';
@@ -251,19 +251,22 @@ dbTest('login start: bad input costs nothing; each limit refuses before any fetc
   env = readyEnv({ BSKY_VISITOR_RL: fakeLimiter(0) });
   await login({ env });
   assert.equal(env.BSKY_SITE_RL.calls.length, 0);
-  // The hourly per-visitor count, in D1.
-  env = readyEnv({ BSKY_LOGIN_PER_VISITOR_HOURLY: '1' });
-  const lv = await bskyVisitor(post('/x', {}), env, 'bsky-login');
-  await env.SIREN_DB.prepare('INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?1, 1, ?2)').bind(`bl:${new Date(T0).toISOString().slice(0, 13)}:${lv}`, 4102444800).run();
-  L = await login({ env });
-  assert.equal(L.res.status, 429);
-  assert.equal(L.net.calls.length, 0);
-  // A failed count read fails closed.
+  // No D1 call at all, refused or not: D1's daily rows are the account's,
+  // shared with every other Worker on it, and only a finished sign-in may
+  // spend them.
+  for (const over of [{}, { BSKY_VISITOR_RL: fakeLimiter(0) }, { BSKY_SITE_RL: fakeLimiter(0) }]) {
+    env = readyEnv(over);
+    const waits = [];
+    const res = await handleLogin(post('/api/bsky/login', { account: W.HANDLE }), env, { waitUntil: (p) => waits.push(p) }, BASE, { fetchImpl: fakeNetwork().fetch, now: T0 });
+    await Promise.all(waits);
+    assert.equal(res.status, Object.keys(over).length ? 429 : 200);
+    assert.deepEqual(env.SIREN_DB.ops, [], 'a login start makes no D1 call');
+  }
+  // And a failing D1 can't stop one.
   env = readyEnv();
   env.SIREN_DB.fail = true;
   L = await login({ env });
-  assert.equal(L.res.status, 429);
-  assert.equal(L.net.calls.length, 0);
+  assert.equal(L.res.status, 200);
 });
 
 dbTest('login start: origin, AS checks, cookie size and the deadline', async () => {

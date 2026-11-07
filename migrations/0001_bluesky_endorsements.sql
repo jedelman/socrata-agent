@@ -66,8 +66,8 @@ END;
 -- place (D1 writes are serialized, so an increment is never lost). k is
 -- '<kind>:<period>:<hash32>': ed, ev, ei, er for endorse and unendorse
 -- actions per account, per visitor, and new endorsements per server and per
--- domain (day-scoped HMACs, each in its own domain); bl for login starts per
--- visitor (hour). exp is shared by every row of a kind and period.
+-- domain (day-scoped HMACs, each in its own domain). A login start writes
+-- nothing here. exp is shared by every row of a kind and period.
 CREATE TABLE bsky_rate_counts (
   k TEXT PRIMARY KEY,
   n INTEGER NOT NULL,

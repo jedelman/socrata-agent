@@ -73,7 +73,8 @@ generic mode.
   Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
   `BLUESKY_LOGIN`): `bluesky.js` (routes, sealed cookies), `atproto-identity.js`
   (resolution and the hardened fetch), `atproto-oauth.js` (the client),
-  `endorsements.js` and `public-list.js` (counts through the Cache API).
+  `endorsements.js` and `public-list.js` (counts through the Cache API),
+  `admin.js` (the steward API and the cron's purge, testable in Node).
   Endorsements, their rate counters and the sign-in markers live in D1
   (`SIREN_DB`, schema in `migrations/`, applied with `wrangler d1 migrations
   apply`), not KV: Jason's account is on the Workers Free plan, where KV's
@@ -85,7 +86,10 @@ generic mode.
   with it on and no binding the routes fail closed (503, reason logged). The
   steward CLI follows the same rule from the env's wrangler config. Prepared
   statements only; several writes in one `batch`. Retention rests on the
-  daily cron, turned on with the flag.
+  daily cron, turned on with the flag; with the flag off, on the steward's
+  `node scripts/invites.js endorsements-purge`. D1's Free daily rows are the
+  whole account's (scout-harness's kill switch and journal included), so no
+  path before a finished sign-in may touch D1.
   Invariants: identity only, scope `atproto`, a public client on WebCrypto
   and fetch with no npm dependency; tokens revoked and discarded at the
   callback, never stored or logged; the flow sealed in a cookie scoped to
