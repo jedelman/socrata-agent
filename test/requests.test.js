@@ -29,15 +29,12 @@ test('nothing is public until the steward accepts it, and old notes stay private
   await addRequest({ body: { source: 'Norfolk City Code, Chapter 45', need: 'Are Ghent trees protected?', public: true }, kv, visitor: 'v2', now: sent });
   await addRequest({ body: { source: 'ARB historic district guidelines', need: 'Front-yard trees?', public: true }, kv, visitor: 'v3', now: sent });
   let list = await publicRequests(kv, Date.parse('2026-11-06T12:00:00Z'));
-  assert.deepEqual(list.requests, []);
-  assert.equal(list.awaiting_review, 2);
-  assert.equal(list.awaiting_review_before, '2026-11-06');
+  assert.deepEqual(list, { requests: [], withdrawn: [] }, 'not even a count of what awaits review');
 
   const key = await requestKey('Norfolk City Code, Chapter 45');
   await kv.put(key, JSON.stringify(withStatus(await kv.get(key, 'json'), 'accepted', { steward_note: 'Municode is behind a bot challenge; a copy we can re-check is needed.' })));
   list = await publicRequests(kv, Date.parse('2026-11-06T13:00:00Z'));
   assert.equal(list.requests.length, 1);
-  assert.equal(list.awaiting_review, 1, 'a decision is counted at once; only raises are held back');
   let r = list.requests[0];
   assert.equal(r.id, publicId(key));
   assert.equal(r.count, 2);
@@ -358,8 +355,8 @@ test('applying directly: no withdrawn list in the feed closes nothing unlisted; 
   assert.deepEqual(operations({ existing, requests: [], withdrawn: undefined, pageUrl: 'u', repo: 'o/r' }), []);
 });
 
-// --- Review fixes: legacy declines, stale raises, trimming, the awaiting
-// snapshot, decision days, and the plan's create_if_missing.
+// --- Review fixes: legacy declines, stale raises, trimming, no word on
+// unreviewed requests, decision days, and the plan's create_if_missing.
 
 import { trimNotes, deletedKey } from '../worker/requests.js';
 import { UNLISTED_LIMIT } from '../scripts/sync-request-issues.js';
@@ -434,16 +431,17 @@ test('a run of new notes cannot push approved notes off an accepted request', as
   assert.deepEqual(kept, [...kept].sort((a, b) => Number(a.id.slice(1)) - Number(b.id.slice(1))));
 });
 
-test('the awaiting count does not move with a raise, so it cannot tell whether someone asked already', async () => {
+test('the public feed carries nothing about unreviewed requests, so a raise cannot tell whether someone asked already', async () => {
   const kv = fakeKV();
   const day = at('2026-11-06T09:00:00Z');
-  await addRequest({ body: { source: 'Police records for 12 Elm St' }, kv, visitor: 'victim', now: day });
-  const before = (await publicRequests(kv, day)).awaiting_review;
+  await addRequest({ body: { source: 'Police records for 12 Elm St' }, kv, visitor: 'victim', now: day - 86400000 });
+  const before = JSON.stringify(await publicRequests(kv, day));
   await addRequest({ body: { source: 'Police records for 12 Elm St' }, kv, visitor: 'prober', now: day + 1000 });
-  assert.equal((await publicRequests(kv, day + 2000)).awaiting_review, before);
+  assert.equal(JSON.stringify(await publicRequests(kv, day + 2000)), before);
   await addRequest({ body: { source: 'A fresh source' }, kv, visitor: 'prober', now: day + 3000 });
-  assert.equal((await publicRequests(kv, day + 4000)).awaiting_review, before, 'a fresh source does not move it either');
-  assert.equal((await publicRequests(kv, at('2026-11-07T00:00:01Z'))).awaiting_review, 2, 'the next day it is counted again');
+  assert.equal(JSON.stringify(await publicRequests(kv, day + 4000)), before, 'a fresh source does not change it either');
+  assert.equal(JSON.stringify(await publicRequests(kv, at('2026-11-08T00:00:01Z'))), before, 'nor does a day passing');
+  assert.deepEqual(Object.keys(JSON.parse(before)).sort(), ['requests', 'withdrawn']);
 });
 
 test('a decision is stored as a day', async () => {
@@ -489,7 +487,7 @@ test('the steward page counts only public notes as needing review', async () => 
 // can't undo, the legacy five, steward deletes that add up, and the plan's
 // two contracts.
 
-import { decisionKey, awaitingBefore } from '../worker/requests.js';
+import { decisionKey } from '../worker/requests.js';
 
 test('the public feed never writes to KV, so a KV out of writes still serves it', async () => {
   const kv = fakeKV();
@@ -501,20 +499,15 @@ test('the public feed never writes to KV, so a KV out of writes still serves it'
   const full = { ...kv, async put() { puts++; throw new Error('KV put failed: 429 Too Many Requests'); } };
   const feed = await publicRequests(full, at('2026-11-06T09:00:00Z'));
   assert.equal(feed.requests.length, 1);
-  assert.equal(feed.awaiting_review, 1);
   assert.equal(puts, 0, 'no write at all');
   assert.ok(![...kv.store.keys()].some((k) => k === 'request-stats'));
 });
 
-test('the awaiting count leaves out requests first received today', () => {
-  const rows = [
-    ['request:a', { status: 'new', first: '2026-11-05' }],
-    ['request:b', { status: 'new', first: '2026-11-06' }],
-    ['request:c', { status: 'accepted', first: '2026-11-01' }],
-    ['request:d', { status: 'new', first: '2026-10-01T10:00:00.000Z' }],
-  ];
-  assert.equal(awaitingBefore(rows, '2026-11-06'), 2);
-  assert.equal(awaitingBefore(rows, '2026-11-07'), 3);
+test('the public page shows no count of requests awaiting review', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('../worker/requests.html', import.meta.url), 'utf8');
+  assert.doesNotMatch(html, /awaiting_review/);
+  assert.match(html, /Requests appear here after a steward reviews them\./);
 });
 
 test('a stale raise cannot undo a decline: the request stays withdrawn', async () => {

@@ -47,10 +47,9 @@ const link = (u) => (/^https:\/\//i.test(String(u || '')) ? esc(u) : '#');
 const REPO = '{{REPO}}';
 (async () => {
   try {
-    const { requests = [], awaiting_review = 0, awaiting_review_before } = await (await fetch('api/requests')).json();
-    // The awaiting count leaves out requests first sent today (UTC), so a raise can't move it.
-    const before = /^\d{4}-\d{2}-\d{2}$/.test(String(awaiting_review_before || '')) ? ` (sent before ${awaiting_review_before})` : '';
-    document.getElementById('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}${awaiting_review ? `; ${awaiting_review} awaiting review${before}` : ''}.`;
+    const { requests = [] } = await (await fetch('api/requests')).json();
+    // No count of requests awaiting review: it would tell anyone whether someone else asked already.
+    document.getElementById('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}. Requests appear here after a steward reviews them.`;
     document.getElementById('list').innerHTML = requests.length
       ? requests.map((r) => `<li>
           <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${r.count} ${r.count === 1 ? 'person' : 'people'} asked</span></div>
