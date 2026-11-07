@@ -151,9 +151,11 @@ export const SQL = Object.freeze({
 // are bounded by a daily count instead: every D1 write Siren makes is charged
 // first to today's row in siren_d1_budget, in one conditional statement that
 // refuses past the cap and then writes nothing. The caps' ceilings sum to
-// 4,800 rows a day, under 5% of the Free plan's 100,000. The visitor pot also
-// counts calls, which bounds the rows they read (docs/bluesky-endorsements.md
-// has the arithmetic). Every visitor call reaches chargeD1 only after the
+// 5,000 rows a day, 5% of the Free plan's 100,000. The visitor and list pots
+// also count calls, which bounds the rows they read (docs/bluesky-endorsements.md
+// has the arithmetic): the list pot is how the public list's counts are
+// bounded each day without leaning on KV's daily list operations running out.
+// Every visitor call and list computation reaches chargeD1 only after the
 // Rate Limiting bindings, so a refused charge costs about two rows read.
 
 /**
@@ -170,11 +172,17 @@ export const ROWS = Object.freeze({
 });
 
 /** The upkeep pot: the cron's purge, the orphan sweep and the steward's clears. Fixed. */
-export const UPKEEP = Object.freeze({ calls: 200, writes: 2400 });
+export const UPKEEP = Object.freeze({ calls: 200, writes: 2200 });
+/**
+ * The list pot: one charge (the budget row) per public list computation that
+ * asks D1 for counts, each then reading N + 1 rows. Fixed. Refused, the list
+ * is served without counts.
+ */
+export const LIST = Object.freeze({ calls: 400, writes: 400 });
 /** Ceilings on the visitor pot's settings, so no config takes Siren past 5% of the Free limits (the doc's worst case). */
 export const VISITOR_MAX = Object.freeze({ calls: 350, writes: 2400 });
 
-/** { visitor: { calls, writes }, upkeep: { calls, writes } } per UTC day. */
+/** { visitor: { calls, writes }, upkeep: { calls, writes }, list: { calls, writes } } per UTC day. */
 export function budgetCaps(env) {
   return {
     visitor: {
@@ -182,12 +190,13 @@ export function budgetCaps(env) {
       writes: setting(env?.ENDORSE_D1_WRITES_DAILY, VISITOR_MAX.writes, { min: 1, max: VISITOR_MAX.writes }),
     },
     upkeep: { ...UPKEEP },
+    list: { ...LIST },
   };
 }
 
 /**
- * Charge `calls` calls and `writes` rows to today's `pot` ('visitor' or
- * 'upkeep'). -> true if granted; false if a cap would be passed (nothing
+ * Charge `calls` calls and `writes` rows to today's `pot` ('visitor',
+ * 'upkeep' or 'list'). -> true if granted; false if a cap would be passed (nothing
  * written). Throws StorageError if D1 fails. `writes` includes the budget
  * row itself (ROWS.budget).
  */

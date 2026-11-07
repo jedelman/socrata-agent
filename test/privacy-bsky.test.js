@@ -103,8 +103,9 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
   groups.set('endorsements', tables.endorsements.map((r) => r.exp));
   groups.set('budget', tables.siren_d1_budget.map((r) => r.exp));
   // The budget: a date, a pot and two numbers; nothing per person.
-  assert.deepEqual(tables.siren_d1_budget.map((r) => Object.keys(r).sort()), [['calls', 'day', 'exp', 'pot', 'writes']]);
-  assert.ok(tables.siren_d1_budget.every((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.day) && r.pot === 'visitor'));
+  assert.ok(tables.siren_d1_budget.length > 0);
+  assert.ok(tables.siren_d1_budget.every((r) => JSON.stringify(Object.keys(r).sort()) === JSON.stringify(['calls', 'day', 'exp', 'pot', 'writes'])));
+  assert.ok(tables.siren_d1_budget.every((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.day) && ['visitor', 'list'].includes(r.pot)));
   for (const [g, exps] of groups) assert.equal(new Set(exps).size, 1, `${g} shares one expiry`);
   const exp = groups.get('endorsements')[0];
   assert.ok([boundary(now, 'month', 12), boundary(now, 'month', 13)].includes(exp), 'a month boundary 12 to 13 months out');

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   endorse, unendorse, endorsedBy, forgetEndorser, endorsementCounts, countFor, clearRequestEndorsements,
   publicNumber, publicPolicy, youngFlag, endorsementId, issuerBucket, orphanedIds, purgeExpired, purgeAll, sweepOrphans, PURGE_LIMIT, endorseDb, dbSetupError, StorageError, SQL,
-  chargeD1, budgetCaps, ROWS, UPKEEP, VISITOR_MAX, OVER_BUDGET,
+  chargeD1, budgetCaps, ROWS, UPKEEP, LIST, VISITOR_MAX, OVER_BUDGET,
 } from '../worker/endorsements.js';
 import { addRequest, decide, requestKey, publicId, publicRequests, freezeAtDecision } from '../worker/requests.js';
 import { cachedPublicList, purgePublicList, computePublicList } from '../worker/public-list.js';
@@ -266,7 +266,7 @@ dbTest('the public list is served from the cache until purged', async () => {
   assert.equal(third.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
 });
 
-dbTest('if D1 fails, the list is still served, without counts, cached only briefly under its own key', async () => {
+dbTest('if D1 fails, the list is still served, without counts, cached under its own key as long as a counted list (no extra KV lists)', async () => {
   const w = await world();
   await go(w, w.ids.open1, await session(1));
   w.db.fail = true;
@@ -284,9 +284,9 @@ dbTest('if D1 fails, the list is still served, without counts, cached only brief
   assert.equal(list.requests.length, 3);
   assert.ok(list.requests.every((r) => !('endorsements' in r)), 'no wrong zeros');
   assert.deepEqual([...cache.store.keys()], ['https://x.dev/__cache/public-requests-uncounted-v1'], 'never under the counted key');
-  assert.equal(cache.store.get('https://x.dev/__cache/public-requests-uncounted-v1').headers.get('Cache-Control'), 'public, max-age=30');
+  assert.equal(cache.store.get('https://x.dev/__cache/public-requests-uncounted-v1').headers.get('Cache-Control'), 'public, max-age=60');
   assert.ok(errors.some((e) => /endorsement counts failed/.test(e)));
-  // Within the 30 s, views are served from it: no KV list, no D1 call.
+  // Within the 60 s, views are served from it: no KV list, no D1 call.
   const kvList = w.kv.list;
   let lists = 0;
   w.kv.list = (...a) => { lists++; return kvList.apply(w.kv, a); };
@@ -349,6 +349,40 @@ dbTest('the site-wide breaker refuses the count before any D1 call: the list is 
   assert.equal(list.endorsements_unavailable, true);
   assert.equal(w.db.ops.length, ops, 'no D1 call');
   assert.deepEqual(w.env.BSKY_D1_RL.calls, ['list']);
+});
+
+dbTest("the list pot caps the counts' D1 reads a day without KV failing: past it, one refused charge and the list without counts, cached 60 s", async () => {
+  const w = await world();
+  await putRow(w.db, w.ids.open1, 'e'.repeat(32));
+  const kvList = w.kv.list;
+  let lists = 0;
+  w.kv.list = (...a) => { lists++; return kvList.apply(w.kv, a); };
+  // Spend all but one of today's list computations.
+  assert.ok(await chargeD1(w.db, w.env, { pot: 'list', calls: LIST.calls - 1, writes: LIST.writes - 1, now: NOW }));
+  let mark = w.db.ops.length;
+  const last = await computePublicList(w.env, w.kv, { sweep: false, now: NOW });
+  assert.equal(last.requests.find((r) => r.id === w.ids.open1).endorsements, 1, 'the last one granted reads the counts');
+  assert.deepEqual(w.db.ops.slice(mark).map((o) => o.sql.split(' ')[0]), ['INSERT', 'SELECT'], 'the charge, then the counts');
+  const spent = JSON.stringify(w.db.rows('siren_d1_budget'));
+  // KV keeps working, so nothing here leans on KV's list operations running out.
+  mark = w.db.ops.length;
+  const over = await computePublicList(w.env, w.kv, { now: NOW });
+  assert.equal(over.endorsements_unavailable, true);
+  assert.ok(over.requests.every((r) => !('endorsements' in r)), 'no wrong zeros');
+  assert.deepEqual(w.db.ops.slice(mark).map((o) => o.sql.split(' ')[0]), ['INSERT'], 'one refused charge, no count read, no sweep');
+  assert.equal(JSON.stringify(w.db.rows('siren_d1_budget')), spent, 'a refused charge writes nothing');
+  assert.equal(lists, 2, 'KV answered both times');
+  // Through the cache (which charges at the real time): served without counts
+  // for as long as a counted list. Today's pot is spent first, whatever day it is.
+  await chargeD1(w.db, w.env, { pot: 'list', calls: LIST.calls, writes: LIST.writes });
+  const cache = fakeCache();
+  const out = await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache });
+  assert.equal(out.endorsements_unavailable, true);
+  assert.deepEqual([...cache.store.keys()], ['https://x.dev/__cache/public-requests-uncounted-v1']);
+  assert.equal(cache.store.get('https://x.dev/__cache/public-requests-uncounted-v1').headers.get('Cache-Control'), 'public, max-age=60');
+  // Each UTC day has its own pot (the day before NOW: never the real today).
+  const next = await computePublicList(w.env, w.kv, { sweep: false, now: NOW - 86400e3 });
+  assert.equal(next.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
 });
 
 dbTest('a repeat after an unknown age becomes known rewrites null to the known flag, and counted follows the stored flag', async () => {
@@ -679,7 +713,9 @@ test("the budget's ceilings stay within 5% of the Free plan's daily D1 writes, w
   const caps = budgetCaps({ ENDORSE_D1_WRITES_DAILY: '999999', ENDORSE_D1_CALLS_DAILY: '999999' });
   assert.equal(caps.visitor.writes, VISITOR_MAX.writes);
   assert.equal(caps.visitor.calls, VISITOR_MAX.calls);
-  assert.ok(VISITOR_MAX.writes + UPKEEP.writes <= 5000, '5% of 100,000 rows written');
+  assert.ok(VISITOR_MAX.writes + UPKEEP.writes + LIST.writes <= 5000, '5% of 100,000 rows written, the list pot included');
+  assert.deepEqual(budgetCaps({}).list, LIST);
+  assert.ok(LIST.writes >= LIST.calls * ROWS.budget, 'each list computation writes only its budget row');
   assert.deepEqual(budgetCaps({ ENDORSE_D1_WRITES_DAILY: 'lots', ENDORSE_D1_CALLS_DAILY: '-3' }).visitor, { calls: 300, writes: 2400 }, 'a typo falls back to the default');
   assert.deepEqual(budgetCaps({}).upkeep, UPKEEP);
   // Each action is charged at least what D1 measured for it (the doc's table,
@@ -715,8 +751,8 @@ dbTest('over the budget, endorse, unendorse, me and forget answer over_budget af
   const s = await session(1);
   assert.ok((await go(w, w.ids.open1, s, 'a')).ok, '10 rows for an open server');
   assert.ok((await go(w, w.ids.open2, await session(2, { issuer: 'https://pds.example.dev' }), 'b')).ok, '14 for a capped one');
+  const list = await computePublicList(w.env, w.kv, { sweep: false, now: NOW });
   const rows = JSON.stringify(['endorsements', 'bsky_rate_counts', 'siren_d1_budget'].map((t) => w.db.rows(t)));
-  const list = await computePublicList(w.env, w.kv, { sweep: false });
   const mark = w.db.ops.length;
   assert.deepEqual(await endorse({ kv: w.kv, db: w.db, env: w.env, id: w.ids.open2, session: await session(3, { issuer: 'https://pds.example.dev' }), visitor: 'c', publicList: list, now: NOW }), OVER_BUDGET);
   assert.deepEqual(await unendorse({ db: w.db, env: w.env, id: w.ids.open1, session: s, visitor: 'a', now: NOW }), OVER_BUDGET);

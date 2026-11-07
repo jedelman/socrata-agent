@@ -6,25 +6,34 @@
 // some local setups) the list is computed every time.
 //
 // What bounds its D1 reads when the cache doesn't (docs/bluesky-endorsements.md,
-// "Siren's worst case on the account's D1"): the request records are read from
-// KV first, and D1 is asked only after that succeeds, so on the Free plan the
-// list's D1 reads can't outnumber the account's 1,000 KV list operations a
-// day; and a site-wide Rate Limiting breaker (BSKY_D1_RL, key 'list') runs
-// before the D1 read, so a location computes counts at most that often a
-// minute whatever the cache does.
+// "Siren's worst case on the account's D1"): a site-wide Rate Limiting
+// breaker (BSKY_D1_RL, key 'list') runs before any D1 call, so a location
+// asks D1 at most that often a minute whatever the cache does; and each
+// computation that asks for counts is charged first to the daily 'list' pot
+// in siren_d1_budget (LIST in endorsements.js), so the counts are read at
+// most LIST.calls times a day across the whole account. Neither depends on
+// KV's daily list operations running out, which would also stop Scout's
+// runs (the doc's "The public list and the account's KV list operations").
+//
+// The request records are read from KV first, and D1 is asked only after
+// that succeeds. Each computation is one KV list, from the account's 1,000 a
+// day on Free; the 60-second cache is what holds that down, and a list
+// without counts is cached as long as a counted one so a D1 outage doesn't
+// add KV lists.
 
 import { publicRequests, requestRows } from './requests.js';
-import { endorsementCounts, publicPolicy, orphanedIds, sweepOrphans, endorseDb } from './endorsements.js';
+import { endorsementCounts, publicPolicy, orphanedIds, sweepOrphans, endorseDb, chargeD1, ROWS } from './endorsements.js';
 
-const SECONDS = 60;
-// A list computed without counts (D1 failed, or the breaker was tripped) is
-// cached briefly under its own key, so a D1 outage (on the Free plan, the
-// daily row limits until midnight UTC) doesn't turn every view into a KV list
-// of the requests, while D1 is still retried every half minute per location.
-const UNAVAILABLE_SECONDS = 30;
+export const SECONDS = 60;
+// A list computed without counts (D1 failed, the breaker was tripped, or the
+// day's list pot is spent) is cached under its own key for as long as a
+// counted one, so a D1 outage (on the Free plan, the account's daily row
+// limits until midnight UTC, which Scout can reach too) costs no more KV
+// lists than a normal day: about one per location a minute.
+export const UNAVAILABLE_SECONDS = SECONDS;
 // The request records couldn't be read at all (KV failing, or past its daily
-// list operations): remembered for as long, under its own key, so each view
-// in that time is a cache hit, not another KV list.
+// list operations): remembered for 30 seconds, under its own key, so each
+// view in that time is a cache hit, not another KV list.
 const FAILED_SECONDS = 30;
 
 /** What /api/requests and the Bluesky routes get when the request records can't be read. */
@@ -53,9 +62,9 @@ async function allowed(limiter, key) {
  * that, so a person's own action never carries a sweep's writes.
  *
  * Only with BLUESKY_LOGIN on and SIREN_DB bound (callers check blueskyReady).
- * If D1 fails or the breaker refuses, the list is still served, without
- * counts and flagged `endorsements_unavailable`; cachedPublicList caches that
- * for 30 seconds only, under its own key.
+ * If D1 fails, the breaker refuses or the day's list pot is spent, the list
+ * is still served, without counts and flagged `endorsements_unavailable`;
+ * cachedPublicList caches that for 60 seconds, under its own key.
  */
 export async function computePublicList(env, kv, { defer, sweep = true, now = Date.now() } = {}) {
   const rows = await requestRows(kv);
@@ -63,7 +72,7 @@ export async function computePublicList(env, kv, { defer, sweep = true, now = Da
   let counts;
   if (db && (await allowed(env.BSKY_D1_RL, 'list'))) {
     try {
-      counts = await endorsementCounts(db);
+      if (await chargeD1(db, env, { pot: 'list', calls: 1, writes: ROWS.budget, now })) counts = await endorsementCounts(db);
     } catch (err) {
       console.error('public list: endorsement counts failed', err?.cause?.message || err?.message);
     }

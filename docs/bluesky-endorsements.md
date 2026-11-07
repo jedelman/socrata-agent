@@ -40,7 +40,7 @@ bound.
 | Per endorsement, one row: `HMAC(INVITE_SECRET, request + account)`, the request's public id, one flag (young, established or unknown age) and its expiry | D1 `endorsements` | Until the request is decided (rows written around the decision are swept within minutes, where the public list is computed), and in any case until the start of the month 12 to 13 months after it was made (`ENDORSE_RETENTION_MONTHS`) |
 | Per request with endorsements: the count, and how many are young or of unknown age | D1 `endorsement_counts`, kept by triggers | As long as the request has endorsements |
 | Rate counters: one row per day and keyed hash, holding a number. The hashes are of the account (day-scoped), the network address, and for servers not in `ENDORSE_OPEN_ISSUERS` the account's server and its domain (day-scoped). None names a request or holds any part of an endorsement id, so a withdrawal leaves nothing request-specific behind. Signing in writes nothing to D1 | D1 `bsky_rate_counts` | Expire about a day after they're made; deleted by the next daily cleanup, so within about a day and a half (longer only while the day's upkeep budget is spent; see below) |
-| Siren's daily D1 budget: per UTC day and pot (`visitor`, `upkeep`), how many calls and rows written were charged. No hash, request or visitor | D1 `siren_d1_budget` | Expires an hour after its day ends; deleted by the next daily cleanup |
+| Siren's daily D1 budget: per UTC day and pot (`visitor`, `upkeep`, `list`), how many calls and rows written were charged. No hash, request or visitor | D1 `siren_d1_budget` | Expires an hour after its day ends; deleted by the next daily cleanup |
 | The pending sign-in (state, PKCE verifier, DPoP key, nonce, the account and its server) | A sealed cookie in your browser, scoped to `/ask-siren/oauth/` | 10 minutes |
 | Your sign-in (a keyed id for your account, your handle, its creation day, its server) | A sealed browser-session cookie, scoped to `/ask-siren/api/bsky/` | Until you close the browser, and at most 24 hours |
 
@@ -213,7 +213,7 @@ the per-account and per-server rate hashes, and the sealed-cookie keys.
 | `ENDORSE_MIN_ACCOUNT_DAYS` | 0 (off) | Above 0, younger or unknown-age accounts can't endorse at all |
 | `ENDORSE_RETENTION_MONTHS` | 12 | Endorsements expire 12 to 13 months after they're made |
 | `ENDORSE_D1_CALLS_DAILY` | 300 (at most 350) | D1 calls a day for every signed-in visitor together (`me`, endorse, unendorse, forget), each charged before it runs. Past it, those answer 503 `over_budget` until 00:00 UTC |
-| `ENDORSE_D1_WRITES_DAILY` | 2400 (at most 2400) | Rows those calls may write a day, each call charged the most it can write before it runs. The upkeep pot (cron, sweeps, clears) has its own fixed 2,400. The ceilings keep Siren within 5% of the Free plan's daily D1 writes whatever the config says |
+| `ENDORSE_D1_WRITES_DAILY` | 2400 (at most 2400) | Rows those calls may write a day, each call charged the most it can write before it runs. The upkeep pot (cron, sweeps, clears) has its own fixed 2,200 and the public list's counts their own fixed 400. The ceilings keep Siren within 5% of the Free plan's daily D1 writes whatever the config says |
 | `DOH_URL` | `https://cloudflare-dns.com/dns-query` | DNS-over-HTTPS JSON endpoint (a Worker has no raw DNS) |
 | `PLC_URL` | `https://plc.directory` | The PLC directory |
 
@@ -300,8 +300,8 @@ since 2026-09-01 fails queries past either limit until then; it also allows
 50 queries per Worker invocation (a batch counts as one) and 100 bound
 parameters per statement. Free accounts get 5 cron triggers. Past a D1 daily
 limit Siren answers 503 on Bluesky routes, and serves the public list without
-counts (cached for 30 seconds, so the outage doesn't become a KV list per
-view). If the account moves to Paid, these numbers change; recheck them.
+counts (cached for 60 seconds, as long as a counted list, so the outage
+costs no more KV lists than a normal day). If the account moves to Paid, these numbers change; recheck them.
 
 **The D1 daily limits are per account, not per database.** The same account
 runs `scout-harness`, whose D1 database (`scout-harness-telemetry`) holds
@@ -379,14 +379,20 @@ out, Scout halts.
    the action stops there. Each call is charged the most it can write
    (`ROWS`: an endorsement 5 rows, a counter 2, an age rewrite 2, the budget
    row 1, at or above the measured costs above), so what's written never
-   exceeds what was charged. There are two pots: `visitor` (`me`, endorse,
+   exceeds what was charged. There are three pots: `visitor` (`me`, endorse,
    unendorse, forget: `ENDORSE_D1_CALLS_DAILY` calls and
-   `ENDORSE_D1_WRITES_DAILY` rows) and `upkeep` (the cron's purge, the orphan
-   sweep, the steward's clears: a fixed 2,400 rows), so visitors can't spend
-   the budget the cleanup needs.
-4. The public list reads the request records from KV first and asks D1 only
-   after that succeeds, so its D1 reads can't outnumber the account's KV list
-   operations.
+   `ENDORSE_D1_WRITES_DAILY` rows), `upkeep` (the cron's purge, the orphan
+   sweep, the steward's clears: a fixed 2,200 rows) and `list` (the public
+   list's counts: a fixed 400 computations a day), so visitors can't spend
+   the budget the cleanup needs, and a busy list can't spend either.
+4. Each computation of the public list that asks D1 for counts is charged
+   first to the `list` pot (after `BSKY_D1_RL` `list`), so the counts are read
+   at most 400 times a day across the account. Past that, the list is served
+   without counts until 00:00 UTC. This bound doesn't depend on KV: the list
+   still reads the request records from KV first and asks D1 only after that
+   succeeds, but the account's KV list operations running out is not what
+   holds the D1 reads down (that would also stop Scout; see
+   [below](#the-public-list-and-the-accounts-kv-list-operations)).
 5. `me` reads D1 at most once per session (the endorsed set rides in the
    sealed cookie), in one SELECT over at most 99 requests.
 
@@ -410,19 +416,20 @@ more than the first 99 accepted requests). Defaults throughout.
 | Source | Bound | Rows |
 |---|---|---|
 | `me`, endorse, unendorse, forget | the visitor pot, `ENDORSE_D1_WRITES_DAILY` (ceiling 2,400) | ≤ 2,400 |
-| The cron's purge, orphan sweeps, the steward's clears on the admin page | the upkeep pot, fixed | ≤ 2,400 |
-| Login start, callback, public list counts, admin page loads | no writes | 0 |
-| **Total** | | **≤ 4,800 (4.8% of 100,000)** |
+| The cron's purge, orphan sweeps, the steward's clears on the admin page | the upkeep pot, fixed | ≤ 2,200 |
+| Public list counts | the list pot, fixed: 400 computations, each charged its budget row | ≤ 400 |
+| Login start, callback, admin page loads | no writes | 0 |
+| **Total** | | **≤ 5,000 (5% of 100,000)** |
 
 **Reads per UTC day** (L = 5, A = 2, N ≤ 99):
 
 | Source | Bound | Rows |
 |---|---|---|
-| Public list counts | each computation needs a KV list first; Free allows 1,000 KV list operations a day for the whole account; one statement reads N + 1 rows | ≤ 1,000 × 100 = 100,000 |
+| Public list counts | `BSKY_D1_RL` `list`: 2 a minute × 1,440 × A × L = 28,800 attempts, each a charge to the list pot reading about two rows (57,600); the pot grants 400 a day, each then one statement reading N + 1 rows (40,000) | ≤ 97,600 |
 | Signed-in calls refused by the budget | `BSKY_D1_RL` `signed`: 2 a minute × 1,440 × A × L = 28,800 attempts, about two rows each | ≤ 57,600 |
 | Signed-in calls granted | `ENDORSE_D1_CALLS_DAILY` 300 × at most 2 × 99 + 2 rows (the largest: `me`'s SELECT, its age UPDATE, each of forget's two steps, all measured nearer 1.1 to 2.5 rows per request; an endorse reads about 10) | ≤ 60,000 |
-| Upkeep | the cron's counts (12 rounds × about 403 rows = 4,836), about 4 reads per row written within the 2,400-row upkeep budget (9,600), and a refused charge per list computation that finds orphans (≤ 1,000 × 2) | ≤ 17,000 |
-| **Total** | | **≤ 234,600 (4.7% of 5,000,000)** |
+| Upkeep | the cron's counts (12 rounds × about 403 rows = 4,836), about 4 reads per row written within the 2,200-row upkeep budget (8,800), and a refused charge per granted list computation that finds orphans (≤ 400 × 2) | ≤ 14,500 |
+| **Total** | | **≤ 229,700 (4.6% of 5,000,000)** |
 
 Not in the tables: the steward's own admin page loads (N + 1 rows each) and
 the steward CLI (`wrangler d1 execute`, run by hand, not charged to the
@@ -431,30 +438,64 @@ budget). Both are Jason's own actions.
 **Where the numbers move.**
 
 - *More locations.* Each extra location driven all day adds 11,520 refused
-  reads. With N = 99 the reads stay within 250,000 up to 6 locations; with
-  N = 50 (list ≤ 51,000, granted calls ≤ 30,600) up to 13. Writes don't
-  depend on locations.
-- *More requests with endorsements.* The list's reads grow by 1,000 per
+  reads on each of `BSKY_D1_RL`'s two keys, 23,040 in all. With N = 99 the
+  reads stay within 250,000 up to 5 locations; with N = 50 (granted list
+  reads ≤ 20,400, granted calls ≤ 30,600) up to 8. Writes don't depend on
+  locations.
+- *More requests with endorsements.* The list's reads grow by 400 per
   extra request. Past 99, `me` still looks at the first 99, but forget reads
   every tally row (about N, then 2N).
-- *The Paid plan, or KV's list limit changing.* The list's bound above rests
-  on KV's 1,000 list operations a day on Free. Without it, the bound is
-  `BSKY_D1_RL` `list`: 28,800 computations × (N + 1) rows, far past 5% of
-  Free; but Paid's D1 limits are far larger. Recheck this section then.
+- *The Paid plan.* Paid's D1 limits are far larger. Recheck this section
+  then.
 - *Raising a limit.* `ENDORSE_D1_CALLS_DAILY` (ceiling 350, where N = 99
-  reaches about 245,000) adds up to 200 rows read per call; `BSKY_D1_RL`'s
-  limit scales the refused rows (each step of one a minute is 28,800 rows
-  at L = 5). Change them with this section.
+  reaches about 239,700) adds up to 200 rows read per call; `BSKY_D1_RL`'s
+  limit scales the refused rows on both keys (each step of one a minute is
+  28,800 rows per key at L = 5); the list pot (`LIST` in
+  `worker/endorsements.js`, fixed) adds N + 1 rows read and one written per
+  computation, and its writes come out of the same 5,000. Change them with
+  this section.
 
 **What it costs.** Anyone with a signed-in Bluesky account can spend the
 visitor pot (300 calls, or 2,400 rows) in minutes; endorsing, withdrawing and
 the first `me` of a session then answer 503 `over_budget` until 00:00 UTC,
-and the list keeps showing counts. Scout is unaffected. `BSKY_D1_RL` lets
-2 signed-in D1 calls a minute through per location, so a room of people
-endorsing at once sees "Lots of endorsements right now" and retries a minute
-later. The cleanup can't be starved by visitors (its own pot), but a large
-month's cohort of expiring endorsements takes days to delete within 2,400
+and the list keeps showing counts. Scout is unaffected. The list pot runs
+out on its own schedule: a location with a view at least once a minute all
+day computes the list about once a minute (the cache), so one such location
+spends the 400 a little under 7 hours into the UTC day, and five in about
+80 minutes. After that the list is served without counts until 00:00 UTC.
+`BSKY_D1_RL` lets 2 signed-in D1 calls a minute through per location, so a
+room of people endorsing at once sees "Lots of endorsements right now" and
+retries a minute later. The cleanup can't be starved by visitors (its own pot), but a large
+month's cohort of expiring endorsements takes days to delete within 2,200
 rows a day.
+
+### The public list and the account's KV list operations
+
+Not solved here; a decision for Jason. Each computation of the public list
+starts with one KV list of the request records (`requestRows` in
+`worker/requests.js`), out of the account's 1,000 KV list operations a day on
+Free. Scout needs that same quota: every Scout run lists its memory namespace
+(`describeHarness` → `listMemoryKeys` in scout-harness `src/pipeline.ts`,
+read 2026-11-07) with no fallback, and the run fails if that throws. So once
+the account's KV list operations are gone, every Scout run fails until
+00:00 UTC.
+
+Siren's D1 bound above no longer rests on this (the list pot holds it
+whatever KV does). But nothing caps Siren's KV lists a day. With the flag
+on, the 60-second cache holds one location to about 1,440 list computations
+a day, more than the whole account's 1,000, and more locations multiply
+that. A list without counts is cached as long as a counted one, so a D1
+outage (even one Scout causes, as on 2026-11-05) adds none; a failed KV read
+is remembered for 30 seconds. With the flag off it is worse, and it
+predates this branch: on `main`, every `/api/requests` view that reaches the
+Worker lists KV, with only a browser cache (`max-age=300`) in front.
+
+The options, for Jason to choose among (none is built):
+
+- a site-wide daily gate on list computations, checked before the KV list;
+- a longer cache, served stale while one request refreshes it;
+- moving the request records to D1, so the list costs no KV list
+  operation at all.
 
 ## Rollout
 
@@ -617,7 +658,7 @@ Delete every endorsement when you rotate it:
 | Locking one person out of sign-in | | `BSKY_INPUT_RL` is keyed by the account typed (3/min per location), so someone in the same Cloudflare location who types that account three times a minute keeps its owner getting "busy" there. Accepted: the limit is what stops Siren flooding one account's server |
 | Withdrawing while an age flag is rewritten | The rewrite is one conditional UPDATE, so a withdrawn row stays deleted | |
 | Orphaned endorsements after a decision | The decision clears rows; the public-list and admin computations sweep any left for decided or missing requests, 100 rows at a time in one statement | A request reopened within the last minute can look decided to a location whose KV read of the request is still stale, which may then sweep an endorsement made just after the reopen |
-| Running out of the Free plan's daily D1 rows, which are the account's, shared with scout-harness (kill switch, routing registry, memory commits, journal) and every other D1 database there | A stated worst case of 4,800 rows written and 234,600 read a day ([Siren's worst case](#sirens-worst-case-on-the-accounts-d1)): no D1 call before a finished sign-in (login start and callback); `BSKY_D1_RL` and the per-visitor and per-account limits before every D1 call a visitor can cause; every write charged first to a daily budget whose ceilings can't be configured past 5%; the public list asks D1 only after KV answers; `me` once per session | The read bound assumes 5 locations driven all day and N ≤ 99 (more locations add 11,520 reads each), and on Free leans on KV's 1,000 list operations a day. Anyone signed in can spend the visitor pot and pause endorsing until midnight UTC; Scout is unaffected. If something else on the account spends D1's limits, Siren's Bluesky routes answer 503, the list is served without counts, and the admin page refuses declines and fulfils (the CLI's `--no-endorsements` decides without freezing). Jason decides before rollout step 5 whether to share the limits on these terms or move `SIREN_DB` |
+| Running out of the Free plan's daily D1 rows, which are the account's, shared with scout-harness (kill switch, routing registry, memory commits, journal) and every other D1 database there | A stated worst case of 5,000 rows written and 229,700 read a day ([Siren's worst case](#sirens-worst-case-on-the-accounts-d1)): no D1 call before a finished sign-in (login start and callback); `BSKY_D1_RL` and the per-visitor and per-account limits before every D1 call a visitor can cause; every write charged first to a daily budget whose ceilings can't be configured past 5%; the public list's counts charged first to their own daily pot (400 a day), which doesn't depend on KV; `me` once per session | The read bound assumes 5 locations driven all day and N ≤ 99 (more locations add 23,040 reads each). Past 400 list computations in a day the list is served without counts until midnight UTC. Anyone signed in can spend the visitor pot and pause endorsing until midnight UTC; Scout is unaffected. If something else on the account spends D1's limits, Siren's Bluesky routes answer 503, the list is served without counts, and the admin page refuses declines and fulfils (the CLI's `--no-endorsements` decides without freezing). Jason decides before rollout step 5 whether to share the limits on these terms or move `SIREN_DB` |
 | The steward as a lookup oracle | No per-account steward tools; the admin page shows counts only | |
 | Probing unreviewed requests | `endorse` looks ids up only on the public list; `unendorse` answers the same for every well-formed id | |
 | Cross-site actions and framing | JSON-only POSTs, the Origin check, SameSite, no CORS on POSTs or `me`, `frame-ancestors 'none'` and `X-Frame-Options` on `/requests` and `/admin`; steward POSTs that carry an `Origin` must name this site | |
@@ -626,4 +667,5 @@ Delete every endorsement when you rotate it:
 | Logs identifying self-hosted people | The failure code only; the server host only for open servers; cancellations not logged | |
 | Storage cost and growth | `/api/requests` through the Cache API (60 s); tallies kept by triggers; expired rows deleted by the daily cron within the upkeep budget; freeze and delete at decision; per-server caps | |
 | KV failing behind the public list (on Free, past its 1,000 list operations a day) | The list reads KV before D1; a failure is a JSON 503, remembered for 30 seconds per location under its own cache key, with no D1 call | The page says the list couldn't be loaded |
+| Siren using up the account's KV list operations, which Scout's runs need (each run lists its memory namespace and fails if that throws) | Each list computation is one KV list; the 60-second cache (also for a list without counts) holds a location to about 1,440 a day | Not capped: one busy location can pass the account's 1,000 a day, and then every Scout run fails until 00:00 UTC. Predates this branch (on `main` every `/api/requests` view lists KV). A decision for Jason ([options](#the-public-list-and-the-accounts-kv-list-operations)) |
 | Key-prefix collisions with steward tools | Nothing new under `request:`, and a test for it | |

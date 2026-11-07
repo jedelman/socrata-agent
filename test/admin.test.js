@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { handleAdmin, scheduledPurge } from '../worker/admin.js';
 import { addRequest, decide, requestKey, publicId } from '../worker/requests.js';
 import { signUser, userId, USER_COOKIE } from '../worker/accounts.js';
-import { endorsementId } from '../worker/endorsements.js';
+import { endorsementId, UPKEEP } from '../worker/endorsements.js';
 import { readyEnv, SECRET } from './fake-atproto.js';
 import { D1_SKIP } from './fake-d1.js';
 
@@ -115,7 +115,7 @@ dbTest('admin: the clear route, the list-time sweep of decided requests, and the
   // Each clear is charged to the upkeep budget; when it's spent, the clear
   // route says so and deletes nothing.
   assert.ok(w.env.SIREN_DB.rows('siren_d1_budget').some((r) => r.pot === 'upkeep' && r.writes > 0));
-  await w.env.SIREN_DB.prepare("UPDATE siren_d1_budget SET writes = 2400 WHERE pot = 'upkeep'").run();
+  await w.env.SIREN_DB.prepare("UPDATE siren_d1_budget SET writes = ?1 WHERE pot = 'upkeep'").bind(UPKEEP.writes).run();
   await decide(w.env.LIMITS, { id: w.id, status: 'accepted' });
   await endorseRows(w.env.SIREN_DB, w.id, 2);
   const refused = await call(w, '/api/admin/requests/endorsements/clear', { id: w.id });
