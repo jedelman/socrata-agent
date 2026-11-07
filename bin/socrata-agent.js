@@ -11,6 +11,17 @@ import { applyConfig, definePlugin } from '../src/plugins.js';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
+// SUBREQUEST_BUDGET for `ask`: unset means no cap; anything set must be a
+// whole number of at least 10 (the Worker's floor). A typo must never quietly
+// mean unbounded, or a cap too small to leave room for the answer.
+function cliSubrequestBudget(value) {
+  if (value === undefined || value === '') return undefined;
+  if (!/^\d+$/.test(value.trim()) || Number(value) < 10) {
+    throw new Error(`SUBREQUEST_BUDGET must be a whole number of at least 10 (got "${value}"); unset it for no cap.`);
+  }
+  return Number(value);
+}
+
 const HELP = `socrata-agent: ask a city's open data what's on your block, and who decided it.
 
 Usage
@@ -36,7 +47,7 @@ Environment
                        (https://console.anthropic.com); --effort low|medium|high sets their effort
   SOCRATA_APP_TOKEN    optional; raises Socrata's rate limits
   SOCRATA_AGENT_MODEL  optional default model
-  SUBREQUEST_BUDGET    optional cap on outbound requests per answer for "ask" (default: none)
+  SUBREQUEST_BUDGET    optional cap on outbound requests per answer for "ask", 10 or more (default: none)
 `;
 
 async function loadIndexes(city) {
@@ -94,7 +105,7 @@ try {
     const result = await runTool(ctx, name, JSON.parse(json));
     // outbound_requests: every fetch the tool made, retries included (what
     // it would cost against SUBREQUEST_BUDGET in the Worker).
-    console.log(JSON.stringify({ result, trace: ctx.trace.toJSON(), resources: ctx.resources.toJSON(), outbound_requests: ctx.budget.used }, null, 2));
+    console.log(JSON.stringify({ result, trace: ctx.trace.toJSON(), resources: ctx.resources.toJSON(), outbound_requests: ctx.requests.used }, null, 2));
   } else if (cmd === 'ask') {
     const question = rest.join(' ').trim();
     if (!question) throw new Error('ask needs a question');
@@ -110,7 +121,7 @@ try {
       model,
       effort: values.effort,
       // Unset: no cap (the count still runs and is reported).
-      subrequestBudget: process.env.SUBREQUEST_BUDGET,
+      subrequestBudget: cliSubrequestBudget(process.env.SUBREQUEST_BUDGET),
       onEvent: (e) => {
         if (values.json) return;
         if (e.type === 'tool') console.error(`  → ${e.name} ${JSON.stringify(e.args)}`);
@@ -122,7 +133,10 @@ try {
     } else {
       console.log(`\n${out.answer}\n`);
       if (out.requestBudget.note) console.log(`${out.requestBudget.note}\n`);
-      if (!out.voice.ok) console.log(`⚠ Voice check failed after rewrite: ${out.voice.violations.join(' | ')}\n`);
+      if (!out.voice.ok) {
+        const how = out.voice.rewritten ? ' after rewrite' : out.voice.rewriteSkipped ? ' (no rewrite: the request budget was used up)' : '';
+        console.log(`⚠ Voice check failed${how}: ${out.voice.violations.join(' | ')}\n`);
+      }
       console.log(`## Resources\n${out.markdown.resources}\n`);
       console.log(`## Trace\n${out.markdown.trace}\n`);
       const r = out.requestBudget;

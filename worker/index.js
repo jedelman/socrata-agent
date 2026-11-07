@@ -18,7 +18,7 @@ import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
-import { setting, visitorId, spentToday, recordSpend } from './limits.js';
+import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, publicRequests, allRequests, decide } from './requests.js';
@@ -184,18 +184,8 @@ async function handleAsk(req, env, ctx) {
       appToken: env.SOCRATA_APP_TOKEN,
       model,
       effort: env.EFFORT || undefined,
-      maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
-      // Outbound requests per answer, model calls and retries included.
-      // Workers Free allows 50 external subrequests per invocation (Paid:
-      // 10,000); 45 leaves a few for the Access key fetch and a cut-off
-      // model call's second try. Tool requests stop short of it, so the
-      // final answer can still be asked for. See src/budget.js.
-      subrequestBudget: setting(env.SUBREQUEST_BUDGET, 45, { min: 10, max: 10000 }),
-      // Claude models think before answering, and thinking counts toward the
-      // allowance, so they get their own: MAX_TOKENS_CLAUDE.
-      maxTokens: providerOf(model) === 'anthropic'
-        ? setting(env.MAX_TOKENS_CLAUDE, 8000, { min: 1000, max: 16000 })
-        : setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
+      // Steps, outbound requests and tokens per answer (worker/limits.js).
+      ...askLimits(env, providerOf(model)),
       referer: new URL(req.url).origin,
       onCost: (usd) => {
         cost += usd;

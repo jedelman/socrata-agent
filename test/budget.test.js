@@ -4,12 +4,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { ask, createContext, BUDGET_STOP_NOTE, BUDGET_TOOL_NOTE } from '../src/agent.js';
 import { requestBudget, RequestBudgetError } from '../src/budget.js';
 import { Trace } from '../src/trace.js';
 import { getCity } from '../src/cities/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import siren from '../deployments/siren.config.js';
+import { askLimits } from '../worker/limits.js';
 import norfolkLegislation from '../data/norfolk-legislation.json' with { type: 'json' };
 
 const norfolk = getCity('norfolk');
@@ -98,6 +100,11 @@ test('a turn whose tools need more than the budget still ends in an answer from 
   const toolMsgs = final.messages.filter((m) => m.role === 'tool');
   assert.ok(toolMsgs.slice(4).every((m) => JSON.parse(m.content).request_budget === BUDGET_TOOL_NOTE), 'refused tools carry the note');
   assert.ok(!JSON.parse(toolMsgs[0].content).request_budget, 'a tool that got everything carries none');
+  // Results the budget cut short aren't kept for a follow-up turn: it runs them again.
+  const whole = toolMsgs.filter((m) => !JSON.parse(m.content).request_budget).length;
+  assert.ok(whole >= 1 && whole < ids.length);
+  assert.equal(out.toolResults.length, whole);
+  assert.ok(out.toolResults.every((r) => !JSON.parse(r.content).request_budget));
 
   // The count includes the model calls, and never passes the budget.
   assert.equal(out.requestBudget.used, net.calls.length);
@@ -195,15 +202,50 @@ test('no path on an answer fetches around the counter: every tool, every plugin,
   assert.equal(out.requestBudget.note, undefined);
 });
 
-test('createContext hands tools only the counting fetch', async () => {
+test('createContext hands tools only the counting fetch, and only a read-only view of the count', async () => {
   const seen = [];
-  const ctx = createContext({ city: norfolk, fetchImpl: async (u) => (seen.push(String(u)), new Response('[]')) });
+  const budget = requestBudget({ fetchImpl: async (u) => (seen.push(String(u)), new Response('[]')) });
+  const ctx = createContext({ city: norfolk, budget });
   await ctx.socrata.query('qzfe-wj25', 'SELECT area LIMIT 1');
   await ctx.http.text('https://example.org/x');
   await ctx.iqm2.getHTML('https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=1', 'read');
-  assert.equal(ctx.budget.used, seen.length);
-  assert.equal(ctx.socrata.fetch, ctx.budget.tool);
-  assert.equal(ctx.iqm2.fetch, ctx.budget.tool);
+  assert.equal(ctx.requests.used, seen.length);
+  assert.equal(ctx.requests.summary().tools, seen.length);
+  assert.equal(ctx.socrata.fetch, budget.tool);
+  assert.equal(ctx.iqm2.fetch, budget.tool);
+  // No tool gets the counter itself: its model lane is never refused and skips the trace.
+  assert.equal(ctx.budget, undefined);
+  assert.ok(!Object.values(ctx.requests).includes(budget.model));
+  assert.ok(Object.isFrozen(ctx.requests));
+});
+
+// Comments and string literals out, so prose about fetching doesn't count.
+const stripCode = (src) =>
+  src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1')
+    .replace(/'(?:\\.|[^'\\\n])*'|"(?:\\.|[^"\\\n])*"/g, "''")
+    .replace(/`(?:\\.|[^`\\])*`/g, '``');
+const BARE_FETCH = /(?<![.\w$])fetch(?![\w$]|\s*:)/;
+
+test('the source scan catches every way of naming the real network', () => {
+  for (const bad of [
+    'await fetch(u)',
+    'await (fetchImpl || fetch)(OPENROUTER, {',
+    'this.fetch = fetchImpl || fetch;',
+    'const f = fetch; f(u)',
+    'fetch.call(null, u)',
+  ]) assert.ok(BARE_FETCH.test(stripCode(bad)), bad);
+  for (const bad of ['const f = self.fetch; f(u)', 'self["fetch"](u)', 'window.fetch(u)']) assert.ok(/\b(self|window)\s*[.[]/.test(stripCode(bad)), bad);
+  for (const ok of [
+    'this.fetch(u)',
+    'const res = await this.fetch(url, init);',
+    'fetchImpl: budget.tool',
+    'new Anthropic({ fetch: guardedFetch(apiKey, fetchImpl) })',
+    'fetchesPerCall: 1',
+    "throw new Error('Could not fetch the page')",
+    '// fetch(u) in a comment',
+  ]) assert.ok(!BARE_FETCH.test(stripCode(ok)), ok);
 });
 
 // The spirit of test/conformance.js, for core: in src/, only src/budget.js
@@ -221,10 +263,132 @@ test('in src/, only the budget module names the real network', () => {
   const problems = [];
   for (const f of files) {
     if (f === '../src/budget.js') continue;
-    const code = readFileSync(new URL(f, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1');
+    const code = stripCode(readFileSync(new URL(f, import.meta.url), 'utf8'));
     if (/\bglobalThis\b/.test(code)) problems.push(`${f} uses globalThis`);
-    if (/(^|[^.\w])fetch\s*\(/.test(code)) problems.push(`${f} calls fetch() directly`);
+    if (/\b(self|window)\s*[.[]/.test(code)) problems.push(`${f} reaches a global object`);
+    // Any bare `fetch` (a call, a fallback, an alias); property names such as
+    // this.fetch, fetchImpl, fetchesPerCall and an option key `fetch:` pass.
+    if (BARE_FETCH.test(code)) problems.push(`${f} names fetch directly`);
     if (/\bXMLHttpRequest\b|\bWebSocket\b|from\s+['"]node:(http|https|net|tls)['"]/.test(code)) problems.push(`${f} opens its own connection`);
   }
   assert.deepEqual(problems, []);
+});
+
+// A scripted Anthropic API. Each complete() is `plan` entries; every attempt
+// can be overloaded first (the SDK retries it), and a reply can be cut off at
+// max_tokens (the provider asks once more, with more room).
+function fakeClaude({ replies, overloadEvery = false, truncateFirst = false }) {
+  const calls = [];
+  const bodies = [];
+  let attempt = 0;
+  let reply = 0;
+  const msg = (content, stop_reason) => ({
+    id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-haiku-5-5', content, stop_reason, stop_details: null,
+    usage: { input_tokens: 10, output_tokens: 5 },
+  });
+  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'retry-after-ms': '1' } });
+  const fetchImpl = async (url, init = {}) => {
+    const u = String(url);
+    calls.push(u);
+    if (!u.startsWith('https://api.anthropic.com/')) {
+      if (u.includes('/api/views/')) return new Response(JSON.stringify({ name: 'Some Dataset', columns: [{ fieldName: 'area' }] }));
+      return new Response('[]');
+    }
+    attempt++;
+    if (overloadEvery && attempt % 2 === 1) return json({ type: 'error', error: { type: 'overloaded_error', message: 'busy' } }, 529);
+    const body = JSON.parse(init.body);
+    bodies.push(body);
+    if (truncateFirst && body.max_tokens < 16000) return json(msg([{ type: 'text', text: 'I found' }], 'max_tokens'));
+    const r = replies[Math.min(reply++, replies.length - 1)];
+    return json(r.calls
+      ? msg(r.calls.map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${reply}_${i}`, name, input })), 'tool_use')
+      : msg([{ type: 'text', text: r.text }], 'end_turn'));
+  };
+  return { fetchImpl, calls, bodies, model: () => calls.filter((u) => u.startsWith('https://api.anthropic.com/')).length };
+}
+const queries = (n) => Array.from({ length: n }, (_, i) => ['query_dataset', { dataset_id: `aaaa-000${i}`, soql: 'SELECT area, count(*) AS n GROUP BY area' }]);
+
+test('Claude at its worst (every try retried, every reply cut off once) still stays within the budget', async () => {
+  const net = fakeClaude({
+    overloadEvery: true,
+    truncateFirst: true,
+    replies: [{ calls: queries(8) }, { text: 'There is a permit on the block.' }],
+  });
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', model: 'claude-haiku-5-5', fetchImpl: net.fetchImpl, subrequestBudget: 20 });
+  assert.equal(out.answer, 'There is a permit on the block.', 'the cut-off rewrite is not used');
+  assert.ok(out.requestBudget.used <= 20, `${out.requestBudget.used} requests of 20`);
+  assert.equal(out.requestBudget.used, net.calls.length);
+  // The reserve is the final answer at its worst (4: a cut-off call's second
+  // try, each retried) plus one rewrite call with its retry (2): 6. The first
+  // call took 4, so tools had 20 - 4 - 6.
+  assert.equal(out.requestBudget.tools, 10);
+  assert.equal(out.requestBudget.model, 10, 'first call 4, final 4, rewrite 2');
+  assert.deepEqual(net.bodies.map((b) => b.tool_choice?.type !== 'none'), [true, true, false, false, false], 'tools are offered on the first call only');
+  assert.equal(out.voice.ok, false);
+  assert.equal(out.voice.rewritten, false);
+});
+
+test('Claude with retries: tools are not offered when no tool request could follow the call', async () => {
+  // Budget 20, reserve 6, each call 2 requests (overloaded, then answered).
+  // After the first call (2) and three queries (6), used is 8: a second
+  // tools-on call (up to 4) plus a tool request plus the reserve needs 11,
+  // and 12 are left, so it is offered. After the next query (2 more) only 8
+  // are left, so the model answers with tools off.
+  const net = fakeClaude({
+    overloadEvery: true,
+    replies: [{ calls: queries(3) }, { calls: queries(1) }, { calls: queries(1) }, { text: 'I found three datasets.' }],
+  });
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', model: 'claude-haiku-5-5', fetchImpl: net.fetchImpl, subrequestBudget: 20 });
+  assert.deepEqual(net.bodies.map((b) => b.tool_choice?.type !== 'none'), [true, true, false]);
+  assert.equal(out.requestBudget.refused, 0, 'no tool request is made only to be refused');
+  assert.ok(out.requestBudget.used <= 20);
+  assert.equal(out.requestBudget.reached, true);
+});
+
+test('OpenRouter: tools ending one short of the reserve do not buy a paid call whose tools are all refused', async () => {
+  // Budget 10, reserve 2. The first call and three queries make 7; a tools-on
+  // call would leave room for no tool request, so the next call is the last.
+  const net = fakeNet([
+    toolCalls(queries(3)),
+    toolCalls(queries(1)),
+    { content: 'I found three datasets.' },
+  ]);
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'test', fetchImpl: net.fetchImpl, subrequestBudget: 10 });
+  assert.equal(net.modelCalls(), 2);
+  assert.equal(net.modelBodies[1].tools, undefined);
+  assert.equal(net.modelBodies[1].messages.at(-1).content, BUDGET_STOP_NOTE);
+  assert.deepEqual({ used: out.requestBudget.used, refused: out.requestBudget.refused, reached: out.requestBudget.reached }, { used: 8, refused: 0, reached: true });
+});
+
+test('the voice rewrite goes out only if it fits; otherwise the check fails honestly', async () => {
+  const net = fakeNet([{ content: 'There is a permit.' }]);
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'test', fetchImpl: net.fetchImpl, subrequestBudget: 1 });
+  assert.equal(net.modelCalls(), 1);
+  assert.deepEqual(out.voice, { ok: false, rewritten: false, violations: out.voice.violations, rewriteSkipped: true });
+  assert.ok(out.voice.violations.length);
+  assert.equal(out.requestBudget.used, 1);
+});
+
+test("the Worker's limits: SUBREQUEST_BUDGET defaults to 45, stays 10-10000, and reaches ask()", () => {
+  for (const [value, want] of [[undefined, 45], ['', 45], ['5', 45], ['abc', 45], ['4O', 45], ['99999', 10000], ['60', 60]]) {
+    assert.equal(askLimits({ SUBREQUEST_BUDGET: value }, 'openrouter').subrequestBudget, want, String(value));
+  }
+  assert.deepEqual(askLimits({}, 'anthropic'), { maxSteps: 6, subrequestBudget: 45, maxTokens: 8000 });
+  assert.deepEqual(askLimits({}, 'openrouter'), { maxSteps: 6, subrequestBudget: 45, maxTokens: 1200 });
+  // The Worker passes them to ask() (it can't be imported outside the Workers runtime).
+  const worker = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
+  const call = worker.slice(worker.indexOf('await ask({'), worker.indexOf('});', worker.indexOf('await ask({')));
+  assert.match(call, /\.\.\.askLimits\(env, providerOf\(model\)\),/);
+  assert.doesNotMatch(call, /subrequestBudget|maxSteps|maxTokens/, 'nothing after the spread overrides it');
+});
+
+test('the CLI refuses a SUBREQUEST_BUDGET that is not a whole number of at least 10', () => {
+  for (const value of ['3', '4O', '0', '12.5']) {
+    const r = spawnSync(process.execPath, [new URL('../bin/socrata-agent.js', import.meta.url).pathname, 'ask', 'hi'], {
+      env: { ...process.env, SUBREQUEST_BUDGET: value, OPENROUTER_API_KEY: '' },
+      encoding: 'utf8',
+    });
+    assert.notEqual(r.status, 0, value);
+    assert.match(r.stderr, /SUBREQUEST_BUDGET must be a whole number of at least 10/, value);
+  }
 });

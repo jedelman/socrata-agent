@@ -31,6 +31,7 @@ export function openrouterProvider({ apiKey, model, maxTokens, fetchImpl, refere
     name: 'openrouter',
     // One fetch per call: this client never retries.
     fetchesPerCall: 1,
+    fetchesPerComplete: 1,
     init({ systemPrompt, history, question, toolDefs }) {
       tools = toolDefs;
       messages.push({ role: 'system', content: systemPrompt });

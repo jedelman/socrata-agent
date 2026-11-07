@@ -31,7 +31,9 @@ export const apiKeyFromEnv = (model, env = {}) =>
 
 // Every client a tool can reach the network through gets the answer's
 // counting fetch (src/budget.js), never `fetchImpl` itself. Without a
-// `budget`, the count still runs, with no limit.
+// `budget`, the count still runs, with no limit. Tools see only a read-only
+// view of the count (`ctx.requests`), never the counter: its model lane is
+// never refused and goes around the trace.
 export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [], budget = requestBudget({ fetchImpl }) }) {
   const trace = new Trace();
   const resources = new Resources();
@@ -40,7 +42,13 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
   for (const c of city.contacts || []) resources.addContact({ ...c, source: 'city profile' });
   for (const l of city.links || []) resources.addLink(l);
   const http = tracedHttp(trace, budget.tool);
-  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, budget, suggestions: [] };
+  const requests = Object.freeze({
+    get used() {
+      return budget.used;
+    },
+    summary: () => budget.summary(),
+  });
+  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, requests, suggestions: [] };
 }
 
 // What the model is told, and what the person reads, when an answer's
@@ -108,10 +116,13 @@ export async function ask({
   const llm = providerOf(model) === 'anthropic'
     ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
+  // Fetches one API call can take, and one complete() at worst (a cut-off
+  // call's second try, each with its retry).
+  const perCall = llm.fetchesPerCall || 1;
+  const perComplete = llm.fetchesPerComplete || perCall;
   // Tool requests stop while enough is left for the model calls that finish
-  // the answer: the final answer and a possible voice rewrite, each with its
-  // retry.
-  budget.setReserve(2 * (llm.fetchesPerCall || 1));
+  // the answer: the final answer at its worst, and one voice rewrite call.
+  budget.setReserve(perComplete + perCall);
   llm.init({
     systemPrompt: systemPrompt(city, new Date().toISOString().slice(0, 10)),
     history,
@@ -130,8 +141,9 @@ export async function ask({
   };
 
   for (;;) {
-    // Out of budget for tools: the model answers now, with tools off.
-    if (budget.exhausted) budgetStopped = true;
+    // Tools are offered only while this call, a tool request after it and the
+    // reserve all fit. Otherwise the model answers now, with tools off.
+    if (!budget.roomForTools(perComplete)) budgetStopped = true;
     const lastStep = steps >= maxSteps || budgetStopped;
     const out = await llm.complete({ allowTools: !lastStep });
     spend(out.cost);
@@ -173,24 +185,30 @@ export async function ask({
       }
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
-      if (!isError) toolResults.push({ name: call.name, args: call.args, content });
+      // A result the budget cut short isn't kept for later turns: a follow-up
+      // runs the tool again under its own budget.
+      if (!isError && budget.refused === refusedBefore) toolResults.push({ name: call.name, args: call.args, content });
     }
     llm.appendToolResults(
       results,
-      budget.exhausted ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null
+      !budget.roomForTools(perComplete) ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null
     );
   }
 
-  // Voice check: one rewrite, then report honestly if it still fails.
+  // Voice check: one rewrite, then report honestly if it still fails. The
+  // rewrite is one API call (no second try when cut off), sent only if it fits
+  // in what is left of the budget; otherwise the check fails honestly.
   let violations = refusal ? [] : voiceViolations(answer);
   let rewritten = false;
-  if (violations.length) {
+  let rewriteSkipped = false;
+  if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
+  else if (violations.length) {
     onEvent({ type: 'rewrite', violations });
     llm.appendAssistant();
     llm.appendUser(REWRITE_INSTRUCTION);
-    const out = await llm.complete({ allowTools: false });
+    const out = await llm.complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
-    if (out.text && !out.refusal) {
+    if (out.text && !out.refusal && !out.truncated) {
       answer = out.text;
       rewritten = true;
       violations = voiceViolations(answer);
@@ -203,7 +221,7 @@ export async function ask({
     answer,
     trace: ctx.trace.toJSON(),
     resources: ctx.resources.toJSON(),
-    voice: { ok: violations.length === 0, rewritten, violations },
+    voice: { ok: violations.length === 0, rewritten, violations, ...(rewriteSkipped ? { rewriteSkipped } : {}) },
     cost,
     model,
     steps,

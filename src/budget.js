@@ -16,7 +16,16 @@
 //     RequestBudgetError before any request goes out, and Trace.record marks
 //     the step "refused" with the reason.
 //   - model fetches are never refused here: the final answer must still be
-//     asked for. The reserve keeps them under the platform's cap.
+//     asked for. src/agent.js keeps them inside the limit: it offers tools only
+//     while that model call, one tool request and the reserve all still fit
+//     (roomForTools), the reserve covers the final call at its worst (retries
+//     and a cut-off call's second try), and the voice rewrite goes out only if
+//     it fits.
+//
+// What this counts is fetch() calls. Cloudflare also counts each hop of a
+// redirect chain, which a fetch() call can't show. The answer-path sources
+// didn't redirect when checked (2026-11-07); the spare under the platform cap
+// (see worker/index.js) covers that and the Access key fetch.
 
 export class RequestBudgetError extends Error {
   constructor(message) {
@@ -71,6 +80,13 @@ export function requestBudget({ limit = Infinity, fetchImpl } = {}) {
     /** True once a tool fetch would be refused (or one already was). */
     get exhausted() {
       return refused > 0 || used() + 1 + reserve > max;
+    },
+    /**
+     * Whether a model call that may take `n` fetches can still offer tools:
+     * that call, at least one tool request after it, and the reserve all fit.
+     */
+    roomForTools(n = 1) {
+      return refused === 0 && used() + n + 1 + reserve <= max;
     },
     /** The fetch tools get: counted, and refused past the limit less the reserve. */
     tool: async (url, init) => {

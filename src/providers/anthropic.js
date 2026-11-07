@@ -115,9 +115,11 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
 
   return {
     name: 'anthropic',
-    // Fetches one model call can take: the attempt and its retry. (A call cut
-    // off at max_tokens is asked once more; the budget's headroom covers that.)
+    // Fetches one API call can take: the attempt and the SDK's retry.
     fetchesPerCall: 1 + MAX_RETRIES,
+    // Fetches one complete() can take at worst: a call cut off at max_tokens
+    // is asked once more with more room, and each of the two can be retried.
+    fetchesPerComplete: (1 + MAX_RETRIES) * (max_tokens < RETRY_MAX_TOKENS ? 2 : 1),
     init({ systemPrompt, history, question, toolDefs }) {
       system = systemPrompt;
       tools = toAnthropicTools(toolDefs);
@@ -126,11 +128,13 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
       messages.push({ role: 'user', content: question });
     },
 
-    async complete({ allowTools = true } = {}) {
+    // `retryTruncated: false` makes one API call (fetchesPerCall) and returns
+    // a cut-off response as it is, marked truncated.
+    async complete({ allowTools = true, retryTruncated = true } = {}) {
       let out = await call(allowTools, max_tokens);
       // A response cut off at max_tokens may end in a half-written tool call:
       // never run it. Retry once with more room, then give up honestly.
-      if (out.truncated && max_tokens < RETRY_MAX_TOKENS) {
+      if (retryTruncated && out.truncated && max_tokens < RETRY_MAX_TOKENS) {
         const retry = await call(allowTools, RETRY_MAX_TOKENS);
         retry.cost += out.cost;
         out = retry;
