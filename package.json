@@ -31,6 +31,7 @@
     "verify:cases": "node scripts/verify-cases.js",
     "build:gaps": "node scripts/build-gaps.js",
     "check:gaps": "node scripts/build-gaps.js --check",
+    "build:gaps:proposed": "node scripts/build-gaps-proposed.js",
     "find:gaps": "node scripts/find-gaps.js"
   },
   "devDependencies": {

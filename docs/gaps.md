@@ -326,6 +326,7 @@ All of these go to `data.norfolk.gov/resource/<id>.json?$query=`.
 | `src/public-text.js` | `publicTextViolations`, `publicTextFlags` |
 | `scripts/build-gaps.js` | `--live` (default): measures, then writes `data/gaps/<city>.json` (bundled), `<city>.trace.json` (not bundled), `<city>-streets.json` (bundled, §6.3) and `docs/gaps-<city>.md`. `--offline`: recomputes only the parts derived from repo files. `--check`: see §5.3. |
 | `scripts/find-gaps.js` | The read-only candidate finder, writing to a gitignored path (§5.5) |
+| `src/gaps/proposed/<city>-<set>.js` · `scripts/build-gaps-proposed.js` | Proposed entries awaiting Jason's approval, in the catalog's entry shape and marked `proposed`. Nothing under `src/` or `worker/` imports them and `build-gaps.js` never reads them (`test/gaps-proposed.test.js`). The script measures them with the catalog's own builder and writes `data/gaps/proposed-<city>-<set>.trace.json` (not bundled) and a review page, e.g. `docs/gaps-budget-proposed.md`; `--check` replays it. |
 
 **How the built file is read.** The Worker imports it, as it imports `data/norfolk-legislation.json` (`worker/index.js:14`). The CLI loads it beside `loadIndexes` (`bin/socrata-agent.js:41-50`).
 
