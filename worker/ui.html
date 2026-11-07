@@ -309,7 +309,7 @@ $('#log').addEventListener('submit', async (e) => {
 });
 function renderTrace(t) {
   if (!t?.length) return '';
-  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
+  return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
 }
 
 function showGate(on) {
@@ -468,7 +468,7 @@ $('#f').addEventListener('submit', async (e) => {
       conversationId = data.conversation;
       $('#conv-forget').hidden = false;
     }
-    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderSuggestions(data.suggestions)}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
+    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${data.requestBudget?.note ? `<p class="notice">${esc(data.requestBudget.note)}</p>` : ''}${renderSuggestions(data.suggestions)}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}${data.requestBudget ? ` · ${data.requestBudget.used} request${data.requestBudget.used === 1 ? '' : 's'}${data.requestBudget.limit ? ` of ${data.requestBudget.limit}` : ''}` : ''}</p>`;
   } catch (err) {
     a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
   } finally {

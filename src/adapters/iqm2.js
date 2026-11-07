@@ -3,6 +3,8 @@
 // carries the status, department and the full roll-call history.
 // Parsers are pure functions over HTML so they can be tested offline.
 
+import { networkFetch } from '../budget.js';
+
 const decode = (s) =>
   s
     .replace(/<br\s*\/?>/gi, ' ')
@@ -130,7 +132,8 @@ export class Iqm2 {
     this.base = base.replace(/\/$/, '');
     this.trace = trace;
     this.resources = resources;
-    this.fetch = fetchImpl || globalThis.fetch.bind(globalThis);
+    // On an answer this is the answer's counting fetch (src/budget.js).
+    this.fetch = fetchImpl || networkFetch;
   }
 
   legiUrl(id) {

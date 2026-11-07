@@ -4,7 +4,8 @@
 //   - or, behind Cloudflare Access, per person (verified email) per day
 //                                          PER_USER_DAILY     default 40
 //   - for everyone per day, in dollars     DAILY_BUDGET_USD   default 2
-//   - per question: length, history, tool steps, output tokens
+//   - per question: length, history, tool steps, output tokens, and
+//     outbound requests (SUBREQUEST_BUDGET, default 45)
 // Limits are counted in KV (binding LIMITS). KV is eventually consistent, so a
 // burst can overshoot by a few requests; set an OpenRouter key limit as the
 // hard ceiling.
@@ -184,6 +185,12 @@ async function handleAsk(req, env, ctx) {
       model,
       effort: env.EFFORT || undefined,
       maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
+      // Outbound requests per answer, model calls and retries included.
+      // Workers Free allows 50 external subrequests per invocation (Paid:
+      // 10,000); 45 leaves a few for the Access key fetch and a cut-off
+      // model call's second try. Tool requests stop short of it, so the
+      // final answer can still be asked for. See src/budget.js.
+      subrequestBudget: setting(env.SUBREQUEST_BUDGET, 45, { min: 10, max: 10000 }),
       // Claude models think before answering, and thinking counts toward the
       // allowance, so they get their own: MAX_TOKENS_CLAUDE.
       maxTokens: providerOf(model) === 'anthropic'

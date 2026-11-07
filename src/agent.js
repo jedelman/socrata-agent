@@ -12,6 +12,7 @@ import { voiceViolations, REWRITE_INSTRUCTION } from './voice.js';
 import { tracedHttp } from './plugins.js';
 import { openrouterProvider } from './providers/openrouter.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
+import { requestBudget } from './budget.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 const RESULT_CHARS = 16000;
@@ -28,15 +29,32 @@ export const keyNameFor = (model) => (providerOf(model) === 'anthropic' ? 'ANTHR
 export const apiKeyFromEnv = (model, env = {}) =>
   providerOf(model) === 'anthropic' ? env.SIREN_ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY : env.OPENROUTER_API_KEY;
 
-export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [] }) {
+// Every client a tool can reach the network through gets the answer's
+// counting fetch (src/budget.js), never `fetchImpl` itself. Without a
+// `budget`, the count still runs, with no limit.
+export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [], budget = requestBudget({ fetchImpl }) }) {
   const trace = new Trace();
   const resources = new Resources();
-  const socrata = new Socrata({ city, trace, resources, appToken, fetchImpl });
-  const iqm2 = city.meetings?.kind === 'iqm2' ? new Iqm2({ base: city.meetings.iqm2, trace, resources, fetchImpl }) : null;
+  const socrata = new Socrata({ city, trace, resources, appToken, fetchImpl: budget.tool });
+  const iqm2 = city.meetings?.kind === 'iqm2' ? new Iqm2({ base: city.meetings.iqm2, trace, resources, fetchImpl: budget.tool }) : null;
   for (const c of city.contacts || []) resources.addContact({ ...c, source: 'city profile' });
   for (const l of city.links || []) resources.addLink(l);
-  const http = tracedHttp(trace, fetchImpl);
-  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, suggestions: [] };
+  const http = tracedHttp(trace, budget.tool);
+  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, budget, suggestions: [] };
+}
+
+// What the model is told, and what the person reads, when an answer's
+// request budget runs out. Code-written, in the agent's voice.
+export const BUDGET_TOOL_NOTE =
+  "Some of this tool's requests were not sent: this answer's outbound request budget is used up. This result holds what came back before that; the requests not sent are marked refused in the trace.";
+export const BUDGET_STOP_NOTE =
+  "This answer's outbound request budget is used up, so no more tools can run. Answer now from what you found, and say plainly what you could not check.";
+export function budgetNote({ limit, refused }) {
+  const cap = limit == null ? 'outbound request limit' : `limit of ${limit} outbound requests`;
+  const skipped = refused
+    ? ` The ${refused === 1 ? 'request' : `${refused} requests`} I didn't send ${refused === 1 ? 'is' : 'are'} marked "refused" in the trace.`
+    : '';
+  return `I stopped at this answer's ${cap} and answered from what I had found.${skipped}`;
 }
 
 /**
@@ -46,7 +64,10 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
  * so an answer built on them still shows where its data came from.
  * `apiKey` is the key for the model's provider (see keyNameFor). `effort`
  * (low|medium|high|xhigh|max) applies to Claude models only.
- * Returns { answer, trace, resources, voice, cost, model, steps }.
+ * `subrequestBudget` caps the outbound requests this answer may make, model
+ * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
+ * requests stop short of it, keeping enough for the final answer.
+ * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget }.
  */
 export async function ask({
   question,
@@ -63,13 +84,16 @@ export async function ask({
   fetchImpl,
   referer,
   plugins = [],
+  subrequestBudget,
   onEvent = () => {},
   onCost = () => {},
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // A bad setting must never make the tool loop unbounded.
   maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
-  const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
+  // One counter for every fetch this answer makes: tools and model alike.
+  const budget = requestBudget({ limit: subrequestBudget, fetchImpl });
+  const ctx = createContext({ city, indexes, appToken, plugins, budget });
   if (carried.length) {
     await ctx.trace.record(
       {
@@ -82,8 +106,12 @@ export async function ask({
   // Tool results from this question, returned so a conversation can keep them.
   const toolResults = [];
   const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl })
-    : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl, referer });
+    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model })
+    : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
+  // Tool requests stop while enough is left for the model calls that finish
+  // the answer: the final answer and a possible voice rewrite, each with its
+  // retry.
+  budget.setReserve(2 * (llm.fetchesPerCall || 1));
   llm.init({
     systemPrompt: systemPrompt(city, new Date().toISOString().slice(0, 10)),
     history,
@@ -94,13 +122,17 @@ export async function ask({
   let answer = '';
   let steps = 0;
   let refusal = null;
+  // Set when the request budget ended the tool loop.
+  let budgetStopped = false;
   const spend = (usd) => {
     cost += usd;
     onCost(usd);
   };
 
   for (;;) {
-    const lastStep = steps >= maxSteps;
+    // Out of budget for tools: the model answers now, with tools off.
+    if (budget.exhausted) budgetStopped = true;
+    const lastStep = steps >= maxSteps || budgetStopped;
     const out = await llm.complete({ allowTools: !lastStep });
     spend(out.cost);
     if (out.refusal) {
@@ -113,7 +145,9 @@ export async function ask({
       if (!answer) {
         answer = out.truncated
           ? 'I ran out of room before I could finish. The queries I ran are in the trace below.'
-          : lastStep
+          : budgetStopped
+            ? "I reached this answer's request limit before I could answer. The queries I ran are in the trace below."
+            : lastStep
             ? 'I ran out of steps before I could answer. The queries I ran are in the trace below.'
             : "I couldn't put an answer together. The queries I ran are in the trace below.";
       }
@@ -125,19 +159,26 @@ export async function ask({
     for (const call of out.calls) {
       let content;
       let isError = false;
+      const refusedBefore = budget.refused;
       try {
         if (call.error) throw new Error(call.error);
         onEvent({ type: 'tool', name: call.name, args: call.args });
-        content = JSON.stringify(await runTool(ctx, call.name, call.args));
+        const result = await runTool(ctx, call.name, call.args);
+        // The tool returns what it has; code adds the note, whatever the tool,
+        // ahead of the result so a long result cut to size still carries it.
+        content = JSON.stringify(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE, result } : result);
       } catch (err) {
         isError = true;
-        content = JSON.stringify({ error: String(err?.message || err) });
+        content = JSON.stringify({ ...(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE } : {}), error: String(err?.message || err) });
       }
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
       if (!isError) toolResults.push({ name: call.name, args: call.args, content });
     }
-    llm.appendToolResults(results, steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null);
+    llm.appendToolResults(
+      results,
+      budget.exhausted ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null
+    );
   }
 
   // Voice check: one rewrite, then report honestly if it still fails.
@@ -156,6 +197,8 @@ export async function ask({
     }
   }
 
+  const used = budget.summary();
+  const reached = budgetStopped || used.refused > 0;
   return {
     answer,
     trace: ctx.trace.toJSON(),
@@ -166,6 +209,9 @@ export async function ask({
     steps,
     toolResults,
     suggestions: ctx.suggestions,
+    // For the answer record: how many outbound requests this answer made, and
+    // in plain words when its budget ended the search.
+    requestBudget: { ...used, reached, ...(reached ? { note: budgetNote(used) } : {}) },
     ...(refusal ? { refusal } : {}),
     markdown: {
       trace: ctx.trace.toMarkdown(),
