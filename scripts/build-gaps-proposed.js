@@ -6,9 +6,19 @@
 // docs/gaps-norfolk.md.
 //
 //   node scripts/build-gaps-proposed.js [--set norfolk-budget]   measure live, then write
+//   node scripts/build-gaps-proposed.js --offline                replay the stored responses,
+//                                                                recompute the parts that come
+//                                                                from repo files (the agenda
+//                                                                index, case-file findings)
+//                                                                dated today, and write
 //   node scripts/build-gaps-proposed.js --check                  replay the stored responses
+//                                                                against the current repo files
 //                                                                and fail on any difference
 //                                                                (no network)
+//
+// --check reads the repo files as they stand, so a case-file or agenda-index
+// change makes it fail until --offline (or a live build) rewrites the page;
+// npm test replays against the pinned case files and isn't moved by that.
 //
 // Writes, for the set norfolk-budget:
 //   data/gaps/proposed-norfolk-budget.trace.json   every request and response, plus the
@@ -70,6 +80,7 @@ export function proposalProblems(p) {
     for (const r of g.related || []) if (!p.approved.catalog.GAPS.some((x) => x.id === r)) out.push(`${g.id}: related id ${r} is not in the approved catalog.`);
     if (!g.why) out.push(`${g.id}: says why it is a gap (why).`);
     if (g.sources?.length && !g.context) out.push(`${g.id}: a cited source comes with reviewer context.`);
+    for (const k of ['proposed', 'why', 'context', 'related', 'sources']) if (k in g && !(m.REVIEW_KEYS || []).includes(k)) out.push(`${g.id}: ${k} is a review-only key, so REVIEW_KEYS lists it.`);
     for (const a of g.actions) if (!m.ACTIONS.some((x) => x.id === a)) out.push(`${g.id}: names action ${a}, which the proposal doesn't define.`);
   }
   for (const a of m.ACTIONS) if (approvedActions.has(a.id)) out.push(`${a.id}: already an approved action id.`);
@@ -145,6 +156,7 @@ function shapeLines(g) {
   const h = g.how_much;
   const lines = [];
   if (h.part !== undefined && h.whole !== undefined) lines.push(`part ${fmt(h.part)} of ${fmt(h.whole)} (${h.whole ? Math.round((h.part / h.whole) * 100) : 0}%), read ${h.read}`);
+  if (h.series) lines.push(`series: ${h.series.map((x) => `${x.k} ${fmt(x.part)} of ${fmt(x.whole)}`).join(' · ')}`);
   if (h.columns_absent) lines.push(`columns_absent ${h.columns_absent.pattern} over ${Object.entries(h.columns_absent.datasets).map(([id, n]) => `${id} (${n} columns)`).join(', ')}, read ${h.columns_absent.read}`);
   if (h.values) lines.push(`values of ${h.values.dataset}.${h.values.field}: ${fmt(h.values.count)}${h.values.matched.length ? `; matched: ${h.values.matched.map((x) => `“${x}”`).join(', ')}` : '; none matched'}, read ${h.values.read}`);
   if (h.catalog) for (const c of h.catalog) lines.push(`catalog search “${c.q}”: ${fmt(c.result_set_size)}${c.open_to_siren.length ? ` (${c.open_to_siren.map((x) => `${x.name}, ${x.id}`).join('; ')})` : ''}, read ${c.read}`);
@@ -163,6 +175,8 @@ function evidenceLine(e) {
       return `values of ${e.dataset}.${e.field}, read ${e.read} (trace step ${e.trace_n}), pattern ${e.pattern}: ${e.values.length > 12 ? `${e.values.length} values` : e.values.map((v) => `“${v}”`).join(', ')}; matched ${e.matched.length > 12 ? `${e.matched.length} values` : e.matched.length ? e.matched.map((v) => `“${v}”`).join(', ') : 'none'}`;
     case 'catalog_search':
       return `catalog search “${e.q}”, read ${e.read} (trace step ${e.trace_n}): ${e.result_set_size} (${e.excluded} excluded)${e.open_to_siren.length ? `, open to Siren: ${e.open_to_siren.map((x) => `${x.name} (${x.id})`).join(', ')}` : ''}`;
+    case 'index':
+      return `count over ${e.file}, built ${e.built}: ${fmt(e.counted)} of ${fmt(e.of)} items`;
     case 'finding':
       return `finding ${e.case}#${e.id}, quote “${e.quote}”, checked ${e.checked} ([source](${e.url}))`;
     default:
@@ -177,7 +191,7 @@ export function renderProposalDoc(p, file) {
     '',
     `**PROPOSED, not in the catalog.** Built ${file.built} by \`scripts/build-gaps-proposed.js\` from \`${p.module_path}\`. Generated: edit the proposal module, not this page.`,
     '',
-    'Catalog entries go public when merged, and every new one needs Jason’s approval (docs/gaps.md §4). These entries are drafts for that review. Nothing under `src/` or `worker/` imports the proposal module, `scripts/build-gaps.js` never reads it, and no gap here reaches Siren’s answers, the board or the bundled gap file. To approve one, move its entry and actions into `src/gaps/norfolk.js` and `src/gaps/actions-norfolk.js` (dropping `proposed`, `why`, `context` and `related`) and rebuild the catalog.',
+    `Catalog entries go public when merged, and every new one needs Jason’s approval (docs/gaps.md §4). These entries are drafts for that review. Nothing under \`src/\` or \`worker/\` imports the proposal module, \`scripts/build-gaps.js\` never reads it, and no gap here reaches Siren’s answers, the board or the bundled gap file. To approve one, move its entry and actions into \`src/gaps/norfolk.js\` and \`src/gaps/actions-norfolk.js\`, dropping the review-only keys (${(m.REVIEW_KEYS || []).map((k) => `\`${k}\``).join(', ')}), copy with it the source constants and helpers it calls from the proposal module, and rebuild the catalog.`,
     '',
     'Dates are America/New_York calendar dates, as the catalog builder writes them (docs/gaps.md §5.3); read times are UTC.',
     '',
@@ -226,7 +240,11 @@ export function renderProposalDoc(p, file) {
     for (const o of file.off_board) L.push(`- \`${o.id}\` (${o.state}): ${o.reason}`);
     L.push('');
   }
-  if (file.meetings) L.push('## Upcoming meetings, for the meeting questions', '', `${file.meetings.note} Read ${dateOf(file.meetings.read)}; calendar: ${file.meetings.calendar}.`, '');
+  if (file.meetings) {
+    L.push('## Upcoming meetings, for the meeting questions', '', `${file.meetings.note} Read ${dateOf(file.meetings.read)}; calendar: ${file.meetings.calendar}.`, '');
+    for (const x of file.meetings.listed) L.push(`- ${x.when.slice(0, 16).replace('T', ' ')} · ${x.body}${x.type ? ` (${x.type})` : ''}`);
+    if (file.meetings.listed.length) L.push('');
+  }
   return L.join('\n');
 }
 
@@ -245,7 +263,7 @@ export async function checkProposed({ set = 'norfolk-budget', root = ROOT, repo 
 }
 
 async function main() {
-  const { values } = parseArgs({ options: { set: { type: 'string', default: 'norfolk-budget' }, check: { type: 'boolean' } } });
+  const { values } = parseArgs({ options: { set: { type: 'string', default: 'norfolk-budget' }, check: { type: 'boolean' }, offline: { type: 'boolean' } } });
   const p = PROPOSALS[values.set];
   if (!p) throw new Error(`No proposal set ${values.set}.`);
   if (values.check) {
@@ -257,9 +275,23 @@ async function main() {
     console.log(`${p.trace}: matches its stored responses.`);
     return;
   }
-  const recorder = new Recorder();
-  const today = buildDate();
-  const out = await buildProposed({ set: values.set, recorder, today, appToken: process.env.SOCRATA_APP_TOKEN });
+  let recorder;
+  let today;
+  let repoToday;
+  if (values.offline) {
+    // Live measures keep the date they were read; parts from repo files are
+    // recomputed, and dated, today.
+    const stored = JSON.parse(readFileSync(join(ROOT, p.trace), 'utf8'));
+    recorder = new Recorder({ responses: stored.responses });
+    today = stored.built;
+    repoToday = buildDate();
+  } else {
+    recorder = new Recorder();
+    today = buildDate();
+    repoToday = today;
+  }
+  const out = await buildProposed({ set: values.set, recorder, today, repoToday, appToken: process.env.SOCRATA_APP_TOKEN });
+  if (recorder.missing.length) throw new Error(`Requests not in the stored trace (a query changed; run a live build): ${recorder.missing.join(', ')}`);
   mkdirSync(join(ROOT, 'data/gaps'), { recursive: true });
   writeFileSync(join(ROOT, p.trace), stringify(out.trace));
   writeFileSync(join(ROOT, p.doc), out.doc);

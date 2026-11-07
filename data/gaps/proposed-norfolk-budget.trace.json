@@ -31,24 +31,27 @@
         "how_much": {
           "part": 41,
           "whole": 93,
-          "read": "2026-11-07T03:46:48.626Z"
+          "read": "2026-11-07T04:09:53.334Z"
         },
         "evidence": [
           {
             "type": "query",
             "dataset": "6tqj-4az3",
-            "soql": "SELECT count(*) AS whole, sum(case(ward IS NULL,1,true,0)) AS no_ward, sum(case(latitude IS NULL OR longitude IS NULL,1,true,0)) AS no_coord, sum(case(ward IS NULL AND (latitude IS NULL OR longitude IS NULL),1,true,0)) AS neither WHERE project_id IS NOT NULL LIMIT 100",
-            "url": "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100",
+            "soql": "SELECT count(*) AS whole, sum(case(ward IS NULL,1,true,0)) AS no_ward, sum(case(latitude IS NULL OR longitude IS NULL,1,true,0)) AS no_coord, sum(case(ward IS NULL AND (latitude IS NULL OR longitude IS NULL),1,true,0)) AS neither, sum(case(location IS NULL,1,true,0)) AS no_loc, sum(case(ward IS NULL AND location IS NULL,1,true,0)) AS no_ward_no_loc, sum(case((latitude IS NULL OR longitude IS NULL) AND location IS NULL,1,true,0)) AS no_coord_no_loc WHERE project_id IS NOT NULL LIMIT 100",
+            "url": "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%2C%20sum(case(location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%2C%20sum(case(ward%20IS%20NULL%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward_no_loc%2C%20sum(case((latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord_no_loc%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100",
             "result": [
               {
                 "whole": "93",
                 "no_ward": "41",
                 "no_coord": "39",
-                "neither": "39"
+                "neither": "39",
+                "no_loc": "0",
+                "no_ward_no_loc": "0",
+                "no_coord_no_loc": "0"
               }
             ],
-            "read": "2026-11-07T03:46:48.626Z",
-            "trace_n": 25
+            "read": "2026-11-07T04:09:53.334Z",
+            "trace_n": 30
           },
           {
             "type": "metadata",
@@ -56,11 +59,11 @@
             "field": "location",
             "quote": "Specific address or location name, when available, for the project",
             "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
-            "read": "2026-11-07T03:46:48.720Z",
-            "trace_n": 26
+            "read": "2026-11-07T04:09:53.408Z",
+            "trace_n": 31
           }
         ],
-        "statement": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan projects (6tqj-4az3), as I read them on 2026-11-06. Of the same 93, I found 39 with no latitude or longitude, 39 of them with no ward either, as I read them on 2026-11-06. Its description of location, in its words: “Specific address or location name, when available, for the project”.",
+        "statement": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan projects (6tqj-4az3), as I read them on 2026-11-06. Of the same 93, I found 39 with no latitude or longitude, 39 of them with no ward either, as I read them on 2026-11-06. Of the same 93, I found 0 with the free-text location field empty, as I read them on 2026-11-06. Its description of location, in its words: “Specific address or location name, when available, for the project”.",
         "short": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan data, measured 2026-11-06.",
         "questions": [
           {
@@ -72,9 +75,13 @@
               {
                 "dataset": "6tqj-4az3",
                 "column": "ward"
+              },
+              {
+                "dataset": "6tqj-4az3",
+                "column": "location"
               }
             ],
-            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 41 of 93 projects (44%) with no ward, measured 2026-11-06, so a search by ward can't find them."
+            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 41 of 93 projects (44%) with no ward, measured 2026-11-06, so a search by ward can't find them, and I found the free-text location field filled on 41 of those 41, which I can read but can't search by ward."
           },
           {
             "qid": "q2",
@@ -89,9 +96,13 @@
               {
                 "dataset": "6tqj-4az3",
                 "column": "longitude"
+              },
+              {
+                "dataset": "6tqj-4az3",
+                "column": "location"
               }
             ],
-            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 39 of 93 projects (42%) with no latitude or longitude, measured 2026-11-06, so a search by distance can't find them."
+            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 39 of 93 projects (42%) with no latitude or longitude, measured 2026-11-06, so a search by distance can't find them, and I found the free-text location field filled on 39 of those 39, which I can read but can't search by distance."
           }
         ],
         "actions": [
@@ -99,9 +110,6 @@
           "a-budget-meeting-cip-place"
         ],
         "touches": [
-          {
-            "tool": "capital_projects"
-          },
           {
             "dataset": "6tqj-4az3"
           }
@@ -153,14 +161,14 @@
             },
             "siblings_cleared": [],
             "siblings": [],
-            "read": "2026-11-07T03:46:46.553Z"
+            "read": "2026-11-07T04:09:50.225Z"
           },
           "catalog": [
             {
               "q": "checkbook",
               "result_set_size": 0,
               "open_to_siren": [],
-              "read": "2026-11-07T03:46:47.630Z"
+              "read": "2026-11-07T04:09:51.840Z"
             },
             {
               "q": "vendor",
@@ -171,7 +179,49 @@
                   "name": "Municipal Building Energy Use"
                 }
               ],
-              "read": "2026-11-07T03:46:47.691Z"
+              "read": "2026-11-07T04:09:51.937Z"
+            },
+            {
+              "q": "contract",
+              "result_set_size": 7,
+              "open_to_siren": [
+                {
+                  "id": "8j55-9gjp",
+                  "name": "Resident Survey 2024 - Summarized Comments"
+                },
+                {
+                  "id": "de5p-5xvj",
+                  "name": "Resident Survey 2024"
+                },
+                {
+                  "id": "ez9d-udp9",
+                  "name": "Resident Survey 2024 Demographics"
+                },
+                {
+                  "id": "f3mt-z6yp",
+                  "name": "Resident Survey 2022 Demographics"
+                },
+                {
+                  "id": "qure-5p8r",
+                  "name": "Resident Survey 2022"
+                }
+              ],
+              "read": "2026-11-07T04:09:52.037Z"
+            },
+            {
+              "q": "purchase order",
+              "result_set_size": 2,
+              "open_to_siren": [
+                {
+                  "id": "qzfe-wj25",
+                  "name": "Work Orders"
+                },
+                {
+                  "id": "ykcq-76im",
+                  "name": "Better Buildings Challenge Properties"
+                }
+              ],
+              "read": "2026-11-07T04:09:52.121Z"
             }
           ]
         },
@@ -181,7 +231,7 @@
             "dataset": "mdwe-dquf",
             "columns": 8,
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
+            "read": "2026-11-07T04:09:50.225Z",
             "trace_n": 9
           },
           {
@@ -194,23 +244,7 @@
                 "whole": "1"
               }
             ],
-            "read": "2026-11-07T03:46:47.128Z",
-            "trace_n": 14
-          },
-          {
-            "type": "query",
-            "dataset": "mdwe-dquf",
-            "soql": "SELECT min(actual_expenses) AS min_actual_expenses, max(actual_expenses) AS max_actual_expenses, min(current_expense_budget) AS min_current_expense_budget, max(current_expense_budget) AS max_current_expense_budget WHERE unit_name = 'Park and Forestry Operations' AND object_name = 'Other Contractual Services' AND fiscal_year = 2026 LIMIT 100",
-            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20min(actual_expenses)%20AS%20min_actual_expenses%2C%20max(actual_expenses)%20AS%20max_actual_expenses%2C%20min(current_expense_budget)%20AS%20min_current_expense_budget%2C%20max(current_expense_budget)%20AS%20max_current_expense_budget%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100",
-            "result": [
-              {
-                "min_actual_expenses": "1341543.9700000000",
-                "max_actual_expenses": "1341543.9700000000",
-                "min_current_expense_budget": "1200643.0000000000",
-                "max_current_expense_budget": "1200643.0000000000"
-              }
-            ],
-            "read": "2026-11-07T03:46:47.250Z",
+            "read": "2026-11-07T04:09:51.757Z",
             "trace_n": 15
           },
           {
@@ -220,7 +254,7 @@
             "excluded": 0,
             "open_to_siren": [],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=checkbook",
-            "read": "2026-11-07T03:46:47.630Z",
+            "read": "2026-11-07T04:09:51.840Z",
             "trace_n": 16
           },
           {
@@ -235,24 +269,67 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=vendor",
-            "read": "2026-11-07T03:46:47.691Z",
+            "read": "2026-11-07T04:09:51.937Z",
             "trace_n": 17
+          },
+          {
+            "type": "catalog_search",
+            "q": "contract",
+            "result_set_size": 7,
+            "excluded": 1,
+            "open_to_siren": [
+              {
+                "id": "8j55-9gjp",
+                "name": "Resident Survey 2024 - Summarized Comments"
+              },
+              {
+                "id": "de5p-5xvj",
+                "name": "Resident Survey 2024"
+              },
+              {
+                "id": "ez9d-udp9",
+                "name": "Resident Survey 2024 Demographics"
+              },
+              {
+                "id": "f3mt-z6yp",
+                "name": "Resident Survey 2022 Demographics"
+              },
+              {
+                "id": "qure-5p8r",
+                "name": "Resident Survey 2022"
+              }
+            ],
+            "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract",
+            "read": "2026-11-07T04:09:52.037Z",
+            "trace_n": 18
+          },
+          {
+            "type": "catalog_search",
+            "q": "purchase order",
+            "result_set_size": 2,
+            "excluded": 0,
+            "open_to_siren": [
+              {
+                "id": "qzfe-wj25",
+                "name": "Work Orders"
+              },
+              {
+                "id": "ykcq-76im",
+                "name": "Better Buildings Challenge Properties"
+              }
+            ],
+            "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order",
+            "read": "2026-11-07T04:09:52.121Z",
+            "trace_n": 19
           }
         ],
-        "statement": "I found no column naming a vendor, contract, invoice, purchase order or work order among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. Under “Park and Forestry Operations”, as I read them on 2026-11-06, I found the line “Other Contractual Services” for FY2026 with actual expenses of $1,341,543.97 and a current expense budget of $1,200,643. I found 0 datasets in Norfolk's open data catalog for the search “checkbook”, and 1 dataset for “vendor”, open to Siren: Municipal Building Energy Use (searched 2026-11-06).",
+        "statement": "I found no column naming a vendor, contract, invoice, purchase order or work order among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. Under “Park and Forestry Operations”, I found 1 line named “Other Contractual Services” for FY2026, as I read them on 2026-11-06. I found 0 datasets in Norfolk's open data catalog for the search “checkbook”, 1 dataset for “vendor”, open to Siren: Municipal Building Energy Use, 7 datasets for “contract”, 5 open to Siren: Resident Survey 2024 - Summarized Comments, Resident Survey 2024, Resident Survey 2024 Demographics, Resident Survey 2022 Demographics, Resident Survey 2022, and 2 datasets for “purchase order”, all open to Siren: Work Orders, Better Buildings Challenge Properties (searched 2026-11-06).",
         "short": "I found no column in the City's Annual Expenditures tying a spending line to a vendor, contract, purchase order or work order, measured 2026-11-06.",
         "questions": [
           {
             "qid": "q1",
             "public_id": "ba0207884e4d",
             "text": "Which contracts did the City pay from the Park and Forestry Operations contractual services line last year?",
-            "blocks": "all",
-            "consequence": "I found no column naming a vendor, contract, invoice, purchase order or work order among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06, so I can't answer this from them."
-          },
-          {
-            "qid": "q2",
-            "public_id": "179a34ff8798",
-            "text": "Which tree work did the City's contractual spending on park and forestry operations pay for?",
             "blocks": "all",
             "consequence": "I found no column naming a vendor, contract, invoice, purchase order or work order among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06, so I can't answer this from them."
           }
@@ -264,10 +341,10 @@
         ],
         "touches": [
           {
-            "tool": "budget_for"
-          },
-          {
-            "dataset": "mdwe-dquf"
+            "dataset": "mdwe-dquf",
+            "where_includes": [
+              "Park and Forestry Operations"
+            ]
           }
         ],
         "bites_when": [],
@@ -311,16 +388,16 @@
             "field": "object_name",
             "count": 40,
             "matched": [],
-            "read": "2026-11-07T03:46:46.464Z"
+            "read": "2026-11-07T04:09:50.106Z"
           },
           "columns_absent": {
-            "pattern": "/program|activit|project|function|forest/i",
+            "pattern": "/activit|service|task|forest|tree/i",
             "datasets": {
               "mdwe-dquf": 8
             },
             "siblings_cleared": [],
             "siblings": [],
-            "read": "2026-11-07T03:46:46.553Z"
+            "read": "2026-11-07T04:09:50.225Z"
           }
         },
         "evidence": [
@@ -336,7 +413,7 @@
               "Park and Forestry Operations"
             ],
             "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
-            "read": "2026-11-07T03:46:46.342Z",
+            "read": "2026-11-07T04:09:49.978Z",
             "trace_n": 7
           },
           {
@@ -388,7 +465,7 @@
             "pattern": "/forest|\\btrees?\\b|prun|arbor/i",
             "matched": [],
             "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20object_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20object_name%20ORDER%20BY%20n%20DESC%2C%20object_name%20LIMIT%20200",
-            "read": "2026-11-07T03:46:46.464Z",
+            "read": "2026-11-07T04:09:50.106Z",
             "trace_n": 8
           },
           {
@@ -396,11 +473,11 @@
             "dataset": "mdwe-dquf",
             "columns": 8,
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
+            "read": "2026-11-07T04:09:50.225Z",
             "trace_n": 9
           }
         ],
-        "statement": "I found 1 unit with “Forestry” in its name in the City's Annual Expenditures records (mdwe-dquf), “Park and Forestry Operations”, as I read them on 2026-11-06. I found none of the 40 expense line names under it naming forestry, trees or pruning, as I read them on 2026-11-06. I found no column for a program or activity among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06.",
+        "statement": "I found 1 unit with “Forestry” in its name in the City's Annual Expenditures records (mdwe-dquf), “Park and Forestry Operations”, as I read them on 2026-11-06. I found none of the 40 expense line names under it naming forestry, trees or pruning, as I read them on 2026-11-06. I found no column for an activity or service within a unit among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06.",
         "short": "I found “Forestry” in one unit name in the City's Annual Expenditures, “Park and Forestry Operations”, and no expense line under it naming trees, measured 2026-11-06.",
         "questions": [
           {
@@ -422,20 +499,26 @@
           }
         ],
         "actions": [
-          "a-budget-proposal-program",
+          "a-budget-proposal-activity",
           "a-budget-meeting-forestry"
         ],
         "touches": [
           {
-            "tool": "budget_for"
+            "dataset": "mdwe-dquf",
+            "where_includes": [
+              "Park and Forestry Operations"
+            ]
           },
           {
-            "dataset": "mdwe-dquf"
+            "dataset": "mdwe-dquf",
+            "where_includes": [
+              "FOREST"
+            ]
           }
         ],
         "bites_when": [],
         "closed_when": {
-          "column_present": "/program|activit|project|function|forest/",
+          "column_present": "/activit|service|task|forest|tree/",
           "null_share_at_most": 0.05
         },
         "state": "open",
@@ -461,6 +544,11 @@
               "type": "dataset",
               "id": "mdwe-dquf",
               "name": "Annual Expenditures"
+            },
+            {
+              "type": "index",
+              "id": "norfolk-legislation",
+              "name": "Siren's agenda index"
             }
           ],
           "scope": "spending lines",
@@ -476,16 +564,16 @@
             },
             "siblings_cleared": [],
             "siblings": [],
-            "read": "2026-11-07T03:46:46.553Z"
+            "read": "2026-11-07T04:09:50.225Z"
           },
           "quote": {
             "dataset": "mdwe-dquf",
             "text": "The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.",
-            "read": "2026-11-07T03:46:46.553Z"
+            "read": "2026-11-07T04:09:50.225Z"
           },
           "published": {
             "rows_updated": "2026-11-06T12:26:36.000Z",
-            "read": "2026-11-07T03:46:46.553Z"
+            "read": "2026-11-07T04:09:50.225Z"
           }
         },
         "evidence": [
@@ -494,7 +582,7 @@
             "dataset": "mdwe-dquf",
             "quote": "The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.",
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
+            "read": "2026-11-07T04:09:50.225Z",
             "trace_n": 9
           },
           {
@@ -503,7 +591,7 @@
             "field": "current_expense_budget",
             "quote": "Total annual budgeted expenditures for this department/fund/unit/object line",
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
+            "read": "2026-11-07T04:09:50.225Z",
             "trace_n": 9
           },
           {
@@ -511,17 +599,24 @@
             "dataset": "mdwe-dquf",
             "columns": 8,
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
+            "read": "2026-11-07T04:09:50.225Z",
             "trace_n": 9
+          },
+          {
+            "type": "index",
+            "file": "data/norfolk-legislation.json",
+            "built": "2026-11-02T19:30:12.391Z",
+            "counted": 224,
+            "of": 1437
           }
         ],
-        "statement": "The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-06, says: “The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.” Its description of current_expense_budget, in its words: “Total annual budgeted expenditures for this department/fund/unit/object line”. I found no column for an adopted amount, an amendment or transfer, or a date it took effect among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06.",
+        "statement": "The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-06, says: “The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.” Its description of current_expense_budget, in its words: “Total annual budgeted expenditures for this department/fund/unit/object line”. I found no column for an adopted amount, an amendment or transfer, or a date it took effect among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. I found 224 of 1,437 agenda items in Siren's agenda index (built 2026-11-02) with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, counted 2026-11-06.",
         "short": "I found no column for an adopted amount or an amendment date among the 8 columns of the City's Annual Expenditures, measured 2026-11-06.",
         "questions": [
           {
             "qid": "q1",
             "public_id": "4e209eef4349",
-            "text": "What did the City Council adopt for a department's budget before any amendments this year?",
+            "text": "What operating budget did the City Council adopt for a department, before any amendments this year?",
             "blocks": "all",
             "consequence": "I found no column for an adopted amount, an amendment or transfer, or a date it took effect among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06, so I can't answer this from them."
           },
@@ -529,8 +624,14 @@
             "qid": "q2",
             "public_id": "98ac71892b21",
             "text": "When during the year was a department's budget changed, and by how much?",
-            "blocks": "all",
-            "consequence": "I found no column for an adopted amount, an amendment or transfer, or a date it took effect among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06, so I can't answer this from them."
+            "blocks": "part",
+            "answered_in_part_by": [
+              {
+                "index": "norfolk-legislation",
+                "field": "text"
+              }
+            ],
+            "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-02, measured 2026-11-06, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06."
           }
         ],
         "actions": [
@@ -538,9 +639,6 @@
           "a-budget-meeting-amendments"
         ],
         "touches": [
-          {
-            "tool": "budget_for"
-          },
           {
             "dataset": "mdwe-dquf"
           }
@@ -578,6 +676,10 @@
               "type": "dataset",
               "id": "qzfe-wj25",
               "name": "Work Orders"
+            },
+            {
+              "type": "catalog",
+              "id": "data.norfolk.gov"
             }
           ],
           "scope": "performance measures",
@@ -588,29 +690,78 @@
         "how_much": {
           "part": 0,
           "whole": 361,
-          "read": "2026-11-07T03:46:47.931Z",
+          "read": "2026-11-07T04:09:52.335Z",
           "values": {
             "dataset": "7jsp-eyjg",
             "field": "measure_description",
             "count": 2,
             "matched": [],
-            "read": "2026-11-07T03:46:48.051Z"
-          }
+            "read": "2026-11-07T04:09:52.451Z"
+          },
+          "catalog": [
+            {
+              "q": "pruning",
+              "result_set_size": 1,
+              "open_to_siren": [
+                {
+                  "id": "qzfe-wj25",
+                  "name": "Work Orders"
+                }
+              ],
+              "read": "2026-11-07T04:09:52.518Z"
+            },
+            {
+              "q": "performance",
+              "result_set_size": 9,
+              "open_to_siren": [
+                {
+                  "id": "7jsp-eyjg",
+                  "name": "Performance Measures"
+                },
+                {
+                  "id": "dhk3-hr4y",
+                  "name": "Plan Reviews"
+                },
+                {
+                  "id": "ihzr-5x5n",
+                  "name": "Inspections"
+                },
+                {
+                  "id": "mi4h-8pn3",
+                  "name": "Permits - Right of Way"
+                },
+                {
+                  "id": "qzfe-wj25",
+                  "name": "Work Orders"
+                },
+                {
+                  "id": "uvc6-r75u",
+                  "name": "Storm Water Asset Inspections"
+                },
+                {
+                  "id": "ykcq-76im",
+                  "name": "Better Buildings Challenge Properties"
+                }
+              ],
+              "read": "2026-11-07T04:09:52.619Z"
+            }
+          ]
         },
         "evidence": [
           {
             "type": "query",
             "dataset": "7jsp-eyjg",
-            "soql": "SELECT count(*) AS whole, sum(case(upper(measure_description) like '%PRUN%',1,true,0)) AS prune WHERE measure_id IS NOT NULL LIMIT 100",
-            "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100",
+            "soql": "SELECT count(*) AS whole, sum(case(upper(measure_description) like '%PRUN%',1,true,0)) AS prune, sum(case(upper(measure_description) like '%TRIM%',1,true,0)) AS trim WHERE measure_id IS NOT NULL LIMIT 100",
+            "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%2C%20sum(case(upper(measure_description)%20like%20'%25TRIM%25'%2C1%2Ctrue%2C0))%20AS%20trim%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100",
             "result": [
               {
                 "whole": "361",
-                "prune": "0"
+                "prune": "0",
+                "trim": "0"
               }
             ],
-            "read": "2026-11-07T03:46:47.931Z",
-            "trace_n": 19
+            "read": "2026-11-07T04:09:52.335Z",
+            "trace_n": 21
           },
           {
             "type": "values",
@@ -620,25 +771,1322 @@
               "Number of Park Ranger incident responses",
               "Number of trees planted"
             ],
-            "pattern": "/prun/i",
+            "pattern": "/prun|trim/i",
             "matched": [],
             "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
-            "read": "2026-11-07T03:46:48.051Z",
-            "trace_n": 20
+            "read": "2026-11-07T04:09:52.451Z",
+            "trace_n": 22
+          },
+          {
+            "type": "catalog_search",
+            "q": "pruning",
+            "result_set_size": 1,
+            "excluded": 0,
+            "open_to_siren": [
+              {
+                "id": "qzfe-wj25",
+                "name": "Work Orders"
+              }
+            ],
+            "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning",
+            "read": "2026-11-07T04:09:52.518Z",
+            "trace_n": 23
+          },
+          {
+            "type": "catalog_search",
+            "q": "performance",
+            "result_set_size": 9,
+            "excluded": 0,
+            "open_to_siren": [
+              {
+                "id": "7jsp-eyjg",
+                "name": "Performance Measures"
+              },
+              {
+                "id": "dhk3-hr4y",
+                "name": "Plan Reviews"
+              },
+              {
+                "id": "ihzr-5x5n",
+                "name": "Inspections"
+              },
+              {
+                "id": "mi4h-8pn3",
+                "name": "Permits - Right of Way"
+              },
+              {
+                "id": "qzfe-wj25",
+                "name": "Work Orders"
+              },
+              {
+                "id": "uvc6-r75u",
+                "name": "Storm Water Asset Inspections"
+              },
+              {
+                "id": "ykcq-76im",
+                "name": "Better Buildings Challenge Properties"
+              }
+            ],
+            "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance",
+            "read": "2026-11-07T04:09:52.619Z",
+            "trace_n": 24
+          },
+          {
+            "type": "query",
+            "dataset": "qzfe-wj25",
+            "soql": "SELECT status_code, status_description, count(*) AS whole WHERE area = 'Forestry' AND primary_task_description = 'Pruning' GROUP BY status_code, status_description ORDER BY status_code, status_description LIMIT 100",
+            "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Pruning'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
+            "result": [
+              {
+                "status_code": "2",
+                "status_description": "New Work Order",
+                "whole": "570"
+              },
+              {
+                "status_code": "4",
+                "status_description": "On-Going",
+                "whole": "14"
+              },
+              {
+                "status_code": "940",
+                "status_description": "Delete WO",
+                "whole": "5"
+              },
+              {
+                "status_code": "951",
+                "status_description": "WO Cancelled",
+                "whole": "10"
+              },
+              {
+                "status_code": "953",
+                "status_description": "No Problem Found",
+                "whole": "1"
+              },
+              {
+                "status_code": "956",
+                "status_description": "Non-Asset Work Complete",
+                "whole": "11"
+              },
+              {
+                "status_code": "957",
+                "status_description": "Duplicate Work Order",
+                "whole": "14"
+              },
+              {
+                "status_code": "999",
+                "status_description": "Complete",
+                "whole": "2668"
+              }
+            ],
+            "read": "2026-11-07T04:09:52.886Z",
+            "trace_n": 26
+          },
+          {
+            "type": "finding",
+            "case": "norfolk-trees",
+            "id": "pruning-requests-fulfilled",
+            "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets",
+            "quote": "Percent of street tree pruning requests fulfilled",
+            "selector": {
+              "type": "TextQuoteSelector",
+              "exact": "Percent of street tree pruning requests fulfilled",
+              "prefix": "90 working days or less mowing cycle ",
+              "suffix": " 5 9 5 40 90 Total Number of Properties"
+            },
+            "checked": "2026-11-04",
+            "reverified": null
+          }
+        ],
+        "statement": "Of 361 measures in the City's Performance Measures records (7jsp-eyjg), I found none with a description naming pruning or trimming, as I read them on 2026-11-06. Under the program “Park and Forestry Operations” I found 2 measures, “Number of Park Ranger incident responses” and “Number of trees planted”, as I read them on 2026-11-06. I found 1 dataset in Norfolk's open data catalog for the search “pruning”, open to Siren: Work Orders, and 9 datasets for “performance”, 7 open to Siren: Performance Measures, Plan Reviews, Inspections, Permits - Right of Way, Work Orders, Storm Water Asset Inspections, Better Buildings Challenge Properties (searched 2026-11-06). The City's FY2024 adopted budget says: “Percent of street tree pruning requests fulfilled” (quote checked 2026-11-04). I found the task “Pruning” on 3,293 Forestry work orders in the City's Work Orders records (qzfe-wj25), 2,668 of them with status “Complete”, as I read them on 2026-11-06.",
+        "short": "Of 361 measures in the City's Performance Measures, I found none naming pruning or trimming, measured 2026-11-06.",
+        "questions": [
+          {
+            "qid": "q1",
+            "public_id": "6cf4ae6a3f32",
+            "text": "What share of street-tree pruning requests does the City fulfill each year?",
+            "blocks": "part",
+            "answered_in_part_by": [
+              {
+                "dataset": "qzfe-wj25",
+                "column": "primary_task_description"
+              },
+              {
+                "dataset": "qzfe-wj25",
+                "column": "status_description"
+              }
+            ],
+            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Pruning” on 3,293 Forestry work orders, 2,668 of them with status “Complete”, measured 2026-11-06, which counts work orders and their status as the City records it, not requests, and I found no pruning measure in the Performance Measures records."
+          }
+        ],
+        "actions": [
+          "a-budget-proposal-pruning-measure",
+          "a-budget-meeting-pruning-measure"
+        ],
+        "touches": [
+          {
+            "dataset": "7jsp-eyjg",
+            "where_includes": [
+              "Forestry"
+            ]
+          },
+          {
+            "dataset": "qzfe-wj25",
+            "where_includes": [
+              "area = 'Forestry'",
+              "'Pruning'"
+            ]
+          },
+          {
+            "case": "norfolk-trees"
+          }
+        ],
+        "bites_when": [],
+        "closed_when": {
+          "finding": true
+        },
+        "state": "open",
+        "measured": "2026-11-06",
+        "hand_off": [
+          {
+            "id": "7jsp-eyjg",
+            "name": "Performance Measures",
+            "page": "https://data.norfolk.gov/d/7jsp-eyjg",
+            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/7jsp-eyjg"
+          },
+          {
+            "id": "qzfe-wj25",
+            "name": "Work Orders",
+            "page": "https://data.norfolk.gov/d/qzfe-wj25",
+            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/qzfe-wj25"
+          }
+        ]
+      },
+      {
+        "id": "norfolk.budget.parks-revenue-units",
+        "public_id": "3e14edb252f9",
+        "kind": "partial_coverage",
+        "label": "Partial coverage (in the records I read)",
+        "title": "Parks and Recreation revenue units with no spending unit of the same name",
+        "where": {
+          "sources": [
+            {
+              "type": "dataset",
+              "id": "id3i-2az4",
+              "name": "Annual Revenues"
+            },
+            {
+              "type": "dataset",
+              "id": "mdwe-dquf",
+              "name": "Annual Expenditures"
+            }
+          ],
+          "scope": "units under The Department of Parks & Recreation (P&R), by fiscal year",
+          "area": "citywide"
+        },
+        "topic": null,
+        "checked_live": "2026-11-06",
+        "how_much": {
+          "part": 1,
+          "whole": 3,
+          "read": "2026-11-07T04:09:53.745Z",
+          "series": [
+            {
+              "k": "2025",
+              "part": 1,
+              "whole": 1
+            },
+            {
+              "k": "2026",
+              "part": 1,
+              "whole": 2
+            },
+            {
+              "k": "2027",
+              "part": 1,
+              "whole": 3
+            }
+          ]
+        },
+        "evidence": [
+          {
+            "type": "query",
+            "dataset": "mdwe-dquf",
+            "soql": "SELECT department_name AS v, count(*) AS n WHERE department_name IS NOT NULL GROUP BY department_name ORDER BY n DESC, department_name LIMIT 200",
+            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
+            "result": [
+              {
+                "v": "Norfolk Community Services Board",
+                "n": "2677"
+              },
+              {
+                "v": "Water",
+                "n": "923"
+              },
+              {
+                "v": "Police",
+                "n": "785"
+              },
+              {
+                "v": "Public Works",
+                "n": "641"
+              },
+              {
+                "v": "The Department of Parks & Recreation (P&R)",
+                "n": "640"
+              },
+              {
+                "v": "Human Services",
+                "n": "472"
+              },
+              {
+                "v": "The National Maritime Center",
+                "n": "422"
+              },
+              {
+                "v": "Libraries",
+                "n": "419"
+              },
+              {
+                "v": "Zoological Park",
+                "n": "342"
+              },
+              {
+                "v": "Finance Department",
+                "n": "311"
+              },
+              {
+                "v": "General Services",
+                "n": "310"
+              },
+              {
+                "v": "Transportation",
+                "n": "302"
+              },
+              {
+                "v": "Planning and Community Development",
+                "n": "293"
+              },
+              {
+                "v": "Cultural Facilities Arts Entertainment",
+                "n": "273"
+              },
+              {
+                "v": "Neighborhood Development",
+                "n": "263"
+              },
+              {
+                "v": "Storm Water Management",
+                "n": "236"
+              },
+              {
+                "v": "Fire-Rescue",
+                "n": "222"
+              },
+              {
+                "v": "Housing and Community Development",
+                "n": "208"
+              },
+              {
+                "v": "Waste Management",
+                "n": "198"
+              },
+              {
+                "v": "Parking Facilities Fund",
+                "n": "189"
+              },
+              {
+                "v": "Outside Agencies",
+                "n": "179"
+              },
+              {
+                "v": "Wastewater",
+                "n": "175"
+              },
+              {
+                "v": "Towing & Recovery Operations Fund",
+                "n": "149"
+              },
+              {
+                "v": "Communications and Technology",
+                "n": "142"
+              },
+              {
+                "v": "Int Service Fund-Auto Maint",
+                "n": "135"
+              },
+              {
+                "v": "Sheriff",
+                "n": "128"
+              },
+              {
+                "v": "City Clerk",
+                "n": "126"
+              },
+              {
+                "v": "Healthcare Fund",
+                "n": "118"
+              },
+              {
+                "v": "The Slover",
+                "n": "111"
+              },
+              {
+                "v": "City Manager",
+                "n": "110"
+              },
+              {
+                "v": "Commissioner of the Revenue",
+                "n": "97"
+              },
+              {
+                "v": "Departmental Support",
+                "n": "97"
+              },
+              {
+                "v": "Elections",
+                "n": "94"
+              },
+              {
+                "v": "City Real Estate Assessor",
+                "n": "93"
+              },
+              {
+                "v": "Human Resources",
+                "n": "92"
+              },
+              {
+                "v": "City Treasurer",
+                "n": "88"
+              },
+              {
+                "v": "Commonwealths Attorney",
+                "n": "88"
+              },
+              {
+                "v": "City Attorney",
+                "n": "87"
+              },
+              {
+                "v": "Public Health",
+                "n": "85"
+              },
+              {
+                "v": "Budget and Strategic Planning",
+                "n": "84"
+              },
+              {
+                "v": "Development",
+                "n": "79"
+              },
+              {
+                "v": "City Auditor",
+                "n": "74"
+              },
+              {
+                "v": "Office of Resilience",
+                "n": "73"
+              },
+              {
+                "v": "Office of Marketing and Communications",
+                "n": "70"
+              },
+              {
+                "v": "Circuit Court Judges",
+                "n": "69"
+              },
+              {
+                "v": "Diversity, Equity, and Inclusion",
+                "n": "67"
+              },
+              {
+                "v": "Emergency Preparedness and Response",
+                "n": "66"
+              },
+              {
+                "v": "Cemeteries",
+                "n": "52"
+              },
+              {
+                "v": "Clerk of the Circuit Court",
+                "n": "50"
+              },
+              {
+                "v": "Office of Citizen Services",
+                "n": "49"
+              },
+              {
+                "v": "Military and Community Affairs",
+                "n": "46"
+              },
+              {
+                "v": "City Council",
+                "n": "44"
+              },
+              {
+                "v": "General District Court",
+                "n": "39"
+              },
+              {
+                "v": "Juvenile & Domestic Relations Court",
+                "n": "34"
+              },
+              {
+                "v": "Office of Norfolk Arts",
+                "n": "31"
+              },
+              {
+                "v": "Probation Services",
+                "n": "24"
+              },
+              {
+                "v": "Debt Service",
+                "n": "19"
+              },
+              {
+                "v": "Public Amenities",
+                "n": "17"
+              },
+              {
+                "v": "Magistrate",
+                "n": "12"
+              },
+              {
+                "v": "Golf Operations",
+                "n": "5"
+              },
+              {
+                "v": "NOT AVAILABLE",
+                "n": "5"
+              },
+              {
+                "v": "Norfolk Public Schools",
+                "n": "3"
+              },
+              {
+                "v": "Land Acquisition",
+                "n": "2"
+              },
+              {
+                "v": "Tax Increment Financing",
+                "n": "1"
+              }
+            ],
+            "read": "2026-11-07T04:09:53.520Z",
+            "trace_n": 32
+          },
+          {
+            "type": "query",
+            "dataset": "id3i-2az4",
+            "soql": "SELECT department_name AS v, count(*) AS n WHERE department_name IS NOT NULL GROUP BY department_name ORDER BY n DESC, department_name LIMIT 200",
+            "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
+            "result": [
+              {
+                "v": "Parking Facilities Fund",
+                "n": "371"
+              },
+              {
+                "v": "Norfolk Community Services Board",
+                "n": "156"
+              },
+              {
+                "v": "Water",
+                "n": "99"
+              },
+              {
+                "v": "Commissioner of the Revenue",
+                "n": "77"
+              },
+              {
+                "v": "Finance Department",
+                "n": "67"
+              },
+              {
+                "v": "City Treasurer",
+                "n": "64"
+              },
+              {
+                "v": "Int Service Fund-Auto Maint",
+                "n": "50"
+              },
+              {
+                "v": "Public Works",
+                "n": "46"
+              },
+              {
+                "v": "Planning and Community Development",
+                "n": "45"
+              },
+              {
+                "v": "Police",
+                "n": "40"
+              },
+              {
+                "v": "Clerk of the Circuit Court",
+                "n": "39"
+              },
+              {
+                "v": "Sheriff",
+                "n": "36"
+              },
+              {
+                "v": "Cultural Facilities Arts Entertainment",
+                "n": "30"
+              },
+              {
+                "v": "Human Services",
+                "n": "28"
+              },
+              {
+                "v": "Storm Water Management",
+                "n": "28"
+              },
+              {
+                "v": "The Department of Parks & Recreation (P&R)",
+                "n": "25"
+              },
+              {
+                "v": "Development",
+                "n": "22"
+              },
+              {
+                "v": "Waste Management",
+                "n": "21"
+              },
+              {
+                "v": "Healthcare Fund",
+                "n": "19"
+              },
+              {
+                "v": "Wastewater",
+                "n": "19"
+              },
+              {
+                "v": "Norfolk Public Schools",
+                "n": "18"
+              },
+              {
+                "v": "Neighborhood Development",
+                "n": "16"
+              },
+              {
+                "v": "Towing & Recovery Operations Fund",
+                "n": "16"
+              },
+              {
+                "v": "Fire-Rescue",
+                "n": "12"
+              },
+              {
+                "v": "Office of Marketing and Communications",
+                "n": "10"
+              },
+              {
+                "v": "Cemeteries",
+                "n": "9"
+              },
+              {
+                "v": "Libraries",
+                "n": "9"
+              },
+              {
+                "v": "Public Amenities",
+                "n": "9"
+              },
+              {
+                "v": "The National Maritime Center",
+                "n": "9"
+              },
+              {
+                "v": "General Services",
+                "n": "7"
+              },
+              {
+                "v": "The Slover",
+                "n": "7"
+              },
+              {
+                "v": "Zoological Park",
+                "n": "7"
+              },
+              {
+                "v": "Communications and Technology",
+                "n": "6"
+              },
+              {
+                "v": "General District Court",
+                "n": "6"
+              },
+              {
+                "v": "Human Resources",
+                "n": "6"
+              },
+              {
+                "v": "Transportation",
+                "n": "6"
+              },
+              {
+                "v": "Debt Service",
+                "n": "5"
+              },
+              {
+                "v": "Departmental Support",
+                "n": "5"
+              },
+              {
+                "v": "Golf Operations",
+                "n": "5"
+              },
+              {
+                "v": "City Manager",
+                "n": "4"
+              },
+              {
+                "v": "Elections",
+                "n": "4"
+              },
+              {
+                "v": "City Real Estate Assessor",
+                "n": "3"
+              },
+              {
+                "v": "Commonwealths Attorney",
+                "n": "3"
+              },
+              {
+                "v": "Housing and Community Development",
+                "n": "3"
+              },
+              {
+                "v": "Juvenile & Domestic Relations Court",
+                "n": "3"
+              },
+              {
+                "v": "Land Acquisition",
+                "n": "3"
+              },
+              {
+                "v": "Emergency Preparedness and Response",
+                "n": "2"
+              },
+              {
+                "v": "Public Health",
+                "n": "1"
+              },
+              {
+                "v": "Tax Increment Financing",
+                "n": "1"
+              }
+            ],
+            "read": "2026-11-07T04:09:53.632Z",
+            "trace_n": 33
+          },
+          {
+            "type": "query",
+            "dataset": "id3i-2az4",
+            "soql": "SELECT fiscal_year, unit_name, count(*) AS whole WHERE department_name = 'The Department of Parks & Recreation (P&R)' GROUP BY fiscal_year, unit_name ORDER BY fiscal_year, unit_name LIMIT 100",
+            "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
+            "result": [
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Recreation Parks Open Space",
+                "whole": "6"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Cemeteries",
+                "whole": "3"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Recreation Parks Open Space",
+                "whole": "6"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Cemeteries",
+                "whole": "3"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Park and Forestry Operations",
+                "whole": "1"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Recreation Parks Open Space",
+                "whole": "6"
+              }
+            ],
+            "read": "2026-11-07T04:09:53.745Z",
+            "trace_n": 34
+          },
+          {
+            "type": "query",
+            "dataset": "mdwe-dquf",
+            "soql": "SELECT fiscal_year, unit_name, count(*) AS whole WHERE department_name = 'The Department of Parks & Recreation (P&R)' GROUP BY fiscal_year, unit_name ORDER BY fiscal_year, unit_name LIMIT 100",
+            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
+            "result": [
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Administrative Support",
+                "whole": "24"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Directors Office",
+                "whole": "18"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Financial Reporting",
+                "whole": "1"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Park and Forestry Operations",
+                "whole": "37"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Park Planning and Development",
+                "whole": "16"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Recreation Centers",
+                "whole": "31"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Special Services",
+                "whole": "25"
+              },
+              {
+                "fiscal_year": "2025",
+                "unit_name": "Youth Development",
+                "whole": "19"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Administrative Support",
+                "whole": "27"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Cemeteries",
+                "whole": "53"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Directors Office",
+                "whole": "20"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Financial Reporting",
+                "whole": "1"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Park and Forestry Operations",
+                "whole": "40"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Park Planning and Development",
+                "whole": "18"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Recreation Centers",
+                "whole": "32"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Special Services",
+                "whole": "26"
+              },
+              {
+                "fiscal_year": "2026",
+                "unit_name": "Youth Development",
+                "whole": "22"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Administrative Support",
+                "whole": "26"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Cemeteries",
+                "whole": "52"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Directors Office",
+                "whole": "19"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Park and Forestry Operations",
+                "whole": "39"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Park Planning and Development",
+                "whole": "17"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Recreation Centers",
+                "whole": "31"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Special Services",
+                "whole": "25"
+              },
+              {
+                "fiscal_year": "2027",
+                "unit_name": "Youth Development",
+                "whole": "21"
+              }
+            ],
+            "read": "2026-11-07T04:09:53.838Z",
+            "trace_n": 35
+          }
+        ],
+        "statement": "I found all 49 department names in the City's Annual Revenues records (id3i-2az4) also in the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. For FY2025, under “The Department of Parks & Recreation (P&R)”, I found 1 revenue unit and 8 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06. For FY2026, under “The Department of Parks & Recreation (P&R)”, I found 2 revenue units and 9 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06. For FY2027, under “The Department of Parks & Recreation (P&R)”, I found 3 revenue units and 8 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06.",
+        "short": "Under Parks and Recreation, for FY2027, I found 1 of 3 revenue units with no spending unit of the same name in the City's budget records, measured 2026-11-06.",
+        "questions": [
+          {
+            "qid": "q1",
+            "public_id": "7d8b35916cda",
+            "text": "How much of a Parks and Recreation program's cost do its own fees and charges cover?",
+            "blocks": "part",
+            "answered_in_part_by": [
+              {
+                "dataset": "id3i-2az4",
+                "column": "unit_name"
+              },
+              {
+                "dataset": "mdwe-dquf",
+                "column": "unit_name"
+              }
+            ],
+            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: for FY2027, I found 1 of 3 Parks and Recreation revenue units, “Recreation Parks Open Space”, with no spending unit of the same name in Annual Expenditures, measured 2026-11-06, so I can't set that revenue against a cost."
+          }
+        ],
+        "actions": [
+          "a-budget-proposal-crosswalk",
+          "a-budget-meeting-crosswalk"
+        ],
+        "touches": [
+          {
+            "dataset": "id3i-2az4",
+            "where_includes": [
+              "Parks & Recreation"
+            ]
+          }
+        ],
+        "bites_when": [],
+        "closed_when": {
+          "share_at_most": 0,
+          "over": "whole"
+        },
+        "state": "open",
+        "measured": "2026-11-06",
+        "hand_off": [
+          {
+            "id": "id3i-2az4",
+            "name": "Annual Revenues",
+            "page": "https://data.norfolk.gov/d/id3i-2az4",
+            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/id3i-2az4"
+          },
+          {
+            "id": "mdwe-dquf",
+            "name": "Annual Expenditures",
+            "page": "https://data.norfolk.gov/d/mdwe-dquf",
+            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/mdwe-dquf"
+          }
+        ]
+      },
+      {
+        "id": "norfolk.budget.three-fiscal-years",
+        "public_id": "74b53df11ba4",
+        "kind": "partial_coverage",
+        "label": "Partial coverage (in the records I read)",
+        "title": "Fiscal years held in the open spending and revenue records",
+        "where": {
+          "sources": [
+            {
+              "type": "dataset",
+              "id": "mdwe-dquf",
+              "name": "Annual Expenditures"
+            },
+            {
+              "type": "dataset",
+              "id": "id3i-2az4",
+              "name": "Annual Revenues"
+            },
+            {
+              "type": "catalog",
+              "id": "data.norfolk.gov"
+            }
+          ],
+          "scope": "fiscal years in the open spending and revenue records",
+          "area": "citywide"
+        },
+        "topic": null,
+        "checked_live": "2026-11-06",
+        "how_much": {
+          "part": 7,
+          "whole": 10,
+          "read": "2026-11-07T04:09:50.604Z",
+          "values": {
+            "dataset": "mdwe-dquf",
+            "field": "fiscal_year",
+            "count": 3,
+            "matched": [
+              "2025",
+              "2026",
+              "2027"
+            ],
+            "read": "2026-11-07T04:09:50.401Z"
+          },
+          "quote": {
+            "dataset": "mdwe-dquf",
+            "text": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.",
+            "read": "2026-11-07T04:09:50.225Z"
+          },
+          "published": {
+            "rows_updated": "2026-11-06T12:26:36.000Z",
+            "read": "2026-11-07T04:09:50.225Z"
+          },
+          "catalog": [
+            {
+              "q": "budget",
+              "result_set_size": 16,
+              "open_to_siren": [
+                {
+                  "id": "6njp-hen5",
+                  "name": "Capital Improvement Plan (CIP) Projects - FY 2025"
+                },
+                {
+                  "id": "6tqj-4az3",
+                  "name": "Capital Improvement Plan (CIP) Projects - FY 2027"
+                },
+                {
+                  "id": "7jsp-eyjg",
+                  "name": "Performance Measures"
+                },
+                {
+                  "id": "8j55-9gjp",
+                  "name": "Resident Survey 2024 - Summarized Comments"
+                },
+                {
+                  "id": "de5p-5xvj",
+                  "name": "Resident Survey 2024"
+                },
+                {
+                  "id": "dpv9-3yq2",
+                  "name": "Capital Improvement Plan (CIP) Projects - FY 2026"
+                },
+                {
+                  "id": "ez9d-udp9",
+                  "name": "Resident Survey 2024 Demographics"
+                },
+                {
+                  "id": "f3mt-z6yp",
+                  "name": "Resident Survey 2022 Demographics"
+                },
+                {
+                  "id": "fumf-ph9r",
+                  "name": "Capital Improvement Projects (CIP) - FY20"
+                },
+                {
+                  "id": "id3i-2az4",
+                  "name": "Annual Revenues"
+                },
+                {
+                  "id": "jbfz-2t3g",
+                  "name": "Capital Improvement Plan (CIP) Projects - FY24"
+                },
+                {
+                  "id": "k8ry-iqjg",
+                  "name": "Public Art"
+                },
+                {
+                  "id": "kekx-9mip",
+                  "name": "American Rescue Plan Act State and Local Recovery Funds Project Status"
+                },
+                {
+                  "id": "mdwe-dquf",
+                  "name": "Annual Expenditures"
+                }
+              ],
+              "read": "2026-11-07T04:09:51.632Z"
+            }
+          ]
+        },
+        "evidence": [
+          {
+            "type": "values",
+            "dataset": "mdwe-dquf",
+            "field": "fiscal_year",
+            "values": [
+              "2026",
+              "2025",
+              "2027"
+            ],
+            "pattern": "/^\\d{4}$/",
+            "matched": [
+              "2025",
+              "2026",
+              "2027"
+            ],
+            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
+            "read": "2026-11-07T04:09:50.401Z",
+            "trace_n": 10
+          },
+          {
+            "type": "values",
+            "dataset": "id3i-2az4",
+            "field": "fiscal_year",
+            "values": [
+              "2025",
+              "2026",
+              "2027"
+            ],
+            "pattern": "/^\\d{4}$/",
+            "matched": [
+              "2025",
+              "2026",
+              "2027"
+            ],
+            "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
+            "read": "2026-11-07T04:09:50.604Z",
+            "trace_n": 12
+          },
+          {
+            "type": "metadata",
+            "dataset": "mdwe-dquf",
+            "quote": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.",
+            "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
+            "read": "2026-11-07T04:09:50.225Z",
+            "trace_n": 9
+          },
+          {
+            "type": "metadata",
+            "dataset": "id3i-2az4",
+            "quote": "The data set includes the current fiscal year and two previous fiscal years.",
+            "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
+            "read": "2026-11-07T04:09:50.708Z",
+            "trace_n": 13
+          },
+          {
+            "type": "metadata",
+            "dataset": "mdwe-dquf",
+            "field": "actual_expenses",
+            "quote": "Sum of fiscal year-to-date expenditures for this department/fund/unit/object line",
+            "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
+            "read": "2026-11-07T04:09:50.225Z",
+            "trace_n": 9
+          },
+          {
+            "type": "catalog_search",
+            "q": "budget",
+            "result_set_size": 16,
+            "excluded": 0,
+            "open_to_siren": [
+              {
+                "id": "6njp-hen5",
+                "name": "Capital Improvement Plan (CIP) Projects - FY 2025"
+              },
+              {
+                "id": "6tqj-4az3",
+                "name": "Capital Improvement Plan (CIP) Projects - FY 2027"
+              },
+              {
+                "id": "7jsp-eyjg",
+                "name": "Performance Measures"
+              },
+              {
+                "id": "8j55-9gjp",
+                "name": "Resident Survey 2024 - Summarized Comments"
+              },
+              {
+                "id": "de5p-5xvj",
+                "name": "Resident Survey 2024"
+              },
+              {
+                "id": "dpv9-3yq2",
+                "name": "Capital Improvement Plan (CIP) Projects - FY 2026"
+              },
+              {
+                "id": "ez9d-udp9",
+                "name": "Resident Survey 2024 Demographics"
+              },
+              {
+                "id": "f3mt-z6yp",
+                "name": "Resident Survey 2022 Demographics"
+              },
+              {
+                "id": "fumf-ph9r",
+                "name": "Capital Improvement Projects (CIP) - FY20"
+              },
+              {
+                "id": "id3i-2az4",
+                "name": "Annual Revenues"
+              },
+              {
+                "id": "jbfz-2t3g",
+                "name": "Capital Improvement Plan (CIP) Projects - FY24"
+              },
+              {
+                "id": "k8ry-iqjg",
+                "name": "Public Art"
+              },
+              {
+                "id": "kekx-9mip",
+                "name": "American Rescue Plan Act State and Local Recovery Funds Project Status"
+              },
+              {
+                "id": "mdwe-dquf",
+                "name": "Annual Expenditures"
+              }
+            ],
+            "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget",
+            "read": "2026-11-07T04:09:51.632Z",
+            "trace_n": 14
+          }
+        ],
+        "statement": "I found fiscal years FY2025, FY2026 and FY2027 in the City's Annual Expenditures records (mdwe-dquf), and the same years in the City's Annual Revenues records (id3i-2az4), as I read them on 2026-11-06. Of the 10 fiscal years FY2018 through FY2027, I found 3 in both datasets, as I read them on 2026-11-06. The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-06, says: “This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.” The Annual Revenues description (id3i-2az4), as I read it on 2026-11-06, says: “The data set includes the current fiscal year and two previous fiscal years.” The Annual Expenditures description of actual_expenses, in its words: “Sum of fiscal year-to-date expenditures for this department/fund/unit/object line”. I found 16 datasets in Norfolk's open data catalog for the search “budget”, and none besides these two named for expenditures, revenues or spending (searched 2026-11-06).",
+        "short": "I found fiscal years FY2025 through FY2027 in the City's Annual Expenditures, and FY2025 through FY2027 in its Annual Revenues, measured 2026-11-06.",
+        "questions": [
+          {
+            "qid": "q1",
+            "public_id": "47feaf021681",
+            "text": "How has Parks and Recreation spending changed over the last ten years?",
+            "blocks": "part",
+            "answered_in_part_by": [
+              {
+                "dataset": "mdwe-dquf",
+                "column": "fiscal_year"
+              }
+            ],
+            "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-06, so I can show those years only, with FY2027 spending to date."
+          },
+          {
+            "qid": "q2",
+            "public_id": "a323601b2bf1",
+            "text": "How has the City's revenue from fees and taxes changed over the last ten years?",
+            "blocks": "part",
+            "answered_in_part_by": [
+              {
+                "dataset": "id3i-2az4",
+                "column": "fiscal_year"
+              }
+            ],
+            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-06, so I can show those years only, with FY2027 collections to date."
+          }
+        ],
+        "actions": [
+          "a-budget-proposal-years",
+          "a-budget-meeting-years"
+        ],
+        "touches": [
+          {
+            "dataset": "mdwe-dquf"
+          },
+          {
+            "dataset": "id3i-2az4"
+          }
+        ],
+        "bites_when": [],
+        "closed_when": {
+          "share_at_most": 0,
+          "over": "whole"
+        },
+        "state": "open",
+        "measured": "2026-11-06",
+        "hand_off": [
+          {
+            "id": "mdwe-dquf",
+            "name": "Annual Expenditures",
+            "page": "https://data.norfolk.gov/d/mdwe-dquf",
+            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/mdwe-dquf"
+          },
+          {
+            "id": "id3i-2az4",
+            "name": "Annual Revenues",
+            "page": "https://data.norfolk.gov/d/id3i-2az4",
+            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/id3i-2az4"
+          }
+        ]
+      },
+      {
+        "id": "norfolk.budget.trees-planted-no-yearly-values",
+        "public_id": "a3311dab533f",
+        "kind": "missing_field",
+        "label": "Absent or empty field (in the records I read)",
+        "title": "Trees-planted measure with empty year columns (Performance Measures)",
+        "where": {
+          "sources": [
+            {
+              "type": "dataset",
+              "id": "7jsp-eyjg",
+              "name": "Performance Measures"
+            },
+            {
+              "type": "dataset",
+              "id": "qzfe-wj25",
+              "name": "Work Orders"
+            }
+          ],
+          "scope": "the measure “Number of trees planted” under the program “Park and Forestry Operations”",
+          "area": "citywide"
+        },
+        "topic": null,
+        "checked_live": "2026-11-06",
+        "how_much": {
+          "part": 4,
+          "whole": 4,
+          "read": "2026-11-07T04:09:53.000Z"
+        },
+        "evidence": [
+          {
+            "type": "values",
+            "dataset": "7jsp-eyjg",
+            "field": "measure_description",
+            "values": [
+              "Number of Park Ranger incident responses",
+              "Number of trees planted"
+            ],
+            "pattern": "/^Number of trees planted$/",
+            "matched": [
+              "Number of trees planted"
+            ],
+            "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
+            "read": "2026-11-07T04:09:52.451Z",
+            "trace_n": 22
           },
           {
             "type": "query",
             "dataset": "7jsp-eyjg",
-            "soql": "SELECT count(*) AS whole, sum(case(fy_2022 IS NULL AND fy_2023 IS NULL AND fy_2024 IS NULL AND fy_2025 IS NULL,1,true,0)) AS no_actual WHERE program_name = 'Park and Forestry Operations' AND measure_description = 'Number of trees planted' LIMIT 100",
-            "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%20AND%20fy_2023%20IS%20NULL%20AND%20fy_2024%20IS%20NULL%20AND%20fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_actual%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100",
+            "soql": "SELECT count(*) AS whole, sum(case(fy_2022 IS NULL,1,true,0)) AS no_fy_2022, sum(case(fy_2023 IS NULL,1,true,0)) AS no_fy_2023, sum(case(fy_2024 IS NULL,1,true,0)) AS no_fy_2024, sum(case(fy_2025 IS NULL,1,true,0)) AS no_fy_2025 WHERE program_name = 'Park and Forestry Operations' AND measure_description = 'Number of trees planted' LIMIT 100",
+            "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2022%2C%20sum(case(fy_2023%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2023%2C%20sum(case(fy_2024%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2024%2C%20sum(case(fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2025%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100",
             "result": [
               {
                 "whole": "1",
-                "no_actual": "1"
+                "no_fy_2022": "1",
+                "no_fy_2023": "1",
+                "no_fy_2024": "1",
+                "no_fy_2025": "1"
               }
             ],
-            "read": "2026-11-07T03:46:48.180Z",
-            "trace_n": 21
+            "read": "2026-11-07T04:09:53.000Z",
+            "trace_n": 27
           },
           {
             "type": "query",
@@ -731,32 +2179,17 @@
                 "n": "1"
               }
             ],
-            "read": "2026-11-07T03:46:48.406Z",
-            "trace_n": 23
-          },
-          {
-            "type": "finding",
-            "case": "norfolk-trees",
-            "id": "pruning-requests-fulfilled",
-            "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets",
-            "quote": "Percent of street tree pruning requests fulfilled",
-            "selector": {
-              "type": "TextQuoteSelector",
-              "exact": "Percent of street tree pruning requests fulfilled",
-              "prefix": "90 working days or less mowing cycle ",
-              "suffix": " 5 9 5 40 90 Total Number of Properties"
-            },
-            "checked": "2026-11-04",
-            "reverified": null
+            "read": "2026-11-07T04:09:53.112Z",
+            "trace_n": 28
           }
         ],
-        "statement": "Of 361 measures in the City's Performance Measures records (7jsp-eyjg), I found none with a description naming pruning, as I read them on 2026-11-06. Under the program “Park and Forestry Operations” I found 2 measures, “Number of Park Ranger incident responses” and “Number of trees planted”, and no value for “Number of trees planted” in FY2022 through FY2025, as I read them on 2026-11-06. The City's FY2024 adopted budget says: “Percent of street tree pruning requests fulfilled” (quote checked 2026-11-04). I found the task “Pruning” on 3,293 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
-        "short": "Of 361 measures in the City's Performance Measures, I found none naming pruning, measured 2026-11-06.",
+        "statement": "Under the program “Park and Forestry Operations” in the City's Performance Measures records (7jsp-eyjg), I found the measure “Number of trees planted”, and of its 4 fiscal-year value columns, FY2022 through FY2025, I found all 4 empty, as I read them on 2026-11-06. I found the task “Plantings” on 560 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
+        "short": "I found 4 of 4 year columns empty on the trees-planted measure in the City's Performance Measures, measured 2026-11-06.",
         "questions": [
           {
             "qid": "q1",
-            "public_id": "6cf4ae6a3f32",
-            "text": "What share of street-tree pruning requests does the City fulfill each year?",
+            "public_id": "2aa91e65cd86",
+            "text": "How many trees did the City plant in each of the last four fiscal years?",
             "blocks": "part",
             "answered_in_part_by": [
               {
@@ -764,44 +2197,32 @@
                 "column": "primary_task_description"
               }
             ],
-            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Pruning” on 3,293 Forestry work orders, measured 2026-11-06, which counts orders, not requests received or fulfilled, and I found no pruning measure in the Performance Measures records."
-          },
-          {
-            "qid": "q2",
-            "public_id": "ecc5a3a51fa5",
-            "text": "How many street trees did the City plant in each of the last four fiscal years?",
-            "blocks": "part",
-            "answered_in_part_by": [
-              {
-                "dataset": "7jsp-eyjg",
-                "column": "fy_2026_projection"
-              },
-              {
-                "dataset": "7jsp-eyjg",
-                "column": "fy_2027_target"
-              }
-            ],
-            "consequence": "With the City's Performance Measures records (7jsp-eyjg) I can answer this only in part: I found no value for “Number of trees planted” in FY2022 through FY2025, measured 2026-11-06, so I can give only its projection and target."
+            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Plantings” on 560 Forestry work orders, measured 2026-11-06, which counts orders, not trees, and I found 4 of the 4 year columns for “Number of trees planted” empty in the Performance Measures records, measured 2026-11-06."
           }
         ],
         "actions": [
-          "a-budget-proposal-pruning-measure",
-          "a-budget-meeting-pruning-measure"
+          "a-budget-proposal-planted-values",
+          "a-budget-meeting-planted-values"
         ],
         "touches": [
           {
-            "tool": "budget_for"
+            "dataset": "7jsp-eyjg",
+            "where_includes": [
+              "Forestry"
+            ]
           },
           {
-            "dataset": "7jsp-eyjg"
-          },
-          {
-            "case": "norfolk-trees"
+            "dataset": "qzfe-wj25",
+            "where_includes": [
+              "area = 'Forestry'",
+              "'Plantings'"
+            ]
           }
         ],
         "bites_when": [],
         "closed_when": {
-          "finding": true
+          "share_at_most": 0,
+          "over": "whole"
         },
         "state": "open",
         "measured": "2026-11-06",
@@ -819,580 +2240,6 @@
             "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/qzfe-wj25"
           }
         ]
-      },
-      {
-        "id": "norfolk.budget.parks-revenue-units",
-        "public_id": "3e14edb252f9",
-        "kind": "partial_coverage",
-        "label": "Partial coverage (in the records I read)",
-        "title": "Parks and Recreation revenue units with no spending unit of the same name",
-        "where": {
-          "sources": [
-            {
-              "type": "dataset",
-              "id": "id3i-2az4",
-              "name": "Annual Revenues"
-            },
-            {
-              "type": "dataset",
-              "id": "mdwe-dquf",
-              "name": "Annual Expenditures"
-            }
-          ],
-          "scope": "units under The Department of Parks & Recreation (P&R)",
-          "area": "citywide"
-        },
-        "topic": null,
-        "checked_live": "2026-11-06",
-        "how_much": {
-          "part": 1,
-          "whole": 3,
-          "read": "2026-11-07T03:46:49.053Z",
-          "values": {
-            "dataset": "id3i-2az4",
-            "field": "unit_name",
-            "count": 3,
-            "matched": [
-              "Recreation Parks Open Space"
-            ],
-            "read": "2026-11-07T03:46:49.053Z"
-          }
-        },
-        "evidence": [
-          {
-            "type": "values",
-            "dataset": "mdwe-dquf",
-            "field": "department_name",
-            "values": [
-              "Norfolk Community Services Board",
-              "Water",
-              "Police",
-              "Public Works",
-              "The Department of Parks & Recreation (P&R)",
-              "Human Services",
-              "The National Maritime Center",
-              "Libraries",
-              "Zoological Park",
-              "Finance Department",
-              "General Services",
-              "Transportation",
-              "Planning and Community Development",
-              "Cultural Facilities Arts Entertainment",
-              "Neighborhood Development",
-              "Storm Water Management",
-              "Fire-Rescue",
-              "Housing and Community Development",
-              "Waste Management",
-              "Parking Facilities Fund",
-              "Outside Agencies",
-              "Wastewater",
-              "Towing & Recovery Operations Fund",
-              "Communications and Technology",
-              "Int Service Fund-Auto Maint",
-              "Sheriff",
-              "City Clerk",
-              "Healthcare Fund",
-              "The Slover",
-              "City Manager",
-              "Commissioner of the Revenue",
-              "Departmental Support",
-              "Elections",
-              "City Real Estate Assessor",
-              "Human Resources",
-              "City Treasurer",
-              "Commonwealths Attorney",
-              "City Attorney",
-              "Public Health",
-              "Budget and Strategic Planning",
-              "Development",
-              "City Auditor",
-              "Office of Resilience",
-              "Office of Marketing and Communications",
-              "Circuit Court Judges",
-              "Diversity, Equity, and Inclusion",
-              "Emergency Preparedness and Response",
-              "Cemeteries",
-              "Clerk of the Circuit Court",
-              "Office of Citizen Services",
-              "Military and Community Affairs",
-              "City Council",
-              "General District Court",
-              "Juvenile & Domestic Relations Court",
-              "Office of Norfolk Arts",
-              "Probation Services",
-              "Debt Service",
-              "Public Amenities",
-              "Magistrate",
-              "Golf Operations",
-              "NOT AVAILABLE",
-              "Norfolk Public Schools",
-              "Land Acquisition",
-              "Tax Increment Financing"
-            ],
-            "pattern": "/.*/",
-            "matched": [
-              "Norfolk Community Services Board",
-              "Water",
-              "Police",
-              "Public Works",
-              "The Department of Parks & Recreation (P&R)",
-              "Human Services",
-              "The National Maritime Center",
-              "Libraries",
-              "Zoological Park",
-              "Finance Department",
-              "General Services",
-              "Transportation",
-              "Planning and Community Development",
-              "Cultural Facilities Arts Entertainment",
-              "Neighborhood Development",
-              "Storm Water Management",
-              "Fire-Rescue",
-              "Housing and Community Development",
-              "Waste Management",
-              "Parking Facilities Fund",
-              "Outside Agencies",
-              "Wastewater",
-              "Towing & Recovery Operations Fund",
-              "Communications and Technology",
-              "Int Service Fund-Auto Maint",
-              "Sheriff",
-              "City Clerk",
-              "Healthcare Fund",
-              "The Slover",
-              "City Manager",
-              "Commissioner of the Revenue",
-              "Departmental Support",
-              "Elections",
-              "City Real Estate Assessor",
-              "Human Resources",
-              "City Treasurer",
-              "Commonwealths Attorney",
-              "City Attorney",
-              "Public Health",
-              "Budget and Strategic Planning",
-              "Development",
-              "City Auditor",
-              "Office of Resilience",
-              "Office of Marketing and Communications",
-              "Circuit Court Judges",
-              "Diversity, Equity, and Inclusion",
-              "Emergency Preparedness and Response",
-              "Cemeteries",
-              "Clerk of the Circuit Court",
-              "Office of Citizen Services",
-              "Military and Community Affairs",
-              "City Council",
-              "General District Court",
-              "Juvenile & Domestic Relations Court",
-              "Office of Norfolk Arts",
-              "Probation Services",
-              "Debt Service",
-              "Public Amenities",
-              "Magistrate",
-              "Golf Operations",
-              "NOT AVAILABLE",
-              "Norfolk Public Schools",
-              "Land Acquisition",
-              "Tax Increment Financing"
-            ],
-            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
-            "read": "2026-11-07T03:46:48.827Z",
-            "trace_n": 27
-          },
-          {
-            "type": "values",
-            "dataset": "id3i-2az4",
-            "field": "department_name",
-            "values": [
-              "Parking Facilities Fund",
-              "Norfolk Community Services Board",
-              "Water",
-              "Commissioner of the Revenue",
-              "Finance Department",
-              "City Treasurer",
-              "Int Service Fund-Auto Maint",
-              "Public Works",
-              "Planning and Community Development",
-              "Police",
-              "Clerk of the Circuit Court",
-              "Sheriff",
-              "Cultural Facilities Arts Entertainment",
-              "Human Services",
-              "Storm Water Management",
-              "The Department of Parks & Recreation (P&R)",
-              "Development",
-              "Waste Management",
-              "Healthcare Fund",
-              "Wastewater",
-              "Norfolk Public Schools",
-              "Neighborhood Development",
-              "Towing & Recovery Operations Fund",
-              "Fire-Rescue",
-              "Office of Marketing and Communications",
-              "Cemeteries",
-              "Libraries",
-              "Public Amenities",
-              "The National Maritime Center",
-              "General Services",
-              "The Slover",
-              "Zoological Park",
-              "Communications and Technology",
-              "General District Court",
-              "Human Resources",
-              "Transportation",
-              "Debt Service",
-              "Departmental Support",
-              "Golf Operations",
-              "City Manager",
-              "Elections",
-              "City Real Estate Assessor",
-              "Commonwealths Attorney",
-              "Housing and Community Development",
-              "Juvenile & Domestic Relations Court",
-              "Land Acquisition",
-              "Emergency Preparedness and Response",
-              "Public Health",
-              "Tax Increment Financing"
-            ],
-            "pattern": "/.*/",
-            "matched": [
-              "Parking Facilities Fund",
-              "Norfolk Community Services Board",
-              "Water",
-              "Commissioner of the Revenue",
-              "Finance Department",
-              "City Treasurer",
-              "Int Service Fund-Auto Maint",
-              "Public Works",
-              "Planning and Community Development",
-              "Police",
-              "Clerk of the Circuit Court",
-              "Sheriff",
-              "Cultural Facilities Arts Entertainment",
-              "Human Services",
-              "Storm Water Management",
-              "The Department of Parks & Recreation (P&R)",
-              "Development",
-              "Waste Management",
-              "Healthcare Fund",
-              "Wastewater",
-              "Norfolk Public Schools",
-              "Neighborhood Development",
-              "Towing & Recovery Operations Fund",
-              "Fire-Rescue",
-              "Office of Marketing and Communications",
-              "Cemeteries",
-              "Libraries",
-              "Public Amenities",
-              "The National Maritime Center",
-              "General Services",
-              "The Slover",
-              "Zoological Park",
-              "Communications and Technology",
-              "General District Court",
-              "Human Resources",
-              "Transportation",
-              "Debt Service",
-              "Departmental Support",
-              "Golf Operations",
-              "City Manager",
-              "Elections",
-              "City Real Estate Assessor",
-              "Commonwealths Attorney",
-              "Housing and Community Development",
-              "Juvenile & Domestic Relations Court",
-              "Land Acquisition",
-              "Emergency Preparedness and Response",
-              "Public Health",
-              "Tax Increment Financing"
-            ],
-            "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
-            "read": "2026-11-07T03:46:48.953Z",
-            "trace_n": 28
-          },
-          {
-            "type": "values",
-            "dataset": "id3i-2az4",
-            "field": "unit_name",
-            "values": [
-              "Recreation Parks Open Space",
-              "Cemeteries",
-              "Park and Forestry Operations"
-            ],
-            "pattern": "/.*/",
-            "matched": [
-              "Recreation Parks Open Space",
-              "Cemeteries",
-              "Park and Forestry Operations"
-            ],
-            "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
-            "read": "2026-11-07T03:46:49.053Z",
-            "trace_n": 29
-          },
-          {
-            "type": "values",
-            "dataset": "mdwe-dquf",
-            "field": "unit_name",
-            "values": [
-              "Park and Forestry Operations",
-              "Cemeteries",
-              "Recreation Centers",
-              "Administrative Support",
-              "Special Services",
-              "Youth Development",
-              "Directors Office",
-              "Park Planning and Development",
-              "Financial Reporting"
-            ],
-            "pattern": "/.*/",
-            "matched": [
-              "Park and Forestry Operations",
-              "Cemeteries",
-              "Recreation Centers",
-              "Administrative Support",
-              "Special Services",
-              "Youth Development",
-              "Directors Office",
-              "Park Planning and Development",
-              "Financial Reporting"
-            ],
-            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
-            "read": "2026-11-07T03:46:49.165Z",
-            "trace_n": 30
-          }
-        ],
-        "statement": "I found all 49 department names in the City's Annual Revenues records (id3i-2az4) also in the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. Under “The Department of Parks & Recreation (P&R)”, I found 3 revenue units in Annual Revenues and 9 spending units in Annual Expenditures, as I read them on 2026-11-06. Of the 3 revenue units, I found 1 with no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06.",
-        "short": "Under Parks and Recreation, I found 1 of 3 revenue units with no spending unit of the same name in the City's budget records, measured 2026-11-06.",
-        "questions": [
-          {
-            "qid": "q1",
-            "public_id": "7d8b35916cda",
-            "text": "How much of a Parks and Recreation program's cost do its own fees and charges cover?",
-            "blocks": "part",
-            "answered_in_part_by": [
-              {
-                "dataset": "id3i-2az4",
-                "column": "unit_name"
-              },
-              {
-                "dataset": "mdwe-dquf",
-                "column": "unit_name"
-              }
-            ],
-            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: I found 1 of 3 Parks and Recreation revenue units, “Recreation Parks Open Space”, with no spending unit of the same name in Annual Expenditures, measured 2026-11-06, so I can't set that revenue against a cost."
-          }
-        ],
-        "actions": [
-          "a-budget-proposal-crosswalk",
-          "a-budget-meeting-crosswalk"
-        ],
-        "touches": [
-          {
-            "tool": "budget_for"
-          },
-          {
-            "dataset": "id3i-2az4"
-          }
-        ],
-        "bites_when": [],
-        "closed_when": {
-          "share_at_most": 0,
-          "over": "whole"
-        },
-        "state": "open",
-        "measured": "2026-11-06",
-        "hand_off": [
-          {
-            "id": "id3i-2az4",
-            "name": "Annual Revenues",
-            "page": "https://data.norfolk.gov/d/id3i-2az4",
-            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/id3i-2az4"
-          },
-          {
-            "id": "mdwe-dquf",
-            "name": "Annual Expenditures",
-            "page": "https://data.norfolk.gov/d/mdwe-dquf",
-            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/mdwe-dquf"
-          }
-        ]
-      },
-      {
-        "id": "norfolk.budget.three-fiscal-years",
-        "public_id": "74b53df11ba4",
-        "kind": "partial_coverage",
-        "label": "Partial coverage (in the records I read)",
-        "title": "Fiscal years held in the open spending and revenue records",
-        "where": {
-          "sources": [
-            {
-              "type": "dataset",
-              "id": "mdwe-dquf",
-              "name": "Annual Expenditures"
-            },
-            {
-              "type": "dataset",
-              "id": "id3i-2az4",
-              "name": "Annual Revenues"
-            }
-          ],
-          "scope": "fiscal years in the open spending and revenue records",
-          "area": "citywide"
-        },
-        "topic": null,
-        "checked_live": "2026-11-06",
-        "how_much": {
-          "values": {
-            "dataset": "mdwe-dquf",
-            "field": "fiscal_year",
-            "count": 3,
-            "matched": [
-              "2025",
-              "2026",
-              "2027"
-            ],
-            "read": "2026-11-07T03:46:46.702Z"
-          },
-          "quote": {
-            "dataset": "mdwe-dquf",
-            "text": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.",
-            "read": "2026-11-07T03:46:46.553Z"
-          },
-          "published": {
-            "rows_updated": "2026-11-06T12:26:36.000Z",
-            "read": "2026-11-07T03:46:46.553Z"
-          }
-        },
-        "evidence": [
-          {
-            "type": "values",
-            "dataset": "mdwe-dquf",
-            "field": "fiscal_year",
-            "values": [
-              "2026",
-              "2025",
-              "2027"
-            ],
-            "pattern": "/^\\d{4}$/",
-            "matched": [
-              "2025",
-              "2026",
-              "2027"
-            ],
-            "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
-            "read": "2026-11-07T03:46:46.702Z",
-            "trace_n": 10
-          },
-          {
-            "type": "values",
-            "dataset": "id3i-2az4",
-            "field": "fiscal_year",
-            "values": [
-              "2025",
-              "2026",
-              "2027"
-            ],
-            "pattern": "/^\\d{4}$/",
-            "matched": [
-              "2025",
-              "2026",
-              "2027"
-            ],
-            "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
-            "read": "2026-11-07T03:46:46.919Z",
-            "trace_n": 12
-          },
-          {
-            "type": "metadata",
-            "dataset": "mdwe-dquf",
-            "quote": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.",
-            "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
-            "trace_n": 9
-          },
-          {
-            "type": "metadata",
-            "dataset": "id3i-2az4",
-            "quote": "The data set includes the current fiscal year and two previous fiscal years.",
-            "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
-            "read": "2026-11-07T03:46:47.024Z",
-            "trace_n": 13
-          },
-          {
-            "type": "metadata",
-            "dataset": "mdwe-dquf",
-            "field": "actual_expenses",
-            "quote": "Sum of fiscal year-to-date expenditures for this department/fund/unit/object line",
-            "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T03:46:46.553Z",
-            "trace_n": 9
-          }
-        ],
-        "statement": "I found fiscal years FY2025, FY2026 and FY2027 in the City's Annual Expenditures records (mdwe-dquf), and the same years in the City's Annual Revenues records (id3i-2az4), as I read them on 2026-11-06. The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-06, says: “This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.” The Annual Revenues description (id3i-2az4), as I read it on 2026-11-06, says: “The data set includes the current fiscal year and two previous fiscal years.” The Annual Expenditures description of actual_expenses, in its words: “Sum of fiscal year-to-date expenditures for this department/fund/unit/object line”.",
-        "short": "I found fiscal years FY2025 through FY2027 in the City's Annual Expenditures, and FY2025 through FY2027 in its Annual Revenues, measured 2026-11-06.",
-        "questions": [
-          {
-            "qid": "q1",
-            "public_id": "47feaf021681",
-            "text": "How has Parks and Recreation spending changed over the last ten years?",
-            "blocks": "part",
-            "answered_in_part_by": [
-              {
-                "dataset": "mdwe-dquf",
-                "column": "fiscal_year"
-              }
-            ],
-            "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-06, so I can show those years only, with FY2027 spending to date."
-          },
-          {
-            "qid": "q2",
-            "public_id": "a323601b2bf1",
-            "text": "How has the City's revenue from fees and taxes changed over the last ten years?",
-            "blocks": "part",
-            "answered_in_part_by": [
-              {
-                "dataset": "id3i-2az4",
-                "column": "fiscal_year"
-              }
-            ],
-            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-06, so I can show those years only, with FY2027 collections to date."
-          }
-        ],
-        "actions": [
-          "a-budget-proposal-years",
-          "a-budget-meeting-years"
-        ],
-        "touches": [
-          {
-            "tool": "budget_for"
-          },
-          {
-            "dataset": "mdwe-dquf"
-          },
-          {
-            "dataset": "id3i-2az4"
-          }
-        ],
-        "bites_when": [],
-        "closed_when": {
-          "finding": true
-        },
-        "state": "open",
-        "measured": "2026-11-06",
-        "hand_off": [
-          {
-            "id": "mdwe-dquf",
-            "name": "Annual Expenditures",
-            "page": "https://data.norfolk.gov/d/mdwe-dquf",
-            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/mdwe-dquf"
-          },
-          {
-            "id": "id3i-2az4",
-            "name": "Annual Revenues",
-            "page": "https://data.norfolk.gov/d/id3i-2az4",
-            "docs": "https://dev.socrata.com/foundry/data.norfolk.gov/id3i-2az4"
-          }
-        ]
       }
     ],
     "off_board": [],
@@ -1400,13 +2247,13 @@
     "not_a_gap": [],
     "actions": [
       {
-        "id": "a-budget-proposal-program",
-        "public_id": "1cb153dcbc64",
+        "id": "a-budget-proposal-activity",
+        "public_id": "7da1a812f42b",
         "kind": "dataset_proposal",
         "gaps": [
           "norfolk.budget.forestry-in-park-unit"
         ],
-        "text": "Publish a program or activity field in Annual Expenditures, so spending on street trees can be read apart from the rest of its unit."
+        "text": "Publish an activity or service field below the unit in Annual Expenditures, so spending on street trees can be read apart from the rest of its unit."
       },
       {
         "id": "a-budget-meeting-forestry",
@@ -1505,13 +2352,37 @@
         }
       },
       {
+        "id": "a-budget-proposal-planted-values",
+        "public_id": "f127c9e44658",
+        "kind": "dataset_proposal",
+        "gaps": [
+          "norfolk.budget.trees-planted-no-yearly-values"
+        ],
+        "text": "Fill the yearly values of the trees-planted measure in the Performance Measures dataset."
+      },
+      {
+        "id": "a-budget-meeting-planted-values",
+        "public_id": "299f1dd6041a",
+        "kind": "meeting_question",
+        "gaps": [
+          "norfolk.budget.trees-planted-no-yearly-values"
+        ],
+        "text": "How many trees did the City plant in each fiscal year, and where can residents read the yearly counts?",
+        "contact": {
+          "role": "City Clerk (to speak at Council)",
+          "phone": "(757) 664-4253",
+          "email": "ccouncil@norfolk.gov",
+          "note": "register by 3 p.m. the day of the meeting"
+        }
+      },
+      {
         "id": "a-budget-proposal-cip-place",
         "public_id": "2db39fa406f1",
         "kind": "dataset_proposal",
         "gaps": [
           "norfolk.budget.cip-no-ward"
         ],
-        "text": "Give every project in the Capital Improvement Plan data a ward, or mark it citywide, and coordinates where it has a site."
+        "text": "Give every project in the Capital Improvement Plan data a ward, or a citywide value in the ward field, and coordinates where it has a site."
       },
       {
         "id": "a-budget-meeting-cip-place",
@@ -1578,7 +2449,7 @@
       }
     ],
     "meetings": {
-      "read": "2026-11-07T03:46:49.387Z",
+      "read": "2026-11-07T04:09:54.123Z",
       "listed": [
         {
           "when": "2026-11-09T16:00:00.000",
@@ -1825,19 +2696,18 @@
     },
     {
       "n": 14,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget",
+      "soql": "q=budget",
+      "ok": true,
+      "rows": 16
+    },
+    {
+      "n": 15,
       "tool": "proposed budget gaps: Park and Forestry Operations: contractual services lines, FY2026",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20count(*)%20AS%20whole%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100",
       "soql": "SELECT count(*) AS whole WHERE unit_name = 'Park and Forestry Operations' AND object_name = 'Other Contractual Services' AND fiscal_year = 2026 LIMIT 100",
-      "ok": true,
-      "rows": 1
-    },
-    {
-      "n": 15,
-      "tool": "proposed budget gaps: Park and Forestry Operations: contractual services amounts, FY2026",
-      "dataset": "mdwe-dquf",
-      "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20min(actual_expenses)%20AS%20min_actual_expenses%2C%20max(actual_expenses)%20AS%20max_actual_expenses%2C%20min(current_expense_budget)%20AS%20min_current_expense_budget%2C%20max(current_expense_budget)%20AS%20max_current_expense_budget%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100",
-      "soql": "SELECT min(actual_expenses) AS min_actual_expenses, max(actual_expenses) AS max_actual_expenses, min(current_expense_budget) AS min_current_expense_budget, max(current_expense_budget) AS max_current_expense_budget WHERE unit_name = 'Park and Forestry Operations' AND object_name = 'Other Contractual Services' AND fiscal_year = 2026 LIMIT 100",
       "ok": true,
       "rows": 1
     },
@@ -1859,6 +2729,22 @@
     },
     {
       "n": 18,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract",
+      "soql": "q=contract",
+      "ok": true,
+      "rows": 7
+    },
+    {
+      "n": 19,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order",
+      "soql": "q=purchase order",
+      "ok": true,
+      "rows": 2
+    },
+    {
+      "n": 20,
       "tool": "check dataset name",
       "dataset": "7jsp-eyjg",
       "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
@@ -1866,16 +2752,16 @@
       "rows": null
     },
     {
-      "n": 19,
-      "tool": "proposed budget gaps: performance measures naming pruning",
+      "n": 21,
+      "tool": "proposed budget gaps: performance measures naming pruning or trimming",
       "dataset": "7jsp-eyjg",
-      "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100",
-      "soql": "SELECT count(*) AS whole, sum(case(upper(measure_description) like '%PRUN%',1,true,0)) AS prune WHERE measure_id IS NOT NULL LIMIT 100",
+      "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%2C%20sum(case(upper(measure_description)%20like%20'%25TRIM%25'%2C1%2Ctrue%2C0))%20AS%20trim%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(upper(measure_description) like '%PRUN%',1,true,0)) AS prune, sum(case(upper(measure_description) like '%TRIM%',1,true,0)) AS trim WHERE measure_id IS NOT NULL LIMIT 100",
       "ok": true,
       "rows": 1
     },
     {
-      "n": 20,
+      "n": 22,
       "tool": "proposed budget gaps: measure_description values",
       "dataset": "7jsp-eyjg",
       "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
@@ -1884,16 +2770,23 @@
       "rows": 2
     },
     {
-      "n": 21,
-      "tool": "proposed budget gaps: trees planted: values by year",
-      "dataset": "7jsp-eyjg",
-      "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%20AND%20fy_2023%20IS%20NULL%20AND%20fy_2024%20IS%20NULL%20AND%20fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_actual%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100",
-      "soql": "SELECT count(*) AS whole, sum(case(fy_2022 IS NULL AND fy_2023 IS NULL AND fy_2024 IS NULL AND fy_2025 IS NULL,1,true,0)) AS no_actual WHERE program_name = 'Park and Forestry Operations' AND measure_description = 'Number of trees planted' LIMIT 100",
+      "n": 23,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning",
+      "soql": "q=pruning",
       "ok": true,
       "rows": 1
     },
     {
-      "n": 22,
+      "n": 24,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance",
+      "soql": "q=performance",
+      "ok": true,
+      "rows": 9
+    },
+    {
+      "n": 25,
       "tool": "check dataset name",
       "dataset": "qzfe-wj25",
       "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
@@ -1901,7 +2794,25 @@
       "rows": null
     },
     {
-      "n": 23,
+      "n": 26,
+      "tool": "proposed budget gaps: Forestry pruning work orders by status",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Pruning'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
+      "soql": "SELECT status_code, status_description, count(*) AS whole WHERE area = 'Forestry' AND primary_task_description = 'Pruning' GROUP BY status_code, status_description ORDER BY status_code, status_description LIMIT 100",
+      "ok": true,
+      "rows": 8
+    },
+    {
+      "n": 27,
+      "tool": "proposed budget gaps: trees planted: empty year columns",
+      "dataset": "7jsp-eyjg",
+      "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2022%2C%20sum(case(fy_2023%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2023%2C%20sum(case(fy_2024%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2024%2C%20sum(case(fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2025%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(fy_2022 IS NULL,1,true,0)) AS no_fy_2022, sum(case(fy_2023 IS NULL,1,true,0)) AS no_fy_2023, sum(case(fy_2024 IS NULL,1,true,0)) AS no_fy_2024, sum(case(fy_2025 IS NULL,1,true,0)) AS no_fy_2025 WHERE program_name = 'Park and Forestry Operations' AND measure_description = 'Number of trees planted' LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 28,
       "tool": "proposed budget gaps: Forestry tasks",
       "dataset": "qzfe-wj25",
       "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20primary_task_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20primary_task_description%20ORDER%20BY%20n%20DESC%2C%20primary_task_description%20LIMIT%20200",
@@ -1910,7 +2821,7 @@
       "rows": 21
     },
     {
-      "n": 24,
+      "n": 29,
       "tool": "check dataset name",
       "dataset": "6tqj-4az3",
       "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
@@ -1918,16 +2829,16 @@
       "rows": null
     },
     {
-      "n": 25,
+      "n": 30,
       "tool": "proposed budget gaps: capital projects with no ward or coordinates",
       "dataset": "6tqj-4az3",
-      "url": "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100",
-      "soql": "SELECT count(*) AS whole, sum(case(ward IS NULL,1,true,0)) AS no_ward, sum(case(latitude IS NULL OR longitude IS NULL,1,true,0)) AS no_coord, sum(case(ward IS NULL AND (latitude IS NULL OR longitude IS NULL),1,true,0)) AS neither WHERE project_id IS NOT NULL LIMIT 100",
+      "url": "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%2C%20sum(case(location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%2C%20sum(case(ward%20IS%20NULL%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward_no_loc%2C%20sum(case((latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord_no_loc%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(ward IS NULL,1,true,0)) AS no_ward, sum(case(latitude IS NULL OR longitude IS NULL,1,true,0)) AS no_coord, sum(case(ward IS NULL AND (latitude IS NULL OR longitude IS NULL),1,true,0)) AS neither, sum(case(location IS NULL,1,true,0)) AS no_loc, sum(case(ward IS NULL AND location IS NULL,1,true,0)) AS no_ward_no_loc, sum(case((latitude IS NULL OR longitude IS NULL) AND location IS NULL,1,true,0)) AS no_coord_no_loc WHERE project_id IS NOT NULL LIMIT 100",
       "ok": true,
       "rows": 1
     },
     {
-      "n": 26,
+      "n": 31,
       "tool": "describe dataset",
       "dataset": "6tqj-4az3",
       "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
@@ -1935,7 +2846,7 @@
       "rows": null
     },
     {
-      "n": 27,
+      "n": 32,
       "tool": "proposed budget gaps: department names in Annual Expenditures",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
@@ -1944,7 +2855,7 @@
       "rows": 64
     },
     {
-      "n": 28,
+      "n": 33,
       "tool": "proposed budget gaps: department names in Annual Revenues",
       "dataset": "id3i-2az4",
       "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
@@ -1953,25 +2864,25 @@
       "rows": 49
     },
     {
-      "n": 29,
-      "tool": "proposed budget gaps: Parks and Recreation revenue units",
+      "n": 34,
+      "tool": "proposed budget gaps: Parks and Recreation revenue units by fiscal year",
       "dataset": "id3i-2az4",
-      "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
-      "soql": "SELECT unit_name AS v, count(*) AS n WHERE department_name = 'The Department of Parks & Recreation (P&R)' GROUP BY unit_name ORDER BY n DESC, unit_name LIMIT 200",
+      "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
+      "soql": "SELECT fiscal_year, unit_name, count(*) AS whole WHERE department_name = 'The Department of Parks & Recreation (P&R)' GROUP BY fiscal_year, unit_name ORDER BY fiscal_year, unit_name LIMIT 100",
       "ok": true,
-      "rows": 3
+      "rows": 6
     },
     {
-      "n": 30,
-      "tool": "proposed budget gaps: Parks and Recreation spending units",
+      "n": 35,
+      "tool": "proposed budget gaps: Parks and Recreation spending units by fiscal year",
       "dataset": "mdwe-dquf",
-      "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
-      "soql": "SELECT unit_name AS v, count(*) AS n WHERE department_name = 'The Department of Parks & Recreation (P&R)' GROUP BY unit_name ORDER BY n DESC, unit_name LIMIT 200",
+      "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
+      "soql": "SELECT fiscal_year, unit_name, count(*) AS whole WHERE department_name = 'The Department of Parks & Recreation (P&R)' GROUP BY fiscal_year, unit_name ORDER BY fiscal_year, unit_name LIMIT 100",
       "ok": true,
-      "rows": 9
+      "rows": 25
     },
     {
-      "n": 31,
+      "n": 36,
       "tool": "check dataset name",
       "dataset": "dszu-h9cf",
       "url": "https://data.norfolk.gov/api/views/dszu-h9cf.json",
@@ -1979,7 +2890,7 @@
       "rows": null
     },
     {
-      "n": 32,
+      "n": 37,
       "tool": "proposed budget gaps: upcoming public meetings",
       "dataset": "dszu-h9cf",
       "url": "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-06T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025",
@@ -1989,16 +2900,271 @@
     }
   ],
   "responses": {
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget": {
+      "read": "2026-11-07T04:09:51.632Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 16,
+        "results": [
+          {
+            "resource": {
+              "id": "mdwe-dquf",
+              "name": "Annual Expenditures"
+            }
+          },
+          {
+            "resource": {
+              "id": "k8ry-iqjg",
+              "name": "Public Art"
+            }
+          },
+          {
+            "resource": {
+              "id": "jbfz-2t3g",
+              "name": "Capital Improvement Plan (CIP) Projects - FY24"
+            }
+          },
+          {
+            "resource": {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status"
+            }
+          },
+          {
+            "resource": {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024"
+            }
+          },
+          {
+            "resource": {
+              "id": "7jsp-eyjg",
+              "name": "Performance Measures"
+            }
+          },
+          {
+            "resource": {
+              "id": "6njp-hen5",
+              "name": "Capital Improvement Plan (CIP) Projects - FY 2025"
+            }
+          },
+          {
+            "resource": {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics"
+            }
+          },
+          {
+            "resource": {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments"
+            }
+          },
+          {
+            "resource": {
+              "id": "6tqj-4az3",
+              "name": "Capital Improvement Plan (CIP) Projects - FY 2027"
+            }
+          },
+          {
+            "resource": {
+              "id": "id3i-2az4",
+              "name": "Annual Revenues"
+            }
+          },
+          {
+            "resource": {
+              "id": "dpv9-3yq2",
+              "name": "Capital Improvement Plan (CIP) Projects - FY 2026"
+            }
+          },
+          {
+            "resource": {
+              "id": "fumf-ph9r",
+              "name": "Capital Improvement Projects (CIP) - FY20"
+            }
+          },
+          {
+            "resource": {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries"
+            }
+          },
+          {
+            "resource": {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics"
+            }
+          },
+          {
+            "resource": {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics"
+            }
+          }
+        ]
+      }
+    },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=checkbook": {
-      "read": "2026-11-07T03:46:47.630Z",
+      "read": "2026-11-07T04:09:51.840Z",
       "status": 200,
       "body": {
         "resultSetSize": 0,
         "results": []
       }
     },
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract": {
+      "read": "2026-11-07T04:09:52.037Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 7,
+        "results": [
+          {
+            "resource": {
+              "id": "393b-ph9i",
+              "name": "Norfolk SWaM Certified Businesses"
+            }
+          },
+          {
+            "resource": {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024"
+            }
+          },
+          {
+            "resource": {
+              "id": "qure-5p8r",
+              "name": "Resident Survey 2022"
+            }
+          },
+          {
+            "resource": {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics"
+            }
+          },
+          {
+            "resource": {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics"
+            }
+          },
+          {
+            "resource": {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments"
+            }
+          },
+          {
+            "resource": {
+              "id": "suf7-r643",
+              "name": "FEMA NFIP Claims"
+            }
+          }
+        ]
+      }
+    },
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance": {
+      "read": "2026-11-07T04:09:52.619Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 9,
+        "results": [
+          {
+            "resource": {
+              "id": "7jsp-eyjg",
+              "name": "Performance Measures"
+            }
+          },
+          {
+            "resource": {
+              "id": "ykcq-76im",
+              "name": "Better Buildings Challenge Properties"
+            }
+          },
+          {
+            "resource": {
+              "id": "mi4h-8pn3",
+              "name": "Permits - Right of Way"
+            }
+          },
+          {
+            "resource": {
+              "id": "uvc6-r75u",
+              "name": "Storm Water Asset Inspections"
+            }
+          },
+          {
+            "resource": {
+              "id": "qzfe-wj25",
+              "name": "Work Orders"
+            }
+          },
+          {
+            "resource": {
+              "id": "dhk3-hr4y",
+              "name": "Plan Reviews"
+            }
+          },
+          {
+            "resource": {
+              "id": "ihzr-5x5n",
+              "name": "Inspections"
+            }
+          },
+          {
+            "resource": {
+              "id": "vj2f-2an3",
+              "name": "Adoptions"
+            }
+          },
+          {
+            "resource": {
+              "id": "8bq6-fd8n",
+              "name": "Foster Care"
+            }
+          }
+        ]
+      }
+    },
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning": {
+      "read": "2026-11-07T04:09:52.518Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 1,
+        "results": [
+          {
+            "resource": {
+              "id": "qzfe-wj25",
+              "name": "Work Orders"
+            }
+          }
+        ]
+      }
+    },
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order": {
+      "read": "2026-11-07T04:09:52.121Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 2,
+        "results": [
+          {
+            "resource": {
+              "id": "qzfe-wj25",
+              "name": "Work Orders"
+            }
+          },
+          {
+            "resource": {
+              "id": "ykcq-76im",
+              "name": "Better Buildings Challenge Properties"
+            }
+          }
+        ]
+      }
+    },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=vendor": {
-      "read": "2026-11-07T03:46:47.691Z",
+      "read": "2026-11-07T04:09:51.937Z",
       "status": 200,
       "body": {
         "resultSetSize": 1,
@@ -2013,7 +3179,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/6tqj-4az3.json": {
-      "read": "2026-11-07T03:46:48.720Z",
+      "read": "2026-11-07T04:09:53.408Z",
       "status": 200,
       "body": {
         "id": "6tqj-4az3",
@@ -2090,7 +3256,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/7jsp-eyjg.json": {
-      "read": "2026-11-07T03:46:47.798Z",
+      "read": "2026-11-07T04:09:52.216Z",
       "status": 200,
       "body": {
         "id": "7jsp-eyjg",
@@ -2180,7 +3346,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/dszu-h9cf.json": {
-      "read": "2026-11-07T03:46:49.273Z",
+      "read": "2026-11-07T04:09:53.978Z",
       "status": 200,
       "body": {
         "id": "dszu-h9cf",
@@ -2257,7 +3423,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/ere7-kake.json": {
-      "read": "2026-11-07T03:46:45.569Z",
+      "read": "2026-11-07T04:09:49.242Z",
       "status": 200,
       "body": {
         "id": "ere7-kake",
@@ -2714,7 +3880,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/id3i-2az4.json": {
-      "read": "2026-11-07T03:46:47.024Z",
+      "read": "2026-11-07T04:09:50.708Z",
       "status": 200,
       "body": {
         "id": "id3i-2az4",
@@ -2776,7 +3942,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/mdwe-dquf.json": {
-      "read": "2026-11-07T03:46:46.553Z",
+      "read": "2026-11-07T04:09:50.225Z",
       "status": 200,
       "body": {
         "id": "mdwe-dquf",
@@ -2838,7 +4004,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/qzfe-wj25.json": {
-      "read": "2026-11-07T03:46:48.273Z",
+      "read": "2026-11-07T04:09:52.716Z",
       "status": 200,
       "body": {
         "id": "qzfe-wj25",
@@ -3019,40 +4185,47 @@
         ]
       }
     },
-    "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100": {
-      "read": "2026-11-07T03:46:48.626Z",
+    "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%2C%20sum(case(location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%2C%20sum(case(ward%20IS%20NULL%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward_no_loc%2C%20sum(case((latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord_no_loc%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100": {
+      "read": "2026-11-07T04:09:53.334Z",
       "status": 200,
       "body": [
         {
           "whole": "93",
           "no_ward": "41",
           "no_coord": "39",
-          "neither": "39"
+          "neither": "39",
+          "no_loc": "0",
+          "no_ward_no_loc": "0",
+          "no_coord_no_loc": "0"
         }
       ]
     },
-    "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%20AND%20fy_2023%20IS%20NULL%20AND%20fy_2024%20IS%20NULL%20AND%20fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_actual%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100": {
-      "read": "2026-11-07T03:46:48.180Z",
+    "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2022%2C%20sum(case(fy_2023%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2023%2C%20sum(case(fy_2024%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2024%2C%20sum(case(fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2025%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100": {
+      "read": "2026-11-07T04:09:53.000Z",
       "status": 200,
       "body": [
         {
           "whole": "1",
-          "no_actual": "1"
+          "no_fy_2022": "1",
+          "no_fy_2023": "1",
+          "no_fy_2024": "1",
+          "no_fy_2025": "1"
         }
       ]
     },
-    "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100": {
-      "read": "2026-11-07T03:46:47.931Z",
+    "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%2C%20sum(case(upper(measure_description)%20like%20'%25TRIM%25'%2C1%2Ctrue%2C0))%20AS%20trim%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100": {
+      "read": "2026-11-07T04:09:52.335Z",
       "status": 200,
       "body": [
         {
           "whole": "361",
-          "prune": "0"
+          "prune": "0",
+          "trim": "0"
         }
       ]
     },
     "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:48.051Z",
+      "read": "2026-11-07T04:09:52.451Z",
       "status": 200,
       "body": [
         {
@@ -3066,7 +4239,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-06T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025": {
-      "read": "2026-11-07T03:46:49.387Z",
+      "read": "2026-11-07T04:09:54.123Z",
       "status": 200,
       "body": [
         {
@@ -3197,7 +4370,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%200": {
-      "read": "2026-11-07T03:46:45.711Z",
+      "read": "2026-11-07T04:09:49.372Z",
       "status": 200,
       "body": [
         {
@@ -4703,7 +5876,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201000": {
-      "read": "2026-11-07T03:46:45.983Z",
+      "read": "2026-11-07T04:09:49.657Z",
       "status": 200,
       "body": [
         {
@@ -6209,7 +7382,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201500": {
-      "read": "2026-11-07T03:46:46.140Z",
+      "read": "2026-11-07T04:09:49.779Z",
       "status": 200,
       "body": [
         {
@@ -7565,7 +8738,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%20500": {
-      "read": "2026-11-07T03:46:45.831Z",
+      "read": "2026-11-07T04:09:49.505Z",
       "status": 200,
       "body": [
         {
@@ -9071,7 +10244,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:48.953Z",
+      "read": "2026-11-07T04:09:53.632Z",
       "status": 200,
       "body": [
         {
@@ -9273,7 +10446,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:46.919Z",
+      "read": "2026-11-07T04:09:50.604Z",
       "status": 200,
       "body": [
         {
@@ -9290,26 +10463,44 @@
         }
       ]
     },
-    "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:49.053Z",
+    "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100": {
+      "read": "2026-11-07T04:09:53.745Z",
       "status": 200,
       "body": [
         {
-          "v": "Recreation Parks Open Space",
-          "n": "18"
+          "fiscal_year": "2025",
+          "unit_name": "Recreation Parks Open Space",
+          "whole": "6"
         },
         {
-          "v": "Cemeteries",
-          "n": "6"
+          "fiscal_year": "2026",
+          "unit_name": "Cemeteries",
+          "whole": "3"
         },
         {
-          "v": "Park and Forestry Operations",
-          "n": "1"
+          "fiscal_year": "2026",
+          "unit_name": "Recreation Parks Open Space",
+          "whole": "6"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Cemeteries",
+          "whole": "3"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Park and Forestry Operations",
+          "whole": "1"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Recreation Parks Open Space",
+          "whole": "6"
         }
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20count(*)%20AS%20whole%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100": {
-      "read": "2026-11-07T03:46:47.128Z",
+      "read": "2026-11-07T04:09:51.757Z",
       "status": 200,
       "body": [
         {
@@ -9318,7 +10509,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:48.827Z",
+      "read": "2026-11-07T04:09:53.520Z",
       "status": 200,
       "body": [
         {
@@ -9580,7 +10771,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:46.702Z",
+      "read": "2026-11-07T04:09:50.401Z",
       "status": 200,
       "body": [
         {
@@ -9597,20 +10788,139 @@
         }
       ]
     },
-    "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20min(actual_expenses)%20AS%20min_actual_expenses%2C%20max(actual_expenses)%20AS%20max_actual_expenses%2C%20min(current_expense_budget)%20AS%20min_current_expense_budget%2C%20max(current_expense_budget)%20AS%20max_current_expense_budget%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100": {
-      "read": "2026-11-07T03:46:47.250Z",
+    "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100": {
+      "read": "2026-11-07T04:09:53.838Z",
       "status": 200,
       "body": [
         {
-          "min_actual_expenses": "1341543.9700000000",
-          "max_actual_expenses": "1341543.9700000000",
-          "min_current_expense_budget": "1200643.0000000000",
-          "max_current_expense_budget": "1200643.0000000000"
+          "fiscal_year": "2025",
+          "unit_name": "Administrative Support",
+          "whole": "24"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Directors Office",
+          "whole": "18"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Financial Reporting",
+          "whole": "1"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Park and Forestry Operations",
+          "whole": "37"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Park Planning and Development",
+          "whole": "16"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Recreation Centers",
+          "whole": "31"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Special Services",
+          "whole": "25"
+        },
+        {
+          "fiscal_year": "2025",
+          "unit_name": "Youth Development",
+          "whole": "19"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Administrative Support",
+          "whole": "27"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Cemeteries",
+          "whole": "53"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Directors Office",
+          "whole": "20"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Financial Reporting",
+          "whole": "1"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Park and Forestry Operations",
+          "whole": "40"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Park Planning and Development",
+          "whole": "18"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Recreation Centers",
+          "whole": "32"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Special Services",
+          "whole": "26"
+        },
+        {
+          "fiscal_year": "2026",
+          "unit_name": "Youth Development",
+          "whole": "22"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Administrative Support",
+          "whole": "26"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Cemeteries",
+          "whole": "52"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Directors Office",
+          "whole": "19"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Park and Forestry Operations",
+          "whole": "39"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Park Planning and Development",
+          "whole": "17"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Recreation Centers",
+          "whole": "31"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Special Services",
+          "whole": "25"
+        },
+        {
+          "fiscal_year": "2027",
+          "unit_name": "Youth Development",
+          "whole": "21"
         }
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20object_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20object_name%20ORDER%20BY%20n%20DESC%2C%20object_name%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:46.464Z",
+      "read": "2026-11-07T04:09:50.106Z",
       "status": 200,
       "body": [
         {
@@ -9775,50 +11085,8 @@
         }
       ]
     },
-    "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:49.165Z",
-      "status": 200,
-      "body": [
-        {
-          "v": "Park and Forestry Operations",
-          "n": "116"
-        },
-        {
-          "v": "Cemeteries",
-          "n": "105"
-        },
-        {
-          "v": "Recreation Centers",
-          "n": "94"
-        },
-        {
-          "v": "Administrative Support",
-          "n": "77"
-        },
-        {
-          "v": "Special Services",
-          "n": "76"
-        },
-        {
-          "v": "Youth Development",
-          "n": "62"
-        },
-        {
-          "v": "Directors Office",
-          "n": "57"
-        },
-        {
-          "v": "Park Planning and Development",
-          "n": "51"
-        },
-        {
-          "v": "Financial Reporting",
-          "n": "2"
-        }
-      ]
-    },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:46.342Z",
+      "read": "2026-11-07T04:09:49.978Z",
       "status": 200,
       "body": [
         {
@@ -9828,7 +11096,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20primary_task_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20primary_task_description%20ORDER%20BY%20n%20DESC%2C%20primary_task_description%20LIMIT%20200": {
-      "read": "2026-11-07T03:46:48.406Z",
+      "read": "2026-11-07T04:09:53.112Z",
       "status": 200,
       "body": [
         {
@@ -9914,6 +11182,52 @@
         {
           "v": "Safety Surface Maintenance",
           "n": "1"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Pruning'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100": {
+      "read": "2026-11-07T04:09:52.886Z",
+      "status": 200,
+      "body": [
+        {
+          "status_code": "2",
+          "status_description": "New Work Order",
+          "whole": "570"
+        },
+        {
+          "status_code": "4",
+          "status_description": "On-Going",
+          "whole": "14"
+        },
+        {
+          "status_code": "940",
+          "status_description": "Delete WO",
+          "whole": "5"
+        },
+        {
+          "status_code": "951",
+          "status_description": "WO Cancelled",
+          "whole": "10"
+        },
+        {
+          "status_code": "953",
+          "status_description": "No Problem Found",
+          "whole": "1"
+        },
+        {
+          "status_code": "956",
+          "status_description": "Non-Asset Work Complete",
+          "whole": "11"
+        },
+        {
+          "status_code": "957",
+          "status_description": "Duplicate Work Order",
+          "whole": "14"
+        },
+        {
+          "status_code": "999",
+          "status_description": "Complete",
+          "whole": "2668"
         }
       ]
     }
