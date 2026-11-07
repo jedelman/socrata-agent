@@ -17,15 +17,20 @@
 //     each hash in its own HMAC domain and day- or hour-scoped; no request
 //     id and no part of an endorsement id, so it can't be joined to the
 //     endorsement rows.
-//   bsky_flows_used(sh, exp): single-use markers for finished sign-ins.
-// Every table is WITHOUT ROWID (no insertion order). Rows past exp are never
-// counted or reported, and are deleted by purgeExpired: daily by the cron
-// (purgeAll; the rollout makes it a requirement for switching the flag on),
-// and also where the public list and the admin page are computed and after
-// endorse and unendorse. The orphan sweep never runs on a person's own action.
-// A login start makes no D1 call: nothing that hasn't finished a sign-in
-// spends the account's daily D1 rows. With the flag off, the steward's
+//   siren_d1_budget(day, pot, calls, writes, exp): Siren's daily D1 budget
+//     (chargeD1), a date, a pot and two numbers.
+// Every table is WITHOUT ROWID (no insertion order). Rows past exp are
+// deleted by purgeExpired, run by the daily cron (purgeAll; the rollout makes
+// it a requirement for switching the flag on). A person's own action never
+// carries a purge or the orphan sweep. With the flag off, the steward's
 // `node scripts/invites.js endorsements-purge` keeps deletion going.
+//
+// The account's D1 limits are shared with Scout (docs/bluesky-endorsements.md,
+// "Siren's worst case on the account's D1"). So nothing before a finished
+// sign-in touches D1 (login starts and the callback make no D1 call), every
+// D1 call a visitor can cause is behind a Rate Limiting binding that runs
+// first, and every D1 write is charged, before it happens, to a daily budget
+// with a fixed ceiling (chargeD1). A refused charge writes nothing.
 //
 // Nothing here runs unless BLUESKY_LOGIN is "true" (endorseDb): with the flag
 // unset, no D1 call happens anywhere. Every statement is prepared, with bound
@@ -46,6 +51,9 @@ const ID_RE = /^[0-9a-f]{12}$/;
 const NOT_FOUND = Object.freeze({ ok: false, status: 404, code: 'not_found', error: 'No open request has that id.' });
 const BUSY = Object.freeze({ ok: false, status: 429, code: 'busy', error: "That's a lot of endorsing for one day. Try again tomorrow." });
 const BUSY_NOW = Object.freeze({ ok: false, status: 429, code: 'busy', error: 'Lots of endorsing from here right now. Try again in a minute.' });
+const SITE_BUSY = Object.freeze({ ok: false, status: 429, code: 'busy', error: 'Lots of endorsements right now. Try again in a minute.' });
+/** The day's D1 budget is spent: nothing was read past the charge, nothing written. */
+export const OVER_BUDGET = Object.freeze({ ok: false, status: 503, code: 'over_budget', error: "Endorsing is paused until midnight UTC: the site has used today's share of its database. Nothing was changed." });
 
 /** For the operator's log and the steward's page, never shown to the public. */
 export const DB_SETUP_ERROR = 'BLUESKY_LOGIN is "true" but the SIREN_DB D1 binding is missing, so Bluesky sign-in and endorsements are off. '
@@ -105,14 +113,15 @@ export const SQL = Object.freeze({
   remove: 'DELETE FROM endorsements WHERE eh = ?1',
   bump: 'INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?1, 1, ?2) ON CONFLICT (k) DO UPDATE SET n = n + 1',
   rates: (n) => `SELECT k, n FROM bsky_rate_counts WHERE exp > ?1 AND k IN (${slots(n, 2)})`,
+  // The tallies, one row per request. Rows past their expiry stay in them
+  // until the daily purge deletes those rows: subtracting them here would
+  // read every expired row on every count.
   counts: 'SELECT request_id, n, young, unknown FROM endorsement_counts',
   countOne: 'SELECT n, young, unknown FROM endorsement_counts WHERE request_id = ?1',
-  // Rows past their expiry but not yet purged, to take off the tallies: reads only those rows.
-  expired: 'SELECT request_id, COUNT(*) AS n, SUM(y IS 1) AS young, SUM(y IS NULL) AS unknown FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 GROUP BY request_id',
-  expiredOne: 'SELECT COUNT(*) AS n, SUM(y IS 1) AS young, SUM(y IS NULL) AS unknown FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 AND request_id = ?2',
   requestIds: 'SELECT request_id FROM endorsement_counts',
-  endorsedIn: (n) => `SELECT eh FROM endorsements WHERE exp > ?1 AND eh IN (${slots(n, 2)})`,
   upgradeIn: (n) => `UPDATE endorsements SET y = 0 WHERE exp > ?1 AND (y IS NULL OR y = 1) AND eh IN (${slots(n, 2)})`,
+  // `me`: one SELECT for this account's endorsements among the accepted requests.
+  mine: (n) => `SELECT eh, y FROM endorsements WHERE exp > ?1 AND eh IN (${slots(n, 2)})`,
   removeIn: (n) => `DELETE FROM endorsements WHERE eh IN (${slots(n, 1)}) RETURNING eh`,
   clear: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements WHERE request_id = ?1 LIMIT ?2) RETURNING eh',
   // Several requests' rows in one statement, at most ?1 rows: the orphan sweep.
@@ -121,9 +130,73 @@ export const SQL = Object.freeze({
   // a few purges instead of in one statement.
   purgeEndorsements: 'DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 LIMIT ?2) RETURNING eh',
   purgeRates: 'DELETE FROM bsky_rate_counts WHERE k IN (SELECT k FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ?1 LIMIT ?2) RETURNING k',
-  purgeFlows: 'DELETE FROM bsky_flows_used WHERE sh IN (SELECT sh FROM bsky_flows_used INDEXED BY bsky_flows_used_exp WHERE exp <= ?1 LIMIT ?2) RETURNING sh',
-  useFlow: 'INSERT INTO bsky_flows_used (sh, exp) VALUES (?1, ?2) ON CONFLICT (sh) DO NOTHING RETURNING sh',
+  // Past days' budget rows (at most two a day; the table stays tiny).
+  purgeBudget: 'DELETE FROM siren_d1_budget WHERE exp <= ?1 RETURNING day',
+  // What one purge would delete, at most ?2 of each kind: reads only those rows.
+  expiredCounts: 'SELECT (SELECT COUNT(*) FROM (SELECT 1 FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ?1 LIMIT ?2)) AS e, '
+    + '(SELECT COUNT(*) FROM (SELECT 1 FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ?1 LIMIT ?2)) AS r, '
+    + '(SELECT COUNT(*) FROM siren_d1_budget WHERE exp <= ?1) AS b',
+  // Add to today's budget row only if both caps still hold, in one statement:
+  // D1 runs statements one at a time, so two charges can't both take the last
+  // of a cap. No row returned means refused, and nothing was written.
+  charge: 'INSERT INTO siren_d1_budget (day, pot, calls, writes, exp) SELECT ?1, ?2, ?3, ?4, ?5 WHERE ?3 <= ?6 AND ?4 <= ?7 '
+    + 'ON CONFLICT (day, pot) DO UPDATE SET calls = calls + excluded.calls, writes = writes + excluded.writes '
+    + 'WHERE calls + excluded.calls <= ?6 AND writes + excluded.writes <= ?7 RETURNING calls, writes',
 });
+
+// ---- Siren's daily D1 budget ---------------------------------------------
+//
+// D1's Free limits are the whole account's, Scout's included, and a Rate
+// Limiting binding can't count below one per minute per location, so writes
+// are bounded by a daily count instead: every D1 write Siren makes is charged
+// first to today's row in siren_d1_budget, in one conditional statement that
+// refuses past the cap and then writes nothing. The caps' ceilings sum to
+// 4,800 rows a day, under 5% of the Free plan's 100,000. The visitor pot also
+// counts calls, which bounds the rows they read (docs/bluesky-endorsements.md
+// has the arithmetic). Every visitor call reaches chargeD1 only after the
+// Rate Limiting bindings, so a refused charge costs about two rows read.
+
+/**
+ * Rows a statement can write, at most, as D1 counts rows_written: the table
+ * row, each index entry it touches, and the tally trigger's write (measured
+ * on local D1, wrangler 4.147, 2026-11-06; see the doc's table). Upper
+ * bounds, so the budget overcounts rather than under.
+ */
+export const ROWS = Object.freeze({
+  budget: 1, // the siren_d1_budget row a charge adds to (primary key only)
+  endorsement: 5, // an endorsement inserted, re-made or deleted: row, two index entries, tally row
+  counter: 2, // a rate counter created or deleted: row and its exp index entry
+  upgrade: 2, // an age-flag rewrite: the row (y has no index) and its tally
+});
+
+/** The upkeep pot: the cron's purge, the orphan sweep and the steward's clears. Fixed. */
+export const UPKEEP = Object.freeze({ calls: 200, writes: 2400 });
+/** Ceilings on the visitor pot's settings, so no config takes Siren past 5% of the Free limits (the doc's worst case). */
+export const VISITOR_MAX = Object.freeze({ calls: 350, writes: 2400 });
+
+/** { visitor: { calls, writes }, upkeep: { calls, writes } } per UTC day. */
+export function budgetCaps(env) {
+  return {
+    visitor: {
+      calls: setting(env?.ENDORSE_D1_CALLS_DAILY, 300, { min: 1, max: VISITOR_MAX.calls }),
+      writes: setting(env?.ENDORSE_D1_WRITES_DAILY, VISITOR_MAX.writes, { min: 1, max: VISITOR_MAX.writes }),
+    },
+    upkeep: { ...UPKEEP },
+  };
+}
+
+/**
+ * Charge `calls` calls and `writes` rows to today's `pot` ('visitor' or
+ * 'upkeep'). -> true if granted; false if a cap would be passed (nothing
+ * written). Throws StorageError if D1 fails. `writes` includes the budget
+ * row itself (ROWS.budget).
+ */
+export async function chargeD1(db, env, { pot, calls = 0, writes, now = Date.now() }) {
+  const caps = budgetCaps(env)[pot];
+  if (!caps) throw new Error(`Unknown budget pot ${pot}`);
+  const { results } = await stored(() => db.prepare(SQL.charge).bind(dayOf(now), pot, calls, writes, eventExpiry(now), caps.calls, caps.writes).all());
+  return (results || []).length === 1;
+}
 
 export function publicPolicy(env) {
   return env?.ENDORSE_PUBLIC === 'all' ? 'all' : 'established';
@@ -178,15 +251,6 @@ export async function readRates(db, keys, now = Date.now()) {
 
 /** The statement that adds one to a rate counter (for a batch). */
 export const bumpRate = (db, key, expiration) => db.prepare(SQL.bump).bind(key, expiration);
-
-/**
- * Claim a single-use marker: true the first time, false on a replay.
- * `expiration` is in seconds.
- */
-export async function useFlowOnce(db, marker, expiration) {
-  const { results } = await db.prepare(SQL.useFlow).bind(marker, expiration).all();
-  return (results || []).length === 1;
-}
 
 async function allowed(limiter, key) {
   try {
@@ -285,6 +349,11 @@ const shouldUpgrade = (stored, y) => y !== null && stored !== 0 && stored !== y;
  * Endorse an accepted request. Only ids already on the public list are ever
  * looked up, so new, declined, fulfilled and unknown ids all get the same
  * 404 after the same work (none).
+ *
+ * Before any D1 call: the per-visitor, per-domain (non-open servers),
+ * site-wide and D1 limiters, then the day's budget for the most this action
+ * can write. A repeat or a refusal still spends its share; the budget
+ * overcounts rather than under.
  */
 export async function endorse({ kv, db, env, id, session, visitor, publicList, now = Date.now() }) {
   if (typeof id !== 'string' || !ID_RE.test(id)) return NOT_FOUND;
@@ -303,17 +372,33 @@ export async function endorse({ kv, db, env, id, session, visitor, publicList, n
 
   const y = youngFlag(session.created, env, now);
   const eh = await endorsementId(env.INVITE_SECRET, id, session.eid);
-  const existing = await stored(() => db.prepare(SQL.get).bind(eh, secs(now)).first());
+  const k = await rateKeys(env, session, visitor, now);
+  const issuerCapped = !openIssuer(session.issuer, env);
+  // Limiters first: no D1 call for anything they refuse.
+  if (!(await allowed(env.BSKY_VISITOR_RL, `end:${visitor}`))) return BUSY_NOW;
+  if (issuerCapped && !(await allowed(env.BSKY_INPUT_RL, `iss:${k.rh}`))) return BUSY_NOW;
+  if (!(await allowed(env.BSKY_SITE_RL, 'endorse'))) return SITE_BUSY;
+  if (!(await allowed(env.BSKY_D1_RL, 'signed'))) return SITE_BUSY;
+  // The most this can write: the endorsement and a new row for each counter
+  // (an age-flag rewrite on a repeat writes less).
+  const writes = ROWS.budget + ROWS.endorsement + ROWS.counter * (issuerCapped ? 4 : 2);
+  if (!(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes, now }))) return OVER_BUDGET;
+
+  const t = secs(now);
+  const keys = issuerCapped ? [k.d, k.v, k.i, k.r] : [k.d, k.v];
+  // One read: this endorsement and the day's counters.
+  const [got, rates] = await stored(() => db.batch([db.prepare(SQL.get).bind(eh, t), db.prepare(SQL.rates(keys.length)).bind(t, ...keys)]));
+  const existing = got.results?.[0];
   if (existing) {
     // The account has aged past "young", or its age is now known: record it.
-    // The expiry is kept. Free, like any repeat. One conditional UPDATE, so a
-    // withdrawal in another tab can't be undone by it.
+    // The expiry is kept. One conditional UPDATE, so a withdrawal in another
+    // tab can't be undone by it.
     let flag = existing.y ?? null;
     if (shouldUpgrade(flag, y)) {
       try {
-        const { results } = await db.prepare(SQL.upgrade).bind(y, eh, secs(now)).all();
+        const { results } = await db.prepare(SQL.upgrade).bind(y, eh, t).all();
         if (results?.length) flag = y;
-        else if (!(await db.prepare(SQL.get).bind(eh, secs(now)).first())) return { ok: true, endorsed: false }; // withdrawn meanwhile
+        else if (!(await db.prepare(SQL.get).bind(eh, t).first())) return { ok: true, endorsed: false }; // withdrawn meanwhile
       } catch {
         // Best effort: the next repeat or `me` retries.
       }
@@ -321,25 +406,19 @@ export async function endorse({ kv, db, env, id, session, visitor, publicList, n
     return { ok: true, endorsed: true, already: true, counted: countedFlag(env, flag) };
   }
 
-  // Burst limits first: they're per location and cost no D1 read.
-  const k = await rateKeys(env, session, visitor, now);
-  const issuerCapped = !openIssuer(session.issuer, env);
-  if (!(await allowed(env.BSKY_VISITOR_RL, `end:${visitor}`))) return BUSY_NOW;
-  if (issuerCapped && !(await allowed(env.BSKY_INPUT_RL, `iss:${k.rh}`))) return BUSY_NOW;
-  const used = await stored(() => readRates(db, issuerCapped ? [k.d, k.v, k.i, k.r] : [k.d, k.v], now));
+  const used = new Map((rates.results || []).map((x) => [x.k, Number(x.n) || 0]));
   if ((used.get(k.d) || 0) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
   if ((used.get(k.v) || 0) >= setting(env.ENDORSE_PER_VISITOR_DAILY, 200, { min: 1 })) return BUSY;
   if (issuerCapped && ((used.get(k.i) || 0) >= setting(env.ENDORSE_PER_ISSUER_DAILY, 20, { min: 1 })
     || (used.get(k.r) || 0) >= setting(env.ENDORSE_PER_DOMAIN_DAILY, 60, { min: 1 }))) {
     return { ok: false, status: 429, code: 'busy', error: 'Your Bluesky server has reached its endorsements for today. Try again tomorrow.' };
   }
-  if (!(await allowed(env.BSKY_SITE_RL, 'endorse'))) return { ok: false, status: 429, code: 'busy', error: 'Lots of endorsements right now. Try again in a minute.' };
 
   // The endorsement and its counters in one transaction: a failure writes
   // and charges nothing. A withdraw and a re-endorse charge the server again.
   const exp = eventExpiry(now);
   await stored(() => db.batch([
-    db.prepare(SQL.insert).bind(eh, id, y, retentionExpiry(env, now), secs(now)),
+    db.prepare(SQL.insert).bind(eh, id, y, retentionExpiry(env, now), t),
     bumpRate(db, k.d, exp),
     bumpRate(db, k.v, exp),
     ...(issuerCapped ? [bumpRate(db, k.i, exp), bumpRate(db, k.r, exp)] : []),
@@ -349,11 +428,14 @@ export async function endorse({ kv, db, env, id, session, visitor, publicList, n
 
 /**
  * Withdraw an endorsement. No request lookup at all: the answer is the same
- * for every well-formed id, and people can always withdraw.
+ * for every well-formed id, and people can always withdraw (within the
+ * day's budget).
  */
 export async function unendorse({ db, env, id, session, visitor, now = Date.now() }) {
   if (typeof id !== 'string' || !ID_RE.test(id)) return { ok: false, status: 400, code: 'bad_id', error: 'Give the request id.' };
   if (!(await allowed(env.BSKY_VISITOR_RL, `end:${visitor}`))) return BUSY_NOW;
+  if (!(await allowed(env.BSKY_D1_RL, 'signed'))) return SITE_BUSY;
+  if (!(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: ROWS.budget + ROWS.endorsement + 2 * ROWS.counter, now }))) return OVER_BUDGET;
   const k = await rateKeys(env, session, visitor, now);
   const used = await stored(() => readRates(db, [k.d, k.v], now));
   if ((used.get(k.d) || 0) >= setting(env.ENDORSE_PER_DID_DAILY, 30, { min: 1 })) return BUSY;
@@ -367,106 +449,145 @@ export async function unendorse({ db, env, id, session, visitor, now = Date.now(
   return { ok: true, endorsed: false };
 }
 
+/** The most requests `me` looks up, in one SELECT (D1 allows 100 bound parameters). */
+export const ME_MAX = CHUNK;
+
 /**
- * The ids of accepted, public requests this account has endorsed. When the
- * session's account is now established, endorsements stored while it was
- * young (or while its age couldn't be looked up) are rewritten as
- * established in the same batch, keeping their expiry: the page never sends
- * a repeat endorse for an endorsed request, so aging takes effect here, on load.
+ * The ids of accepted, public requests this account has endorsed, among the
+ * first ME_MAX on the list: one SELECT. When the session's account is now
+ * established, endorsements stored while it was young (or while its age
+ * couldn't be looked up) are rewritten as established, keeping their
+ * expiry, in a second statement run only when some need it, and only if the
+ * budget allows (otherwise the next load tries again): the page never sends
+ * a repeat endorse for an endorsed request, so aging takes effect here.
+ * The caller has passed the limiters; this charges the budget.
+ * -> { ok: true, endorsed } | OVER_BUDGET
  */
 export async function endorsedBy({ db, env, session, publicList, now = Date.now() }) {
-  const ids = (publicList?.requests || []).filter((r) => r.status === 'accepted' && ID_RE.test(r.id)).map((r) => r.id);
-  if (!ids.length) return [];
+  const ids = (publicList?.requests || []).filter((r) => r.status === 'accepted' && ID_RE.test(r.id)).map((r) => r.id).slice(0, ME_MAX);
+  if (!ids.length) return { ok: true, endorsed: [] };
+  if (!(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: ROWS.budget, now }))) return OVER_BUDGET;
   const ehs = await Promise.all(ids.map((id) => endorsementId(env.INVITE_SECRET, id, session.eid)));
   const t = secs(now);
-  const parts = chunks(ehs);
-  const upgrades = youngFlag(session.created, env, now) === 0 ? parts.map((p) => db.prepare(SQL.upgradeIn(p.length)).bind(t, ...p)) : [];
-  const reads = parts.map((p) => db.prepare(SQL.endorsedIn(p.length)).bind(t, ...p));
-  const out = await stored(() => db.batch([...upgrades, ...reads]));
-  const found = new Set(out.slice(upgrades.length).flatMap((r) => (r.results || []).map((x) => x.eh)));
-  return ids.filter((id, i) => found.has(ehs[i]));
+  const { results } = await stored(() => db.prepare(SQL.mine(ehs.length)).bind(t, ...ehs).all());
+  const rows = results || [];
+  if (youngFlag(session.created, env, now) === 0) {
+    const stale = rows.filter((x) => x.y !== 0).map((x) => x.eh);
+    if (stale.length) {
+      try {
+        if (await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: ROWS.budget + ROWS.upgrade * stale.length, now })) {
+          await db.prepare(SQL.upgradeIn(stale.length)).bind(t, ...stale).run();
+        }
+      } catch {
+        // Best effort: the next load retries.
+      }
+    }
+  }
+  const found = new Set(rows.map((x) => x.eh));
+  return { ok: true, endorsed: ids.filter((id, i) => found.has(ehs[i])) };
 }
 
 /**
  * Delete every endorsement this account made. The ids are computed for every
  * request that has endorsements (from the tallies), so nothing is listed but
- * request ids, and nothing is missed.
+ * request ids, and nothing is missed. Two calls, each charged before it
+ * runs: one to read the request ids, then the delete, with the rows it can
+ * write.
+ * -> { ok: true, removed } | OVER_BUDGET
  */
-export async function forgetEndorser({ db, env, session }) {
+export async function forgetEndorser({ db, env, session, now = Date.now() }) {
+  if (!(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: ROWS.budget, now }))) return OVER_BUDGET;
   const { results } = await stored(() => db.prepare(SQL.requestIds).all());
   const ids = (results || []).map((r) => r.request_id).filter((id) => ID_RE.test(id));
-  if (!ids.length) return { removed: 0 };
+  if (!ids.length) return { ok: true, removed: 0 };
+  if (!(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: ROWS.budget + ROWS.endorsement * ids.length, now }))) return OVER_BUDGET;
   const ehs = await Promise.all(ids.map((id) => endorsementId(env.INVITE_SECRET, id, session.eid)));
   const out = await stored(() => db.batch(chunks(ehs, 100).map((p) => db.prepare(SQL.removeIn(p.length)).bind(...p))));
-  return { removed: out.reduce((n, r) => n + (r.results || []).length, 0) };
+  return { ok: true, removed: out.reduce((n, r) => n + (r.results || []).length, 0) };
 }
 
 const asCount = (r) => ({ n: Number(r?.n) || 0, young: Number(r?.young) || 0, unknown: Number(r?.unknown) || 0 });
 
-const minus = (a, b) => ({ n: a.n - b.n, young: a.young - b.young, unknown: a.unknown - b.unknown });
-
 /**
- * Map(id -> { n, young, unknown }) over every unexpired endorsement: the
- * tallies (one row per request), less any rows past their expiry that
- * haven't been purged yet. One batch, reads only; purgeExpired deletes.
+ * Map(id -> { n, young, unknown }) from the tallies: one row per request with
+ * endorsements, one statement, reads only. Rows past their expiry count until
+ * the daily purge deletes them (at most about a day; longer only while the
+ * upkeep budget is spent).
  */
-export async function endorsementCounts(db, { now = Date.now() } = {}) {
-  const [tallies, expired] = await stored(() => db.batch([db.prepare(SQL.counts), db.prepare(SQL.expired).bind(secs(now))]));
-  const gone = new Map((expired.results || []).map((r) => [r.request_id, asCount(r)]));
+export async function endorsementCounts(db) {
+  const { results } = await stored(() => db.prepare(SQL.counts).all());
   const counts = new Map();
-  for (const r of tallies.results || []) {
+  for (const r of results || []) {
     if (!ID_RE.test(r.request_id)) continue;
-    const c = minus(asCount(r), gone.get(r.request_id) || asCount(null));
+    const c = asCount(r);
     if (c.n > 0) counts.set(r.request_id, c);
   }
   return counts;
 }
 
-export async function countFor(db, id, { now = Date.now() } = {}) {
+export async function countFor(db, id) {
   if (typeof id !== 'string' || !ID_RE.test(id)) return asCount(null);
-  const [one, expired] = await stored(() => db.batch([db.prepare(SQL.countOne).bind(id), db.prepare(SQL.expiredOne).bind(secs(now), id)]));
-  const c = minus(asCount(one.results?.[0]), asCount(expired.results?.[0]));
+  const c = asCount(await stored(() => db.prepare(SQL.countOne).bind(id).first()));
   return c.n > 0 ? c : asCount(null);
 }
 
 // Rows of each kind one purge may delete. A backlog beyond it goes over the
-// next purges (the daily cron, list and admin loads, endorse and unendorse),
-// never in one burst of row writes.
-export const PURGE_LIMIT = 500;
+// next rounds and days, never in one burst of row writes.
+export const PURGE_LIMIT = 200;
 
 /**
  * Delete rows past their expiry, up to `limit` of each kind: endorsements
- * (12 to 13 months), rate counters (about a day) and single-use markers (up
- * to two hours). Run by the daily cron, where the public list or the admin
- * page is computed, and after endorse and unendorse. It deletes only expired
- * rows, so when it runs says nothing about anyone. The tallies follow by
- * trigger. One batch: one query.
- * -> { endorsements, rates, flows } rows deleted, counted by RETURNING: D1's
- * meta.changes also counts the trigger's writes to the tallies.
+ * (12 to 13 months), rate counters (about a day) and past days' budget rows.
+ * It deletes only expired rows, so when it runs says nothing about anyone.
+ * The tallies follow by trigger. First a read of how many rows are due (at
+ * most `limit` of each), then the upkeep budget is charged for exactly those
+ * rows, then one batch deletes them. If the budget can't cover them, nothing
+ * is deleted and `deferred` is set.
+ * -> { endorsements, rates, budget, deferred } rows deleted, counted by
+ * RETURNING (D1's meta.changes also counts the trigger's writes).
  */
-export async function purgeExpired(db, now = Date.now(), { limit = PURGE_LIMIT } = {}) {
+export async function purgeExpired(db, env, now = Date.now(), { limit = PURGE_LIMIT } = {}) {
   const t = secs(now);
+  const due = await stored(() => db.prepare(SQL.expiredCounts).bind(t, limit).first());
+  const e = Number(due?.e) || 0;
+  const r = Number(due?.r) || 0;
+  const b = Number(due?.b) || 0;
+  const none = { endorsements: 0, rates: 0, budget: 0, deferred: false };
+  if (!e && !r && !b) return none;
+  const writes = ROWS.budget + ROWS.endorsement * e + ROWS.counter * r + ROWS.budget * b;
+  if (!(await chargeD1(db, env, { pot: 'upkeep', calls: 1, writes, now }))) return { ...none, deferred: true };
   const out = await stored(() => db.batch([
-    db.prepare(SQL.purgeEndorsements).bind(t, limit),
-    db.prepare(SQL.purgeRates).bind(t, limit),
-    db.prepare(SQL.purgeFlows).bind(t, limit),
+    db.prepare(SQL.purgeEndorsements).bind(t, e),
+    db.prepare(SQL.purgeRates).bind(t, r),
+    db.prepare(SQL.purgeBudget).bind(t),
   ]));
-  const n = (r) => (r.results || []).length;
-  return { endorsements: n(out[0]), rates: n(out[1]), flows: n(out[2]) };
+  const n = (x) => (x.results || []).length;
+  return { endorsements: n(out[0]), rates: n(out[1]), budget: n(out[2]), deferred: false };
 }
 
 /**
  * The daily cron's purge: purgeExpired until nothing expired is left, at most
- * `rounds` batches (well under the Free plan's 50 queries per invocation).
- * -> rows deleted, by kind
+ * `rounds` rounds of three queries (well under the Free plan's 50 queries
+ * per invocation). When the upkeep budget can't cover a round, it retries
+ * with a quarter of the limit, and stops when even a one-row round is
+ * refused (or the rounds run out): the rest waits for tomorrow's budget.
+ * -> rows deleted, by kind, and whether some were left for lack of budget
  */
-export async function purgeAll(db, now = Date.now(), { rounds = 20, limit = PURGE_LIMIT } = {}) {
-  const total = { endorsements: 0, rates: 0, flows: 0 };
+export async function purgeAll(db, env, now = Date.now(), { rounds = 12, limit = PURGE_LIMIT } = {}) {
+  const total = { endorsements: 0, rates: 0, budget: 0, deferred: false };
+  let size = limit;
   for (let i = 0; i < rounds; i++) {
-    const out = await purgeExpired(db, now, { limit });
-    for (const k of Object.keys(total)) total[k] += out[k];
-    if (Object.values(out).every((n) => n < limit)) break;
+    const out = await purgeExpired(db, env, now, { limit: size });
+    if (out.deferred) {
+      if (size <= 1) break;
+      size = Math.max(1, Math.floor(size / 4));
+      continue;
+    }
+    for (const k of ['endorsements', 'rates', 'budget']) total[k] += out[k];
+    if (out.endorsements < size && out.rates < size) return total;
   }
+  // The rounds ran out with rows still due (or the last was refused): tomorrow's run continues.
+  total.deferred = true;
   return total;
 }
 
@@ -495,15 +616,20 @@ export const SWEEP_BUDGET = 100;
  * Clear orphaned endorsements (see orphanedIds), at most `budget` rows, in
  * one statement: one D1 query whatever the number of orphans (the Free plan
  * allows 50 per invocation). The first 99 orphaned ids go in one sweep (D1's
- * 100 bound parameters, less the budget), the rest in the next. Errors are
- * logged, never thrown. -> the orphaned ids
+ * 100 bound parameters, less the budget), the rest in the next. The upkeep
+ * budget is charged first for the rows the tallies say are there; refused,
+ * nothing is deleted and the next sweep tries again. Errors are logged,
+ * never thrown. -> the orphaned ids
  */
-export async function sweepOrphans(db, counts, statuses, { budget = SWEEP_BUDGET } = {}) {
+export async function sweepOrphans(db, env, counts, statuses, { budget = SWEEP_BUDGET, now = Date.now() } = {}) {
   const ids = orphanedIds(counts, statuses);
   const some = ids.filter((id) => ID_RE.test(id)).slice(0, CHUNK);
-  if (some.length && budget > 0) {
+  const rows = Math.min(budget, some.reduce((n, id) => n + (counts.get(id)?.n || 0), 0));
+  if (some.length && rows > 0) {
     try {
-      await stored(() => db.prepare(SQL.clearIn(some.length)).bind(budget, ...some).all());
+      if (await chargeD1(db, env, { pot: 'upkeep', calls: 1, writes: ROWS.budget + ROWS.endorsement * rows, now })) {
+        await stored(() => db.prepare(SQL.clearIn(some.length)).bind(rows, ...some).all());
+      }
     } catch (err) {
       console.error('endorsements: orphan sweep failed', err?.cause?.message || err?.message);
     }
@@ -511,9 +637,17 @@ export async function sweepOrphans(db, counts, statuses, { budget = SWEEP_BUDGET
   return ids;
 }
 
-/** Delete up to `max` of one request's endorsements. -> { cleared, remaining } */
-export async function clearRequestEndorsements(db, id, { max = 800 } = {}) {
-  if (typeof id !== 'string' || !ID_RE.test(id)) return { cleared: 0, remaining: 0 };
-  const [gone, left] = await stored(() => db.batch([db.prepare(SQL.clear).bind(id, max), db.prepare(SQL.countOne).bind(id)]));
-  return { cleared: (gone.results || []).length, remaining: asCount(left.results?.[0]).n };
+/**
+ * Delete up to `max` of one request's endorsements, charged to the upkeep
+ * budget first. -> { cleared, remaining, deferred } (deferred: the budget
+ * couldn't cover it, nothing deleted; the orphan sweep or a later clear will)
+ */
+export async function clearRequestEndorsements(db, env, id, { max = 400, now = Date.now() } = {}) {
+  if (typeof id !== 'string' || !ID_RE.test(id)) return { cleared: 0, remaining: 0, deferred: false };
+  const have = asCount(await stored(() => db.prepare(SQL.countOne).bind(id).first())).n;
+  const rows = Math.min(max, have);
+  if (rows <= 0) return { cleared: 0, remaining: 0, deferred: false };
+  if (!(await chargeD1(db, env, { pot: 'upkeep', calls: 1, writes: ROWS.budget + ROWS.endorsement * rows, now }))) return { cleared: 0, remaining: have, deferred: true };
+  const [gone, left] = await stored(() => db.batch([db.prepare(SQL.clear).bind(id, rows), db.prepare(SQL.countOne).bind(id)]));
+  return { cleared: (gone.results || []).length, remaining: asCount(left.results?.[0]).n, deferred: false };
 }

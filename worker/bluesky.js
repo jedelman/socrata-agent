@@ -8,19 +8,23 @@
 //      PAR with PKCE and DPoP; the pending flow (state, verifier, DPoP key,
 //      nonce, bound DID and issuer) is sealed into an HttpOnly cookie scoped
 //      to <base>/oauth/. No store holds a pending flow.
-//   2. GET /oauth/callback: one flow cookie, state, iss (RFC 9207), a
-//      single-use marker, the token exchange, the sub check, then the account
-//      is re-resolved with no cache and must still name the same AS. Both
-//      tokens are revoked and dropped. The session is a sealed browser-session
-//      cookie scoped to <base>/api/bsky/, holding eid = HMAC(secret,
-//      "endorser:" + DID), never the DID itself.
+//   2. GET /oauth/callback: one flow cookie, state, iss (RFC 9207), the
+//      token exchange, the sub check, then the account is re-resolved with
+//      no cache and must still name the same AS. Both tokens are revoked and
+//      dropped. The session is a sealed browser-session cookie scoped to
+//      <base>/api/bsky/, holding eid = HMAC(secret, "endorser:" + DID), never
+//      the DID itself, and, once known, which listed requests it endorsed.
+//      Neither the login start nor the callback makes any D1 call.
 //   3. endorse / unendorse / me / forget / logout read only that cookie.
+//      Every D1 call they make is behind Rate Limiting bindings and the
+//      day's D1 budget (endorsements.js chargeD1), and `me` reads D1 at most
+//      once per session: endorse and unendorse keep the set in the cookie.
 //
 // The session cookie never reaches /api/ask or conversations, so a person's
 // Bluesky identity and their questions never arrive on the same request.
 // A Bluesky sign-in grants endorsing and nothing else: no invite, no asking.
 
-import { enc, hex, sha256, hmacHex, randomToken, timingSafeEqual, seal, unseal, boundary } from './crypto.js';
+import { enc, hmacHex, randomToken, timingSafeEqual, seal, unseal } from './crypto.js';
 import { setting, visitorId } from './limits.js';
 import {
   parseAccountInput, resolveAccount, resolveDidDoc, docPds, plcCreatedDay, normalizeHandle, IdentityError,
@@ -30,7 +34,7 @@ import {
   pushAuthorization, authorizeUrl, exchangeCode, checkTokenResponse, revokeAll,
 } from './atproto-oauth.js';
 import {
-  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, useFlowOnce, purgeExpired, endorseDb, dbSetupError, StorageError,
+  endorse, unendorse, endorsedBy, forgetEndorser, publicPolicy, youngFlag, openIssuer, endorseDb, dbSetupError, StorageError, ME_MAX,
 } from './endorsements.js';
 import { cachedPublicList } from './public-list.js';
 
@@ -42,7 +46,7 @@ export const FLOW_SECONDS = 600;
 export const SESSION_SECONDS = 86400;
 export const MAX_COOKIE_BYTES = 3800;
 const LOGIN_DEADLINE_MS = 12000;
-const RL_BINDINGS = ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_ACCOUNT_RL', 'BSKY_SITE_RL'];
+const RL_BINDINGS = ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_ACCOUNT_RL', 'BSKY_SITE_RL', 'BSKY_D1_RL'];
 
 // Fixed sentences; remote text never reaches a person.
 export const LOGIN_ERRORS = {
@@ -66,12 +70,13 @@ const ENDORSE_ERRORS = {
   signed_out: 'Sign in with Bluesky first.',
   not_here: "Endorse from this site's own page.",
   busy: 'Lots of activity right now. Try again in a minute.',
+  unavailable: "The request list can't be read just now. Try again in a minute.",
 };
 
 /**
  * Login, callback, endorse and the rest: the flag, the SIREN_DB database
  * (endorsements and counters), LIMITS (request records), the secrets, all
- * four limiters and a valid origin.
+ * five limiters and a valid origin.
  */
 export function blueskyReady(env) {
   return env?.BLUESKY_LOGIN === 'true'
@@ -136,11 +141,21 @@ export async function endorserId(secret, did) {
   return hmacHex(secret, `endorser:${did}`);
 }
 
-export async function sealSession(secret, { eid, handle, created, issuer }, now = Date.now()) {
-  return seal(secret, SESSION_PURPOSE, { v: 1, e: eid, h: handle || '', c: created || '', s: issuer, x: Math.floor(now / 1000) + SESSION_SECONDS });
+/**
+ * The sealed session. `endorsed`, when an array, is the ids of listed
+ * requests this account has endorsed, as last read or changed in this
+ * session, so `me` needn't read D1 again; null means not known yet.
+ * `expires` (seconds) keeps the original expiry when a session is resealed.
+ */
+export async function sealSession(secret, { eid, handle, created, issuer, endorsed = null, expires }, now = Date.now()) {
+  return seal(secret, SESSION_PURPOSE, {
+    v: 1, e: eid, h: handle || '', c: created || '', s: issuer, x: expires ?? Math.floor(now / 1000) + SESSION_SECONDS,
+    ...(Array.isArray(endorsed) ? { n: endorsed } : {}),
+  });
 }
 
 const BARE_HTTPS = /^https:\/\/[a-z0-9.-]+$/;
+const ID_RE = /^[0-9a-f]{12}$/;
 
 export async function openSession(secret, value, now = Date.now()) {
   const s = await unseal(secret, SESSION_PURPOSE, value);
@@ -150,7 +165,24 @@ export async function openSession(secret, value, now = Date.now()) {
   if (typeof s.c !== 'string' || (s.c !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(s.c))) return null;
   if (typeof s.s !== 'string' || !BARE_HTTPS.test(s.s)) return null;
   if (typeof s.x !== 'number' || s.x < Math.floor(now / 1000)) return null;
-  return { eid: s.e, handle: s.h, created: s.c, issuer: s.s };
+  let endorsed = null;
+  if (s.n !== undefined) {
+    if (!Array.isArray(s.n) || s.n.length > ME_MAX || !s.n.every((id) => typeof id === 'string' && ID_RE.test(id))) return null;
+    endorsed = s.n;
+  }
+  return { eid: s.e, handle: s.h, created: s.c, issuer: s.s, endorsed, expires: s.x };
+}
+
+/**
+ * The session cookie again, with `endorsed` as the known set (null: unknown),
+ * keeping its expiry. A set past ME_MAX, or a cookie that would be too large,
+ * is stored as unknown, so the next `me` reads it from D1 once.
+ */
+export async function resealSession(secret, session, endorsed, base, maxCookieBytes = MAX_COOKIE_BYTES) {
+  const known = Array.isArray(endorsed) && endorsed.length <= ME_MAX ? [...new Set(endorsed)] : null;
+  let cookie = sessionCookie(await sealSession(secret, { ...session, endorsed: known }), base);
+  if (known && cookie.length > maxCookieBytes) cookie = sessionCookie(await sealSession(secret, { ...session, endorsed: null }), base);
+  return cookie;
 }
 
 /** { session, duplicate, invalid }: two or more cookies mean signed out (one may be planted). */
@@ -284,7 +316,7 @@ export async function startBlueskyLogin({ body, env, visitor, base, fetchImpl = 
  * The callback. -> { ok: true, cookie, handle } | { ok: false, code }.
  * `defer(promise)` is ctx.waitUntil in the Worker and a collector in tests.
  */
-export async function finishBlueskyLogin({ params, flowValues, env, db, visitor, base, fetchImpl = fetch, defer = (p) => p, now = Date.now(), log = console.error }) {
+export async function finishBlueskyLogin({ params, flowValues, env, visitor, base, fetchImpl = fetch, defer = (p) => p, now = Date.now(), log = console.error }) {
   let issuerForLog = null;
   const fail = (code) => {
     // Never the state, code, tokens, DID, handle or AS text; the issuer host
@@ -316,16 +348,20 @@ export async function finishBlueskyLogin({ params, flowValues, env, db, visitor,
   // 6. The code.
   const code = params.get('code');
   if (typeof code !== 'string' || code.length < 1 || code.length > 2048) return fail('as_error');
-  // The site-wide breaker, before any D1 or outbound request.
+  // 7. The site-wide breaker, before any outbound request.
   if (!(await allowed(env.BSKY_SITE_RL, 'callback'))) return fail('busy');
-  // 7. Single use: a serial replay of the same cookie, state and iss is refused.
-  // One INSERT that claims the marker or finds it taken, so even two
-  // replays at once can't both pass.
-  try {
-    if (!(await useFlowOnce(db, hex(await sha256(flow.s)).slice(0, 32), boundary(now, 'hour', 1) + 3600))) return fail('flow_expired');
-  } catch {
-    return fail('busy'); // no token request without the marker
-  }
+  // No single-use marker, and no D1 call anywhere in the callback, so
+  // nothing before (or during) a sign-in spends the account's D1 rows, which
+  // Siren shares with Scout. Written before the token exchange, a marker let
+  // anyone running their own identity and authorization server spend D1
+  // writes; written after it, it would guard nothing, since the code is
+  // already spent by then. What a replay of this flow cookie and callback
+  // URL can do instead: PKCE (the verifier) and DPoP (the key) bind the code
+  // to this flow, and both live only in the sealed cookie, which expires in
+  // 10 minutes; the authorization server must refuse a code used twice
+  // (OAuth 2.1); a server that doesn't only re-proves the DID it already
+  // proved, giving the same eid; every replay is charged to BSKY_VISITOR_RL
+  // and BSKY_SITE_RL first, and its POSTs go only to the issuer's own origin.
 
   const ids = clientIds(env, base);
   if (!ids) return fail('flow_expired');
@@ -412,15 +448,6 @@ export async function handleMetadata(req, env, base, appName = 'Siren') {
   });
 }
 
-// After a person's own action, delete rows past their expiry, in the
-// background. Only expired rows, so it carries nothing about the person; it
-// keeps deletion going wherever rows are being written. Never the orphan sweep.
-function purgeLater(env, ctx) {
-  const db = endorseDb(env);
-  if (!db || !ctx?.waitUntil) return;
-  ctx.waitUntil(purgeExpired(db).catch((err) => console.error('bluesky: purge failed', String(err?.cause?.message || err?.message || 'unknown').slice(0, 300))));
-}
-
 export async function handleLogin(req, env, ctx, base, deps = {}) {
   if (!blueskyReady(env)) return unavailable(env);
   if (new URL(req.url).origin !== publicOrigin(env).origin || foreignOrigin(req, env)) {
@@ -443,7 +470,7 @@ export async function handleCallback(req, env, ctx, base, deps = {}) {
     out = await finishBlueskyLogin({
       params: new URL(req.url).searchParams,
       flowValues,
-      env, db: endorseDb(env), visitor: await bskyVisitor(req, env, 'bsky-login'), base,
+      env, visitor: await bskyVisitor(req, env, 'bsky-login'), base,
       fetchImpl: deps.fetchImpl || fetch,
       defer: deps.defer || ((p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p)),
       now: deps.now ?? Date.now(),
@@ -486,6 +513,10 @@ async function accountAllowed(env, session) {
 const listFor = (req, env, ctx, base, deps) => deps.publicList
   || cachedPublicList({ env, ctx, kv: env.LIMITS, origin: new URL(req.url).origin, base, sweep: false, ...(deps.cache !== undefined ? { cache: deps.cache } : {}) });
 
+// Over a limit, or the list unreadable: say who is signed in (so the page
+// keeps Sign out), with nothing read.
+const meBusy = (signed, status, code = 'busy') => jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS[code] || ENDORSE_ERRORS.busy, code }, status);
+
 export async function handleMe(req, env, ctx, base, deps = {}) {
   if (!blueskyReady(env)) {
     const why = blueskySetupError(env);
@@ -506,16 +537,24 @@ export async function handleMe(req, env, ctx, base, deps = {}) {
   // 'unknown' (did:web, or a failed lookup) never ages into the count; the page says so.
   const age = y === 1 ? 'young' : y === 0 ? 'established' : 'unknown';
   const signed = { ...info, signed_in: true, handle: session.handle || null, counted, age };
-  // Over the limit: still say who is signed in (so the page keeps Sign out),
-  // but read nothing.
-  if (!(await accountAllowed(env, session))) return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
-  let endorsed;
+  if (!(await accountAllowed(env, session))) return meBusy(signed, 429);
+  const list = await listFor(req, env, ctx, base, deps);
+  if (list?.unavailable) return meBusy(signed, 503, 'unavailable');
+  const accepted = new Set((list?.requests || []).filter((r) => r.status === 'accepted').map((r) => r.id));
+  // The set this session already knows: no D1 call.
+  if (Array.isArray(session.endorsed)) return jsonResponse({ bluesky: signed, endorsed: session.endorsed.filter((id) => accepted.has(id)) });
+  // Once per session: the per-visitor and site-wide limiters before any D1
+  // call, then the day's budget (in endorsedBy).
+  if (!(await allowed(env.BSKY_VISITOR_RL, `me:${await bskyVisitor(req, env, 'bsky-endorse')}`))) return meBusy(signed, 429);
+  if (!(await allowed(env.BSKY_D1_RL, 'signed'))) return meBusy(signed, 429);
+  let out;
   try {
-    endorsed = await endorsedBy({ db: endorseDb(env), env, session, publicList: await listFor(req, env, ctx, base, deps), now });
+    out = await endorsedBy({ db: endorseDb(env), env, session, publicList: list, now });
   } catch {
-    return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: ENDORSE_ERRORS.busy, code: 'busy' }, 503);
+    return meBusy(signed, 503);
   }
-  return jsonResponse({ bluesky: signed, endorsed });
+  if (!out.ok) return jsonResponse({ bluesky: { ...signed, busy: true }, endorsed: [], error: out.error, code: out.code }, out.status);
+  return jsonResponse({ bluesky: signed, endorsed: out.endorsed }, 200, { 'Set-Cookie': await resealSession(env.INVITE_SECRET, session, out.endorsed, base) });
 }
 
 export async function handleLogout(req, env, base) {
@@ -549,19 +588,28 @@ async function storageSafe(fn) {
   }
 }
 
-const reply = (out) => (out.ok ? jsonResponse(Object.fromEntries(Object.entries(out).filter(([k]) => k !== 'status'))) : jsonResponse({ error: out.error, code: out.code }, out.status));
+const reply = (out, headers = {}) => (out.ok ? jsonResponse(Object.fromEntries(Object.entries(out).filter(([k]) => k !== 'status')), 200, headers) : jsonResponse({ error: out.error, code: out.code }, out.status));
+
+// After endorse or unendorse, the session's known set follows the answer, so
+// `me` keeps reading the cookie. An unknown set stays unknown.
+async function withSet(env, session, base, id, endorsed) {
+  if (!Array.isArray(session.endorsed)) return {};
+  const next = endorsed ? [...session.endorsed.filter((x) => x !== id), id] : session.endorsed.filter((x) => x !== id);
+  return { 'Set-Cookie': await resealSession(env.INVITE_SECRET, session, next, base) };
+}
 
 export async function handleEndorse(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
   const body = await readJson(req);
   return storageSafe(async () => {
+    const list = await listFor(req, env, ctx, base, deps);
+    if (list?.unavailable) return jsonResponse({ error: ENDORSE_ERRORS.unavailable, code: 'unavailable' }, 503);
     const out = await endorse({
       kv: env.LIMITS, db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'),
-      publicList: await listFor(req, env, ctx, base, deps), now: g.now,
+      publicList: list, now: g.now,
     });
-    if (out.ok && !out.already) purgeLater(env, ctx);
-    return reply(out);
+    return reply(out, out.ok ? await withSet(env, g.session, base, body.id, out.endorsed) : {});
   });
 }
 
@@ -571,16 +619,19 @@ export async function handleUnendorse(req, env, ctx, base, deps = {}) {
   const body = await readJson(req);
   return storageSafe(async () => {
     const out = await unendorse({ db: endorseDb(env), env, id: body?.id, session: g.session, visitor: await bskyVisitor(req, env, 'bsky-endorse'), now: g.now });
-    if (out.ok) purgeLater(env, ctx);
-    return reply(out);
+    return reply(out, out.ok ? await withSet(env, g.session, base, body.id, false) : {});
   });
 }
 
 export async function handleForget(req, env, ctx, base, deps = {}) {
   const g = await guarded(req, env, base, deps);
   if (g.response) return g.response;
+  // The per-visitor and site-wide limiters before any D1 call; the budget in forgetEndorser.
+  if (!(await allowed(env.BSKY_VISITOR_RL, `forget:${await bskyVisitor(req, env, 'bsky-endorse')}`))) return jsonResponse({ error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
+  if (!(await allowed(env.BSKY_D1_RL, 'signed'))) return jsonResponse({ error: ENDORSE_ERRORS.busy, code: 'busy' }, 429);
   return storageSafe(async () => {
-    const { removed } = await forgetEndorser({ db: endorseDb(env), env, session: g.session });
-    return jsonResponse({ ok: true, removed }, 200, { 'Set-Cookie': allSessionClears(req, env, base) });
+    const out = await forgetEndorser({ db: endorseDb(env), env, session: g.session, now: g.now });
+    if (!out.ok) return reply(out);
+    return jsonResponse({ ok: true, removed: out.removed }, 200, { 'Set-Cookie': allSessionClears(req, env, base) });
   });
 }

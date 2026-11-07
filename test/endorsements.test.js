@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   endorse, unendorse, endorsedBy, forgetEndorser, endorsementCounts, countFor, clearRequestEndorsements,
   publicNumber, publicPolicy, youngFlag, endorsementId, issuerBucket, orphanedIds, purgeExpired, purgeAll, sweepOrphans, PURGE_LIMIT, endorseDb, dbSetupError, StorageError, SQL,
+  chargeD1, budgetCaps, ROWS, UPKEEP, VISITOR_MAX, OVER_BUDGET,
 } from '../worker/endorsements.js';
 import { addRequest, decide, requestKey, publicId, publicRequests, freezeAtDecision } from '../worker/requests.js';
 import { cachedPublicList, purgePublicList, computePublicList } from '../worker/public-list.js';
@@ -16,7 +17,7 @@ import { fakeD1, D1_SKIP, migrations } from './fake-d1.js';
 const NOW = Date.parse('2026-11-06T12:00:00Z');
 const T = Math.floor(NOW / 1000);
 const dbTest = (name, fn) => test(name, { skip: D1_SKIP }, fn);
-const env0 = (db, over = {}) => ({ BLUESKY_LOGIN: 'true', SIREN_DB: db, INVITE_SECRET: SECRET, BSKY_SITE_RL: fakeLimiter(), BSKY_VISITOR_RL: fakeLimiter(), BSKY_INPUT_RL: fakeLimiter(), ...over });
+const env0 = (db, over = {}) => ({ BLUESKY_LOGIN: 'true', SIREN_DB: db, INVITE_SECRET: SECRET, BSKY_SITE_RL: fakeLimiter(), BSKY_VISITOR_RL: fakeLimiter(), BSKY_INPUT_RL: fakeLimiter(), BSKY_D1_RL: fakeLimiter(), ...over });
 const session = async (n = 1, over = {}) => ({ eid: await hmacHex(SECRET, `endorser:did:plc:account${n}`), handle: '', created: '2025-01-02', issuer: 'https://bsky.social', ...over });
 
 async function world(over = {}) {
@@ -38,6 +39,7 @@ const endRow = async (db, id, s) => {
   const eh = await endorsementId(SECRET, id, s.eid);
   return db.rows('endorsements').find((r) => r.eh === eh) || null;
 };
+const mine = async (args) => (await endorsedBy(args)).endorsed;
 const putRow = (db, id, eh, y = 0, exp = T + 86400 * 400) => db.prepare('INSERT INTO endorsements (eh, request_id, y, exp) VALUES (?1, ?2, ?3, ?4)').bind(eh, id, y, exp).run();
 
 test('endorseDb: only with the flag on and a binding; otherwise a clear setup error', () => {
@@ -152,22 +154,22 @@ dbTest("forget removes all of one account's endorsements and nothing else", asyn
   await go(w, w.ids.open2, s1);
   await go(w, w.ids.open1, s2);
   const kvOps = w.kv.ops.length;
-  assert.deepEqual(await forgetEndorser({ db: w.db, env: w.env, session: s1 }), { removed: 2 });
+  assert.deepEqual(await forgetEndorser({ db: w.db, env: w.env, session: s1 }), { ok: true, removed: 2 });
   assert.equal(w.kv.ops.length, kvOps, 'forget lists no KV keys');
   assert.equal((await countFor(w.db, w.ids.open1, { now: NOW })).n, 1);
   assert.equal((await countFor(w.db, w.ids.open2, { now: NOW })).n, 0);
-  assert.deepEqual(await endorsedBy({ db: w.db, env: w.env, session: s2, publicList: await computePublicList(w.env, w.kv), now: NOW }), [w.ids.open1]);
-  assert.deepEqual(await forgetEndorser({ db: w.db, env: w.env, session: s1 }), { removed: 0 });
+  assert.deepEqual(await mine({ db: w.db, env: w.env, session: s2, publicList: await computePublicList(w.env, w.kv), now: NOW }), [w.ids.open1]);
+  assert.deepEqual(await forgetEndorser({ db: w.db, env: w.env, session: s1 }), { ok: true, removed: 0 });
 });
 
 dbTest('clearing one request removes only its rows and reports what remains', async () => {
   const w = await world();
   for (let n = 1; n <= 5; n++) await go(w, w.ids.open1, await session(n), `v${n}`);
   await go(w, w.ids.open2, await session(1));
-  assert.deepEqual(await clearRequestEndorsements(w.db, w.ids.open1, { max: 3 }), { cleared: 3, remaining: 2 });
-  assert.deepEqual(await clearRequestEndorsements(w.db, w.ids.open1), { cleared: 2, remaining: 0 });
+  assert.deepEqual(await clearRequestEndorsements(w.db, w.env, w.ids.open1, { max: 3 }), { cleared: 3, remaining: 2, deferred: false });
+  assert.deepEqual(await clearRequestEndorsements(w.db, w.env, w.ids.open1), { cleared: 2, remaining: 0, deferred: false });
   assert.equal((await countFor(w.db, w.ids.open2, { now: NOW })).n, 1);
-  assert.deepEqual(await clearRequestEndorsements(w.db, 'not-an-id'), { cleared: 0, remaining: 0 });
+  assert.deepEqual(await clearRequestEndorsements(w.db, w.env, 'not-an-id'), { cleared: 0, remaining: 0, deferred: false });
 });
 
 dbTest('counts group by id, split young and unknown; endorsedBy reports public ids only', async () => {
@@ -181,7 +183,7 @@ dbTest('counts group by id, split young and unknown; endorsedBy reports public i
   assert.deepEqual(counts.get(w.ids.open2), { n: 1, young: 0, unknown: 0 });
   const s1 = await session(1);
   await putRow(w.db, w.ids.fresh, await endorsementId(SECRET, w.ids.fresh, s1.eid));
-  assert.deepEqual((await endorsedBy({ db: w.db, env: w.env, session: s1, publicList: await computePublicList(w.env, w.kv, { sweep: false }), now: NOW })).sort(), [w.ids.open1, w.ids.open2].sort());
+  assert.deepEqual((await mine({ db: w.db, env: w.env, session: s1, publicList: await computePublicList(w.env, w.kv, { sweep: false }), now: NOW })).sort(), [w.ids.open1, w.ids.open2].sort());
 });
 
 dbTest('a minimum account age refuses young and unknown accounts; off, they endorse with y recorded', async () => {
@@ -235,7 +237,7 @@ dbTest('freeze: a decision writes the count once, then the rows go; reopening st
   assert.ok(out.ok);
   assert.equal(w.kv.ops.slice(opsBefore).filter((o) => o.op === 'put' && o.key === key).length, 1, 'written once');
   assert.deepEqual((await w.kv.get(key, 'json')).endorsements_at_decision, { n: 4, young: 1, unknown: 0 });
-  await clearRequestEndorsements(w.db, w.ids.open1);
+  await clearRequestEndorsements(w.db, w.env, w.ids.open1);
   assert.equal((await countFor(w.db, w.ids.open1, { now: NOW })).n, 0);
   assert.equal(w.db.rows('endorsements').length, 0, 'the rows are deleted; the number is kept in the request');
   let r = (await computePublicList(w.env, w.kv)).requests.find((x) => x.id === w.ids.open1);
@@ -299,6 +301,56 @@ dbTest('if D1 fails, the list is still served, without counts, cached only brief
   assert.equal(back.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
 });
 
+dbTest('if KV fails, the list reads no D1, remembers the failure for 30 s under its own key, and answers unavailable', async () => {
+  const w = await world();
+  await go(w, w.ids.open1, await session(1));
+  const { LIST_UNAVAILABLE } = await import('../worker/public-list.js');
+  const cache = fakeCache();
+  const kvList = w.kv.list;
+  let lists = 0;
+  w.kv.list = async () => {
+    lists++;
+    throw new Error('KV list limit exceeded for the day');
+  };
+  const errors = [];
+  const orig = console.error;
+  console.error = (...a) => errors.push(a.join(' '));
+  const ops = w.db.ops.length;
+  let out;
+  try {
+    out = await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache });
+    assert.equal(out, LIST_UNAVAILABLE, 'no throw');
+    assert.equal(w.db.ops.length, ops, 'no D1 call when KV failed');
+    assert.deepEqual([...cache.store.keys()], ['https://x.dev/__cache/public-requests-failed-v1']);
+    assert.equal(cache.store.get('https://x.dev/__cache/public-requests-failed-v1').headers.get('Cache-Control'), 'public, max-age=30');
+    // Within the 30 s: from the cache, no KV list, no D1.
+    assert.equal(await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache }), LIST_UNAVAILABLE);
+    assert.equal(lists, 1);
+    assert.equal(w.db.ops.length, ops);
+    // Without a cache, still no throw and no D1.
+    assert.equal(await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache: null }), LIST_UNAVAILABLE);
+    assert.equal(w.db.ops.length, ops);
+  } finally {
+    console.error = orig;
+  }
+  assert.ok(errors.some((e) => /request records unreadable/.test(e)));
+  // KV back, and the cached failure dropped (or expired): counts again.
+  w.kv.list = kvList;
+  await purgePublicList({ origin: 'https://x.dev', cache });
+  const back = await cachedPublicList({ env: w.env, kv: w.kv, origin: 'https://x.dev', cache });
+  assert.equal(back.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
+});
+
+dbTest('the site-wide breaker refuses the count before any D1 call: the list is served without counts', async () => {
+  const w = await world({ BSKY_D1_RL: fakeLimiter(0) });
+  await putRow(w.db, w.ids.open1, 'e'.repeat(32));
+  const ops = w.db.ops.length;
+  const list = await computePublicList(w.env, w.kv, { now: NOW });
+  assert.equal(list.endorsements_unavailable, true);
+  assert.equal(w.db.ops.length, ops, 'no D1 call');
+  assert.deepEqual(w.env.BSKY_D1_RL.calls, ['list']);
+});
+
 dbTest('a repeat after an unknown age becomes known rewrites null to the known flag, and counted follows the stored flag', async () => {
   const w = await world();
   const failedLookup = await session(1, { created: '' });
@@ -330,31 +382,34 @@ dbTest('aging takes effect on `me` (endorsedBy): young and unknown flags become 
   const exp = (await endRow(w.db, w.ids.open1, youngThen)).exp;
   assert.equal(publicNumber(await countFor(w.db, w.ids.open1, { now: NOW }), 'established'), 0);
   const list = await computePublicList(w.env, w.kv, { sweep: false });
-  await endorsedBy({ db: w.db, env: w.env, session: youngThen, publicList: list, now: NOW + 86400e3 });
+  await mine({ db: w.db, env: w.env, session: youngThen, publicList: list, now: NOW + 86400e3 });
   assert.equal((await endRow(w.db, w.ids.open1, youngThen)).y, 1, 'still young: nothing changes');
   const later = NOW + 40 * 86400e3;
-  const ids2 = await endorsedBy({ db: w.db, env: w.env, session: youngThen, publicList: list, now: later });
+  const ids2 = await mine({ db: w.db, env: w.env, session: youngThen, publicList: list, now: later });
   assert.deepEqual(ids2.sort(), [w.ids.open1, w.ids.open2].sort());
   assert.equal((await endRow(w.db, w.ids.open1, youngThen)).y, 0);
   assert.equal((await endRow(w.db, w.ids.open1, youngThen)).exp, exp, 'the month it was made in is kept');
   assert.equal(publicNumber(await countFor(w.db, w.ids.open1, { now: NOW }), 'established'), 1);
   assert.equal(publicNumber(await countFor(w.db, w.ids.open2, { now: NOW }), 'established'), 1);
   assert.equal((await computePublicList(w.env, w.kv)).requests.find((r) => r.id === w.ids.open1).endorsements, 1);
-  // One batch per `me`, whatever it found.
+  // Nothing left to rewrite: the budget charge and one SELECT, no UPDATE.
   const calls = w.db.ops.length;
-  await endorsedBy({ db: w.db, env: w.env, session: youngThen, publicList: list, now: later });
-  assert.equal(w.db.ops.length, calls + 1);
+  await mine({ db: w.db, env: w.env, session: youngThen, publicList: list, now: later });
+  assert.deepEqual(w.db.ops.slice(calls).map((o) => o.sql.split(' ')[0]), ['INSERT', 'SELECT']);
+  assert.match(w.db.ops.at(-1).sql, /^SELECT eh, y FROM endorsements/);
 });
 
-dbTest('endorsedBy and forget split long id lists under D1\'s 100-parameter limit', async () => {
+dbTest('me is one SELECT over the first 99 accepted requests; forget splits long id lists under D1\'s 100-parameter limit', async () => {
   const w = await world();
   const s = await session(1);
   const many = Array.from({ length: 250 }, (_, i) => i.toString(16).padStart(12, '0'));
   for (const id of many.filter((_, i) => i % 3 === 0)) await putRow(w.db, id, await endorsementId(SECRET, id, s.eid));
   const list = { requests: many.map((id) => ({ id, status: 'accepted', source: id })) };
-  const got = await endorsedBy({ db: w.db, env: w.env, session: s, publicList: list, now: NOW });
-  assert.equal(got.length, 84);
-  assert.deepEqual(await forgetEndorser({ db: w.db, env: w.env, session: s }), { removed: 84 });
+  const before = w.db.ops.length;
+  const got = await mine({ db: w.db, env: w.env, session: s, publicList: list, now: NOW });
+  assert.equal(got.length, 33, 'the first 99 on the list: ids 0, 3, ... 96');
+  assert.equal(w.db.ops.slice(before).filter((o) => /^SELECT/.test(o.sql)).length, 1, 'one SELECT');
+  assert.deepEqual(await forgetEndorser({ db: w.db, env: w.env, session: s }), { ok: true, removed: 84 });
   assert.equal(w.db.rows('endorsements').length, 0);
 });
 
@@ -436,7 +491,7 @@ dbTest('an age-flag rewrite racing a withdrawal leaves the endorsement withdrawn
   assert.equal(out.endorsed, false);
   assert.equal(w.db.rows('endorsements').length, 0);
   w.db.prepare = real;
-  assert.deepEqual(await endorsedBy({ db: w.db, env: w.env, session: aged, publicList: list, now: NOW }), []);
+  assert.deepEqual(await mine({ db: w.db, env: w.env, session: aged, publicList: list, now: NOW }), []);
 });
 
 dbTest('the orphan sweep stops at its budget, and endorse and me never sweep', async () => {
@@ -457,12 +512,12 @@ dbTest('the orphan sweep is one D1 query however many requests are orphaned (Fre
   const counts = await endorsementCounts(w.db, { now: NOW });
   assert.equal(counts.size, 120);
   const mark = w.db.ops.length;
-  const swept = await sweepOrphans(w.db, counts, new Map());
+  const swept = await sweepOrphans(w.db, w.env, counts, new Map());
   assert.equal(swept.length, 120, 'every orphan is reported');
-  assert.equal(w.db.ops.length - mark, 1, 'one statement');
+  assert.deepEqual(w.db.ops.slice(mark).map((o) => o.sql.split(' ')[0]), ['INSERT', 'DELETE'], 'the upkeep charge, then one statement');
   assert.ok(w.db.ops.at(-1).params.length <= 100, "within D1's 100 bound parameters");
   assert.equal(w.db.rows('endorsements').length, 21, 'the first 99 ids this sweep (budget 100 rows), the rest next time');
-  await sweepOrphans(w.db, await endorsementCounts(w.db, { now: NOW }), new Map());
+  await sweepOrphans(w.db, w.env, await endorsementCounts(w.db, { now: NOW }), new Map());
   assert.equal(w.db.rows('endorsements').length, 0);
 });
 
@@ -470,12 +525,12 @@ dbTest('purges are bounded per statement, and the cron purge finishes a backlog'
   const w = await world();
   for (let n = 0; n < 7; n++) await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, `x${n}`), 0, T - 10);
   await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, 'live'), 0, T + 86400);
-  assert.equal(PURGE_LIMIT, 500);
-  assert.deepEqual(await purgeExpired(w.db, NOW, { limit: 3 }), { endorsements: 3, rates: 0, flows: 0 });
+  assert.equal(PURGE_LIMIT, 200);
+  assert.deepEqual(await purgeExpired(w.db, w.env, NOW, { limit: 3 }), { endorsements: 3, rates: 0, budget: 0, deferred: false });
   assert.equal(w.db.rows('endorsements').length, 5);
   const mark = w.db.ops.length;
-  assert.deepEqual(await purgeAll(w.db, NOW, { limit: 3 }), { endorsements: 4, rates: 0, flows: 0 });
-  assert.equal(w.db.ops.length - mark, 2, 'one batch per round, stopping once a round comes up short');
+  assert.deepEqual(await purgeAll(w.db, w.env, NOW, { limit: 3 }), { endorsements: 4, rates: 0, budget: 0, deferred: false });
+  assert.equal(w.db.ops.length - mark, 6, 'a count, a charge and one delete batch per round, stopping once a round comes up short');
   assert.equal(w.db.rows('endorsements').length, 1, 'the live one stays');
   assert.equal((await countFor(w.db, w.ids.open1, { now: NOW })).n, 1, 'the tally followed');
 });
@@ -487,12 +542,12 @@ dbTest('purges report rows deleted, not D1 meta.changes (which counts the tally 
   // the tally twice and deletes it once it reaches 0.
   const probe = await w.db.prepare('DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements LIMIT 2)').run();
   assert.ok(probe.meta.changes > 2, `meta.changes ${probe.meta.changes} counts trigger writes`);
-  assert.deepEqual(await purgeExpired(w.db, NOW, { limit: 4 }), { endorsements: 4, rates: 0, flows: 0 });
+  assert.deepEqual(await purgeExpired(w.db, w.env, NOW, { limit: 4 }), { endorsements: 4, rates: 0, budget: 0, deferred: false });
   // With exactly `limit` rows left, purgeAll stops after the round that finds none.
   for (let n = 0; n < 4; n++) await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, `y${n}`), 0, T - 10);
   const mark = w.db.ops.length;
-  assert.deepEqual(await purgeAll(w.db, NOW, { limit: 5 }), { endorsements: 4, rates: 0, flows: 0 });
-  assert.equal(w.db.ops.length - mark, 1, 'a short round ends it: one batch, not two');
+  assert.deepEqual(await purgeAll(w.db, w.env, NOW, { limit: 5 }), { endorsements: 4, rates: 0, budget: 0, deferred: false });
+  assert.equal(w.db.ops.length - mark, 3, 'a short round ends it: one round, not two');
 });
 
 dbTest('orphans: rows that outlive a decision are swept where the list is computed', async () => {
@@ -516,7 +571,7 @@ dbTest('orphans: rows that outlive a decision are swept where the list is comput
   assert.equal((await countFor(w.db, w.ids.done, { now: NOW })).n, 0);
 });
 
-dbTest('retention: expired rows are never counted or reported, and are deleted where the list is computed', async () => {
+dbTest('retention: expired rows are never reported, and the daily purge deletes them (the tallies follow)', async () => {
   const w = await world();
   const s = await session(1);
   assert.ok((await go(w, w.ids.open1, s)).ok);
@@ -525,24 +580,29 @@ dbTest('retention: expired rows are never counted or reported, and are deleted w
   assert.equal(new Date(r.exp * 1000).getUTCDate(), 1);
   const after = r.exp * 1000 + 1000;
   const list = await computePublicList(w.env, w.kv, { sweep: false, now: NOW });
-  assert.deepEqual(await endorsedBy({ db: w.db, env: w.env, session: s, publicList: list, now: after }), [], 'expired: not reported');
-  assert.equal((await countFor(w.db, w.ids.open1, { now: after })).n, 0, 'expired: not counted');
-  assert.equal((await endorsementCounts(w.db, { now: after })).size, 0);
-  assert.equal(w.db.rows('endorsements').length, 1, 'counting only reads');
+  assert.deepEqual(await mine({ db: w.db, env: w.env, session: s, publicList: list, now: after }), [], 'expired: not reported');
+  // Counting reads the tallies only, so an expired row counts until the purge deletes it.
+  assert.equal(w.db.rows('endorsements').length, 1, 'counting and the list only read');
   await computePublicList(w.env, w.kv, { now: after });
-  assert.equal(w.db.rows('endorsements').length, 0, 'the list computation deleted it');
+  assert.equal(w.db.rows('endorsements').length, 1, 'the list computation deletes nothing expired');
+  const purged = await purgeExpired(w.db, w.env, after);
+  assert.equal(purged.endorsements, 1);
+  assert.equal(w.db.rows('endorsements').length, 0);
   assert.deepEqual(w.db.rows('endorsement_counts'), [], 'the tally followed');
+  assert.equal((await endorsementCounts(w.db)).size, 0);
   // An expired row is replaced by a fresh endorsement, not mistaken for a repeat.
   await putRow(w.db, w.ids.open1, r.eh, 0, T - 10);
   const again = await go(w, w.ids.open1, s, 'v1', NOW);
   assert.deepEqual(again, { ok: true, endorsed: true, counted: true });
-  // Rate counters (about a day) and sign-in markers (up to two hours) go too.
+  assert.equal((await countFor(w.db, w.ids.open1)).n, 1, 're-made in place: still one in the tally');
+  // Rate counters (about a day) and past days' budget rows go too.
   assert.ok(w.db.rows('bsky_rate_counts').length > 0);
-  w.db.sqlite.prepare('INSERT INTO bsky_flows_used (sh, exp) VALUES (?, ?)').run('f'.repeat(32), T + 3600);
-  const purged = await purgeExpired(w.db, NOW + 3 * 86400e3);
-  assert.ok(purged.rates > 0 && purged.flows === 1);
+  assert.ok(w.db.rows('siren_d1_budget').length > 0);
+  const later = await purgeExpired(w.db, w.env, NOW + 3 * 86400e3);
+  assert.ok(later.rates > 0 && later.budget >= 1);
   assert.deepEqual(w.db.rows('bsky_rate_counts'), []);
-  assert.deepEqual(w.db.rows('bsky_flows_used'), []);
+  assert.ok(!w.db.rows('siren_d1_budget').some((b) => b.day === '2026-11-06'), "a past day's budget rows are deleted");
+  assert.ok(w.db.rows('siren_d1_budget').some((b) => b.day === '2026-11-09' && b.pot === 'upkeep'), "the purge's own charge stays");
   assert.equal(w.db.rows('endorsements').length, 1, 'a live endorsement stays');
 });
 
@@ -564,7 +624,8 @@ dbTest('every write path is one batch, and every statement is prepared with boun
   const mark = w.db.ops.length;
   await endorse({ kv: w.kv, db: w.db, env: w.env, id: w.ids.open1, session: s, visitor: 'v', publicList: list, now: NOW });
   const ops = w.db.ops.slice(mark);
-  assert.deepEqual(ops.map((o) => o.op), ['first', 'all', 'batch'], 'read, counts, one write batch');
+  assert.deepEqual(ops.map((o) => o.op), ['all', 'batch', 'batch'], 'the budget charge, one read batch, one write batch');
+  assert.match(ops[0].sql, /^INSERT INTO siren_d1_budget/);
   assert.equal(ops[2].sql.length, 5, 'the endorsement and four counters together');
   for (const o of w.db.ops) for (const sql of [].concat(o.sql)) assert.ok(!sql.includes(s.eid) && !Object.values(w.ids).some((id) => sql.includes(id)), 'no value in SQL text');
 });
@@ -572,11 +633,11 @@ dbTest('every write path is one batch, and every statement is prepared with boun
 dbTest('indexes: every hot statement reads by key or index, never a full scan of a growing table', async () => {
   const db = fakeD1();
   const plan = (sql, n) => db.sqlite.prepare(`EXPLAIN QUERY PLAN ${typeof sql === 'function' ? sql(n || 3) : sql}`).all().map((r) => r.detail).join(' | ');
-  const keyed = ['get', 'upgrade', 'remove', 'countOne', 'expired', 'expiredOne', 'clear', 'clearIn', 'purgeEndorsements', 'purgeRates', 'purgeFlows', 'endorsedIn', 'upgradeIn', 'removeIn', 'rates'];
+  const keyed = ['get', 'upgrade', 'remove', 'countOne', 'clear', 'clearIn', 'purgeEndorsements', 'purgeRates', 'expiredCounts', 'mine', 'upgradeIn', 'removeIn', 'rates', 'charge'];
   for (const name of keyed) {
     const p = plan(SQL[name]);
     // SCAN, with or without an index, reads every row; SEARCH reads only the matching ones.
-    assert.ok(!/SCAN (endorsements|bsky_rate_counts|bsky_flows_used)\b/.test(p), `${name}: ${p}`);
+    assert.ok(!/SCAN (endorsements|bsky_rate_counts)\b/.test(p), `${name}: ${p}`);
   }
   // The tallies are one row per request with endorsements: reading them all is the point.
   assert.match(plan(SQL.counts), /endorsement_counts/);
@@ -584,11 +645,15 @@ dbTest('indexes: every hot statement reads by key or index, never a full scan of
 
 test('the migrations create only hashed, WITHOUT ROWID tables', () => {
   const sql = migrations().map((m) => m.sql).join('\n');
-  const tables = [...sql.matchAll(/CREATE TABLE (\w+) \(([\s\S]*?)\) WITHOUT ROWID;/g)];
-  assert.deepEqual(tables.map((t) => t[1]), ['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'bsky_flows_used']);
-  assert.equal((sql.match(/CREATE TABLE/g) || []).length, tables.length, 'every table is WITHOUT ROWID');
-  const columns = tables.flatMap((t) => [...t[2].matchAll(/^\s*(\w+) /gm)].map((m) => m[1]));
-  assert.deepEqual([...new Set(columns)].sort(), ['eh', 'exp', 'k', 'n', 'request_id', 'sh', 'unknown', 'y', 'young'].sort());
+  const dropped = new Set([...sql.matchAll(/DROP TABLE IF EXISTS (\w+);/g)].map((m) => m[1]));
+  const tables = [...sql.matchAll(/CREATE TABLE (\w+) \(([\s\S]*?)\) WITHOUT ROWID;/g)].filter((t) => !dropped.has(t[1]));
+  assert.deepEqual(tables.map((t) => t[1]), ['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'siren_d1_budget']);
+  assert.deepEqual([...dropped], ['bsky_flows_used'], 'the sign-in markers are gone');
+  assert.equal((sql.match(/CREATE TABLE/g) || []).length, tables.length + dropped.size, 'every table is WITHOUT ROWID');
+  const columns = tables.flatMap((t) => [...t[2].matchAll(/^\s*(\w+) /gm)].map((m) => m[1])).filter((c) => c !== 'PRIMARY');
+  assert.deepEqual([...new Set(columns)].sort(), ['calls', 'day', 'eh', 'exp', 'k', 'n', 'pot', 'request_id', 'unknown', 'writes', 'y', 'young'].sort());
+  const live = fakeD1();
+  if (live) assert.deepEqual(live.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map((r) => r.name), ['bsky_rate_counts', 'endorsement_counts', 'endorsements', 'siren_d1_budget']);
 });
 
 dbTest("wrangler's splitter cuts the migrations into statements that each apply", async (t) => {
@@ -606,4 +671,95 @@ dbTest("wrangler's splitter cuts the migrations into statements that each apply"
     for (const p of parts) db.sqlite.exec(p);
   }
   assert.deepEqual(db.rows('endorsements'), []);
+});
+
+// ---- The daily D1 budget (docs/bluesky-endorsements.md, "Siren's worst case on the account's D1")
+
+test("the budget's ceilings stay within 5% of the Free plan's daily D1 writes, whatever the config says", () => {
+  const caps = budgetCaps({ ENDORSE_D1_WRITES_DAILY: '999999', ENDORSE_D1_CALLS_DAILY: '999999' });
+  assert.equal(caps.visitor.writes, VISITOR_MAX.writes);
+  assert.equal(caps.visitor.calls, VISITOR_MAX.calls);
+  assert.ok(VISITOR_MAX.writes + UPKEEP.writes <= 5000, '5% of 100,000 rows written');
+  assert.deepEqual(budgetCaps({ ENDORSE_D1_WRITES_DAILY: 'lots', ENDORSE_D1_CALLS_DAILY: '-3' }).visitor, { calls: 300, writes: 2400 }, 'a typo falls back to the default');
+  assert.deepEqual(budgetCaps({}).upkeep, UPKEEP);
+  // Each action is charged at least what D1 measured for it (the doc's table,
+  // local D1, 2026-11-06), plus the budget row.
+  assert.ok(ROWS.budget + ROWS.endorsement + 4 * ROWS.counter >= 12 + 1, 'new endorsement, four new counters: 12 rows');
+  assert.ok(ROWS.budget + ROWS.endorsement + 2 * ROWS.counter >= 5 + 1, 'a withdrawal: 5 rows');
+});
+
+dbTest('chargeD1: granted up to each cap exactly, refused past it with nothing written, fresh the next UTC day', async () => {
+  const db = fakeD1();
+  const env = { ENDORSE_D1_WRITES_DAILY: '10', ENDORSE_D1_CALLS_DAILY: '3' };
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 4, now: NOW }), true);
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 6, now: NOW }), true);
+  const full = JSON.stringify(db.rows('siren_d1_budget'));
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 1, now: NOW }), false, 'writes cap reached');
+  assert.equal(JSON.stringify(db.rows('siren_d1_budget')), full, 'a refusal writes nothing');
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', writes: 11, now: NOW + 86400e3 }), false, 'more than a whole day asks for is refused, even first');
+  assert.deepEqual(db.rows('siren_d1_budget').map((r) => r.day), ['2026-11-06'], 'and writes no row');
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 1, now: NOW + 86400e3 }), true, 'the next UTC day starts fresh');
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 1, now: NOW + 86400e3 }), true);
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 1, now: NOW + 86400e3 }), true);
+  assert.equal(await chargeD1(db, env, { pot: 'visitor', calls: 1, writes: 1, now: NOW + 86400e3 }), false, 'calls cap reached');
+  assert.equal(await chargeD1(db, env, { pot: 'upkeep', calls: 1, writes: 100, now: NOW }), true, "the pots are separate: visitors can't spend the upkeep budget");
+  // Charges landing together can't both take the last of a cap.
+  const db2 = fakeD1();
+  const results = await Promise.all(Array.from({ length: 10 }, () => chargeD1(db2, { ENDORSE_D1_WRITES_DAILY: '14' }, { pot: 'visitor', calls: 1, writes: 14, now: NOW })));
+  assert.equal(results.filter(Boolean).length, 1);
+  await assert.rejects(chargeD1(db, env, { pot: 'other', writes: 1, now: NOW }), /Unknown budget pot/);
+});
+
+dbTest('over the budget, endorse, unendorse, me and forget answer over_budget after one D1 call and write nothing', async () => {
+  const w = await world({ ENDORSE_D1_WRITES_DAILY: '28' });
+  const s = await session(1);
+  assert.ok((await go(w, w.ids.open1, s, 'a')).ok, '10 rows for an open server');
+  assert.ok((await go(w, w.ids.open2, await session(2, { issuer: 'https://pds.example.dev' }), 'b')).ok, '14 for a capped one');
+  const rows = JSON.stringify(['endorsements', 'bsky_rate_counts', 'siren_d1_budget'].map((t) => w.db.rows(t)));
+  const list = await computePublicList(w.env, w.kv, { sweep: false });
+  const mark = w.db.ops.length;
+  assert.deepEqual(await endorse({ kv: w.kv, db: w.db, env: w.env, id: w.ids.open2, session: await session(3, { issuer: 'https://pds.example.dev' }), visitor: 'c', publicList: list, now: NOW }), OVER_BUDGET);
+  assert.deepEqual(await unendorse({ db: w.db, env: w.env, id: w.ids.open1, session: s, visitor: 'a', now: NOW }), OVER_BUDGET);
+  assert.equal(w.db.ops.length - mark, 2, 'one refused charge each, and nothing read past it');
+  assert.equal(JSON.stringify(['endorsements', 'bsky_rate_counts', 'siren_d1_budget'].map((t) => w.db.rows(t))), rows, 'nothing written');
+  // With the calls cap spent, me and forget stop at the charge too.
+  const w2 = await world({ ENDORSE_D1_CALLS_DAILY: '1' });
+  assert.ok((await go(w2, w2.ids.open1, s)).ok);
+  const list2 = await computePublicList(w2.env, w2.kv, { sweep: false });
+  const m2 = w2.db.ops.length;
+  assert.deepEqual(await endorsedBy({ db: w2.db, env: w2.env, session: s, publicList: list2, now: NOW }), OVER_BUDGET);
+  assert.deepEqual(await forgetEndorser({ db: w2.db, env: w2.env, session: s, now: NOW }), OVER_BUDGET);
+  assert.equal(w2.db.ops.length - m2, 2);
+  assert.equal(w2.db.rows('endorsements').length, 1, 'forget refused: nothing deleted');
+});
+
+dbTest('the upkeep budget bounds the purge, the sweep and the clears; refused, they delete nothing and say so', async () => {
+  const w = await world();
+  for (let n = 0; n < 30; n++) await putRow(w.db, w.ids.open1, await endorsementId(SECRET, w.ids.open1, `x${n}`), 0, T - 10);
+  // Spend all but 50 rows of today's upkeep budget.
+  assert.ok(await chargeD1(w.db, w.env, { pot: 'upkeep', calls: 1, writes: UPKEEP.writes - 50, now: NOW }));
+  const out = await purgeAll(w.db, w.env, NOW, { limit: 200 });
+  assert.equal(out.deferred, true);
+  assert.ok(out.endorsements > 0 && out.endorsements < 30, `some deleted within the budget (${out.endorsements}), the rest left`);
+  const upkeep = w.db.rows('siren_d1_budget').find((r) => r.pot === 'upkeep');
+  assert.ok(upkeep.writes <= UPKEEP.writes);
+  const left = w.db.rows('endorsements').length;
+  // A clear the budget can't cover deletes nothing.
+  assert.deepEqual(await clearRequestEndorsements(w.db, w.env, w.ids.open1, { now: NOW }), { cleared: 0, remaining: left, deferred: true });
+  // Nor does a sweep.
+  await sweepOrphans(w.db, w.env, await endorsementCounts(w.db), new Map(), { now: NOW });
+  assert.equal(w.db.rows('endorsements').length, left);
+  // Tomorrow's budget finishes it.
+  const next = await purgeAll(w.db, w.env, NOW + 86400e3);
+  assert.equal(next.deferred, false);
+  assert.equal(w.db.rows('endorsements').length, 0);
+});
+
+test('/api/requests answers a JSON 503 when the request records can\'t be read, with or without endorsements (index.js)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
+  const route = src.slice(src.indexOf("path === '/api/requests')"), src.indexOf('// Bluesky sign-in (bluesky.js)'));
+  assert.match(route, /try \{\s*list = await publicRequests\(env\.LIMITS\);\s*\} catch/, 'flag off: a KV failure is caught');
+  assert.match(route, /if \(list\.unavailable\) return unavailable\(\);/, 'flag on: cachedPublicList reports it');
+  assert.match(route, /json\(\{ error: [^}]*code: 'unavailable'[^}]*\}, 503/);
 });

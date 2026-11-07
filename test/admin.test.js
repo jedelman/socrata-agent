@@ -105,13 +105,23 @@ dbTest('admin: the clear route, the list-time sweep of decided requests, and the
   assert.equal(cleared.body.cleared, 2);
   assert.equal((await call(w, '/api/admin/requests/endorsements/clear', { id: 'abcdefabcdef' })).status, 404);
   // Rows left on a decided request (a stale location) are swept where the
-  // admin list is computed, and expired rows are purged there too.
+  // admin list is computed. Expired rows are the cron's alone.
   await decide(w.env.LIMITS, { id: w.id, status: 'declined' });
   await endorseRows(w.env.SIREN_DB, w.id, 2);
   await w.env.SIREN_DB.prepare('INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?1, 1, ?2)').bind('ed:old:x', 1).run();
   assert.equal((await call(w, '/api/admin/requests')).status, 200);
   assert.deepEqual(w.env.SIREN_DB.rows('endorsements'), []);
-  assert.deepEqual(w.env.SIREN_DB.rows('bsky_rate_counts'), []);
+  assert.equal(w.env.SIREN_DB.rows('bsky_rate_counts').length, 1, 'no purge on an admin load');
+  // Each clear is charged to the upkeep budget; when it's spent, the clear
+  // route says so and deletes nothing.
+  assert.ok(w.env.SIREN_DB.rows('siren_d1_budget').some((r) => r.pot === 'upkeep' && r.writes > 0));
+  await w.env.SIREN_DB.prepare("UPDATE siren_d1_budget SET writes = 2400 WHERE pot = 'upkeep'").run();
+  await decide(w.env.LIMITS, { id: w.id, status: 'accepted' });
+  await endorseRows(w.env.SIREN_DB, w.id, 2);
+  const refused = await call(w, '/api/admin/requests/endorsements/clear', { id: w.id });
+  assert.equal(refused.status, 503);
+  assert.match(refused.body.error, /upkeep budget is spent/);
+  assert.equal(w.env.SIREN_DB.rows('endorsements').length, 2);
 });
 
 dbTest('the daily cron purges expired rows of every kind, and only those', async () => {
@@ -120,13 +130,15 @@ dbTest('the daily cron purges expired rows of every kind, and only those', async
   await endorseRows(db, w.id, 1);
   await db.prepare('INSERT INTO endorsements (eh, request_id, y, exp) VALUES (?1, ?2, 0, 1)').bind('0'.repeat(32), w.id).run();
   await db.prepare('INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?1, 1, 1)').bind('ev:old:x').run();
-  await db.prepare('INSERT INTO bsky_flows_used (sh, exp) VALUES (?1, 1)').bind('f'.repeat(32)).run();
+  await db.prepare("INSERT INTO siren_d1_budget (day, pot, calls, writes, exp) VALUES ('2026-01-01', 'visitor', 1, 1, 1)").run();
   const waits = [];
-  assert.deepEqual(await scheduledPurge(w.env, { waitUntil: (p) => waits.push(p) }), { endorsements: 1, rates: 1, flows: 1 });
+  assert.deepEqual(await scheduledPurge(w.env, { waitUntil: (p) => waits.push(p) }), { endorsements: 1, rates: 1, budget: 1, deferred: false });
   assert.equal(waits.length, 1, 'handed to waitUntil');
   assert.equal(db.rows('endorsements').length, 1, 'the live endorsement stays');
   assert.deepEqual(db.rows('bsky_rate_counts'), []);
-  assert.deepEqual(db.rows('bsky_flows_used'), []);
+  assert.ok(!db.rows('siren_d1_budget').some((r) => r.day === '2026-01-01'), "a past day's budget row goes");
+  const charged = db.rows('siren_d1_budget').find((r) => r.pot === 'upkeep');
+  assert.equal(charged.writes, 1 + 5 + 2 + 1, 'charged for exactly what it deleted, before deleting');
   // A failing D1 is logged, never thrown.
   db.fail = true;
   const errors = [];

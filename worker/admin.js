@@ -6,10 +6,12 @@
 // SIREN_DB. With the flag on, a decline or fulfil freezes the live count into
 // the request first; if it can't be read (no binding, or D1 failing), the
 // decision is refused before anything is written, rather than losing it.
+// Every D1 write here (clears, the orphan sweep, the cron's purge) is
+// charged to the day's upkeep budget first (endorsements.js chargeD1).
 
 import { isAdmin, currentUser } from './accounts.js';
 import { allRequests, decide, requestByPublicId } from './requests.js';
-import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeExpired, purgeAll, endorseDb, dbSetupError } from './endorsements.js';
+import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeAll, endorseDb, dbSetupError } from './endorsements.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { purgePublicList } from './public-list.js';
 import { blueskyReady } from './bluesky.js';
@@ -62,11 +64,10 @@ export async function handleAdmin(req, env, path, ctx) {
     }
     const requests = await allRequests(kv, counts);
     if (db && !problem) {
-      // Sweep endorsements that outlived their request's decision (endorsements.js
-      // orphanedIds), and delete rows past their expiry.
+      // Sweep endorsements that outlived their request's decision
+      // (endorsements.js orphanedIds). Expired rows are the cron's.
       const statuses = new Map(requests.map((r) => [r.id, r.status]));
-      if (orphanedIds(counts, statuses).length) later(sweepOrphans(db, counts, statuses));
-      later(purgeExpired(db).catch((err) => console.error('admin: purge failed', storeMsg(err))));
+      if (orphanedIds(counts, statuses).length) later(sweepOrphans(db, env, counts, statuses));
     }
     return json({ requests, bluesky: blueskyReady(env), ...(problem ? { bluesky_error: problem } : {}), young_days: setting(env.ENDORSE_YOUNG_DAYS, 30, { min: 0, max: 3650 }) }, 200, headers);
   }
@@ -94,7 +95,9 @@ export async function handleAdmin(req, env, path, ctx) {
     const out = await decide(kv, body, Date.now(), { live });
     if (!out.ok) return json({ error: out.error }, out.status, headers);
     if (db && DECIDED.has(out.request.status)) {
-      later(clearRequestEndorsements(db, out.request.id).catch((err) => console.error('clearing endorsements failed', storeMsg(err))));
+      later(clearRequestEndorsements(db, env, out.request.id)
+        .then((c) => { if (c.deferred) console.error("clearing endorsements deferred: today's upkeep budget is spent; the orphan sweep will clear them"); })
+        .catch((err) => console.error('clearing endorsements failed', storeMsg(err))));
     }
     purge();
     return json(out, 200, headers);
@@ -105,10 +108,11 @@ export async function handleAdmin(req, env, path, ctx) {
     if (!(await requestByPublicId(kv, body.id))) return json({ error: 'No single request has that id.' }, 404, headers);
     let out;
     try {
-      out = await clearRequestEndorsements(db, body.id);
+      out = await clearRequestEndorsements(db, env, body.id);
     } catch (err) {
       return json({ error: `Clearing failed (D1: ${storeMsg(err)}). Try again.` }, 503, headers);
     }
+    if (out.deferred) return json({ error: "Nothing was cleared: today's D1 upkeep budget is spent (docs/bluesky-endorsements.md). Try again after midnight UTC, or use `node scripts/invites.js endorsements-clear`." }, 503, headers);
     purge();
     return json({ ok: true, ...out }, 200, headers);
   }
@@ -126,7 +130,10 @@ export async function handleAdmin(req, env, path, ctx) {
 export function scheduledPurge(env, ctx) {
   const db = endorseDb(env);
   if (!db) return null;
-  const p = purgeAll(db).catch((err) => console.error('scheduled purge failed', String(err?.cause?.message || err?.message).slice(0, 300)));
+  const p = purgeAll(db, env).then((out) => {
+    if (out.deferred) console.error("scheduled purge: today's upkeep budget is spent; the rest waits for tomorrow");
+    return out;
+  }).catch((err) => console.error('scheduled purge failed', String(err?.cause?.message || err?.message).slice(0, 300)));
   ctx?.waitUntil?.(p);
   return p;
 }

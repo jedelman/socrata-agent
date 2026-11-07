@@ -69,7 +69,7 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
 
   // D1: every row of every table.
   const db = env.SIREN_DB;
-  const tables = Object.fromEntries(['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'bsky_flows_used'].map((t) => [t, db.rows(t)]));
+  const tables = Object.fromEntries(['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'siren_d1_budget'].map((t) => [t, db.rows(t)]));
   const kvText = [...kv.store.entries()].map(([k, e]) => `${k}\n${e.value}\n${JSON.stringify(e.metadata ?? null)}`);
   const dbText = Object.entries(tables).flatMap(([t, rows]) => rows.map((r) => `${t} ${JSON.stringify(r)}`));
   const forbidden = ['did:', W.HANDLE, 'fixture.dev', W.ACCESS, W.REFRESH, W.CODE, state, eid];
@@ -101,7 +101,10 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
     groups.set(g, [...(groups.get(g) || []), r.exp]);
   }
   groups.set('endorsements', tables.endorsements.map((r) => r.exp));
-  groups.set('flows', tables.bsky_flows_used.map((r) => r.exp));
+  groups.set('budget', tables.siren_d1_budget.map((r) => r.exp));
+  // The budget: a date, a pot and two numbers; nothing per person.
+  assert.deepEqual(tables.siren_d1_budget.map((r) => Object.keys(r).sort()), [['calls', 'day', 'exp', 'pot', 'writes']]);
+  assert.ok(tables.siren_d1_budget.every((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.day) && r.pot === 'visitor'));
   for (const [g, exps] of groups) assert.equal(new Set(exps).size, 1, `${g} shares one expiry`);
   const exp = groups.get('endorsements')[0];
   assert.ok([boundary(now, 'month', 12), boundary(now, 'month', 13)].includes(exp), 'a month boundary 12 to 13 months out');
@@ -120,7 +123,7 @@ test('the "What Siren keeps" panel matches the retention the code and the rollou
   const cron = toml.match(/^# crons = \["(\d+) (\d+) \* \* \*"\]$/m);
   assert.ok(cron, 'wrangler.toml carries the daily cron, for the flag-flip PR to uncomment');
   assert.match(index, /async scheduled\([^)]*\) \{\s*scheduledPurge\(env, ctx\);/);
-  assert.match(read('worker/admin.js'), /export function scheduledPurge\(env, ctx\) \{\s*const db = endorseDb\(env\);[\s\S]{0,120}purgeAll\(db\)/);
+  assert.match(read('worker/admin.js'), /export function scheduledPurge\(env, ctx\) \{\s*const db = endorseDb\(env\);[\s\S]{0,120}purgeAll\(db, env\)/);
   assert.match(doc, /Flip the flag and turn on the cleanup[\s\S]{0,300}crons = \["17 7 \* \* \*"\]/);
   assert.equal(`${cron[1]} ${cron[2]}`, '17 7');
   // Counters expire an hour after the UTC day ends (endorsements.js eventExpiry);

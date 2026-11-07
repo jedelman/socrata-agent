@@ -214,13 +214,15 @@ dbTest('a failed re-resolution at the callback is did_unresolved: both tokens re
   assert.match(cb.cookies[0], /^siren_bsky_flow=;/);
 });
 
-dbTest('replay: the same cookie, state, iss and code work once', async () => {
+dbTest('replay: the same cookie, state, iss and code sign in once; the server refuses the spent code; no D1 call', async () => {
   const L = await login();
   const first = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
   const second = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
   assert.match(first.location, /signed-in$/);
-  assert.match(second.location, /flow_expired$/);
-  assert.equal(tokenCalls(L.net).length, 1);
+  assert.match(second.location, /token_failed$/, 'the authorization server refuses a code used twice (OAuth 2.1)');
+  assert.ok(!second.cookies.some((c) => c.startsWith(`${BSKY_COOKIE}=`) && !/Max-Age=0/.test(c)), 'no second session');
+  assert.equal(tokenCalls(L.net).length, 2, 'each replay is one POST, to the issuer only');
+  assert.equal(L.env.SIREN_DB.calls(), 0, 'single use rests on the server, PKCE and DPoP, not on D1');
 });
 
 dbTest('exhausted callback limits answer busy without a fetch', async () => {
@@ -405,30 +407,59 @@ dbTest('logout clears only the Bluesky cookie, every copy of it; signed-out endo
   assert.equal((await r401.json()).code, 'signed_out');
 });
 
-dbTest('a D1 failure at the single-use marker is still a 303 that clears the flow cookie, with no token request', async () => {
-  const L = await login();
-  L.env.SIREN_DB.fail = true;
-  const cb = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
-  assert.equal(cb.res.status, 303);
-  assert.equal(cb.location, `${ORIGIN}${BASE}/requests#bluesky-error=busy`);
-  assert.ok(cb.cookies.some((c) => c.startsWith(`${FLOW_COOKIE}=; Path=/ask-siren/oauth/; Max-Age=0`)));
-  assert.equal(tokenCalls(L.net).length, 0);
-  L.env.SIREN_DB.fail = false;
-  L.env.SIREN_DB.failWrites = true;
-  const cb2 = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
-  assert.match(cb2.location, /bluesky-error=busy$/);
-  assert.equal(tokenCalls(L.net).length, 0);
-  L.env.SIREN_DB.failWrites = false;
-  // Anything else that throws is still a 303.
-  const env = { ...L.env, SIREN_DB: { prepare: () => { throw new TypeError('boom'); }, batch: async () => [] } };
-  const cb3 = await callback(env, L.net, { state: stateOf(L.net), flow: L.flow, log: () => {} });
-  assert.equal(cb3.res.status, 303);
-  // The marker is one row, and a replay after a success is refused.
-  const ok = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
-  assert.match(ok.location, /bluesky=signed-in$/);
-  assert.equal(L.env.SIREN_DB.rows('bsky_flows_used').length, 1);
-  const again = await callback(L.env, L.net, { state: stateOf(L.net), flow: L.flow });
-  assert.match(again.location, /flow_expired$/);
+dbTest('the callback makes no D1 call at any exit, failing at any step or succeeding', async () => {
+  const flowWith = async (over) => seal(SECRET, FLOW_PURPOSE, { v: 1, s: 'state-1', d: W.DID, h: W.HANDLE, c: '2025-01-02', i: W.ISSUER, tp: '/oauth/token', rp: '/oauth/revoke', cv: 'v'.repeat(43), k: { x: 'x', y: 'y', d: 'd' }, n: 'n', x: Math.floor((T0 + 5000) / 1000) + 600, ...over });
+  const cases = [];
+  // Before any I/O: limits, the cookie, state, iss, an error, the code.
+  {
+    const L = await login();
+    cases.push(['visitor limit', { ...L.env, BSKY_VISITOR_RL: fakeLimiter(0) }, L.net, { state: stateOf(L.net), flow: L.flow }, /busy$/]);
+    cases.push(['no flow cookie', L.env, L.net, { state: stateOf(L.net) }, /flow_expired$/]);
+    cases.push(['two flow cookies', L.env, L.net, { state: stateOf(L.net), cookies: `${FLOW_COOKIE}=${L.flow}; ${FLOW_COOKIE}=${L.flow}` }, /flow_expired$/]);
+    cases.push(['tampered cookie', L.env, L.net, { state: stateOf(L.net), flow: `${L.flow.slice(0, -2)}AA` }, /flow_expired$/]);
+    cases.push(['expired flow', L.env, L.net, { state: stateOf(L.net), flow: L.flow, now: T0 + 601e3 }, /flow_expired$/]);
+    cases.push(['state', L.env, L.net, { state: 'nope', flow: L.flow }, /state_mismatch$/]);
+    cases.push(['iss', L.env, L.net, { state: stateOf(L.net), flow: L.flow, iss: 'https://evil.fixture.dev' }, /issuer_mismatch$/]);
+    cases.push(['denied', L.env, L.net, { state: stateOf(L.net), flow: L.flow, error: 'access_denied' }, /denied$/]);
+    cases.push(['as error', L.env, L.net, { state: stateOf(L.net), flow: L.flow, error: 'server_error' }, /as_error$/]);
+    cases.push(['no code', L.env, L.net, { state: stateOf(L.net), flow: L.flow, code: '' }, /as_error$/]);
+    cases.push(['site breaker', { ...L.env, BSKY_SITE_RL: fakeLimiter(0) }, L.net, { state: stateOf(L.net), flow: L.flow }, /busy$/]);
+    cases.push(['bad flow fields', L.env, L.net, { state: 'state-1', flow: await flowWith({ tp: 7 }) }, /flow_expired$/]);
+  }
+  // After the token request: refused, the wrong account, re-resolution.
+  {
+    const L = await login({ net: fakeNetwork({ [`${new URL(W.ISSUER).host}/oauth/token`]: () => json({ error: 'invalid_grant' }, 400, { 'DPoP-Nonce': 'n2' }) }) });
+    cases.push(['token refused', L.env, L.net, { state: stateOf(L.net), flow: L.flow }, /token_failed$/]);
+  }
+  {
+    const L = await login({ net: fakeNetwork({ [`${new URL(W.ISSUER).host}/oauth/token`]: () => json({ access_token: 'a', refresh_token: 'r', token_type: 'DPoP', scope: 'atproto', sub: 'did:plc:someoneelse', expires_in: 300 }, 200, { 'DPoP-Nonce': 'n2' }) }) });
+    cases.push(['sub mismatch', L.env, L.net, { state: stateOf(L.net), flow: L.flow }, /account_mismatch$/]);
+  }
+  {
+    const L = await login();
+    L.net.routes[`${new URL(W.PLC).host}/${W.DID}`] = () => json({ error: 'gone' }, 404);
+    cases.push(['re-resolution fails', L.env, L.net, { state: stateOf(L.net), flow: L.flow }, /did_unresolved$/]);
+  }
+  {
+    const L = await login();
+    L.net.routes[`${new URL(W.PDS).host}/.well-known/oauth-protected-resource`] = () => json({ resource: W.PDS, authorization_servers: ['https://other-as.fixture.dev'] });
+    cases.push(['re-resolution names another AS', L.env, L.net, { state: stateOf(L.net), flow: L.flow }, /issuer_mismatch$/]);
+  }
+  {
+    const L = await login();
+    cases.push(['success', L.env, L.net, { state: stateOf(L.net), flow: L.flow }, /bluesky=signed-in$/]);
+  }
+  for (const [name, env, net, opts, want] of cases) {
+    // A database that throws on any call: a D1 call would turn into a busy or an error.
+    const db = env.SIREN_DB;
+    db.fail = true;
+    const cb = await callback(env, net, { log: () => {}, ...opts });
+    db.fail = false;
+    assert.equal(cb.res.status, 303, name);
+    assert.match(cb.location, want, name);
+    assert.equal(db.calls(), 0, `${name}: no D1 call`);
+    assert.ok(cb.cookies.some((c) => c.startsWith(`${FLOW_COOKIE}=; Path=/ask-siren/oauth/; Max-Age=0`)), `${name}: the flow cookie is cleared`);
+  }
 });
 
 dbTest('callbacks with no genuine flow never charge the site-wide breaker', async () => {
@@ -503,7 +534,7 @@ dbTest('D1 failures on endorse, unendorse and forget are JSON 503s', async () =>
   assert.equal((await f.json()).code, 'busy');
 });
 
-dbTest('endorse and unendorse delete expired rows in the background, never with the orphan sweep', async () => {
+dbTest('endorse and unendorse carry no purge and no orphan sweep: expired rows are the cron\'s', async () => {
   const env = readyEnv();
   const cookie = await signedInCookie();
   const { requestKey, publicId } = await import('../worker/requests.js');
@@ -514,15 +545,114 @@ dbTest('endorse and unendorse delete expired rows in the background, never with 
   db.sqlite.prepare('INSERT INTO bsky_rate_counts (k, n, exp) VALUES (?, 1, ?)').run(`ev:2026-01-01:${'a'.repeat(32)}`, 1);
   db.sqlite.prepare('INSERT INTO endorsements (eh, request_id, y, exp) VALUES (?, ?, 0, ?)').run('b'.repeat(32), 'cccccccccccc', Math.floor(Date.now() / 1000) + 86400);
   for (const [fn, path] of [[handleEndorse, '/api/bsky/endorse'], [handleUnendorse, '/api/bsky/unendorse']]) {
-    db.sqlite.prepare('INSERT OR IGNORE INTO bsky_rate_counts (k, n, exp) VALUES (?, 1, ?)').run(`ev:2026-01-01:${'a'.repeat(32)}`, 1);
     const deferred = [];
     const res = await fn(post(path, { id: list.requests[0].id }, { cookie }), env, { waitUntil: (p) => deferred.push(p) }, BASE, { publicList: list });
     assert.equal(res.status, 200, path);
-    assert.equal(deferred.length, 1, `${path}: one background purge`);
-    await Promise.all(deferred);
-    assert.ok(!db.rows('bsky_rate_counts').some((r) => r.exp === 1), `${path}: the expired counter is gone`);
-    assert.ok(db.rows('endorsements').some((r) => r.request_id === 'cccccccccccc'), `${path}: an orphan with a live expiry is left to the sweep`);
+    assert.equal(deferred.length, 0, `${path}: nothing in the background`);
+    assert.ok(db.rows('bsky_rate_counts').some((r) => r.exp === 1), `${path}: the expired counter waits for the cron`);
+    assert.ok(db.rows('endorsements').some((r) => r.request_id === 'cccccccccccc'), `${path}: an orphan is left to the sweep`);
   }
+});
+
+dbTest('me reads D1 at most once per session: the set rides in the sealed cookie, and endorse and unendorse keep it current', async () => {
+  const env = readyEnv();
+  const { requestKey, publicId, addRequest, decide } = await import('../worker/requests.js');
+  const { endorsementId } = await import('../worker/endorsements.js');
+  const ids = [];
+  for (const src of ['Source A', 'Source B']) {
+    await addRequest({ body: { source: src }, kv: env.LIMITS, visitor: src, now: T0 });
+    const id = publicId(await requestKey(src));
+    await decide(env.LIMITS, { id, status: 'accepted' }, T0);
+    ids.push(id);
+  }
+  const list = { requests: ids.map((id, i) => ({ id, status: 'accepted', source: ['Source A', 'Source B'][i] })) };
+  const eid = await hmacHex(SECRET, `endorser:${W.DID}`);
+  await putEndorsement(env.SIREN_DB, ids[0], await endorsementId(SECRET, ids[0], eid), 0);
+  const deps = { publicList: list };
+  let cookie = await signedInCookie();
+  const take = (res) => {
+    const c = res.headers.getSetCookie().find((x) => x.startsWith(`${BSKY_COOKIE}=`));
+    if (c) cookie = `${BSKY_COOKIE}=${cookieValue(c, BSKY_COOKIE)}`;
+    return c;
+  };
+  // First me: one charge and one SELECT, and the set comes back in the cookie.
+  const before = env.SIREN_DB.calls();
+  let res = await handleMe(get('/api/bsky/me', { cookie }), env, null, BASE, deps);
+  assert.deepEqual((await res.json()).endorsed, [ids[0]]);
+  assert.match(take(res), /; Path=\/ask-siren\/api\/bsky\/; HttpOnly; Secure; SameSite=Lax$/, 'still a browser-session cookie');
+  assert.deepEqual((await openSession(SECRET, cookieValue(res.headers.getSetCookie()[0], BSKY_COOKIE))).endorsed, [ids[0]]);
+  const after1 = env.SIREN_DB.calls();
+  assert.equal(after1 - before, 2);
+  // Every later me reads the cookie: no D1 call, no D1 limiter.
+  for (let i = 0; i < 3; i++) {
+    res = await handleMe(get('/api/bsky/me', { cookie }), env, null, BASE, deps);
+    assert.deepEqual((await res.json()).endorsed, [ids[0]]);
+  }
+  assert.equal(env.SIREN_DB.calls(), after1);
+  assert.equal(env.BSKY_D1_RL.calls.length, 1);
+  // Endorse B: the answer carries the state, and the cookie the new set.
+  res = await handleEndorse(post('/api/bsky/endorse', { id: ids[1] }, { cookie }), env, null, BASE, deps);
+  assert.deepEqual(await res.json(), { ok: true, endorsed: true, counted: true });
+  take(res);
+  res = await handleMe(get('/api/bsky/me', { cookie }), env, null, BASE, deps);
+  assert.deepEqual((await res.json()).endorsed.sort(), [...ids].sort());
+  // Unendorse A.
+  res = await handleUnendorse(post('/api/bsky/unendorse', { id: ids[0] }, { cookie }), env, null, BASE, deps);
+  assert.deepEqual(await res.json(), { ok: true, endorsed: false });
+  take(res);
+  const calls = env.SIREN_DB.calls();
+  res = await handleMe(get('/api/bsky/me', { cookie }), env, null, BASE, deps);
+  assert.deepEqual((await res.json()).endorsed, [ids[1]]);
+  assert.equal(env.SIREN_DB.calls(), calls, 'still from the cookie');
+  // The set is filtered to requests still accepted, and the expiry isn't extended.
+  res = await handleMe(get('/api/bsky/me', { cookie }), env, null, BASE, { publicList: { requests: [{ id: ids[1], status: 'fulfilled', source: 'Source B' }] } });
+  assert.deepEqual((await res.json()).endorsed, []);
+  const s0 = await openSession(SECRET, cookieValue((await signedInCookie()), BSKY_COOKIE));
+  const s1 = await openSession(SECRET, cookieValue(cookie, BSKY_COOKIE));
+  assert.ok(s1.expires <= s0.expires);
+  // A forged or oversized set doesn't open.
+  const { sealSession: seal2 } = await import('../worker/bluesky.js');
+  const bad = await seal2(SECRET, { eid, handle: W.HANDLE, created: '2025-01-02', issuer: W.ISSUER, endorsed: ['not-an-id'] });
+  assert.equal(await openSession(SECRET, bad), null);
+});
+
+dbTest('me and forget: over the visitor limit or the site-wide D1 breaker, no D1 call', async () => {
+  for (const over of [{ BSKY_VISITOR_RL: fakeLimiter(0) }, { BSKY_D1_RL: fakeLimiter(0) }, { BSKY_D1_RL: fakeLimiter(5, { throws: true }) }]) {
+    const env = readyEnv(over);
+    const res = await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });
+    assert.equal(res.status, 429, Object.keys(over)[0]);
+    const out = await res.json();
+    assert.equal(out.bluesky.signed_in, true, 'still says who is signed in');
+    assert.equal(out.bluesky.busy, true);
+    const f = await handleForget(post('/api/bsky/forget', {}, { origin: ORIGIN, cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });
+    assert.equal(f.status, 429);
+    assert.equal(env.SIREN_DB.calls(), 0, `${Object.keys(over)[0]}: no D1 call`);
+  }
+  // The limiters are charged with their own keys.
+  const env = readyEnv();
+  await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });
+  await handleForget(post('/api/bsky/forget', {}, { origin: ORIGIN, cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST });
+  assert.deepEqual(env.BSKY_D1_RL.calls, ['signed', 'signed']);
+  assert.ok(env.BSKY_VISITOR_RL.calls.some((k) => k.startsWith('me:')) && env.BSKY_VISITOR_RL.calls.some((k) => k.startsWith('forget:')));
+  // Over the day's budget: me says so, after one refused charge.
+  const spent = readyEnv({ ENDORSE_D1_CALLS_DAILY: '1' });
+  const { chargeD1 } = await import('../worker/endorsements.js');
+  assert.ok(await chargeD1(spent.SIREN_DB, spent, { pot: 'visitor', calls: 1, writes: 1 }));
+  const res = await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), spent, null, BASE, { publicList: LIST });
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, 'over_budget');
+  assert.equal(spent.SIREN_DB.calls(), 2, 'the earlier charge and the refused one');
+});
+
+dbTest('a public list that can\'t be read: me and endorse answer a JSON 503 and make no D1 call', async () => {
+  const env = readyEnv();
+  const { LIST_UNAVAILABLE } = await import('../worker/public-list.js');
+  const me = await handleMe(get('/api/bsky/me', { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST_UNAVAILABLE });
+  assert.equal(me.status, 503);
+  assert.equal((await me.json()).code, 'unavailable');
+  const e = await handleEndorse(post('/api/bsky/endorse', { id: 'aaaaaaaaaaaa' }, { cookie: await signedInCookie() }), env, null, BASE, { publicList: LIST_UNAVAILABLE });
+  assert.equal(e.status, 503);
+  assert.equal(env.SIREN_DB.calls(), 0);
 });
 
 dbTest('me over the account limit still says who is signed in, and reads no storage', async () => {

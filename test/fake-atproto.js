@@ -77,7 +77,7 @@ export function hang(signal) {
  * it (a 404). A handler gets (url: URL, init, net) and returns a Response.
  */
 export function fakeNetwork(overrides = {}) {
-  const state = { par: [], tokens: [], revokes: [], issued: 0 };
+  const state = { par: [], tokens: [], revokes: [], issued: 0, codesUsed: new Set() };
   const host = (u) => new URL(u).host;
   const routes = {
     [`${host(W.DOH)}/dns-query`]: (u) => {
@@ -102,6 +102,9 @@ export function fakeNetwork(overrides = {}) {
       if (!proof.payload.nonce) return json({ error: 'use_dpop_nonce' }, 400, { 'DPoP-Nonce': 'nonce-tok-1' });
       const form = Object.fromEntries(new URLSearchParams(init.body));
       state.tokens.push({ form, jkt: await thumbprint(proof.header.jwk), nonce: proof.payload.nonce });
+      // OAuth 2.1: a code works once.
+      if (state.codesUsed.has(form.code)) return json({ error: 'invalid_grant' }, 400, { 'DPoP-Nonce': 'nonce-tok-2' });
+      state.codesUsed.add(form.code);
       state.issued++;
       return json({ access_token: W.ACCESS, refresh_token: W.REFRESH, token_type: 'DPoP', scope: 'atproto', sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
     },
@@ -237,6 +240,7 @@ export function readyEnv(over = {}) {
     BSKY_INPUT_RL: fakeLimiter(),
     BSKY_ACCOUNT_RL: fakeLimiter(),
     BSKY_SITE_RL: fakeLimiter(),
+    BSKY_D1_RL: fakeLimiter(),
     DOH_URL: W.DOH,
     PLC_URL: W.PLC,
     ...over,

@@ -159,22 +159,24 @@ function endorsementTally(id) {
 
 // Delete Bluesky rows whose expiry is at or before `cutoff` (seconds), as the
 // Worker's purgeExpired does: at most PURGE_ROWS of each kind per statement,
-// repeated until a round comes up short. Counted by RETURNING, since D1's
+// repeated until a round comes up short. The steward's own deletes aren't
+// charged to the Worker's daily D1 budget (siren_d1_budget); they're run by
+// hand, and print what they delete. Counted by RETURNING, since D1's
 // meta.changes also counts the tally triggers. -> rows deleted, by kind
 const PURGE_ROWS = 500;
 function purgeBefore(cutoff) {
   const t = sqlInt(cutoff);
-  const total = { endorsements: 0, rates: 0, flows: 0 };
+  const total = { endorsements: 0, rates: 0, budget: 0 };
   for (let round = 0; round < 200; round++) {
     const out = d1([
       `DELETE FROM endorsements WHERE eh IN (SELECT eh FROM endorsements INDEXED BY endorsements_exp WHERE exp <= ${t} LIMIT ${PURGE_ROWS}) RETURNING eh`,
       `DELETE FROM bsky_rate_counts WHERE k IN (SELECT k FROM bsky_rate_counts INDEXED BY bsky_rate_counts_exp WHERE exp <= ${t} LIMIT ${PURGE_ROWS}) RETURNING k`,
-      `DELETE FROM bsky_flows_used WHERE sh IN (SELECT sh FROM bsky_flows_used INDEXED BY bsky_flows_used_exp WHERE exp <= ${t} LIMIT ${PURGE_ROWS}) RETURNING sh`,
+      `DELETE FROM siren_d1_budget WHERE exp <= ${t} RETURNING day`,
     ].join('; '));
     const n = [out[0] || [], out[1] || [], out[2] || []].map((r) => r.length);
     total.endorsements += n[0];
     total.rates += n[1];
-    total.flows += n[2];
+    total.budget += n[2];
     if (n.every((x) => x < PURGE_ROWS)) break;
   }
   return total;
@@ -302,7 +304,7 @@ async function main() {
       cutoff = Number.MAX_SAFE_INTEGER;
     }
     const n = purgeBefore(cutoff);
-    console.error(!dry ? `Deleted ${n.endorsements} endorsement${n.endorsements === 1 ? '' : 's'}, ${n.rates} rate counter${n.rates === 1 ? '' : 's'} and ${n.flows} sign-in marker${n.flows === 1 ? '' : 's'}${flag('all') ? ': every Bluesky row' : ' past their expiry'}.` : 'Dry run: nothing deleted.');
+    console.error(!dry ? `Deleted ${n.endorsements} endorsement${n.endorsements === 1 ? '' : 's'}, ${n.rates} rate counter${n.rates === 1 ? '' : 's'} and ${n.budget} daily budget row${n.budget === 1 ? '' : 's'}${flag('all') ? ': every Bluesky row' : ' past their expiry'}.` : 'Dry run: nothing deleted.');
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');

@@ -433,8 +433,22 @@ export default {
     // Bluesky endorsements on, it carries counts and goes through the Cache API.
     if (req.method === 'GET' && path === '/api/requests') {
       if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
-      if (!blueskyReady(env)) return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
-      return json(await cachedPublicList({ env, ctx, kv: env.LIMITS, origin: url.origin, base }), 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
+      // KV failing (or past the Free plan's daily list operations) is a JSON
+      // 503, never a thrown error; with endorsements on, D1 isn't asked then.
+      const unavailable = () => json({ error: "The request list can't be read just now. Try again in a minute.", code: 'unavailable', requests: [], awaiting_review: 0 }, 503, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+      if (!blueskyReady(env)) {
+        let list;
+        try {
+          list = await publicRequests(env.LIMITS);
+        } catch (err) {
+          console.error('public list: request records unreadable', String(err?.message || 'unknown').slice(0, 300));
+          return unavailable();
+        }
+        return json(list, 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+      }
+      const list = await cachedPublicList({ env, ctx, kv: env.LIMITS, origin: url.origin, base });
+      if (list.unavailable) return unavailable();
+      return json(list, 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
     }
     // Bluesky sign-in (bluesky.js). The client metadata is the OAuth client_id
     // URL, served whenever PUBLIC_ORIGIN is set; the rest need BLUESKY_LOGIN.

@@ -177,18 +177,20 @@ async function toggle(id, want) {
     const { res, out } = await post(path, { id });
     if (res.ok) {
       const was = endorsed.has(id);
-      if (want) endorsed.add(id); else endorsed.delete(id);
+      // The server's answer wins (an endorsement withdrawn in another tab meanwhile).
+      const nowOn = typeof out.endorsed === 'boolean' ? out.endorsed : want;
+      if (nowOn) endorsed.add(id); else endorsed.delete(id);
       const r = requests.find((x) => x.id === id);
       // Only adjust for changes this page saw counted: an endorsement made
       // while the account was young may never have been in the public number.
-      if (r && r.endorsements !== undefined && want && !was && !out.already && out.counted) {
+      if (r && r.endorsements !== undefined && want && nowOn && !was && !out.already && out.counted) {
         r.endorsements = Number(r.endorsements || 0) + 1;
         countedHere.set(id, true);
       } else if (r && !want && was && countedHere.get(id)) {
         r.endorsements = Math.max(0, Number(r.endorsements || 0) - 1);
         countedHere.delete(id);
       }
-      say(want ? 'Endorsed. Counts can take a few minutes to update.' : 'Endorsement withdrawn.');
+      say(nowOn ? 'Endorsed. Counts can take a few minutes to update.' : 'Endorsement withdrawn.');
       return;
     }
     if (res.status === 401) {
@@ -262,7 +264,7 @@ $('bsky-forget').addEventListener('click', async () => {
 });
 
 (async () => {
-  const [listResult] = await Promise.allSettled([fetch('api/requests').then((r) => r.json()), loadMe()]);
+  const [listResult] = await Promise.allSettled([fetch('api/requests').then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status))))), loadMe()]);
   renderPanel();
   if (me.bluesky?.busy) say(me.error || 'Lots of activity right now. Try again in a minute.');
   if (listResult.status === 'fulfilled') {

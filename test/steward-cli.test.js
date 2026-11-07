@@ -213,15 +213,15 @@ test('endorsements-purge, flag off: deletes expired rows of every kind and keeps
   db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), s.id, 0, FAR]);
   db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:old:x', 1, NOW_S - 5]);
   db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:new:x', 1, FAR]);
-  db.put('bsky_flows_used', ['sh', 'exp'], ['f'.repeat(32), NOW_S - 5]);
+  db.put('siren_d1_budget', ['day', 'pot', 'calls', 'writes', 'exp'], ['2026-01-01', 'visitor', 1, 1, NOW_S - 5]);
   process.env.STUB_DB = db.file;
   t.after(() => delete process.env.STUB_DB);
   const out = s.run('endorsements-purge');
   assert.equal(out.code, 0, out.out);
-  assert.match(out.out, /Deleted 1 endorsement, 1 rate counter and 1 sign-in marker past their expiry/);
+  assert.match(out.out, /Deleted 1 endorsement, 1 rate counter and 1 daily budget row past their expiry/);
   assert.deepEqual(db.rows('endorsements').map((r) => r.eh), ['b'.repeat(32)]);
   assert.deepEqual(db.rows('bsky_rate_counts').map((r) => r.k), ['ed:new:x']);
-  assert.deepEqual(db.rows('bsky_flows_used'), []);
+  assert.deepEqual(db.rows('siren_d1_budget'), []);
   assert.deepEqual(db.rows('endorsement_counts').map((r) => r.n), [1], 'the tally followed');
 });
 
@@ -240,12 +240,12 @@ test('endorsements-purge --all: refused while the flag is on; with it off, every
   const db = await realDb(t, off);
   db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), off.id, 1, FAR]);
   db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:new:x', 1, FAR]);
-  db.put('bsky_flows_used', ['sh', 'exp'], ['f'.repeat(32), FAR]);
+  db.put('siren_d1_budget', ['day', 'pot', 'calls', 'writes', 'exp'], ['2026-11-06', 'visitor', 1, 1, FAR]);
   process.env.STUB_DB = db.file;
   const out = off.run('endorsements-purge', '--all');
   assert.equal(out.code, 0, out.out);
   assert.match(out.out, new RegExp(`${off.id}\\s+1\\s+deleting`), 'the totals are printed before they go');
-  for (const table of ['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'bsky_flows_used']) assert.deepEqual(db.rows(table), [], table);
+  for (const table of ['endorsements', 'endorsement_counts', 'bsky_rate_counts', 'siren_d1_budget']) assert.deepEqual(db.rows(table), [], table);
 });
 
 test('--local reads .dev.vars: BLUESKY_LOGIN=true there turns on the freeze, as wrangler dev would', { skip: SKIP }, async (t) => {

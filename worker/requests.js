@@ -101,7 +101,8 @@ export function publicView(key, r, live, policy = 'established') {
   return out;
 }
 
-async function requestRows(kv) {
+/** Every request record: [key, record] pairs, from one or more KV list pages. Throws if KV fails. */
+export async function requestRows(kv) {
   const keys = [];
   let cursor;
   do {
@@ -118,9 +119,11 @@ async function requestRows(kv) {
  * Without `counts` (the feature off), items carry no `endorsements` field.
  * `statuses`, when given, is a Map filled with every request's status by
  * public id (the orphan sweep needs them, and they're read here anyway).
+ * `rows`, when given, are requestRows(kv) already read (the public list
+ * reads KV before D1).
  */
-export async function publicRequests(kv, counts, { policy = 'established', statuses } = {}) {
-  const rows = await requestRows(kv);
+export async function publicRequests(kv, counts, { policy = 'established', statuses, rows: given } = {}) {
+  const rows = given || await requestRows(kv);
   if (statuses) for (const [k, r] of rows) statuses.set(publicId(k), r.status || 'new');
   const shown = rows
     .filter(([, r]) => PUBLIC.has(r.status || 'new'))
