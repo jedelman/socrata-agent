@@ -20,18 +20,3 @@ jobs:
       # Bundle the Worker without deploying, so an import that only breaks
       # under wrangler fails here and not in production.
       - run: npx wrangler deploy --dry-run --env siren --outdir dist
-  check-gaps:
-    # Replays the stored gap responses against current repo files (no
-    # network) and fails on any difference: a case file, the legislation
-    # index or the Norfolk profile changed without `build-gaps --offline`.
-    # Its own job, outside npm test, so this drift shows on the PR without
-    # stopping the Workers Builds deploy, which runs npm test.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run check:gaps

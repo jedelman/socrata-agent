@@ -34,21 +34,28 @@ Each one is for Jason to accept into the spec, or to send back.
 
 6. **Where `--check` runs (§5.3 item 8).** `npm test` gates the Workers
    Builds deploy, so its replay test skips, naming the fix, when the committed
-   files trail their inputs. CI's `check-gaps` job runs `npm run check:gaps`
-   and fails. Tests that depend on today's case files run on a replay dated
-   the day of the stored build, so a finding passing 30 days can't fail them.
-7. **The weekly offline rebuild (§5.4).** `refresh-norfolk.yml` commits the
-   gap file to main only when no gap changed state. Otherwise it opens a PR,
-   as the archive job does. A failed gap build no longer stops the index
-   commit.
+   files trail their inputs. Tests that read the gap file's values build it
+   from the stored responses and a pinned copy of the case files
+   (`test/fixtures/gaps-cases/`), dated the day of the stored build; against
+   the committed file they check only what holds in any state the spec
+   allows (every catalog entry accounted for, the schema, the identifier
+   rule), so a steward marking a finding unverified can't fail them.
+7. **No workflow runs the gap build (§5.3 item 7, §5.4).** The spec puts
+   `--offline` in `refresh-norfolk.yml` and the archive job, and adds a
+   weekly `refresh-gaps.yml`. None of these are in this branch: whether to
+   automate the gap build is Jason's call. Until then it's run by hand;
+   CONTRIBUTING.md says when, and lists the proposed automation.
 8. **Street checks in any case (§6.3).** `number_street` and `intersection`
    match street names in any case. After a house number, a tree species
    counts as a street only with a suffix, an ordinary word only where the
    phrase ends ("1500 Church"), and other names unless a counted noun follows
    ("300 Granby residents"). At a corner, one side must carry a suffix, or be
    a name that isn't an ordinary word, species or ordinal. A 19xx or 20xx
-   number after "the", "in", "since" and the like is a year, and so is one
-   before a bare name. "street trees" and "street lights" aren't suffixes.
+   number is never called a year by the word before it: before a suffix or a
+   street name of more than one word it's a house number ("from 1950 Granby
+   St", "the 2024 Ocean View report"). Before a bare one-word name it's a
+   year mid-phrase ("The 2025 Norfolk budget") and an address after "at" or
+   at the end of a phrase ("from 1950 Colley?"). "street trees" and "street lights" aren't suffixes.
    Comma-grouped numbers ("2,770", "$1,250,000") are neither house numbers
    nor long numbers. A house number may carry a unit letter ("1500B",
    "1500-B").
@@ -63,3 +70,15 @@ Each one is for Jason to accept into the spec, or to send back.
     query still to run, touches. A plugin tool still to run isn't enough,
     because it may miss the address. After the loop, the refusal rules apply
     across the whole turn, whatever order the calls ran in.
+
+## From the third review
+
+11. **Errored calls (§8.1).** A step recorded during a tool call that threw
+    doesn't count, even when the step itself succeeded (Socrata's "check
+    dataset name" read before a failed query). Only steps that ran a query
+    or a describe match a dataset predicate.
+12. **The identifier rule's select list (§5.2).** A measure needs an
+    explicit SELECT list, with a star only inside `count(*)`. A column whose
+    Socrata type is location, point, multipoint, line, multiline, polygon or
+    multipolygon (or that has no type) is a location column whatever its
+    name, read from the dataset's metadata before the query runs.

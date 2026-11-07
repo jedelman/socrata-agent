@@ -5,7 +5,6 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-  pull-requests: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,60 +13,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - run: node scripts/build-norfolk-legislation.js
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
-      - name: Recompute the gap file's parts that come from repo files
-        # Read-only: replays the stored portal responses, no network. Keeps
-        # data/gaps in step with the new index. Only when the index changed.
-        # A failure here never stops the index from being committed.
-        id: gaps
-        continue-on-error: true
-        run: |
-          if git diff --quiet -- data/norfolk-legislation.json; then echo "Index unchanged"; exit 0; fi
-          npm ci
-          cp data/gaps/norfolk.json "$RUNNER_TEMP/gaps-before.json"
-          node scripts/build-gaps.js --offline
-          node scripts/build-gaps.js --same-states "$RUNNER_TEMP/gaps-before.json" && echo "same=1" >> "$GITHUB_OUTPUT" || echo "same=0" >> "$GITHUB_OUTPUT"
-      - name: Set aside a gap rebuild that changed what is on the board
-        # docs/gaps.md §5.4: a state change, or evidence turning unverified,
-        # goes to a pull request for review, never straight to main.
-        if: steps.gaps.outputs.same == '0'
-        run: |
-          mkdir -p "$RUNNER_TEMP/gaps-pr/data" "$RUNNER_TEMP/gaps-pr/docs"
-          cp -r data/gaps "$RUNNER_TEMP/gaps-pr/data/"
-          cp docs/gaps-norfolk.md "$RUNNER_TEMP/gaps-pr/docs/"
-          git checkout -- data/gaps docs/gaps-norfolk.md
-      - name: Drop a gap rebuild that failed
-        if: steps.gaps.outcome == 'failure'
-        run: git checkout -- data/gaps docs/gaps-norfolk.md
       - name: Commit if changed
         run: |
-          if git diff --quiet -- data/ docs/; then echo "No changes"; exit 0; fi
+          if git diff --quiet -- data/; then echo "No changes"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/norfolk-legislation.json data/gaps docs/gaps-norfolk.md
+          git add data/norfolk-legislation.json
           git commit -m "Refresh Norfolk legislation index"
           git push
-      - name: Open a pull request for the gap states that changed
-        if: steps.gaps.outputs.same == '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          branch="bot/gap-states-$(date -u +%Y-%m-%d)"
-          git switch -c "$branch"
-          cp -r "$RUNNER_TEMP/gaps-pr/data/gaps" data/
-          cp "$RUNNER_TEMP/gaps-pr/docs/gaps-norfolk.md" docs/
-          git add data/gaps docs/gaps-norfolk.md
-          git commit -m "Gap file: states changed in the offline rebuild, $(date -u +%Y-%m-%d)"
-          git push -u origin "$branch"
-          {
-            echo 'The weekly offline rebuild (`node scripts/build-gaps.js --offline`) changed which gaps are on the board, or their states. Review before merging (docs/gaps.md §5.4).'
-            echo
-            echo '```'
-            node scripts/build-gaps.js --same-states "$RUNNER_TEMP/gaps-before.json" 2>&1 || true
-            echo '```'
-          } > body.md
-          gh pr create --base main --head "$branch" --title "Gap file: states changed ($(date -u +%Y-%m-%d))" --body-file body.md \
-            || echo "Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."
