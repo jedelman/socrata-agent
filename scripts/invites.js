@@ -8,6 +8,9 @@
 //   node scripts/invites.js waitlist > ~/siren-waitlist.csv
 //   node scripts/invites.js waitlist-remove someone@example.org
 //   node scripts/invites.js requests [--status new]
+//   node scripts/invites.js request-accept|request-decline <request id> [--note "..."]
+//   node scripts/invites.js request-fulfilled <request id> --by <PR or commit link>
+//   node scripts/invites.js request-reopen <request id>
 //   node scripts/invites.js request-note <request id> <note id> approve|delete
 //
 // Once a request or note has been synced to GitHub, declining or deleting it
