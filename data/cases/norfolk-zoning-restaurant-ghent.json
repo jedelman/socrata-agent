@@ -8,7 +8,7 @@
     {
       "id": "restaurant-cup-alcohol",
       "stance": "rules",
-      "claim": "A restaurant needs a Conditional Use Permit when it sells alcohol, unless it is always closed between 5:00 p.m. and 7:00 a.m. the next morning.",
+      "claim": "A restaurant needs a Conditional Use Permit when it sells alcohol, unless it is always closed between 5:00 p.m. and 7:00 a.m. the next morning. (The whole list has one exception: establishments inside the Norfolk International Airport terminal complex.)",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
@@ -33,7 +33,7 @@
     {
       "id": "restaurant-cup-late-hours",
       "stance": "rules",
-      "claim": "In the Coastal, Suburban or Traditional character districts, a restaurant needs a Conditional Use Permit to operate between 11:00 p.m. and 2:00 a.m.",
+      "claim": "In the Coastal, Suburban or Traditional character districts, a restaurant needs a Conditional Use Permit to operate between 11:00 p.m. and 2:00 a.m. (The whole list has one exception: establishments inside the Norfolk International Airport terminal complex.)",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
@@ -58,7 +58,7 @@
     {
       "id": "restaurant-cup-seating-entertainment",
       "stance": "rules",
-      "claim": "A restaurant also needs a Conditional Use Permit where seats will not be provided for at least 80 percent of patrons, or when entertainment is provided.",
+      "claim": "A restaurant also needs a Conditional Use Permit where seats will not be provided for at least 80 percent of patrons, or when entertainment is provided. (The whole list has one exception: establishments inside the Norfolk International Airport terminal complex.)",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
@@ -163,7 +163,7 @@
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
       },
-      "quote": "HC-G3: Ghent Historic and Cultural Conservation",
+      "quote": "HC-G1: Ghent Historic and Cultural Conservation HC-G2: Ghent Historic and Cultural Conservation HC-G3: Ghent Historic and Cultural Conservation",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
       "checked": "2026-11-07",
       "checked_via": "live",
@@ -175,15 +175,15 @@
       },
       "selector": {
         "type": "TextQuoteSelector",
-        "exact": "HC-G3: Ghent Historic and Cultural Conservation",
-        "prefix": "................. 3-120 3.6.7. ",
-        "suffix": " ................. 3-122 3.6.8. HC-WF1:"
+        "exact": "HC-G1: Ghent Historic and Cultural Conservation HC-G2: Ghent Historic and Cultural Conservation HC-G3: Ghent Historic and Cultural Conservation",
+        "prefix": "AND CULTURAL CONSERVATION DISTRICTS ",
+        "suffix": " HC-WF1: West Freemason Historic and"
       }
     },
     {
       "id": "coa-before-exterior-change",
       "stance": "rules",
-      "claim": "Unless exempted, a Certificate of Appropriateness must be approved before the exterior appearance of any building in a Historic or Historic Overlay District is altered, whether or not a building permit is needed.",
+      "claim": "Unless exempted (the ordinance lists exemptions, such as minor works and ordinary maintenance), a Certificate of Appropriateness must be approved before the exterior appearance of a building in a Historic or Historic Overlay District is altered.",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
@@ -208,12 +208,12 @@
     {
       "id": "cup-decided-by-council",
       "stance": "who_decides",
-      "claim": "The ordinance's general conditions apply to Conditional Use Permits approved by City Council, which is the body that approves them.",
+      "claim": "In the Planning Commission public hearing procedure, the Commission makes a recommendation and City Council makes the final decision.",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
       },
-      "quote": "The following conditions shall apply to all Conditional Use Permits approved by City Council",
+      "quote": "to City Council, where a final decision will be made.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
       "checked": "2026-11-07",
       "checked_via": "live",
@@ -225,15 +225,15 @@
       },
       "selector": {
         "type": "TextQuoteSelector",
-        "exact": "The following conditions shall apply to all Conditional Use Permits approved by City Council",
-        "prefix": "ONS FOR ALL CO NDITIONAL USE PERMITS ",
-        "suffix": ", unless expressly waived or modified"
+        "exact": "to City Council, where a final decision will be made.",
+        "prefix": "2.4, Application-Specific Procedures, ",
+        "suffix": " Timing The Commission shall take"
       }
     },
     {
       "id": "cup-commission-hearing",
       "stance": "who_decides",
-      "claim": "Conditional use permit applications are reviewed using the Planning Commission Public Hearing Procedure (Section 2.3.2), except in the expedited cases the ordinance lists.",
+      "claim": "Conditional use permit applications are reviewed using the Planning Commission Public Hearing Procedure (Section 2.3.2), except in the narrow expedited cases the ordinance lists (changes to an existing nightclub or restaurant permit).",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
