@@ -323,3 +323,23 @@ test('parcel_inventory field rules work on map aliases too', () => {
   assert.equal(dropped.length, 4);
   assert.match(decodeURIComponent(identifyUrl('Planning', -76.298, 36.866)), /OpenData\/Planning\/MapServer\/identify\?geometry=-76.298,36.866/);
 });
+
+// Built and merged is not the same as served: everything in data/cases/ and
+// plugins/ has to reach Siren.
+test('every case file is served by case_file, and every plugin is in Siren', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const { CASES } = await import('../plugins/case-file.js');
+  const { default: siren } = await import('../deployments/siren.config.js');
+  const caseDir = new URL('../data/cases/', import.meta.url);
+  for (const f of readdirSync(caseDir).filter((f) => f.endsWith('.json'))) {
+    const { id } = JSON.parse(readFileSync(new URL(f, caseDir), 'utf8'));
+    assert.ok(CASES[id], `data/cases/${f} (${id}) is not in plugins/case-file.js CASES`);
+  }
+  const served = new Set(siren.plugins.map((p) => p.name));
+  const pluginDir = new URL('../plugins/', import.meta.url);
+  for (const f of readdirSync(pluginDir).filter((f) => f.endsWith('.js'))) {
+    const mod = await import(new URL(f, pluginDir));
+    if (typeof mod.default?.run !== 'function') continue; // a helper module, not a plugin
+    assert.ok(served.has(mod.default.name), `plugins/${f} (${mod.default.name}) is not in deployments/siren.config.js`);
+  }
+});

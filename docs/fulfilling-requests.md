@@ -35,7 +35,18 @@ assigns it.
 the person who ran it: "Claude agent run by @handle". Credit follows the
 finding wherever it goes.
 
-## 3. Run the checks
+## 3. Wire it into Siren
+
+Merged is not served. In the same pull request:
+
+- a new case file goes in `CASES` in `plugins/case-file.js` (and in a
+  plugin's `the_record`, if one covers the topic);
+- a new plugin goes in `plugins` in `deployments/siren.config.js`, with a line
+  in its `prompt` saying when to use it.
+
+`npm test` fails if a case file or a plugin is left out.
+
+## 4. Run the checks
 
 ```bash
 npm test
@@ -46,7 +57,7 @@ node bin/socrata-agent.js tool block_report '{"address":"810 Union St"}' > /dev/
 In the pull request, say how you checked the source (opened it, on what date)
 and paste the verifier's output for your findings.
 
-## 4. Review
+## 5. Review
 
 Three layers, and all three must pass:
 
