@@ -1,0 +1,87 @@
+Pages from the FY 2027 Department Budgets PDF (norfolk.gov DocumentCenter 114013, PDF pages 1-5, 257-258), pdftotext -layout, some lines cut. Pages are separated by form feeds; this first line is not a page.
+Legislative
+
+
+
+
+              Legislative - 125
+126 - Legislative
+City Auditor
+
+Department Overview
+ The Office of the City Auditor acts as an independent function of the city to provide investigative professional internal
+ auditing and other services to city departments, offices, and agencies by performing the following:
+ ⦁ Conducting investigations and inquiries into abuse, fraud, and waste
+
+Trends, Issues, and Initiatives
+ ⦁ Consistently perform reviews on citywide expenditures, change funds used by departments, and city issued
+ procurement cards
+
+
+
+
+                                                                                                       City Auditor - 127
+City Auditor
+
+                                                        FY 2024          FY 2025            FY 2026            FY 2027
+Department Budget Summary                                Actual           Actual           Adopted            Adopted
+ Personnel Services                                   1,113,890         1,235,530         1,233,124         1,248,572
+ Materials, Supplies, and Repairs                         4,096             1,293             2,350             4,300
+ Contractual Services                                    55,961            63,742            63,665            53,665
+ Equipment                                                  152               161             2,616             4,616
+Total                                                 1,174,099         1,300,726         1,301,755         1,311,153
+
+
+Adopted FY 2027 Budget Actions
+Base Budget Adjustments
+                                                                                                      FY 2027      FTE
+• Update base program costs                                                                                5,448  0.0
+Technical adjustment to update program costs for citywide budget actions. Changes include personnel adjustments
+for approved permanent positions, healthcare enrollment, retirement contributions, and funding for a compensation
+step effective January 2027. In addition, if applicable, adjustments for annual fleet expenditures based on
+maintenance and fuel for vehicles used for operations are also included. These are routine adjustments that occur
+each budget cycle.
+Total                                                                                                    9,398     0.0
+
+
+
+
+   128 - City Auditor
+City Auditor
+
+Permanent Full Time Equivalent (FTE) Summary:
+                                                FY 2026    FTE FY 2027
+                                                Adopted Change Adopted
+Assistant City Auditor II                           5.0       1.0          6.0
+Chief Deputy City Auditor                           1.0      (1.0)         0.0
+City Auditor                                        1.0       0.0          1.0
+Deputy City Auditor                                 1.0       1.0          2.0
+Deputy City Auditor II                              1.0      (1.0)         0.0
+Total                                               9.0       0.0          9.0
+
+
+
+
+                                                          City Auditor - 129
+CENTRAL APPROPRIATIONS
+The City of Norfolk provides funds for programs and services not directly attributable to specific city departments
+through Central Appropriations. These funds are used for a variety of purposes including supplemental compensation
+and benefit payments to employees and retirees, economic development initiatives, support for citywide strategic
+priority programs, insurance premiums and claims, operating contingencies, and transfers to the capital improvement
+plan.
+                                                                       Central and Outside Agency Appropriations - 381
+CENTRAL APPROPRIATIONS
+
+                                         FY 2024        FY 2025      FY 2026     FY 2027
+                                                                                            Change
+                                          Actual         Actual     Adopted     Adopted
+
+ Compensation and Benefits
+
+ Line of Duty Act
+
+ Benefit for public safety             1,556,036       1,579,068   1,600,000   1,600,000         0
+ personnel injured or killed in
+ the line of duty
+ 382 - Central and Outside Agency Appropriations
+
