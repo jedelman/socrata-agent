@@ -57,7 +57,10 @@ generic mode.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
   sign-in by magic link (Resend), which binds an invite to an account;
   `conversations.js` holds each account's conversations (KV, 7 days), whose
-  earlier tool results come back as data for follow-ups. Conversations are
+  earlier tool results come back as data for follow-ups. Each turn also keeps
+  the record shown under its answer (trace, hand-off, voice check, model,
+  steps, cost, suggestions; bounded by `answerRecord`), so a reopened
+  conversation shows how each answer was found; the model never sees it. Conversations are
   private to their account and never feed the case files.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
@@ -110,6 +113,10 @@ generic mode.
   and opens a PR (cloud sessions can't reach web.archive.org).
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
+- **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
+  in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
+  with a prompt line saying when to use it. `test/plugins.test.js` fails if
+  either is left out (Jason, 2026-11-07).
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).

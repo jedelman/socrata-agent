@@ -25,7 +25,7 @@ import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
-import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
+import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -196,7 +196,7 @@ async function handleAsk(req, env, ctx) {
     });
     const { toolResults, ...answer } = out;
     if (conversationId) {
-      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults }, { days: env.CONVERSATION_DAYS })
+      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
         .catch((err) => console.error('saving the conversation failed', err));
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
@@ -372,7 +372,7 @@ async function handleConversations(req, env, path) {
   if (req.method === 'GET' && path === '/api/conversation') {
     const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
     if (!conv) return json({ error: 'That conversation is gone (they expire) or was never yours.' }, 404, headers);
-    return json({ city: conv.city, turns: conv.turns.map((t) => ({ question: t.question, answer: t.answer, at: t.at })) }, 200, headers);
+    return json({ city: conv.city, turns: conv.turns.map(turnView) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/conversations/delete') {
     const body = await readJson(req);
