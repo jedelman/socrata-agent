@@ -376,11 +376,21 @@ test("the Worker's limits: SUBREQUEST_BUDGET defaults to 120, stays 10-10000, an
   }
   assert.deepEqual(askLimits({}, 'anthropic'), { maxSteps: 6, subrequestBudget: 120, maxTokens: 8000 });
   assert.deepEqual(askLimits({}, 'openrouter'), { maxSteps: 6, subrequestBudget: 120, maxTokens: 1200 });
-  // The Worker passes them to ask() (it can't be imported outside the Workers runtime).
+  // The Worker passes them to ask() (it can't be imported outside the Workers
+  // runtime): its one argument builder spreads them, and both of its ask()
+  // calls (streamed and JSON) start from that builder and override none.
   const worker = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
-  const call = worker.slice(worker.indexOf('await ask({'), worker.indexOf('});', worker.indexOf('await ask({')));
-  assert.match(call, /\.\.\.askLimits\(env, providerOf\(model\)\),/);
-  assert.doesNotMatch(call, /subrequestBudget|maxSteps|maxTokens/, 'nothing after the spread overrides it');
+  const start = worker.indexOf('const askArgs = () => ({');
+  assert.ok(start > 0);
+  const args = worker.slice(start, worker.indexOf('});', start));
+  assert.match(args, /\.\.\.askLimits\(env, providerOf\(model\)\),/);
+  assert.doesNotMatch(args.slice(args.indexOf('...askLimits')), /subrequestBudget|maxSteps|maxTokens/, 'nothing after the spread overrides it');
+  const calls = [...worker.matchAll(/await ask\(\{([\s\S]*?)\}\)\)/g)].map((m) => m[1]);
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    assert.match(call, /^\s*\.\.\.(args|askArgs\(\)),/);
+    assert.doesNotMatch(call, /subrequestBudget|maxSteps|maxTokens/);
+  }
 });
 
 test('the CLI refuses a SUBREQUEST_BUDGET that is not a whole number of at least 10', () => {
