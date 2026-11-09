@@ -1,8 +1,11 @@
 // The gaps-off scenario test/gaps-answer.test.js holds byte-identical to the
-// merge base (c5d7f58, before gaps): the system prompt, the core tools, and a
-// scripted ask() with an unknown note_unanswered call, a query, and a voice
-// rewrite. gaps-off-snapshot.json is this scenario's output from c5d7f58's
-// src/, made by passing that tree's modules in. Timings are zeroed.
+// code without gaps: the system prompt, the core tools, and a scripted ask()
+// with an unknown note_unanswered call, a query, and a voice rewrite.
+// gaps-off-snapshot.json is this scenario's output from a tree without gaps,
+// made by passing that tree's modules in. Timings are zeroed. First made from
+// c5d7f58 (the merge base before gaps); remade from 34e7ec5 (the budget
+// branch, still without gaps) when it was merged in, which added only the
+// answer's requestBudget.
 
 const call = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 

@@ -31,7 +31,8 @@
     "verify:cases": "node scripts/verify-cases.js",
     "build:gaps": "node scripts/build-gaps.js",
     "check:gaps": "node scripts/build-gaps.js --check",
-    "find:gaps": "node scripts/find-gaps.js"
+    "find:gaps": "node scripts/find-gaps.js",
+    "ingest": "node scripts/ingest-document.js"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

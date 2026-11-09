@@ -29,6 +29,9 @@ generic mode.
   snapshots the policy. Don't add tools that search people by name, in core
   or in plugins, and don't pass `access: 'core'` from anything a model or
   plugin controls. See CONTRIBUTING.md and docs/capabilities-norfolk.md.
+- **Request budget.** Every fetch on an answer goes through its one counting
+  fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
+  45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.
 - **Verify against the live portal.** Dataset ids, field names and status codes
   in a city profile must be checked live, with the date noted in a comment.
 
@@ -57,7 +60,10 @@ generic mode.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
   sign-in by magic link (Resend), which binds an invite to an account;
   `conversations.js` holds each account's conversations (KV, 7 days), whose
-  earlier tool results come back as data for follow-ups. Conversations are
+  earlier tool results come back as data for follow-ups. Each turn also keeps
+  the record shown under its answer (trace, hand-off, voice check, model,
+  steps, cost, suggestions; bounded by `answerRecord`), so a reopened
+  conversation shows how each answer was found; the model never sees it. Conversations are
   private to their account and never feed the case files.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
@@ -95,6 +101,12 @@ generic mode.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
   guide. `plugins/case-file.js` serves a case file for questions with no
   address. No payments: bounties are tabled until after beta (Jason).
+- `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
+  (`capital_projects`) read the budget datasets registered in the Norfolk
+  profile's `budget` block. Names the model gives are matched against each
+  dataset's own list (a traced query) and only the City's spelling reaches
+  fixed SoQL; a miss returns the closest names. Caveats are quoted from the
+  live metadata or computed from the queries.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
@@ -110,6 +122,26 @@ generic mode.
   and opens a PR (cloud sessions can't reach web.archive.org).
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
+- `data/documents/*.json` are Norfolk's ordinances (the Zoning Ordinance so
+  far) and adopted budget books (the Department Budgets part, FY 2024 to
+  2027) from the City's own PDFs, split into sections by `src/documents.js`.
+  `plugins/ordinances.js` (`ordinance_lookup`: search, or read a section with
+  its subsections, cited by section and PDF page) and `plugins/budget-books.js`
+  (`budget_book_lookup`: search across fiscal years or within one, or read a
+  department's section, cited by fiscal year, department, section and page)
+  share `plugins/document-lookup.js`. A budget book is the adopted plan and
+  its narrative, not a record of spending. `npm run ingest`
+  (`scripts/ingest-document.js`, `--kind budget-book` for a budget) builds
+  one from a PDF, local or fetched, recording the official URL, what the text
+  is (current-through date, or fiscal year, status and how it was
+  identified), and the PDF's DASL CID. Run it where the PDF is; the text is
+  far smaller. A copy from anywhere but the City's site goes to the
+  git-ignored `data/documents/private/` until it's cleared for republishing.
+  See `data/documents/README.md`.
+- **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
+  in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
+  with a prompt line saying when to use it. `test/plugins.test.js` fails if
+  either is left out (Jason, 2026-11-07).
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).

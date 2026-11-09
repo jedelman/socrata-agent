@@ -12,16 +12,16 @@ Topic-wide checks read cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9. The catalog s
 
 ## MyNorfolk 311 requests: out of Siren’s reach by rule
 
-`norfolk.311.restricted` · Out of Siren's reach by rule · state: open · measured 2026-11-06
+`norfolk.311.restricted` · Out of Siren's reach by rule · state: open · measured 2026-11-09
 
-I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-06, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”
+I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-09, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”
 
 **Where:** MyNorfolk 311 requests; MyNorfolk 311 requests (nbyu-xjez); citywide.
 
 **Questions these records can’t answer, or answer only in part**
 
 - How many tree requests reached MyNorfolk 311 in my ward last year? (can’t answer)  
-  I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-06.
+  I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09.
 
 **What would close it**
 
@@ -29,7 +29,7 @@ I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren
 
 ## Agenda items with no street address in their titles
 
-`norfolk.legislation.no-address` · Partial coverage (in the records I read) · state: open · measured 2026-11-06
+`norfolk.legislation.no-address` · Partial coverage (in the records I read) · state: open · measured 2026-11-09
 
 I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index (built 2026-11-02, meetings 2023-07-11 through 2026-10-22), so I can't match them to a block.
 
@@ -38,7 +38,7 @@ I found no street address in the titles of 681 of 1,437 agenda items (47%) in Si
 **Questions these records can’t answer, or answer only in part**
 
 - Did the Council act on anything that affects my block? (only in part)  
-  With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-06, so I can't match them to a block.
+  With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-09, so I can't match them to a block.
 
 **What would close it**
 
@@ -116,7 +116,7 @@ The City Tree Inventory's own description (cmvv-agyb), as I read it on 2026-11-0
 
 `norfolk.utility.line-clearance` · I found no records (sources checked) · state: open · measured 2026-11-06
 
-I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-04).
+I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-06).
 
 **Where:** tree work near utility lines; data.norfolk.gov, Work Orders (qzfe-wj25); citywide.
 
@@ -176,7 +176,7 @@ I found no column naming a requester or approver of a work order among the 32 co
 
 `norfolk.work-orders.no-contract-link` · Absent or empty field (in the records I read) · state: open · measured 2026-11-06
 
-I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “The contract is used to remove decaying or diseased trees” (quote checked 2026-11-04).
+I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.” (quote checked 2026-11-06).
 
 **Where:** Forestry removal work orders; Work Orders (qzfe-wj25); status as recorded: Complete; citywide.
 
