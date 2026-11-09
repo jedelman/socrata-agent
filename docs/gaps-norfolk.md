@@ -116,7 +116,7 @@ The City Tree Inventory's own description (cmvv-agyb), as I read it on 2026-11-0
 
 `norfolk.utility.line-clearance` · I found no records (sources checked) · state: open · measured 2026-11-06
 
-I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-06).
+I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-09).
 
 **Where:** tree work near utility lines; data.norfolk.gov, Work Orders (qzfe-wj25); citywide.
 
@@ -176,7 +176,7 @@ I found no column naming a requester or approver of a work order among the 32 co
 
 `norfolk.work-orders.no-contract-link` · Absent or empty field (in the records I read) · state: open · measured 2026-11-06
 
-I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.” (quote checked 2026-11-06).
+I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.” (quote checked 2026-11-09).
 
 **Where:** Forestry removal work orders; Work Orders (qzfe-wj25); status as recorded: Complete; citywide.
 
