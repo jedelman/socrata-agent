@@ -9,6 +9,24 @@ export function setting(value, fallback, { min = 0, max = Infinity } = {}) {
   return Math.min(n, max);
 }
 
+// The limits one answer runs under, from the Worker's environment.
+// `provider` is providerOf(model): Claude models think, and thinking counts
+// toward the token allowance, so they get their own (MAX_TOKENS_CLAUDE).
+export function askLimits(env, provider) {
+  return {
+    maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
+    // Outbound requests per answer, model calls and retries included.
+    // Siren's account moved to Workers Paid on 2026-11-09 (Jason): 10,000
+    // external subrequests per invocation, so the platform cap is far off. The
+    // budget stays as a guard against a runaway answer: 120 is about four times
+    // what a heavy four-tool answer measured (59), and keeps cost bounded.
+    subrequestBudget: setting(env.SUBREQUEST_BUDGET, 120, { min: 10, max: 10000 }),
+    maxTokens: provider === 'anthropic'
+      ? setting(env.MAX_TOKENS_CLAUDE, 8000, { min: 1000, max: 16000 })
+      : setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
+  };
+}
+
 // Who a visitor is, for per-visitor limits. One IPv6 client usually controls a
 // whole /64, so count the /64, not the address; IPv4 counts per address.
 export function visitorId(ip) {

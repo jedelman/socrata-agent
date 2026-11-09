@@ -1,6 +1,10 @@
 // The trace is written by code, never by the model. Every outbound request
 // made on the agent's behalf lands here as it happens, so the trace shown to
 // the operator is a record of what ran, not the model's account of it.
+// A request the answer's budget refused (src/request-budget.js) is recorded too, as
+// "refused" with the reason, so the trace shows what was not sent and why.
+
+import { isBudgetRefusal } from './request-budget.js';
 
 export class Trace {
   constructor() {
@@ -20,6 +24,7 @@ export class Trace {
       return result;
     } catch (err) {
       step.error = String(err?.message || err);
+      if (isBudgetRefusal(err)) step.refused = true;
       throw err;
     } finally {
       step.ms = Date.now() - t0;
@@ -40,7 +45,7 @@ export class Trace {
           ? s.rows == null
             ? 'ok'
             : `${s.rows} row${s.rows === 1 ? '' : 's'}`
-          : `failed: ${s.error}`;
+          : `${s.refused ? 'refused' : 'failed'}: ${s.error}`;
         return `${head}${what}\n   ${result} · ${s.ms} ms · [source](${s.url})`;
       })
       .join('\n');

@@ -1,14 +1,22 @@
 // trees_on_my_block: the City's trees near an address, and what the City
 // does to them: pruning, removal, stump grinding, planting. On the street, in
 // the civic league, and citywide for comparison. Sources checked live on
-// 2026-11-04:
-//   - City Tree Inventory (cmvv-agyb): 94,357 city-managed trees. The
-//     inventory's own description: "The original inventory of these trees was
-//     conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners.
-//     No official re-inventory has been conducted since then by City officials
-//     or ISA Certified Arborists, however, tree records in this dataset have
-//     been and are being updated over time by City Staff." It records no tree
-//     condition, and 66,204 trees have no trunk-size range.
+// 2026-11-04 (tree counts re-checked live 2026-11-06):
+//   - City Tree Inventory (cmvv-agyb): 94,361 rows, 93,997 of them not labeled
+//     "PRIVATE TREES". The inventory's own description: "The original
+//     inventory of these trees was conducted in the late 1990s/early 2000s by
+//     the Norfolk Master Gardeners. No official re-inventory has been
+//     conducted since then by City officials or ISA Certified Arborists,
+//     however, tree records in this dataset have been and are being updated
+//     over time by City Staff." It records no tree condition. Trunk size sits
+//     in two columns: trunk_diameter_range (text, e.g. '6" to 12"') and
+//     trunk_diameter (a number; its description gives no unit and says "Since
+//     trees grow over time, the current diameter may be larger than what data
+//     shows."). Checked live 2026-11-06, of the 93,997 city trees: 65,858 have
+//     no range; 25,174 have no diameter and 4,080 a diameter of 0 or less
+//     (29,254 with none above zero); 6,918 (7%) have neither a range nor a
+//     diameter above zero. A diameter of 0 or less is reported as unrecorded;
+//     the data doesn't say why it was entered that way.
 //   - Work Orders (qzfe-wj25), area 'Forestry', from 2020-08-05: city crews'
 //     work orders with task, reason ("problem") and cost. Inventory and work
 //     orders spell civic leagues the same way; Address Information doesn't.
@@ -57,6 +65,44 @@ export function summarize(rows, { trees = null, years = null } = {}) {
   return out;
 }
 
+const rangeStart = (r) => Number(String(r).match(/\d+/)?.[0] ?? Infinity);
+
+/**
+ * Trunk sizes from rows of { r: trunk_diameter_range, d: trunk_diameter, n }.
+ * A diameter that is empty, 0 or less counts as unrecorded. A tree has no size
+ * recorded only when it has neither a range nor a diameter above zero.
+ */
+export function trunkSizes(rows) {
+  const ranges = new Map();
+  const diameters = [];
+  let noDiameter = 0;
+  let noSize = 0;
+  for (const row of rows) {
+    const n = num(row.n);
+    const d = row.d == null || row.d === '' ? NaN : Number(row.d);
+    const hasD = Number.isFinite(d) && d > 0;
+    if (row.r) ranges.set(row.r, (ranges.get(row.r) || 0) + n);
+    if (hasD) diameters.push([d, n]);
+    else noDiameter += n;
+    if (!row.r && !hasD) noSize += n;
+  }
+  diameters.sort((x, y) => x[0] - y[0]);
+  const count = diameters.reduce((s, [, n]) => s + n, 0);
+  const at = (i) => {
+    let seen = 0;
+    for (const [d, n] of diameters) if ((seen += n) > i) return d;
+    return null;
+  };
+  return {
+    trunk_diameter_range: [...ranges].sort((x, y) => rangeStart(x[0]) - rangeStart(y[0])).map(([range, c]) => ({ range, count: c })),
+    trunk_diameter: count
+      ? { trees: count, min: diameters[0][0], median: (at(Math.floor((count - 1) / 2)) + at(Math.floor(count / 2))) / 2, max: diameters[diameters.length - 1][0] }
+      : null,
+    no_diameter_recorded: noDiameter,
+    no_size_recorded: noSize,
+  };
+}
+
 // Pick the inventory's or work orders' spelling of the address's civic league.
 function matchLeague(rows, name) {
   if (!name) return null;
@@ -94,15 +140,14 @@ export default definePlugin({
       if (!circle) return { error: 'No parcel coordinates in the address record.' };
       const [species, sizes] = await Promise.all([
         ctx.socrata.query('cmvv-agyb', `SELECT common_name, count(*) AS n WHERE ${circle} AND ${CITY_TREE} GROUP BY common_name ORDER BY n DESC LIMIT 100`, { tool: `city trees within ${NEAR_M} m`, name: 'City Tree Inventory' }),
-        ctx.socrata.query('cmvv-agyb', `SELECT trunk_diameter_range AS r, count(*) AS n WHERE ${circle} AND ${CITY_TREE} GROUP BY r LIMIT 20`, { tool: `trunk sizes within ${NEAR_M} m`, name: 'City Tree Inventory' }),
+        ctx.socrata.query('cmvv-agyb', `SELECT trunk_diameter_range AS r, trunk_diameter AS d, count(*) AS n WHERE ${circle} AND ${CITY_TREE} GROUP BY r, d LIMIT 1000`, { tool: `trunk sizes within ${NEAR_M} m`, name: 'City Tree Inventory' }),
       ]);
       const total = species.reduce((s, r) => s + num(r.n), 0);
       return {
         within_m: NEAR_M,
         city_trees: total,
         species: species.slice(0, 8).map((r) => ({ name: r.common_name || '(not recorded)', count: num(r.n) })),
-        trunk_size: sizes.filter((r) => r.r).map((r) => ({ range: r.r, count: num(r.n) })),
-        no_size_recorded: num(sizes.find((r) => !r.r)?.n),
+        ...trunkSizes(sizes),
       };
     });
 
@@ -176,8 +221,12 @@ export default definePlugin({
       the_record: theRecord(ctx, treesCase),
       work_orders_cover: first ? { from: first, to: last, years: Math.round(years * 10) / 10 } : null,
       about_the_data: [
-        "The inventory's own description says it was first taken in the late 1990s/early 2000s by the Norfolk Master Gardeners and that no official re-inventory has been done since by City officials or ISA Certified Arborists, though City staff update records over time. It records no tree condition, and most trees have no trunk size recorded.",
-        'Work orders are what city crews logged. One work order can cover more than one tree, and work done under separate contracts may not appear here.',
+        "The inventory's own description says it was first taken in the late 1990s/early 2000s by the Norfolk Master Gardeners and that no official re-inventory has been done since by City officials or ISA Certified Arborists, though City staff update records over time. It records no tree condition.",
+        // Checked live 2026-11-06 against cmvv-agyb (city trees only); see the header.
+        'Trunk size is in two inventory columns, a range and a number (trunk_diameter). The number\'s description gives no unit and says "Since trees grow over time, the current diameter may be larger than what data shows." A diameter that is empty, 0 or less is counted as unrecorded. When checked on 2026-11-06, of 93,997 city trees, 65,858 had no range, 29,254 had no diameter above zero, and 6,918 (7%) had neither.',
+        // Checked live 2026-11-06: qzfe-wj25 has 32 columns, none naming a contract or invoice (contractor_cost is a cost
+        // column); of 2,378 Forestry removal work orders with status_code 999 ("Complete"), 563 have contractor_cost above zero.
+        'Work orders are what City crews logged, and one work order can cover more than one tree. None of the 32 Work Orders columns links a work order to a contract or invoice. When checked on 2026-11-06, 563 of the 2,378 Forestry removal work orders marked "Complete" (24%) showed a contractor cost above zero.',
         'The pruning-pace figure divides inventoried trees by pruning work orders per year. It is a pace, not a schedule: if one work order covered several trees, the real cycle is shorter.',
         'Reasons ("problem") are the City\'s own codes; "General Maintenance" is the City\'s label, not an explanation.',
         'Stump grinding usually follows a removal, so it is counted separately, not added to removals.',

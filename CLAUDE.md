@@ -29,6 +29,9 @@ generic mode.
   snapshots the policy. Don't add tools that search people by name, in core
   or in plugins, and don't pass `access: 'core'` from anything a model or
   plugin controls. See CONTRIBUTING.md and docs/capabilities-norfolk.md.
+- **Request budget.** Every fetch on an answer goes through its one counting
+  fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
+  45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.
 - **Verify against the live portal.** Dataset ids, field names and status codes
   in a city profile must be checked live, with the date noted in a comment.
 

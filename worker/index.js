@@ -4,7 +4,8 @@
 //   - or, behind Cloudflare Access, per person (verified email) per day
 //                                          PER_USER_DAILY     default 40
 //   - for everyone per day, in dollars     DAILY_BUDGET_USD   default 2
-//   - per question: length, history, tool steps, output tokens
+//   - per question: length, history, tool steps, output tokens, and
+//     outbound requests (SUBREQUEST_BUDGET, default 45)
 // Limits are counted in KV (binding LIMITS). KV is eventually consistent, so a
 // burst can overshoot by a few requests; set an OpenRouter key limit as the
 // hard ceiling.
@@ -17,7 +18,7 @@ import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
-import { setting, visitorId, spentToday, recordSpend } from './limits.js';
+import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, raiseResponse, publicRequests } from './requests.js';
@@ -197,12 +198,8 @@ async function handleAsk(req, env, ctx) {
       appToken: env.SOCRATA_APP_TOKEN,
       model,
       effort: env.EFFORT || undefined,
-      maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
-      // Claude models think before answering, and thinking counts toward the
-      // allowance, so they get their own: MAX_TOKENS_CLAUDE.
-      maxTokens: providerOf(model) === 'anthropic'
-        ? setting(env.MAX_TOKENS_CLAUDE, 8000, { min: 1000, max: 16000 })
-        : setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
+      // Steps, outbound requests and tokens per answer (worker/limits.js).
+      ...askLimits(env, providerOf(model)),
       referer: new URL(req.url).origin,
       onCost: (usd) => {
         cost += usd;

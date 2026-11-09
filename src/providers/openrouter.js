@@ -2,6 +2,8 @@
 // The conversation is held in OpenAI message shape; cost comes from
 // OpenRouter's own usage accounting (usage: { include: true }).
 
+import { networkFetch } from '../request-budget.js';
+
 const OPENROUTER = 'https://openrouter.ai/api/v1/chat/completions';
 
 export function openrouterProvider({ apiKey, model, maxTokens, fetchImpl, referer }) {
@@ -10,7 +12,7 @@ export function openrouterProvider({ apiKey, model, maxTokens, fetchImpl, refere
   let last = null;
 
   async function post(body) {
-    const res = await (fetchImpl || fetch)(OPENROUTER, {
+    const res = await (fetchImpl || networkFetch)(OPENROUTER, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -27,6 +29,9 @@ export function openrouterProvider({ apiKey, model, maxTokens, fetchImpl, refere
 
   return {
     name: 'openrouter',
+    // One fetch per call: this client never retries.
+    fetchesPerCall: 1,
+    fetchesPerComplete: 1,
     init({ systemPrompt, history, question, toolDefs }) {
       tools = toolDefs;
       messages.push({ role: 'system', content: systemPrompt });
