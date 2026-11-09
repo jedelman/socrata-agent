@@ -42,7 +42,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
-import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, decisionKey, decisionOf, stewardView, withDeleted, freezeAtDecision, idKey, pidKey, idsOf, newPublicId, PUBLIC_ID_RE } from '../worker/requests.js';
+import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, decisionKey, decisionOf, stewardView, withDeleted, freezeAtDecision, applyFrozen, idKey, pidKey, idsOf, newPublicId, PUBLIC_ID_RE } from '../worker/requests.js';
 import { constellationOrigin, countEndorsers, userAgent } from '../worker/constellation.js';
 import { endorseSubject } from '../worker/endorse-config.js';
 import { publicOrigin } from '../worker/atproto-oauth.js';
@@ -65,6 +65,23 @@ function wrangler(args) {
     return '';
   }
   return execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+}
+
+// One key read directly, for a check that mustn't trust a listing (which is
+// eventually consistent): its value, or null when wrangler says it's
+// missing ("Value not found" locally, "404: Not Found" remotely). Any other
+// failure throws.
+function getDirect(key) {
+  if (dry) return null;
+  const full = ['wrangler', 'kv', 'key', 'get', key, '--text', '--binding', 'LIMITS', '--env', env, where, ...(opt('config') ? ['--config', opt('config')] : [])];
+  try {
+    const out = execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return out.trim() === 'Value not found' ? null : out;
+  } catch (err) {
+    if (/404: Not Found/.test(String(err.stderr || ''))) return null;
+    process.stderr.write(String(err.stderr || ''));
+    throw err;
+  }
 }
 
 class ConfigReadError extends Error {
@@ -269,8 +286,7 @@ async function main() {
         note = ` The endorsement count couldn't be read (${String(err?.code || err?.message || err).slice(0, 80)}), so none was frozen.`;
       }
     }
-    const frozen = freezeAtDecision(cur, status, live);
-    if (frozen !== undefined) next.endorsements_at_decision = frozen;
+    applyFrozen(next, freezeAtDecision(cur, status, live));
     // The decision first, which raises never write, so a stale raise can't undo it.
     wrangler(['put', decisionKey(key), JSON.stringify(decisionOf(next))]);
     wrangler(['put', key, JSON.stringify(next)]);
@@ -315,6 +331,11 @@ async function main() {
     let n = 0;
     for (const { name } of keys) {
       if (sides.has(idKey(name))) continue;
+      // The listing can lag a write made a moment ago (an earlier run, or a
+      // raise): read the id key itself before minting, so a re-run never
+      // gives a request a second id.
+      const existing = getDirect(idKey(name));
+      if (existing && idsOf(name, JSON.parse(existing)).assigned) continue;
       const { r } = readRequest(name, sides);
       const wasPublic = r.was_public === true || r.status === 'accepted' || r.status === 'fulfilled';
       const id = newPublicId();

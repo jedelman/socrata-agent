@@ -347,8 +347,14 @@ export function publicView(key, r, live, ids = idsOf(key, null)) {
 
 /**
  * Every request record as readers see it (side keys laid over, deleted notes
- * dropped): [key, record] pairs, from one or more KV list pages. Throws if KV
- * fails.
+ * dropped): [key, record, ids] triples, from one or more KV list pages.
+ * Throws if KV fails. Cost: one list per 1,000 keys plus four gets per
+ * request (the record, its tombstone, its decision and its id). A Worker
+ * invocation may make at most 1,000 operations to bindings, KV included
+ * (Cloudflare's KV limits page, checked 2026-11-09), so one read of every
+ * request fails past about 249 requests of all statuses. Before the pool
+ * nears that, switch these reads to KV's bulk get (100 keys count as one
+ * operation).
  */
 export async function requestRows(kv) {
   const keys = [];
@@ -436,25 +442,36 @@ export function adminView(key, r, ids = idsOf(key, null)) {
 }
 
 /**
- * The count to freeze into a request moving to `status`: the live count on a
- * move into a decided status from an undecided one; the earlier frozen value
- * on a move between decided statuses, or back to accepted (the steward still
- * sees "N at decision"). undefined when there's nothing to store.
+ * The count to freeze into a request moving to `status`: on a move into a
+ * decided status from an undecided one, the live count, or null (clear any
+ * earlier value) when it couldn't be read; on a move between decided
+ * statuses, or back to accepted, the earlier frozen value (the steward still
+ * sees "N at decision"); undefined when there's nothing to store.
  */
 export function freezeAtDecision(cur, status, live) {
   const prev = cur?.endorsements_at_decision;
   const from = cur?.status || 'new';
-  if (DECIDED.has(status) && !DECIDED.has(from) && Number.isSafeInteger(live) && live >= 0) return live;
+  // Into a decision from an open status: this decision's live count, or
+  // nothing at all (null: clear the field), never an earlier decision's.
+  if (DECIDED.has(status) && !DECIDED.has(from)) return Number.isSafeInteger(live) && live >= 0 ? live : null;
   return prev ?? undefined;
+}
+
+/** Apply freezeAtDecision's answer to a record: a count, null to clear, undefined to leave. */
+export function applyFrozen(next, frozen) {
+  if (frozen === null) delete next.endorsements_at_decision;
+  else if (frozen !== undefined) next.endorsements_at_decision = frozen;
+  return next;
 }
 
 /**
  * Every request, for the steward: all statuses, private and pending notes
  * marked; with `counts` (a Map like publicRequests takes), each listed
- * request's live count too.
+ * request's live count too. `rows`, when given, are requestRows(kv) already
+ * read, so a caller that needed them first doesn't read KV twice.
  */
-export async function allRequests(kv, counts) {
-  return (await requestRows(kv))
+export async function allRequests(kv, counts, { rows } = {}) {
+  return (rows || await requestRows(kv))
     .map(([k, r, ids]) => {
       const c = counts?.get(ids.id);
       return { ...adminView(k, r, ids), ...(c ? { endorsements: c.endorsements ?? null, ...(c.as_of ? { endorsements_as_of: c.as_of } : {}) } : {}) };
@@ -511,12 +528,12 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
   // A cleared note clears the public note.
   if (note === '') delete next.steward_note;
   const frozen = freezeAtDecision(cur, status, live);
-  if (frozen) next.endorsements_at_decision = frozen;
+  applyFrozen(next, frozen);
   // The decision first: if the record write is lost to a stale raise, reads
   // still see this decision.
   await kv.put(decisionKey(key), JSON.stringify(decisionOf(next)));
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, undefined, ids), ...(frozen !== undefined ? { endorsements_at_decision: frozenCount(frozen) } : {}) };
+  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, undefined, ids), ...(frozen !== undefined && frozen !== null ? { endorsements_at_decision: frozenCount(frozen) } : {}) };
 }
 
 const NOTE_ID = /^[0-9a-z-]{1,24}$/;

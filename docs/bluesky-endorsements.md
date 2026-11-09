@@ -266,6 +266,15 @@ deactivation and deletion.
 - **Switching instances:** `CONSTELLATION_URL` (a bare https origin) points
   at a self-hosted instance (D11: the public one for now, default, pending
   Jason).
+- **KV operations:** reading the request pool costs one KV list per 1,000
+  keys and four gets per request (record, tombstone, decision, id). A Worker
+  invocation may make at most 1,000 operations to bindings, KV reads
+  included (https://developers.cloudflare.com/kv/platform/limits/, checked
+  2026-11-09: "Operations/Worker invocation: 1000" on Free and Paid), so the
+  public list, the admin list and the endorser route's list check fail past
+  about 249 requests of all statuses. The pool is far smaller today; before
+  it nears that, switch `requestRows` to KV's bulk get (100 keys count as
+  one operation).
 - **Subrequests:** a counted list costs N Constellation calls, at most once a
   minute per location. Workers Paid allows far more subrequests per
   invocation than Siren's list will reach; recheck the current number in
@@ -294,9 +303,19 @@ list only (accepted or fulfilled); anything else is a 404. It answers
    page of `listRecords` for records other tools wrote under another key. An
    account whose record isn't there is dropped from the page and counted in
    `dropped` ("index out of date"). The record's `createdAt` is the day
-   shown. About 50 subrequests a page.
-4. Cached five minutes per (id, cursor); behind `BSKY_VISITOR_RL` per visitor
-   and the site breaker (key `endorsers`) before any outbound call.
+   shown.
+4. **A budget per page.** The hosts are the endorsers' own choice, so one
+   page may make at most `PAGE_BUDGET` (60) outbound requests on a cache
+   miss, Constellation and the AppView included, and verification stops at a
+   10-second deadline. Each DID is charged to the site breaker (key
+   `verify`) before anything is fetched for it. DIDs left unchecked are
+   dropped from the page and counted (`dropped`, and `unchecked` for those
+   not checked at all). A DID whose PDS can't be found is remembered for
+   five minutes, so it isn't looked up on every page.
+5. Cached five minutes per (id, cursor); behind `BSKY_VISITOR_RL` per visitor
+   and the site breaker (key `endorsers`) before any outbound call. The
+   route takes cursors of at most 64 URL-safe characters, since each is its
+   own cache key.
 
 Constellation's order (newest first) is kept. There is no search, sort or
 filter by person, no route that takes a DID or handle, and no "endorsements
@@ -378,6 +397,18 @@ with no inline script, style or handler. `connect-src https:` is needed
 because the browser talks to whatever PDS each person uses. The root site is
 static today; anything that adds third-party script to it widens this.
 
+**Siren's own chat page is the nearer risk.** The chat page (`worker/ui.html`,
+served at `<base>/`) is on the same origin, renders model output, and has no
+strict CSP (it carries none today). A script that got onto that page, through
+a rendering bug or injected output, would run on the same origin as the
+endorsing pages and could read the endorsement session from IndexedDB and use
+the token. The narrow scope limits it to creating or deleting that person's
+Siren endorsements while the token lives; it can't post, follow or touch
+anything else in their account. **Recommendation, before the flag goes on:**
+move the endorsing pages to their own subdomain (below), or give `ui.html` a
+strict CSP like the requests pages' (its inline script moved out, as was done
+here).
+
 **What a subdomain would buy.** Moving the endorsing pages to their own
 origin, such as `siren.jason-edelman.org`, would give the session its own
 IndexedDB and its own `'self'`, so nothing on the root site could reach the
@@ -455,7 +486,7 @@ so dropped rows stay restorable that long.
 | Constellation miscounting (missed events, a stale index) | Counts are distinct accounts; endorser pages verify each record on its own PDS and drop stale ones | Counts themselves aren't verified; only listed pages are |
 | A server that doesn't grant the narrow scope | The granted scope is checked; the token is revoked; a plain message | Its users can't endorse unless Jason allows `transition:generic` (D3) |
 | A PDS or AS without CORS | A plain message; the resolver fallback covers handle lookup | Some self-hosted users can't endorse from the web page |
-| Token theft by XSS, or by another script on the shared origin | The CSP, no inline script, the narrow scope, a non-extractable key, a 24 h cap, sign out revokes | While the token lives, an attacker can create or delete that person's Siren endorsements; a subdomain removes the shared-origin part (D4) |
+| Token theft by XSS, or by another script on the shared origin (the chat page, `ui.html`, renders model output with no strict CSP) | The CSP, no inline script, the narrow scope, a non-extractable key, a 24 h cap, sign out revokes | While the token lives, an attacker can create or delete that person's Siren endorsements; a subdomain removes the shared-origin part (D4) |
 | Sybil and bot endorsing | A public list with flags; counts break ties only | Many established accounts held by one person still count, and everyone can see them |
 | Harassment of endorsers, now that handles are listed | That's the point of public-first, and the copy says so plainly before sign-in. Jason accepted this risk (2026-11-09): "I'm counting on Bluesky's T&S team, because it beats publishing people's emails." Flags and the steward's ability to decline a request are the only extra mechanisms | Endorsing is a public act |
 | Records for unlisted ids, or crafted fields | Only listed ids are queried; record text isn't displayed; dates parsed and bounded | |

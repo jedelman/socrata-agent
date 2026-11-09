@@ -127,8 +127,33 @@ test('freezeAtDecision: the live count on the way into a decision, the earlier v
   assert.equal(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: 1 }, 'accepted', 5), 1);
   assert.deepEqual(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'accepted', 5), { n: 1, young: 0, unknown: 0 }, 'a legacy frozen value is kept as stored');
   assert.equal(freezeAtDecision({ status: 'accepted' }, 'accepted', 5), undefined);
-  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), undefined, 'nothing to freeze without a count (Constellation down)');
-  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', -1), undefined);
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), null, 'no count (Constellation down): clear, never keep an old one');
+  assert.equal(freezeAtDecision({ status: 'accepted', endorsements_at_decision: 5 }, 'fulfilled', undefined), null);
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', -1), null);
+});
+
+test('a frozen count is this decision\'s: fulfil at 5, reopen, fulfil at 0 shows 0; re-deciding with no count leaves none', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Frozen source' }, kv, visitor: 'v' });
+  const id = await currentId(kv, 'Frozen source');
+  const rec = async () => JSON.parse(kv.store.get(await requestKey('Frozen source')));
+  const by = 'https://github.com/o/r/pull/1';
+  assert.ok((await decide(kv, { id, status: 'accepted' })).ok);
+  const first = await decide(kv, { id, status: 'fulfilled', fulfilled_by: by }, Date.now(), { live: 5 });
+  assert.equal(first.endorsements_at_decision, 5);
+  assert.ok((await decide(kv, { id, status: 'accepted' })).ok);
+  assert.equal((await rec()).endorsements_at_decision, 5, 'reopened: the steward still sees the earlier count');
+  const again = await decide(kv, { id, status: 'fulfilled', fulfilled_by: by }, Date.now(), { live: 0 });
+  assert.equal(again.endorsements_at_decision, 0);
+  assert.equal((await rec()).endorsements_at_decision, 0, 'a frozen 0 is kept');
+  const [listed] = (await publicRequests(kv, Date.now(), { counts: new Map([[id, { endorsements: 2 }]]) })).requests;
+  assert.equal(listed.endorsements_at_decision, 0);
+  assert.ok((await decide(kv, { id, status: 'accepted' })).ok);
+  const down = await decide(kv, { id, status: 'declined' }, Date.now(), { live: undefined });
+  assert.equal(down.endorsements_at_decision, undefined);
+  assert.equal('endorsements_at_decision' in (await rec()), false, 'no stale count survives a decision made without one');
+  const decision = JSON.parse(kv.store.get((await requestKey('Frozen source')).replace(/^request:/, 'request-decision:')));
+  assert.equal('endorsements_at_decision' in decision, false, 'nor in the decision key');
 });
 
 // --- Inc 1: notes reviewed whatever the status, days not times, the count

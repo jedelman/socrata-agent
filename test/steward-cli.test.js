@@ -167,3 +167,17 @@ test('endorsements <id> prints the live count and the public list link', { skip:
   assert.match(out.out, new RegExp(`${RANDOM_ID}\\s+7\\s+Test source`));
   assert.match(out.out, new RegExp(`https://jason-edelman.org/ask-siren/requests/${RANDOM_ID}`));
 });
+
+test('a re-decision with Constellation down leaves no stale frozen count; a frozen 0 is written', { skip: SKIP }, async (t) => {
+  const s = await setup(t, flagOn(BASE_TOML), { STUB_FETCH: 'down' });
+  // An earlier decision's count, from before a reopen.
+  const store = JSON.parse(readFileSync(join(s.dir, 'store.json'), 'utf8'));
+  const key = Object.keys(store).find((k) => k.startsWith('request:'));
+  store[key] = JSON.stringify({ ...JSON.parse(store[key]), endorsements_at_decision: 5 });
+  writeFileSync(join(s.dir, 'store.json'), JSON.stringify(store));
+  assert.equal(s.run('request-decline', s.id).code, 0);
+  assert.equal('endorsements_at_decision' in s.record(), false);
+  const zero = await setup(t, flagOn(BASE_TOML), { STUB_FETCH: 'ok:0' });
+  assert.equal(zero.run('request-decline', zero.id).code, 0);
+  assert.equal(zero.record().endorsements_at_decision, 0);
+});

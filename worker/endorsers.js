@@ -31,8 +31,20 @@ export const APPVIEW_DEFAULT = 'https://public.api.bsky.app';
 export const PAGE = 25; // getProfiles takes at most 25 actors
 export const PAGE_SECONDS = 300;
 export const PDS_SECONDS = 3600;
+/** A DID whose PDS couldn't be found is remembered this long, so it isn't looked up on every page. */
+export const NO_PDS_SECONDS = 300;
+/**
+ * Outbound requests one page may make on a cache miss: Constellation and
+ * the AppView, then each DID's document, getRecord and listRecords. Hosts
+ * are the endorsers' own choice, so this caps what one view can make Siren
+ * fetch. DIDs left unchecked when it runs out (or past the deadline) are
+ * dropped from the page and counted.
+ */
+export const PAGE_BUDGET = 60;
+export const VERIFY_DEADLINE_MS = 10000;
 const VERIFY_CONCURRENCY = 6;
 const MAX_LABELS = 100;
+const MAX_ROUTE_CURSOR = 64;
 
 export class EndorsersError extends Error {
   constructor(code) {
@@ -132,13 +144,36 @@ export function flagsFor(did, profile, { now = Date.now(), young = 30 } = {}) {
 
 const defaultCache = () => (typeof caches !== 'undefined' && caches?.default ? caches.default : null);
 
-/** DID -> its PDS origin, from its DID document (cached an hour), or null. */
-async function pdsFor(did, { env, fetchImpl, cache, cacheBase }) {
+/**
+ * A fetch that spends from a page's budget: past it, or past the deadline,
+ * it refuses without calling out, and marks the budget as hit.
+ */
+export function budgetedFetch(fetchImpl, budget, signal) {
+  return (url, init = {}) => {
+    if (budget.left <= 0 || signal?.aborted) {
+      budget.hit = true;
+      return Promise.reject(new EndorsersError('budget'));
+    }
+    budget.left--;
+    return fetchImpl(url, signal ? { ...init, signal: init.signal ? AbortSignal.any([init.signal, signal]) : signal } : init);
+  };
+}
+
+const NO_PDS = 'none';
+const spent = (budget, signal) => Boolean(budget?.hit || signal?.aborted);
+
+/**
+ * DID -> its PDS origin, from its DID document (cached an hour), or null
+ * when it has none (remembered NO_PDS_SECONDS). Throws EndorsersError('budget')
+ * when the page's budget or deadline ran out first, which is never cached.
+ */
+async function pdsFor(did, { env, fetchImpl, cache, cacheBase, budget, signal }) {
   const key = cache ? new Request(`${cacheBase}/__cache/did-pds-v1/${encodeURIComponent(did)}`) : null;
   if (cache) {
     try {
       const hit = await cache.match(key);
       const v = hit ? await hit.text() : null;
+      if (v === NO_PDS) return null;
       if (v && safeUrl(v)) return v;
     } catch {
       // miss
@@ -148,19 +183,28 @@ async function pdsFor(did, { env, fetchImpl, cache, cacheBase }) {
   try {
     pds = docPds(await resolveDidDoc(did, { fetchImpl, plcUrl: env.PLC_URL || 'https://plc.directory' }));
   } catch {
+    if (spent(budget, signal)) throw new EndorsersError('budget');
     pds = null;
   }
-  if (pds && cache) await cache.put(key, new Response(pds, { headers: { 'Cache-Control': `public, max-age=${PDS_SECONDS}` } })).catch(() => {});
+  if (cache) {
+    await cache.put(key, new Response(pds || NO_PDS, { headers: { 'Cache-Control': `public, max-age=${pds ? PDS_SECONDS : NO_PDS_SECONDS}` } })).catch(() => {});
+  }
   return pds;
 }
 
 /**
  * Whether this account's own PDS holds an endorsement of `subject`: the
  * record under rkey = the request id first, then one page of listRecords
- * (records another tool wrote under another key). -> { found, day }.
+ * (records another tool wrote under another key). -> { found, day,
+ * unchecked? } (unchecked: the page's budget or deadline ran out first).
  */
-export async function verifyEndorser(did, { env, subject, id, fetchImpl = fetch, cache = null, cacheBase = '' }) {
-  const pds = await pdsFor(did, { env, fetchImpl, cache, cacheBase });
+export async function verifyEndorser(did, { env, subject, id, fetchImpl = fetch, cache = null, cacheBase = '', budget, signal }) {
+  let pds;
+  try {
+    pds = await pdsFor(did, { env, fetchImpl, cache, cacheBase, budget, signal });
+  } catch {
+    return { found: false, day: null, unchecked: true };
+  }
   if (!pds) return { found: false, day: null };
   const q = (method, params) => {
     const u = new URL(`/xrpc/com.atproto.repo.${method}`, pds);
@@ -183,7 +227,7 @@ export async function verifyEndorser(did, { env, subject, id, fetchImpl = fetch,
   } catch {
     // not found
   }
-  return { found: false, day: null };
+  return { found: false, day: null, ...(spent(budget, signal) ? { unchecked: true } : {}) };
 }
 
 /**
@@ -191,25 +235,37 @@ export async function verifyEndorser(did, { env, subject, id, fetchImpl = fetch,
  * dropped, as_of }. Throws EndorsersError('unavailable') when Constellation
  * or the AppView can't answer.
  */
-export async function endorserPage(env, id, { base = '', cursor, fetchImpl = fetch, cache = null, cacheBase = '', now = Date.now() } = {}) {
+export async function endorserPage(env, id, { base = '', cursor, fetchImpl = fetch, cache = null, cacheBase = '', now = Date.now(), budgetSize = PAGE_BUDGET, deadlineMs = VERIFY_DEADLINE_MS } = {}) {
   const po = publicOrigin(env);
   const subject = po && endorseSubject(po.origin, base, id);
   if (!subject) throw new EndorsersError('unavailable');
   const ua = userAgent(`${po.origin}${base}/`);
+  const budget = { left: budgetSize, hit: false };
+  const counted = budgetedFetch(fetchImpl, budget, null);
   let page;
   try {
-    page = await backlinkDids({ origin: constellationOrigin(env), subject, limit: PAGE, cursor, fetchImpl, ua });
+    page = await backlinkDids({ origin: constellationOrigin(env), subject, limit: PAGE, cursor, fetchImpl: counted, ua });
   } catch {
     throw new EndorsersError('unavailable');
   }
-  const profiles = await getProfiles(page.dids, { origin: appviewOrigin(env), fetchImpl, ua });
+  const profiles = await getProfiles(page.dids, { origin: appviewOrigin(env), fetchImpl: counted, ua });
   const young = youngDays(env);
-  const checked = await mapLimit(page.dids, VERIFY_CONCURRENCY, (did) => verifyEndorser(did, { env, subject, id, fetchImpl, cache, cacheBase }));
+  // Verification: within the page's budget and one deadline, each DID
+  // charged to the site-wide breaker before anything is fetched for it.
+  const deadline = AbortSignal.timeout(deadlineMs);
+  const vFetch = budgetedFetch(fetchImpl, budget, deadline);
+  const checked = await mapLimit(page.dids, VERIFY_CONCURRENCY, async (did) => {
+    if (budget.left <= 0 || deadline.aborted) return { found: false, day: null, unchecked: true };
+    if (!(await allowed(env.BSKY_SITE_RL, 'verify'))) return { found: false, day: null, unchecked: true };
+    return verifyEndorser(did, { env, subject, id, fetchImpl: vFetch, cache, cacheBase, budget, signal: deadline });
+  });
   const endorsers = [];
   let dropped = 0;
+  let unchecked = 0;
   page.dids.forEach((did, i) => {
     if (!checked[i].found) {
       dropped++;
+      if (checked[i].unchecked) unchecked++;
       return;
     }
     const p = profiles.get(did);
@@ -221,7 +277,7 @@ export async function endorserPage(env, id, { base = '', cursor, fetchImpl = fet
       flags: flagsFor(did, p, { now, young }),
     });
   });
-  return { endorsers, total: page.total, cursor: page.cursor, dropped, as_of: new Date(now).toISOString().slice(0, 16) + 'Z' };
+  return { endorsers, total: page.total, cursor: page.cursor, dropped, unchecked, as_of: new Date(now).toISOString().slice(0, 16) + 'Z' };
 }
 
 async function allowed(limiter, key) {
@@ -247,7 +303,8 @@ export async function handleEndorsers(req, env, ctx, base, id, deps = {}) {
   if (!blueskyReady(env)) return new Response('Not found', { status: 404 });
   if (typeof id !== 'string' || !PUBLIC_ID_RE.test(id)) return fail('not_found', 404);
   const cursor = new URL(req.url).searchParams.get('cursor');
-  if (cursor !== null && !validCursor(cursor)) return fail('bad_cursor', 400);
+  // Each cursor is its own cache key, so the route takes only short ones.
+  if (cursor !== null && (!validCursor(cursor) || cursor.length > MAX_ROUTE_CURSOR)) return fail('bad_cursor', 400);
   const visitor = await hmacHex(env.IP_SALT, `bsky-list:${visitorId(req.headers.get('CF-Connecting-IP'))}`, 32);
   if (!(await allowed(env.BSKY_VISITOR_RL, `list:${visitor}`))) return fail('busy', 429);
   const cache = deps.cache !== undefined ? deps.cache : defaultCache();

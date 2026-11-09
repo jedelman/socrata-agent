@@ -88,3 +88,11 @@ test('admin: the flag off makes no outbound call, listing or deciding', async ()
   assert.equal('endorsements' in listed.body.requests[0], false);
   assert.equal((await call(w, '/api/admin/requests/decide', { id: w.id, status: 'declined' }, { fetchImpl })).status, 200);
 });
+
+test('admin: the list reads the request records once', async () => {
+  const w = await world();
+  const lists = () => w.env.LIMITS.ops.filter((o) => o.op === 'list' && o.prefix === 'request:').length;
+  const before = lists();
+  assert.equal((await call(w, '/api/admin/requests', null, { fetchImpl: fakeNetwork().fetch, cache: null })).status, 200);
+  assert.equal(lists() - before, 1);
+});

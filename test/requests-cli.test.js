@@ -38,7 +38,8 @@ else if (op === 'delete') { delete kv[key]; fs.writeFileSync(file, JSON.stringif
 else if (op === 'list') {
   const p = rest[rest.indexOf('--prefix') + 1];
   if (failList && p === failList) { process.stderr.write('✘ [ERROR] A request to the Cloudflare API failed. [code: 10013]\\n'); process.exit(1); }
-  process.stdout.write(JSON.stringify(Object.keys(kv).filter((k) => k.startsWith(p)).map((name) => ({ name }))));
+  const hide = process.env.FAKE_HIDE_PREFIX;
+  process.stdout.write(JSON.stringify(Object.keys(kv).filter((k) => k.startsWith(p) && !(hide && k.startsWith(hide))).map((name) => ({ name }))));
 }
 else process.exit(2);
 `;
@@ -260,6 +261,22 @@ test('request-ids: a dry run by default; --apply gives each legacy request a ran
     const old = w.run(['request-accept', publicId(pub)]);
     assert.notEqual(old.code, 0);
     assert.match(old.stderr, /now has the id/);
+  } finally {
+    w.done();
+  }
+});
+
+test('request-ids reads each id key directly: a listing that lags never mints a second id', { skip }, async () => {
+  const key = await requestKey('Lagging source');
+  const store = { [key]: JSON.stringify({ source: 'Lagging source', count: 1, status: 'accepted', needs: [] }), [idKey(key)]: JSON.stringify({ id: 'abcdefghijklmnop' }) };
+  const w = world(store);
+  try {
+    // The listing of request-id: comes back empty, as a stale listing would.
+    const out = w.run(['request-ids', '--apply'], { FAKE_HIDE_PREFIX: 'request-id:' });
+    assert.equal(out.code, 0, out.stderr);
+    assert.match(out.stderr, /already has a random id/);
+    assert.equal(JSON.parse(w.read()[idKey(key)]).id, 'abcdefghijklmnop');
+    assert.equal(Object.keys(w.read()).filter((k) => k.startsWith('request-pid:')).length, 0);
   } finally {
     w.done();
   }

@@ -103,6 +103,9 @@ id = "d4dfe5ca9b814268a1a1abe052287959"
 # planned public board (D9, default, pending Jason).
 # Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
+# That command applies every pending migration, so the next one applied also
+# applies 0003 and drops the old tables: check they're empty first
+# (docs/bluesky-endorsements.md, Rollout, step 5).
 [[env.siren.d1_databases]]
 binding = "SIREN_DB"
 database_name = "siren"

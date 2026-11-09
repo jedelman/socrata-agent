@@ -16,6 +16,7 @@ test('wrangler.toml: the flag off, three limiters, no cron, SIREN_DB still bound
   for (const gone of ['BSKY_ACCOUNT_RL', 'BSKY_D1_RL', 'crons', '[env.siren.triggers]']) assert.ok(!toml.includes(gone), gone);
   for (const kept of ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_SITE_RL']) assert.match(toml, new RegExp(`name = "${kept}"`));
   assert.match(toml, /binding = "SIREN_DB"/);
+  assert.match(toml, /next one applied also\n# applies 0003/, 'applying any later migration applies 0003 too');
   assert.match(read('worker/index.js'), /export default \{\n  async fetch/, 'no scheduled handler');
 });
 
@@ -43,6 +44,9 @@ test('the doc\'s rollout names commands that exist, in order', () => {
   assert.match(read('scripts/bsky-probe.js'), /legacy ids/);
   assert.match(doc, /did=did:plc:zz4wcje4a2nbbtc7pdoth3f2/);
   assert.match(doc, /_lexicon\.siren\.jason-edelman\.org/);
+  // The chat page shares the origin without a strict CSP: the doc says so, and what to do first.
+  assert.match(doc, /`worker\/ui\.html`[\s\S]{0,200}no\s+strict CSP/);
+  assert.match(doc, /Recommendation, before the flag goes on:/);
 });
 
 test('every decision built as a default is marked pending Jason, in the doc and in code', () => {

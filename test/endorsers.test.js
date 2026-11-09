@@ -193,3 +193,86 @@ test('Constellation or the AppView down: a 503 that says so, never an empty list
   w2.net.state.constellationDown = true;
   assert.equal((await get(w2, w2.ids.open)).status, 503);
 });
+
+import { endorserPage, PAGE_BUDGET } from '../worker/endorsers.js';
+
+test('a page makes at most PAGE_BUDGET outbound requests; the rest are dropped as unchecked', async () => {
+  const w = await world();
+  // 25 endorsers whose records sit under another key: each needs its DID
+  // document, a getRecord miss and a listRecords, so 2 + 75 would be needed.
+  for (let i = 0; i < 25; i++) {
+    const d = `did:plc:${'abcdefghijklmnopqrstuvwxyz'[i]}${'r'.repeat(23)}`;
+    w.endorse(d, { rkey: '3kother', record: buildEndorsement({ subject: w.subject, id: w.ids.open }) });
+  }
+  const before = w.net.calls.length;
+  const page = await endorserPage(w.env, w.ids.open, { base: BASE, fetchImpl: w.net.fetch, now: NOW });
+  const made = w.net.calls.length - before;
+  assert.ok(made <= PAGE_BUDGET, `${made} outbound requests`);
+  assert.equal(page.endorsers.length + page.dropped, 25);
+  assert.ok(page.unchecked > 0 && page.unchecked === page.dropped, 'leftover DIDs reported as dropped');
+});
+
+test('each DID is charged to the site breaker; a refused one is dropped unchecked, with nothing fetched for it', async () => {
+  const w = await world();
+  w.endorse(did('a'));
+  w.endorse(did('b'));
+  const counts = new Map();
+  w.env.BSKY_SITE_RL = { async limit({ key }) { counts.set(key, (counts.get(key) || 0) + 1); return { success: key !== 'verify' || counts.get(key) <= 1 }; } };
+  const page = await endorserPage(w.env, w.ids.open, { base: BASE, fetchImpl: w.net.fetch, now: NOW });
+  assert.equal(counts.get('verify'), 2);
+  assert.equal(page.endorsers.length, 1);
+  assert.equal(page.unchecked, 1);
+});
+
+test('a DID with no findable PDS is remembered briefly; a budget miss is never remembered', async () => {
+  const w = await world();
+  w.net.state.backlinks.set(w.subject, [did('n')]); // no DID document anywhere
+  const cache = fakeCache();
+  await endorserPage(w.env, w.ids.open, { base: BASE, fetchImpl: w.net.fetch, cache, cacheBase: `${ORIGIN}${BASE}`, now: NOW });
+  const hit = await cache.match(new Request(`${ORIGIN}${BASE}/__cache/did-pds-v1/${encodeURIComponent(did('n'))}`));
+  assert.equal(await hit.text(), 'none');
+  assert.equal(hit.headers.get('Cache-Control'), 'public, max-age=300');
+  const before = w.net.calls.filter((c) => c.url.includes(did('n'))).length;
+  await endorserPage(w.env, w.ids.open, { base: BASE, fetchImpl: w.net.fetch, cache, cacheBase: `${ORIGIN}${BASE}`, now: NOW });
+  assert.equal(w.net.calls.filter((c) => c.url.includes(did('n'))).length, before, 'not looked up again');
+  // Out of budget before the lookup: nothing cached for that DID.
+  const w2 = await world();
+  w2.endorse(did('m'));
+  const cache2 = fakeCache();
+  const page = await endorserPage(w2.env, w2.ids.open, { base: BASE, fetchImpl: w2.net.fetch, cache: cache2, cacheBase: `${ORIGIN}${BASE}`, now: NOW, budgetSize: 2 });
+  assert.equal(page.unchecked, 1);
+  assert.equal(await cache2.match(new Request(`${ORIGIN}${BASE}/__cache/did-pds-v1/${encodeURIComponent(did('m'))}`)), undefined);
+});
+
+test('verification stops at its deadline: a PDS that never answers can\'t hold the page', async () => {
+  const w = await world();
+  w.endorse(did('a'));
+  w.net.routes['pds.fixture.dev/xrpc/com.atproto.repo.getRecord'] = (u, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+  w.net.routes['pds.fixture.dev/xrpc/com.atproto.repo.listRecords'] = w.net.routes['pds.fixture.dev/xrpc/com.atproto.repo.getRecord'];
+  const keep = setTimeout(() => {}, 5000);
+  const t = Date.now();
+  const page = await endorserPage(w.env, w.ids.open, { base: BASE, fetchImpl: w.net.fetch, now: NOW, deadlineMs: 300 }).finally(() => clearTimeout(keep));
+  assert.ok(Date.now() - t < 2000);
+  assert.equal(page.dropped, 1);
+  assert.equal(page.unchecked, 1);
+});
+
+test('the route takes only short cursors', async () => {
+  const w = await world();
+  w.endorse(did('a'));
+  assert.equal((await get(w, w.ids.open, `?cursor=${'a'.repeat(65)}`)).status, 400);
+  assert.equal((await get(w, w.ids.open, `?cursor=${'1'.repeat(10)}`)).status, 200);
+});
+
+test('a DID-document lookup cut off by the deadline is unchecked, and not remembered as "no PDS"', async () => {
+  const w = await world();
+  w.endorse(did('h'));
+  const hang = (u, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason)));
+  w.net.state.didDocs.delete(did('h'));
+  w.net.routes[`plc.fixture.dev/${did('h')}`] = hang;
+  const cache = fakeCache();
+  const keep = setTimeout(() => {}, 5000);
+  const page = await endorserPage(w.env, w.ids.open, { base: BASE, fetchImpl: w.net.fetch, cache, cacheBase: `${ORIGIN}${BASE}`, now: NOW, deadlineMs: 200 }).finally(() => clearTimeout(keep));
+  assert.equal(page.unchecked, 1);
+  assert.equal(await cache.match(new Request(`${ORIGIN}${BASE}/__cache/did-pds-v1/${encodeURIComponent(did('h'))}`)), undefined);
+});

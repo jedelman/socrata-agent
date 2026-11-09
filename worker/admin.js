@@ -49,12 +49,14 @@ export async function handleAdmin(req, env, path, ctx, deps = {}) {
   if (req.method === 'GET' && path === '/api/admin/requests') {
     // Live counts for listed requests, read like the public list's (the
     // same breaker and last-good fallback); none with the flag off.
+    // The records are read once, for the counts and the list both.
+    const rows = await requestRows(kv);
     let counts;
     if (on) {
-      const listed = (await requestRows(kv)).filter(([, r]) => r.status === 'accepted' || r.status === 'fulfilled').map(([, , ids]) => ids.id);
+      const listed = rows.filter(([, r]) => r.status === 'accepted' || r.status === 'fulfilled').map(([, , ids]) => ids.id);
       counts = await liveCounts(env, listed, { base: basePath(env), origin: new URL(req.url).origin, fetchImpl, ...(deps.cache !== undefined ? { cache: deps.cache } : {}), ctx });
     }
-    return json({ requests: await allRequests(kv, counts), bluesky: on }, 200, headers);
+    return json({ requests: await allRequests(kv, counts, { rows }), bluesky: on }, 200, headers);
   }
   // Defense in depth over JSON-only and SameSite: a steward POST that names
   // an Origin must name this site.

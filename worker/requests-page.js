@@ -58,7 +58,7 @@ export function endorsersHtml(page, { first = true } = {}) {
     const flags = (Array.isArray(e.flags) ? e.flags : []).map((f) => `<span class="flag" title="${esc(f.reason)}">${esc(f.reason)}</span>`).join('');
     return `<li><a href="${profile}" target="_blank" rel="noopener">${who}</a>${name}${day}${flags}</li>`;
   }).join('');
-  const dropped = Number(page.dropped) > 0 ? `<p class="small">${plural(Number(page.dropped), 'listed account')} left out: the endorsement wasn't found on the account's own server (the index is out of date).</p>` : '';
+  const dropped = Number(page.dropped) > 0 ? `<p class="small">${plural(Number(page.dropped), 'listed account')} left out: the endorsement wasn't found on the account's own server (the index is out of date), or couldn't be checked just now.</p>` : '';
   const more = page.cursor ? `<button type="button" class="link" data-more="${esc(page.cursor)}">more</button>` : '';
   return `${head}<ul>${items}</ul>${dropped}${more}`;
 }
