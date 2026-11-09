@@ -179,7 +179,11 @@ $('#list').addEventListener('submit', async (e) => {
     const r = all.find((x) => x.id === li.dataset.id);
     Object.assign(r, { status: data.request.status, steward_note: data.request.steward_note, fulfilled_by: data.request.fulfilled_by });
     // A decision freezes the count; reload for the new numbers.
-    if (status === 'declined' || status === 'fulfilled') { await load(); return; }
+    if (status === 'declined' || status === 'fulfilled') {
+      await load();
+      if (data.warning) alert(data.warning);
+      return;
+    }
     render();
   } catch { msg.textContent = "Couldn't reach the server."; }
 });

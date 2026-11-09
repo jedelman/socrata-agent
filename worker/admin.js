@@ -7,10 +7,14 @@
 // live count into the request; with it off, nothing here calls the network.
 
 import { isAdmin, currentUser } from './accounts.js';
-import { allRequests, decide, reviewNote, isRequestId } from './requests.js';
+import { allRequests, decide, reviewNote, isRequestId, requestRows, PUBLIC_ID_RE } from './requests.js';
 import { publicOrigin } from './atproto-oauth.js';
-import { purgePublicList } from './public-list.js';
+import { purgePublicList, liveCounts } from './public-list.js';
 import { blueskyReady } from './bluesky.js';
+import { constellationOrigin, countEndorsers, userAgent } from './constellation.js';
+import { endorseSubject } from './endorse-config.js';
+
+const DECIDED = new Set(['declined', 'fulfilled']);
 
 const json = (body, status = 200, headers = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers } });
@@ -40,8 +44,17 @@ export async function handleAdmin(req, env, path, ctx, deps = {}) {
   const kv = env.LIMITS;
   const later = (p) => (ctx?.waitUntil ? ctx.waitUntil(p) : p);
   const purge = () => later(purgePublicList({ origin: new URL(req.url).origin, base: basePath(env), ...(deps.cache !== undefined ? { cache: deps.cache } : {}) }));
+  const on = blueskyReady(env);
+  const fetchImpl = deps.fetchImpl || fetch;
   if (req.method === 'GET' && path === '/api/admin/requests') {
-    return json({ requests: await allRequests(kv), bluesky: blueskyReady(env) }, 200, headers);
+    // Live counts for listed requests, read like the public list's (the
+    // same breaker and last-good fallback); none with the flag off.
+    let counts;
+    if (on) {
+      const listed = (await requestRows(kv)).filter(([, r]) => r.status === 'accepted' || r.status === 'fulfilled').map(([, , ids]) => ids.id);
+      counts = await liveCounts(env, listed, { base: basePath(env), origin: new URL(req.url).origin, fetchImpl, ...(deps.cache !== undefined ? { cache: deps.cache } : {}), ctx });
+    }
+    return json({ requests: await allRequests(kv, counts), bluesky: on }, 200, headers);
   }
   // Defense in depth over JSON-only and SameSite: a steward POST that names
   // an Origin must name this site.
@@ -52,10 +65,23 @@ export async function handleAdmin(req, env, path, ctx, deps = {}) {
   if (req.method === 'POST' && path === '/api/admin/requests/decide') {
     const body = (await readJson(req)) || {};
     if (!isRequestId(body.id)) return json({ error: 'Give the request id.' }, 400, headers);
-    const out = await decide(kv, body, Date.now());
+    // With endorsements on, a decline or fulfil freezes the live count. If
+    // Constellation can't answer, the decision still goes through, with no
+    // frozen count, and says so (D10, default, pending Jason).
+    let live;
+    let unfrozen = false;
+    if (on && DECIDED.has(body.status) && PUBLIC_ID_RE.test(body.id)) {
+      try {
+        const pub = publicOrigin(env).origin;
+        live = await countEndorsers({ origin: constellationOrigin(env), subject: endorseSubject(pub, basePath(env), body.id), fetchImpl, ua: userAgent(`${pub}${basePath(env)}/`) });
+      } catch {
+        unfrozen = true;
+      }
+    }
+    const out = await decide(kv, body, Date.now(), { live });
     if (!out.ok) return json({ error: out.error }, out.status, headers);
     purge();
-    return json(out, 200, headers);
+    return json({ ...out, ...(unfrozen ? { endorsements_frozen: false, warning: "Decided. The endorsement count couldn't be read just now, so none was frozen into the decision." } : {}) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/admin/requests/note') {
     const out = await reviewNote(kv, (await readJson(req)) || {});

@@ -45,3 +45,46 @@ test('admin: there is no clear route; endorsements are their authors\' records',
   const w = await world();
   assert.equal((await call(w, '/api/admin/requests/endorsements/clear', { id: w.id })).status, 404);
 });
+
+import { fakeNetwork, fakeCache } from './fake-atproto.js';
+import { endorseSubject } from '../worker/endorse-config.js';
+
+const DIDS = ['did:plc:aaaaaaaaaaaaaaaaaaaaaaaa', 'did:plc:bbbbbbbbbbbbbbbbbbbbbbbb'];
+
+test('admin: a decision freezes the live Constellation count into the request', async () => {
+  const w = await world();
+  const net = fakeNetwork();
+  net.state.backlinks.set(endorseSubject(ORIGIN, '/ask-siren', w.id), DIDS);
+  const listed = await call(w, '/api/admin/requests', null, { fetchImpl: net.fetch, cache: fakeCache() });
+  assert.equal(listed.body.requests.find((r) => r.id === w.id).endorsements, 2);
+  const out = await call(w, '/api/admin/requests/decide', { id: w.id, status: 'declined' }, { fetchImpl: net.fetch, cache: null });
+  assert.equal(out.status, 200, JSON.stringify(out.body));
+  assert.equal(out.body.endorsements_at_decision, 2);
+  assert.equal((await record(w)).endorsements_at_decision, 2);
+  assert.equal(out.body.warning, undefined);
+});
+
+test('admin: Constellation down, the decision still goes through, unfrozen, and says so (D10)', async () => {
+  const w = await world();
+  const net = fakeNetwork();
+  net.state.constellationDown = true;
+  const out = await call(w, '/api/admin/requests/decide', { id: w.id, status: 'fulfilled', fulfilled_by: 'https://github.com/o/r/pull/1' }, { fetchImpl: net.fetch, cache: null });
+  assert.equal(out.status, 200);
+  assert.equal(out.body.endorsements_frozen, false);
+  assert.match(out.body.warning, /couldn't be read/);
+  const rec = await record(w);
+  assert.equal(rec.status, 'fulfilled');
+  assert.equal(rec.endorsements_at_decision, undefined);
+  // Accepting needs no count at all.
+  const calls = net.calls.length;
+  assert.equal((await call(w, '/api/admin/requests/decide', { id: w.id, status: 'accepted' }, { fetchImpl: net.fetch, cache: null })).status, 200);
+  assert.equal(net.calls.length, calls);
+});
+
+test('admin: the flag off makes no outbound call, listing or deciding', async () => {
+  const w = await world({ BLUESKY_LOGIN: undefined });
+  const fetchImpl = async () => { throw new Error('no network with the flag off'); };
+  const listed = await call(w, '/api/admin/requests', null, { fetchImpl });
+  assert.equal('endorsements' in listed.body.requests[0], false);
+  assert.equal((await call(w, '/api/admin/requests/decide', { id: w.id, status: 'declined' }, { fetchImpl })).status, 200);
+});

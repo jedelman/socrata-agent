@@ -13,6 +13,7 @@
 //   node scripts/invites.js request-reopen <request id>
 //   node scripts/invites.js request-note <request id> <note id> approve|delete
 //   node scripts/invites.js request-ids [--apply]       (one-time: give every legacy request a random public id)
+//   node scripts/invites.js endorsements <request id>   (the live Bluesky endorsement count, from Constellation)
 //
 // Once a request or note has been synced to GitHub, declining or deleting it
 // doesn't erase it there: the old title stays in the issue's timeline and old
@@ -23,6 +24,16 @@
 // instead of the deployed one), --config <file> (another wrangler config),
 // --dry-run (print the wrangler commands only).
 //
+// Endorsements are records in the endorsers' own Bluesky repos, read through
+// Constellation (docs/bluesky-endorsements.md); nothing here can remove one.
+// With BLUESKY_LOGIN = "true" in the target env (with --local, .dev.vars
+// counts too), request-decline and request-fulfilled freeze the live count
+// into the decision, as the Worker does; if Constellation can't answer, the
+// decision goes through without one and says so. --no-endorsements skips
+// the count. The env's config is read through wrangler's unstable_readConfig
+// and unstable_getVarsForDev; if a wrangler upgrade breaks them, decisions
+// fail before writing anything, and --no-endorsements decides without them.
+//
 // Each browser or device that redeems a code uses one of its --uses (default
 // 3). Codes are stored only as hashes, so a lost code can't be looked up
 // again: revoke it by the hash `list` prints, and make a new one. Keep the
@@ -32,6 +43,9 @@
 import { execFileSync } from 'node:child_process';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
 import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, decisionKey, decisionOf, stewardView, withDeleted, freezeAtDecision, idKey, pidKey, idsOf, newPublicId, PUBLIC_ID_RE } from '../worker/requests.js';
+import { constellationOrigin, countEndorsers, userAgent } from '../worker/constellation.js';
+import { endorseSubject } from '../worker/endorse-config.js';
+import { publicOrigin } from '../worker/atproto-oauth.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -51,6 +65,56 @@ function wrangler(args) {
     return '';
   }
   return execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+}
+
+class ConfigReadError extends Error {
+  constructor(cause) {
+    super(`Couldn't read env "${env}" from the wrangler config (${String(cause?.message || cause).split('\n')[0]}). Nothing was written. `
+      + "If wrangler's config API changed in an upgrade, decide with --no-endorsements.");
+  }
+}
+
+// The target env's vars, from its wrangler config, read with wrangler's own
+// reader so env inheritance and JSON configs work as they do for deploys.
+let envVars;
+async function targetVars() {
+  if (envVars) return envVars;
+  let wranglerApi;
+  try {
+    wranglerApi = await import('wrangler');
+  } catch {
+    throw new Error("Can't read the wrangler config: run `npm install` first (wrangler is a dev dependency).");
+  }
+  try {
+    const { unstable_readConfig: readConfig, unstable_getVarsForDev: varsForDev } = wranglerApi;
+    const config = readConfig({ config: opt('config'), env }, { hideWarnings: true });
+    let vars = config.vars || {};
+    if (where === '--local') {
+      const dev = varsForDev(config.configPath, undefined, vars, env, true);
+      vars = Object.fromEntries(Object.entries(dev).map(([k, v]) => [k, v && typeof v === 'object' && 'value' in v ? v.value : v]));
+    }
+    envVars = vars;
+  } catch (err) {
+    throw new ConfigReadError(err);
+  }
+  return envVars;
+}
+
+// Where the env's endorsements are read: { origin, base, constellation } or
+// null (no valid PUBLIC_ORIGIN, or an unsafe CONSTELLATION_URL).
+function endorseTarget(vars) {
+  const po = publicOrigin(vars);
+  const base = String(vars.BASE_PATH || '').replace(/\/$/, '');
+  const c = constellationOrigin(vars);
+  return po && c ? { origin: po.origin, base, constellation: c } : null;
+}
+
+// The live count for one random id, or throws.
+async function liveCount(vars, id) {
+  const t = endorseTarget(vars);
+  const subject = t && endorseSubject(t.origin, t.base, id);
+  if (!subject) throw new Error(`env "${env}" has no valid PUBLIC_ORIGIN or CONSTELLATION_URL`);
+  return countEndorsers({ origin: t.constellation, subject, ua: userAgent(`${t.origin}${t.base}/`) });
 }
 
 // One request by the id `requests` prints, with the same rules the Worker
@@ -188,16 +252,39 @@ async function main() {
     // request that was public lists it as withdrawn in the feed; its issue is
     // closed by a sync run with --with-withdrawn, or directly with a token
     // (docs/request-sync-routine.md), and until then by hand.
-    const { key, cur } = requestById(argv[1]);
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
+    const decided = status === 'declined' || status === 'fulfilled';
+    // The config first, so a config that can't be read stops before any KV call.
+    const vars = decided && !flag('no-endorsements') ? await targetVars() : null;
+    const { key, cur, ids } = requestById(argv[1]);
     const next = withStatus(cur, status, { steward_note: opt('note', ''), fulfilled_by: cmd === 'request-fulfilled' ? opt('by', '') : '' });
     if (cmd === 'request-fulfilled' && !next.fulfilled_by) throw new Error('Give --by <link to the merged PR or commit>.');
-    const frozen = freezeAtDecision(cur, status, undefined);
+    let live;
+    let note = '';
+    if (vars?.BLUESKY_LOGIN === 'true' && PUBLIC_ID_RE.test(ids.id)) {
+      try {
+        live = await liveCount(vars, ids.id);
+        note = ` ${live} endorsement${live === 1 ? '' : 's'} frozen into the decision.`;
+      } catch (err) {
+        note = ` The endorsement count couldn't be read (${String(err?.code || err?.message || err).slice(0, 80)}), so none was frozen.`;
+      }
+    }
+    const frozen = freezeAtDecision(cur, status, live);
     if (frozen !== undefined) next.endorsements_at_decision = frozen;
     // The decision first, which raises never write, so a stale raise can't undo it.
     wrangler(['put', decisionKey(key), JSON.stringify(decisionOf(next))]);
     wrangler(['put', key, JSON.stringify(next)]);
-    console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.`);
+    console.error(`${cur.source}: ${cur.status || 'new'} -> ${status}.${note}`);
+  } else if (cmd === 'endorsements') {
+    // The live count for one request. Endorsements are their authors'
+    // records: nothing here lists them by person or removes them.
+    const { cur, ids } = requestById(argv[1]);
+    if (!PUBLIC_ID_RE.test(ids.id)) throw new Error('That request still has a legacy id; run `request-ids --apply` first. Endorsements point at random ids only.');
+    const vars = await targetVars();
+    const n = await liveCount(vars, ids.id);
+    const t = endorseTarget(vars);
+    console.log(`${ids.id}  ${String(n).padStart(4)}  ${cur.source}`);
+    console.error(`Who endorsed, with flags: ${t.origin}${t.base}/requests/${ids.id}`);
   } else if (cmd === 'request-note') {
     // Review one note: approve shows it publicly (if written under the public
     // notice) once the request is accepted; delete removes it from storage.
@@ -251,7 +338,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] | endorsements <id>  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

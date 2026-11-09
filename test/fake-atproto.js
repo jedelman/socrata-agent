@@ -3,6 +3,7 @@
 // `fetch` this returns, which routes by host and path.
 
 import { b64url, sha256, enc } from '../worker/crypto.js';
+import { ENDORSE_SOURCE } from '../worker/endorse-config.js';
 
 export const W = {
   DID: 'did:plc:abcdefghijklmnopqrstuvwx',
@@ -16,6 +17,8 @@ export const W = {
   ACCESS: 'at-secret-AAAA1111',
   REFRESH: 'rt-secret-BBBB2222',
   CODE: 'code-secret-CCCC3333',
+  CONSTELLATION: 'https://constellation.fixture.dev',
+  APPVIEW: 'https://appview.fixture.dev',
 };
 
 export const json = (body, status = 200, headers = {}) =>
@@ -75,7 +78,9 @@ export function hang(signal) {
  * it (a 404). A handler gets (url: URL, init, net) and returns a Response.
  */
 export function fakeNetwork(overrides = {}) {
-  const state = { par: [], tokens: [], revokes: [], issued: 0, codesUsed: new Set() };
+  // backlinks: subject URL -> DIDs, newest first (Constellation's order).
+  // profiles: DID -> an AppView profile. repos: DID -> Map(collection -> Map(rkey -> value)).
+  const state = { par: [], tokens: [], revokes: [], issued: 0, codesUsed: new Set(), backlinks: new Map(), profiles: new Map(), repos: new Map(), didDocs: new Map(), constellationDown: false };
   const host = (u) => new URL(u).host;
   const routes = {
     [`${host(W.DOH)}/dns-query`]: (u) => {
@@ -111,7 +116,45 @@ export function fakeNetwork(overrides = {}) {
       state.revokes.push({ form: Object.fromEntries(new URLSearchParams(init.body)), nonce: proof.payload.nonce || null });
       return new Response('', { status: 200, headers: { 'DPoP-Nonce': `nonce-rev-${state.revokes.length}` } });
     },
+    [`${host(W.CONSTELLATION)}/xrpc/blue.microcosm.links.getBacklinkDids`]: (u) => {
+      if (state.constellationDown) return new Response('down', { status: 503 });
+      if (u.searchParams.get('source') !== ENDORSE_SOURCE) return json({ total: 0, linking_dids: [], cursor: null });
+      const all = state.backlinks.get(u.searchParams.get('subject')) || [];
+      const limit = Math.min(Number(u.searchParams.get('limit') || 16), 100);
+      const start = Number(u.searchParams.get('cursor') || 0);
+      const page = all.slice(start, start + limit);
+      return json({ total: all.length, linking_dids: page, cursor: start + limit < all.length ? String(start + limit) : null });
+    },
+    [`${host(W.APPVIEW)}/xrpc/app.bsky.actor.getProfiles`]: (u) => {
+      const actors = u.searchParams.getAll('actors');
+      if (actors.length > 25) return json({ error: 'InvalidRequest', message: 'array too big (maximum 25, got 26)' }, 400);
+      return json({ profiles: actors.map((a) => state.profiles.get(a)).filter(Boolean) });
+    },
+    [`${host(W.PDS)}/xrpc/com.atproto.repo.getRecord`]: (u) => {
+      const rec = state.repos.get(u.searchParams.get('repo'))?.get(u.searchParams.get('collection'))?.get(u.searchParams.get('rkey'));
+      if (!rec) return json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
+      return json({ uri: `at://${u.searchParams.get('repo')}/${u.searchParams.get('collection')}/${u.searchParams.get('rkey')}`, cid: 'bafyfake', value: rec });
+    },
+    [`${host(W.PDS)}/xrpc/com.atproto.repo.listRecords`]: (u) => {
+      const coll = state.repos.get(u.searchParams.get('repo'))?.get(u.searchParams.get('collection')) || new Map();
+      const all = [...coll.entries()];
+      const limit = Math.min(Number(u.searchParams.get('limit') || 50), 100);
+      const start = Number(u.searchParams.get('cursor') || 0);
+      const page = all.slice(start, start + limit);
+      return json({ records: page.map(([rkey, value]) => ({ uri: `at://${u.searchParams.get('repo')}/${u.searchParams.get('collection')}/${rkey}`, cid: 'bafyfake', value })), ...(start + limit < all.length ? { cursor: String(start + limit) } : {}) });
+    },
     ...overrides,
+  };
+  /** Put a record in a fake repo (and, by default, in Constellation's index). */
+  state.putRecord = (did, collection, rkey, value, { index = true } = {}) => {
+    if (!state.repos.has(did)) state.repos.set(did, new Map());
+    const repo = state.repos.get(did);
+    if (!repo.has(collection)) repo.set(collection, new Map());
+    repo.get(collection).set(rkey, value);
+    if (index && value?.subject?.uri) {
+      const list = state.backlinks.get(value.subject.uri) || [];
+      if (!list.includes(did)) state.backlinks.set(value.subject.uri, [did, ...list]);
+    }
   };
   const calls = [];
   const proofs = [];
@@ -122,7 +165,11 @@ export function fakeNetwork(overrides = {}) {
     if (init.headers?.DPoP) proofs.push({ url: u.href, ...decodeJwt(init.headers.DPoP), raw: init.headers.DPoP });
     if (init.signal?.aborted) throw init.signal.reason || new DOMException('aborted', 'AbortError');
     const handler = routes[`${u.host}${u.pathname}`];
-    if (!handler) return new Response('not found', { status: 404 });
+    if (!handler) {
+      // Any other did:plc whose document a test registered in state.didDocs.
+      if (u.host === host(W.PLC) && state.didDocs?.has(u.pathname.slice(1))) return json(state.didDocs.get(u.pathname.slice(1)));
+      return new Response('not found', { status: 404 });
+    }
     return handler(u, init, net);
   };
   return net;
@@ -238,6 +285,8 @@ export function readyEnv(over = {}) {
     BSKY_SITE_RL: fakeLimiter(),
     DOH_URL: W.DOH,
     PLC_URL: W.PLC,
+    CONSTELLATION_URL: W.CONSTELLATION,
+    APPVIEW_URL: W.APPVIEW,
     ...over,
   };
 }
