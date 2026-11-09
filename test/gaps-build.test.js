@@ -15,7 +15,7 @@ import { MeasureChange } from '../src/gaps/measures.js';
 import { createContext } from '../src/agent.js';
 import { getCity } from '../src/cities/index.js';
 import { spawnSync } from 'node:child_process';
-import { pinnedRepo, replayedGaps } from './fixtures/gaps-pinned.js';
+import { pinnedRepo, replayedGaps, pinnedRepoToday } from './fixtures/gaps-pinned.js';
 
 const NO_STREET_ID = 'norfolk.work-orders.removal-no-street';
 
@@ -250,10 +250,11 @@ test('records-request drafts use records_to_request verbatim, with strikes check
 
 // Repo inputs the build reads offline change on their own schedules (the
 // weekly legislation refresh, the monthly case-file archive PR, case-file and
-// profile edits), and the gap build is rerun by hand after them
-// (CONTRIBUTING.md). Here it skips, naming the fix: npm test gates the
-// deploy, and a gap file a step behind its inputs is no reason to stop one
-// (findings that no longer match are kept out of answers at run time).
+// profile edits). The refresh workflows rebuild the gap files with them, and
+// a hand edit reruns --offline in its own PR (CONTRIBUTING.md); the CI job
+// check-gaps is the strict check. Here it skips, naming the fix: npm test
+// gates the deploy, and a gap file a step behind its inputs is no reason to
+// stop one (findings that no longer match are kept out of answers at run time).
 test('--check: replaying the stored responses rebuilds every committed file byte for byte', async (t) => {
   const diffs = await checkGaps();
   if (diffs.length) t.skip(`run node scripts/build-gaps.js --offline and commit data/gaps and docs/gaps-norfolk.md: ${diffs.join(' ')}`);
@@ -274,21 +275,24 @@ test('--offline: parts from repo files are recomputed and dated the day of the r
     const text = pinnedRepo(p);
     if (p !== 'data/norfolk-legislation.json') return text;
     const idx = JSON.parse(text);
-    idx.built = '2026-11-09T09:17:00.000Z';
+    idx.built = `${REBUILT}T09:17:00.000Z`;
     idx.items = idx.items.slice(0, 100);
     return JSON.stringify(idx);
   };
-  const out = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: '2026-11-09', previous: FULL, repo });
+  // A rebuild day other than the stored build's (the weekly live refresh moves
+  // that on), within the pinned case files' freshness.
+  const REBUILT = TRACE.built === '2026-11-09' ? '2026-11-10' : '2026-11-09';
+  const out = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: REBUILT, previous: FULL, repo });
   assert.equal(out.file.built, TRACE.built);
-  assert.equal(out.file.rebuilt, '2026-11-09');
-  assert.equal(out.trace.rebuilt, '2026-11-09');
+  assert.equal(out.file.rebuilt, REBUILT);
+  assert.equal(out.trace.rebuilt, REBUILT);
   const leg = out.file.gaps.find((g) => g.id === 'norfolk.legislation.no-address');
-  assert.equal(leg.measured, '2026-11-09', 'counted from the new index, dated when counted');
+  assert.equal(leg.measured, REBUILT, 'counted from the new index, dated when counted');
   assert.equal(leg.how_much.whole, 100);
-  assert.match(leg.questions[0].consequence, /in the index built 2026-11-09, measured 2026-11-09/);
+  assert.match(leg.questions[0].consequence, new RegExp(`in the index built ${REBUILT}, measured ${REBUILT}`));
   const live = out.file.gaps.find((g) => g.id === NO_STREET_ID);
   assert.equal(live.measured, TRACE.built, 'a live measure keeps the date it was read');
-  assert.match(out.file.gaps.find((g) => g.id === 'norfolk.311.restricted').statement, /read from its city profile on 2026-11-09/);
+  assert.match(out.file.gaps.find((g) => g.id === 'norfolk.311.restricted').statement, new RegExp(`read from its city profile on ${REBUILT}`));
 });
 
 test('the stored trace holds only requests the build makes, and the street list holds no addresses or corners', () => {
@@ -365,8 +369,8 @@ test('the builder runs every request at GENERIC access, and output is determinis
     return d.call(this, id, opts);
   };
   try {
-    const a = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FULL, repo: pinnedRepo });
-    const b = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FULL, repo: pinnedRepo });
+    const a = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: pinnedRepoToday(TRACE.built), previous: FULL, repo: pinnedRepo });
+    const b = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: pinnedRepoToday(TRACE.built), previous: FULL, repo: pinnedRepo });
     assert.equal(JSON.stringify(a.file), JSON.stringify(b.file));
     assert.ok(seen.length > 10);
     assert.ok(seen.every((x) => x === ACCESS.GENERIC), `access levels seen: ${[...new Set(seen)]}`);
@@ -383,13 +387,13 @@ test('a gap whose text fails is isolated: it keeps its last good measurement, an
       : g
   );
   const catalogs = { norfolk: { ...CATALOGS.norfolk, catalog: { ...norfolk, GAPS: bad } } };
-  const out = await buildGaps({ recorder: replay(), today: TRACE.built, previous: FULL, catalogs, repo: pinnedRepo });
+  const out = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: pinnedRepoToday(TRACE.built), previous: FULL, catalogs, repo: pinnedRepo });
   const g = out.file.gaps.find((x) => x.id === 'norfolk.work-orders.no-notice-field');
   assert.equal(g.state, 'unmeasured_today');
   assert.equal(g.last_good, FULL.built);
   assert.equal(g.notice, `I couldn't measure this on ${TRACE.built}. I show my last measurement, from ${FULL.built}.`);
   assert.equal(out.file.gaps.filter((x) => x.state !== 'unmeasured_today').length, 12);
-  const fresh = await buildGaps({ recorder: replay(), today: TRACE.built, previous: null, catalogs, repo: pinnedRepo });
+  const fresh = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: pinnedRepoToday(TRACE.built), previous: null, catalogs, repo: pinnedRepo });
   assert.ok(fresh.file.off_board.some((o) => o.id === 'norfolk.work-orders.no-notice-field'), 'with no last good, it stays off the board');
 });
 
@@ -410,7 +414,7 @@ test('a finding gone stale or unverified takes its gap off the board', async () 
     for (const f of doc.findings) if (f.id === 'dominion') f.unverified = true;
     return JSON.stringify(doc);
   };
-  const out = await buildGaps({ recorder: replay(), today: TRACE.built, previous: null, repo });
+  const out = await buildGaps({ recorder: replay(), today: TRACE.built, repoToday: pinnedRepoToday(TRACE.built), previous: null, repo });
   const off = out.file.off_board.map((o) => `${o.id}:${o.state}`);
   assert.ok(off.includes('norfolk.work-orders.no-contract-link:evidence_unverified'), off.join(' '));
   assert.ok(off.includes('norfolk.utility.line-clearance:evidence_unverified'));

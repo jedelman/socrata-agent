@@ -16,7 +16,7 @@ import * as norfolk from '../src/gaps/norfolk.js';
 import { CATALOGS, Recorder } from '../scripts/build-gaps.js';
 import { PROPOSALS, buildProposed, proposalProblems, proseProblems } from '../scripts/build-gaps-proposed.js';
 import { touches } from '../src/gaps/answer.js';
-import { pinnedRepo, readRepo } from './fixtures/gaps-pinned.js';
+import { pinnedRepo, readRepo, pinnedRepoToday } from './fixtures/gaps-pinned.js';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -100,8 +100,9 @@ test('every proposed entry is marked proposed, links only approved ids, and the 
   assert.ok(problems.some((p) => /already an approved/.test(p)));
 });
 
-// The replay, against the pinned case files, dated the day of the stored build.
-const OUT = await buildProposed({ recorder: new Recorder({ responses: TRACE.responses }), today: TRACE.built, repo: pinnedRepo });
+// The replay, against the pinned case files: live measures dated the day of
+// the stored build, repo parts as of pinnedRepoToday (test/fixtures/gaps-pinned.js).
+const OUT = await buildProposed({ recorder: new Recorder({ responses: TRACE.responses }), today: TRACE.built, repoToday: pinnedRepoToday(TRACE.built), repo: pinnedRepo });
 // The same replay against the real repo, which is what the committed files are
 // built from. When a case file moves on (re-verified, a finding marked
 // unverified) the committed files go stale until someone reruns --offline;
