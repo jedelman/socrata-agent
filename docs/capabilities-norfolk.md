@@ -8,7 +8,10 @@ dataset's live metadata and a three-row sample, and a red-teamer per batch
 then looked for re-identification and harm. No personal values were recorded.
 
 Read it with `CLAUDE.md`'s non-negotiables: no people-finding, the voice
-contract, a trace written by code.
+contract, a trace written by code. (The public endorser list on a source
+request's page is not people-finding: it shows only Bluesky accounts that
+published an endorsement of that public request, on that request's page,
+with no lookup by person; docs/bluesky-endorsements.md.)
 
 ## 0. Before advertising anything: close the gaps in what ships today
 

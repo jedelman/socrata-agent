@@ -88,8 +88,9 @@ generic mode.
   notes awaiting review, not even how many, never writes to KV (designed under
   Workers Free's 1,000 writes a day; the account is on Paid since 2026-11-09), and is cached per
   location for five minutes (with `BLUESKY_LOGIN` on, it goes through
-  `public-list.js` instead: 60 seconds, with endorsement counts on listed
-  requests only; with the flag off its body is exactly the requests-only list).
+  `public-list.js` instead: 60 seconds, with endorsement counts from
+  Constellation on listed requests only; with the flag off its body is
+  exactly the requests-only list).
   Public request ids are random (16 base32 characters, `request-id:<hash>`
   and the reverse index `request-pid:<id>`, minted at creation, never
   written by reads); requests from before that keep their legacy hex id
@@ -110,39 +111,48 @@ generic mode.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
   `docs/fulfilling-requests.md` is the contributor guide.
   Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
-  `BLUESKY_LOGIN`): `bluesky.js` (routes, sealed cookies), `atproto-identity.js`
-  (resolution and the hardened fetch), `atproto-oauth.js` (the client),
-  `endorsements.js` and `public-list.js` (counts through the Cache API),
-  `admin.js` (the steward API and the cron's purge, testable in Node).
-  Endorsements, their rate counters and the sign-in markers live in D1
-  (`SIREN_DB`, schema in `migrations/`, applied with `wrangler d1 migrations
-  apply`), not KV: designed when Jason's account was on Workers Free (KV's 1,000
-  writes and lists a day shared with every question; Cloudflare docs, checked
-  2026-11-06). The account moved to Workers Paid on 2026-11-09, so D1 is
-  billed monthly rather than capped daily; the per-day budget pots stay as
-  abuse and cost guards ( the D1 limits and their sources are in
-  `docs/bluesky-endorsements.md`, "Why D1 and not KV"; keep platform numbers
-  there, dated, not in `wrangler.toml`). Every D1 call in the Worker goes
-  through `endorseDb(env)`, so with `BLUESKY_LOGIN` unset none happens, and
-  with it on and no binding the routes fail closed (503, reason logged). The
-  steward CLI follows the same rule from the env's wrangler config. Prepared
-  statements only; several writes in one `batch`. Retention rests on the
-  daily cron, turned on with the flag; with the flag off, on the steward's
-  `node scripts/invites.js endorsements-purge`. D1's Free daily rows are the
-  whole account's (scout-harness's kill switch and journal included), so no
-  path before a finished sign-in may touch D1.
-  Invariants: identity only, scope `atproto`, a public client on WebCrypto
-  and fetch with no npm dependency; tokens revoked and discarded at the
-  callback, never stored or logged; the flow sealed in a cookie scoped to
-  `/oauth/`, the session in a browser-session cookie scoped to `/api/bsky/`;
-  only accepted requests can be endorsed, and `unendorse` never looks a
-  request up; D1 keeps only per-request keyed hashes (no reusable per-person
-  id, no DID, handle, issuer or token) and counters in their own HMAC domains
-  with bucketed expiries, never a request id or endorsement id in a counter,
-  every table WITHOUT ROWID; nothing Bluesky goes in KV; Siren only POSTs to an AS's own origin; never
-  record an invite, email account or uid together with an eid; no
-  per-account steward tools without a separate conversation with Jason;
-  never key anything new under `request:`. `plugins/case-file.js` serves a
+  `BLUESKY_LOGIN`; public-first by Jason's direction, 2026-11-09): an
+  endorsement is a record in the endorser's own atproto repo, written and
+  deleted by the browser, which is the OAuth client (`endorse-client.js`
+  with `atproto-oauth.js`, `atproto-identity.js`, `endorse-config.js` and
+  `endorse-store.js`, served as module text by `index.js` under
+  `<base>/assets/<hash>/`; the page itself is `requests-page.js`).
+  `constellation.js` counts them through Constellation, `public-list.js`
+  serves the counted list (60 s), `endorsers.js` the public endorser list
+  per request with flags, `bluesky.js` the client metadata and the handle
+  resolver, `admin.js` the steward API. Endorsing needs only a Bluesky
+  sign-in, no invite; the paid tier's conversations stay private.
+  Invariants: `ENDORSE_NSID` lives in `worker/endorse-config.js` and nowhere
+  else (a test enforces it), and moving it is the documented migration; the
+  subject URL is built only by `endorseSubject`, from `PUBLIC_ORIGIN`. The
+  scope is `atproto` plus `repo:<ENDORSE_NSID>?action=create&action=delete`,
+  never `transition:generic` without Jason, and the granted scope is checked
+  (less is revoked and refused). Tokens exist only in the browser (IndexedDB
+  on Siren's origin, at most 24 hours, non-extractable DPoP key, the code in
+  the URL fragment); the Worker never receives one, and no route reads an
+  `Authorization` or `DPoP` header from the page or sets a Bluesky cookie.
+  Siren stores no endorsements and nothing about endorsers: counts and lists
+  are read live from Constellation, the AppView and each endorser's PDS and
+  cached briefly; nothing Bluesky goes in KV or D1. Constellation is a stated,
+  untrusted dependency: shapes checked, sizes capped, every listed account
+  verified on its own PDS before it's shown, and a count it can't give is
+  "unavailable" or the last good one with its time, never 0. Flags (bot
+  self-label, Bluesky moderation labels, young or unknown age, no profile)
+  are shown, never used to exclude. Only listed requests with random ids show
+  endorsements; the endorser list is per request, and no route lists or
+  filters endorsements by person (no DID or handle parameter anywhere, no
+  "endorsements by this account" view; a test checks the parameters every
+  route reads). The steward can't remove anyone's endorsement (it's theirs);
+  decisions freeze the live count, and go through without one if
+  Constellation is down. The browser's PAR, token and revoke go only to
+  endpoints on the issuer's origin, and record writes only to the PDS named
+  in the re-resolved DID document. The requests pages carry a strict CSP
+  with no inline script or style; every remote string is escaped. Never link
+  a Bluesky identity to an invite, email account or conversation. `SIREN_DB`
+  stays bound for the planned board but nothing reads it; migration 0003
+  (unapplied) drops the old endorsement tables. With `BLUESKY_LOGIN` unset,
+  nothing calls Constellation, the AppView, a PDS or D1. Never key anything
+  new under `request:`. `plugins/case-file.js` serves a
   case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk

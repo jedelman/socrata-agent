@@ -177,12 +177,14 @@ npx wrangler deploy --env siren
 ```
 
 The public request list (`/ask-siren/requests`) can be endorsed with a
-Bluesky account: atproto OAuth for identity only, no new dependency and no
-new secret. It needs `PUBLIC_ORIGIN` (set in `[env.siren.vars]`), the four
-`[[env.siren.ratelimits]]` bindings, a D1 database bound as `SIREN_DB` with
-`migrations/` applied (the commands are in `wrangler.toml`), and
-`BLUESKY_LOGIN = "true"`, which stays unset until the rollout probe passes. What Siren keeps, the flow, the
-limits and the rollout are in
+Bluesky account. An endorsement is a public record in the endorser's own
+repo, written by their browser with one narrow permission; Siren counts the
+records through Constellation and lists who endorsed, with bots flagged. No
+new dependency and no new secret; the Worker never sees a token. It needs
+`PUBLIC_ORIGIN` (set in `[env.siren.vars]`), the three
+`[[env.siren.ratelimits]]` bindings and `BLUESKY_LOGIN = "true"`, which stays
+unset until the rollout's live probe passes. The record, the flow, the
+counts, the flags and the rollout are in
 [docs/bluesky-endorsements.md](docs/bluesky-endorsements.md).
 
 ## Deploy the web app
