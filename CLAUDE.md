@@ -85,8 +85,8 @@ generic mode.
   decision or bring a deleted note back. Stored and public dates are days,
   never finer. `POST /api/requests` returns a count only for a request that
   is already public. `GET /api/requests` says nothing about requests or
-  notes awaiting review, not even how many, never writes to KV (Free plan:
-  1,000 writes a day, shared with every question), and is cached per
+  notes awaiting review, not even how many, never writes to KV (designed under
+  Workers Free's 1,000 writes a day; the account is on Paid since 2026-11-09), and is cached per
   location for five minutes (with `BLUESKY_LOGIN` on, it goes through
   `public-list.js` instead: 60 seconds, with endorsement counts on listed
   requests only; with the flag off its body is exactly the requests-only list).
@@ -110,9 +110,11 @@ generic mode.
   `admin.js` (the steward API and the cron's purge, testable in Node).
   Endorsements, their rate counters and the sign-in markers live in D1
   (`SIREN_DB`, schema in `migrations/`, applied with `wrangler d1 migrations
-  apply`), not KV: Jason's account is on the Workers Free plan, where KV's
-  1,000 writes and lists a day are shared with every question (Cloudflare
-  docs, checked 2026-11-06; the D1 limits and their sources are in
+  apply`), not KV: designed when Jason's account was on Workers Free (KV's 1,000
+  writes and lists a day shared with every question; Cloudflare docs, checked
+  2026-11-06). The account moved to Workers Paid on 2026-11-09, so D1 is
+  billed monthly rather than capped daily; the per-day budget pots stay as
+  abuse and cost guards ( the D1 limits and their sources are in
   `docs/bluesky-endorsements.md`, "Why D1 and not KV"; keep platform numbers
   there, dated, not in `wrangler.toml`). Every D1 call in the Worker goes
   through `endorseDb(env)`, so with `BLUESKY_LOGIN` unset none happens, and
