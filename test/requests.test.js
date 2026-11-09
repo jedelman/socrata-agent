@@ -534,7 +534,7 @@ test('the public feed never writes to KV, so a KV out of writes still serves it'
 
 test('the public page shows no count of requests awaiting review', async () => {
   const { readFileSync } = await import('node:fs');
-  const html = readFileSync(new URL('../worker/requests.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../worker/requests.html', import.meta.url), 'utf8') + readFileSync(new URL('../worker/requests-page.js', import.meta.url), 'utf8');
   assert.doesNotMatch(html, /awaiting_review/);
   assert.match(html, /Requests appear here after a steward reviews them\./);
 });

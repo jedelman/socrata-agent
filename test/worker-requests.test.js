@@ -16,6 +16,10 @@ async function loadWorker() {
   if (worker) return worker;
   nodeModule.registerHooks({
     load(url, context, next) {
+      // esbuild's `with { type: 'text' }`: the file's text as the default export.
+      if (url.startsWith('file:') && context.importAttributes?.type === 'text') {
+        return { format: 'module', source: `export default ${JSON.stringify(readFileSync(fileURLToPath(url), 'utf8'))};`, shortCircuit: true };
+      }
       if (url.startsWith('file:') && url.endsWith('.html')) {
         return { format: 'module', source: `export default ${JSON.stringify(readFileSync(fileURLToPath(url), 'utf8'))};`, shortCircuit: true };
       }
