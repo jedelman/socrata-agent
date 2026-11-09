@@ -57,7 +57,10 @@ generic mode.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
   sign-in by magic link (Resend), which binds an invite to an account;
   `conversations.js` holds each account's conversations (KV, 7 days), whose
-  earlier tool results come back as data for follow-ups. Conversations are
+  earlier tool results come back as data for follow-ups. Each turn also keeps
+  the record shown under its answer (trace, hand-off, voice check, model,
+  steps, cost, suggestions; bounded by `answerRecord`), so a reopened
+  conversation shows how each answer was found; the model never sees it. Conversations are
   private to their account and never feed the case files.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
