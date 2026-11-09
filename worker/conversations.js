@@ -5,7 +5,11 @@
 // any shared memory; shared findings come only through reviewed case files.
 //
 // Each turn keeps the question, the answer, and the tool results behind it
-// (trimmed), which the next question gets back as data.
+// (trimmed), which the next question gets back as data. It also keeps the
+// record shown under the answer (the code-written trace, the hand-off, the
+// voice check, the model, steps and cost, and any suggested sources), so a
+// reopened conversation shows how each answer was found. The model never
+// sees that record; only the person who asked does.
 
 export const MAX_TURNS = 8;
 const RESULT_CHARS = 6000; // per tool result kept
@@ -28,13 +32,47 @@ export async function loadConversation(kv, uid, id) {
 
 const clipResult = (s) => (s.length > RESULT_CHARS ? `${s.slice(0, RESULT_CHARS)}… [trimmed: ${s.length - RESULT_CHARS} more characters]` : s);
 
-/** Add a turn and save. Tool results are trimmed; the oldest turns drop past MAX_TURNS. */
-export async function saveTurn(kv, uid, id, conv, { city, question, answer, tools = [] }, { days = 7, now = Date.now() } = {}) {
+const clip = (v, n) => (v == null ? undefined : String(v).slice(0, n));
+const MAX_TRACE_STEPS = 60;
+
+/** The record shown under an answer, kept with its turn: bounded, and only the fields the page renders. */
+export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions } = {}) {
+  const r = resources || {};
+  return {
+    trace: (Array.isArray(trace) ? trace : []).slice(0, MAX_TRACE_STEPS).map((t) => ({
+      n: t.n, tool: clip(t.tool, 200), dataset: clip(t.dataset, 40), url: clip(t.url, 2000), soql: clip(t.soql, 2000),
+      ok: Boolean(t.ok), rows: Number.isFinite(t.rows) ? t.rows : null, ms: Number.isFinite(t.ms) ? t.ms : null, error: clip(t.error, 300),
+    })),
+    resources: {
+      datasets: (r.datasets || []).slice(0, 20).map((d) => ({ id: clip(d.id, 20), name: clip(d.name, 200), page: clip(d.page, 500), docs: clip(d.docs, 500), csv: clip(d.csv, 500), department: clip(d.department, 200), queries: (d.queries || []).slice(0, 5).map((q) => clip(q, 2000)) })),
+      records: (r.records || []).slice(0, 30).map((x) => ({ title: clip(x.title, 300), url: clip(x.url, 2000), kind: clip(x.kind, 40) })),
+      contacts: (r.contacts || []).slice(0, 20).map((c) => ({ role: clip(c.role, 200), name: clip(c.name, 200), email: clip(c.email, 200), phone: clip(c.phone, 60), url: clip(c.url, 500), note: clip(c.note, 300) })),
+      links: (r.links || []).slice(0, 20).map((l) => ({ title: clip(l.title, 300), url: clip(l.url, 2000) })),
+    },
+    voice: voice ? { ok: Boolean(voice.ok), rewritten: Boolean(voice.rewritten), violations: (voice.violations || []).slice(0, 5).map((v) => clip(v, 120)) } : undefined,
+    model: clip(model, 80),
+    steps: Number.isFinite(steps) ? steps : undefined,
+    cost: Number.isFinite(cost) ? Math.round(cost * 1e6) / 1e6 : undefined,
+    suggestions: (suggestions || []).slice(0, 2).map((x) => ({ need: clip(x.need, 300), source: clip(x.source, 200), why: clip(x.why, 300), url: clip(x.url, 500) })),
+  };
+}
+
+/** A turn as the page reopens it: the question, the answer and its record, never the raw tool results. */
+export function turnView(t) {
+  return { question: t.question, answer: t.answer, at: t.at, ...(t.record ? { record: t.record } : {}) };
+}
+
+/**
+ * Add a turn and save. Tool results are trimmed; the oldest turns drop past
+ * MAX_TURNS. `record` is what was shown under the answer (see answerRecord).
+ */
+export async function saveTurn(kv, uid, id, conv, { city, question, answer, tools = [], record }, { days = 7, now = Date.now() } = {}) {
   const turns = [...(conv?.turns || []), {
     at: new Date(now).toISOString(),
     question: String(question).slice(0, QUESTION_CHARS),
     answer: String(answer).slice(0, ANSWER_CHARS),
     tools: tools.map((t) => ({ name: t.name, args: t.args, result: clipResult(String(t.content)) })),
+    ...(record ? { record: answerRecord(record) } : {}),
   }].slice(-MAX_TURNS);
   const next = { city, created: conv?.created || new Date(now).toISOString(), turns };
   await kv.put(key(uid, id), JSON.stringify(next), { expirationTtl: ttl(days) });
