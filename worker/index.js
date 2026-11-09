@@ -29,6 +29,7 @@ import { hmacHex } from './crypto.js';
 import { handleAdmin } from './admin.js';
 import { cachedPublicList } from './public-list.js';
 import { blueskyReady } from './bluesky.js';
+import { handleEndorsers } from './endorsers.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
@@ -475,6 +476,9 @@ export default {
       if (list.unavailable) return unavailable();
       return json(list, 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
     }
+    // Who endorsed one request on the public list (endorsers.js); 404 with the flag off.
+    const endorsersPath = req.method === 'GET' && /^\/api\/requests\/([^/]{1,64})\/endorsers$/.exec(path);
+    if (endorsersPath) return handleEndorsers(req, env, ctx, base, endorsersPath[1]);
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
       const casesBase = `${url.origin}${base}`;
