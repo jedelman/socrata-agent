@@ -15,6 +15,7 @@
 // unknown cost, so the Worker's daily budget can't be bypassed.
 
 import Anthropic from '@anthropic-ai/sdk';
+import { networkFetch } from '../request-budget.js';
 
 // USD per million tokens, Anthropic list prices as of 2026-10-06 (Claude API
 // docs). cacheWrite is the 5-minute write rate. longOver: prompts with more
@@ -39,6 +40,9 @@ export const isClaudeModel = (model) => /^claude-/.test(String(model || ''));
 const API_BASE = 'https://api.anthropic.com';
 /** Output allowance for Claude models when the caller sets none. Thinking counts toward it. */
 export const CLAUDE_MAX_TOKENS = 8000;
+// The SDK retries a failed call at most this often. Each attempt is a fetch,
+// so it counts against the answer's request budget (src/request-budget.js).
+const MAX_RETRIES = 1;
 // Below the SDK's non-streaming limit (it refuses requests it estimates at over 10 minutes).
 const RETRY_MAX_TOKENS = 16000;
 
@@ -54,7 +58,7 @@ export function guardedFetch(apiKey, fetchImpl) {
     const headers = new Headers();
     for (const [k, v] of new Headers(init.headers)) if (SENT_HEADERS.has(k) || k.startsWith('x-stainless-')) headers.set(k, v);
     headers.set('authorization', `Bearer ${apiKey}`);
-    return (fetchImpl || globalThis.fetch)(u, { ...init, headers });
+    return (fetchImpl || networkFetch)(u, { ...init, headers });
   };
 }
 
@@ -100,7 +104,7 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
   // else's proxy) that would send this key somewhere other than Anthropic.
   // One retry at most: a retried attempt that the API billed would not show
   // up in usage. The SDK's own non-streaming timeout (sized to max_tokens) applies.
-  const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: 1, fetch: guardedFetch(apiKey, fetchImpl) });
+  const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: MAX_RETRIES, fetch: guardedFetch(apiKey, fetchImpl) });
   // Thinking tokens count toward max_tokens on these models; the caller sets
   // the allowance (the Worker's MAX_TOKENS_CLAUDE), default CLAUDE_MAX_TOKENS.
   const max_tokens = Number(maxTokens) > 0 ? Number(maxTokens) : CLAUDE_MAX_TOKENS;
@@ -111,6 +115,11 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
 
   return {
     name: 'anthropic',
+    // Fetches one API call can take: the attempt and the SDK's retry.
+    fetchesPerCall: 1 + MAX_RETRIES,
+    // Fetches one complete() can take at worst: a call cut off at max_tokens
+    // is asked once more with more room, and each of the two can be retried.
+    fetchesPerComplete: (1 + MAX_RETRIES) * (max_tokens < RETRY_MAX_TOKENS ? 2 : 1),
     init({ systemPrompt, history, question, toolDefs }) {
       system = systemPrompt;
       tools = toAnthropicTools(toolDefs);
@@ -119,11 +128,13 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
       messages.push({ role: 'user', content: question });
     },
 
-    async complete({ allowTools = true } = {}) {
+    // `retryTruncated: false` makes one API call (fetchesPerCall) and returns
+    // a cut-off response as it is, marked truncated.
+    async complete({ allowTools = true, retryTruncated = true } = {}) {
       let out = await call(allowTools, max_tokens);
       // A response cut off at max_tokens may end in a half-written tool call:
       // never run it. Retry once with more room, then give up honestly.
-      if (out.truncated && max_tokens < RETRY_MAX_TOKENS) {
+      if (retryTruncated && out.truncated && max_tokens < RETRY_MAX_TOKENS) {
         const retry = await call(allowTools, RETRY_MAX_TOKENS);
         retry.cost += out.cost;
         out = retry;

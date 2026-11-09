@@ -194,26 +194,26 @@
     {
       "id": "contract-removal",
       "stance": "weakens",
-      "claim": "Not all tree work is in the work-order data: the FY2024 budget added $250,000 for a tree canopy maintenance contract used to remove decaying or diseased trees, and the draft audit counts $254,807 paid to an outside contractor for tree removal in FY2022. Pace figures from work orders alone overstate the gap.",
+      "claim": "The FY2024 adopted budget made a $250,000 adjustment for higher spending on, and more use of, the City's tree care maintenance contract, which it says is used to remove decaying or diseased trees throughout the city.",
       "source": {
         "title": "City of Norfolk FY2024 Adopted Budget, Department Budgets",
         "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets"
       },
-      "quote": "The contract is used to remove decaying or diseased trees",
-      "checked": "2026-11-04",
+      "quote": "Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.",
+      "checked": "2026-11-06",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreify3tf33lpxbpg3wcopfx55jnkitaj3y3a6jscdbpdtlmowxomoee",
         "bytes": 4403562,
-        "read": "2026-11-04",
+        "read": "2026-11-06",
         "via": "live"
       },
       "selector": {
         "type": "TextQuoteSelector",
-        "exact": "The contract is used to remove decaying or diseased trees",
-        "prefix": "city's tree care maintenance contract. ",
-        "suffix": " throughout the city. A corresponding"
+        "exact": "Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.",
+        "prefix": "maintenance contract 250,000 0.0 ",
+        "suffix": " A corresponding adjustment can be"
       }
     },
     {
@@ -268,20 +268,20 @@
     },
     {
       "id": "dominion",
-      "stance": "weakens",
-      "claim": "Not every removal is the City's: Dominion Energy clears neighborhood power lines on a four-year cycle, which can mean taking a whole tree.",
+      "stance": "context",
+      "claim": "Dominion Energy's Virginia tree-trimming page says nearly all of its neighborhood power lines are cleared on a four-year cycle.",
       "source": {
         "title": "Dominion Energy, tree trimming and power lines (Virginia)",
         "url": "https://www.dominionenergy.com/safety/electric-safety/tree-trimming-and-powerlines/va-tree-trimming-and-powerlines"
       },
       "quote": "Nearly all of our neighborhood power lines are cleared on a four year cycle",
-      "checked": "2026-11-04",
+      "checked": "2026-11-06",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreig65dmpjq7xwknuv5imlptygjbjprgxij62tznz4nnpzus67tfhwy",
-        "bytes": 258715,
-        "read": "2026-11-04",
+        "cid": "bafkreif4fdyfhi7zsacnubsft2jpb5nfem5llhpwvjajf7ks67wul3i2pm",
+        "bytes": 258716,
+        "read": "2026-11-06",
         "via": "live"
       },
       "selector": {
