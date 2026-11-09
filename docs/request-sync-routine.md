@@ -2,30 +2,31 @@
 
 The public source-request list is mirrored to GitHub issues by a nightly
 Claude Code routine, "Siren: sync source requests to issues" (01:57
-America/New_York). It runs `scripts/sync-request-issues.js --plan` against
-the live feed and applies the plan with its GitHub tools. The routine's prompt
-lives in the routine, not here, so this file keeps the text it should hold:
-change both together. As of 2026-11-07 the stored prompt is still the earlier
-one (plain `--plan`, and the old steps 2 and 4); see the merge step below.
+America/New_York). It runs `scripts/sync-request-issues.js --plan
+--with-withdrawn` against the live feed and applies the plan with its GitHub
+tools. The routine's prompt
+lives in the routine, not here, so this file keeps the text it holds: change
+both together. On 2026-11-09 Jason updated the stored prompt to the
+`--plan --with-withdrawn` text below; see the merge step.
 
 ## Two plan contracts
 
-- `--plan` (the contract the routine was written for, 2026-11-04): every
-  entry may be created when no issue carries its marker, and a closed entry is
-  a fulfilled request, closed as completed. Withdrawn requests are left out.
-- `--plan --with-withdrawn`: adds withdrawn requests, as entries with
-  `create_if_missing: false` and `state_reason: "not_planned"`. A caller that
-  passes this flag must never create such an entry, and must close each closed
-  entry with its `state_reason`, including an issue already closed with
-  another reason.
+- `--plan` (the contract the routine was written for on 2026-11-04 and ran
+  until 2026-11-09): every entry may be created when no issue carries its
+  marker, and a closed entry is a fulfilled request, closed as completed.
+  Withdrawn requests are left out.
+- `--plan --with-withdrawn` (the routine's contract since 2026-11-09): adds
+  withdrawn requests, as entries with `create_if_missing: false` and
+  `state_reason: "not_planned"`. A caller that passes this flag must never
+  create such an entry, and must close each closed entry with its
+  `state_reason`, including an issue already closed with another reason.
 
-The routine keeps working unchanged on plain `--plan`; withdrawn requests'
-issues then stay as they were until the routine is updated, or until someone
-runs the script directly with a token (which honors both fields and also
-closes issues the feed no longer lists). The admin page and
-`docs/fulfilling-requests.md` are worded for that: a withdrawn request's
-issue is closed "once the nightly sync runs with `--with-withdrawn`", and by
-hand until then.
+Since 2026-11-09 the routine runs `--plan --with-withdrawn`, so the nightly
+sync closes a withdrawn request's issue as not planned while the request is
+in the feed (30 days, `WITHDRAWN_DAYS`). Running the script directly with a
+token honors both fields too, and also closes issues the feed no longer
+lists. The admin page and `docs/fulfilling-requests.md` say so, and say which
+issues still need closing by hand (the end of this file).
 
 ## Random request ids (2026-11-09)
 
@@ -42,24 +43,24 @@ A never-public request's old id is dropped, so it never reaches GitHub.
 
 ## Merge step: update the routine (Jason only)
 
-Merging this change does not update the routine. Its prompt is stored in the
-routine, and only Jason can approve a change to it; nothing in this repo or
-in a session changes it on its own. Until the stored prompt says what follows,
-the routine must keep running plain `--plan`, and a withdrawn request's issue
-stays open until a steward closes it by hand.
+Done on 2026-11-09: Jason replaced the routine's stored prompt with the text
+below. Merging a change to the routine's contract never updates the routine
+by itself. Its prompt is stored in the routine, and only Jason can approve a
+change to it; nothing in this repo or in a session changes it on its own.
 
-When merging the change that added `--with-withdrawn` (or soon after):
+The steps, as done for `--with-withdrawn`, for the next such change:
 
 1. Read the stored prompt of "Siren: sync source requests to issues"
-   (`get_trigger`) and check it still matches the copy below apart from steps
-   2 and 4. If it has drifted, carry the two new steps into it instead.
-2. Replace the whole prompt with the text below (`update_trigger`, with
+   (`get_trigger`) and check it still matches the copy below apart from the
+   steps that change. If it has drifted, carry the new steps into it instead.
+2. Replace the whole prompt with the new text (`update_trigger`, with
    Jason's approval).
-3. After the next run (01:57 America/New_York), check its report: withdrawn
-   requests' issues closed as not planned, nothing created for them.
+3. After the next run (01:57 America/New_York), check its report. For
+   `--with-withdrawn`: withdrawn requests' issues closed as not planned,
+   nothing created for them.
 
-The replacement prompt, exactly (steps 2 and 4 are the only changes; step 2
-also says the notes are steward-approved now):
+The stored prompt, exactly (steps 2 and 4 are what changed on 2026-11-09;
+step 2 also says the notes are steward-approved now):
 
 ```text
 Nightly job for Jason Edelman's civic agent Siren: mirror Siren's public source-request list to GitHub issues in jedelman/socrata-agent. You only sync issues; you change no code and no other issues.
@@ -85,7 +86,8 @@ Nightly job for Jason Edelman's civic agent Siren: mirror Siren's public source-
 ```
 
 A withdrawn request stays in the feed for 30 days (`WITHDRAWN_DAYS`), so the
-routine has that long to close its issue. One withdrawn longer ago than that
-before the routine is updated is never closed by the routine (plan mode
+routine has that long to close its issue. A request withdrawn more than 30
+days before the update of 2026-11-09 had left the feed before the routine
+began closing issues, so the routine never closes its issue (plan mode
 leaves unlisted issues alone); close it by hand, or run the script directly
 with a token, which closes marked issues the feed no longer lists.

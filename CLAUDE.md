@@ -100,11 +100,12 @@ generic mode.
   A request accepted once carries `was_public`; if it leaves the list,
   `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
-  `source-request` issues, run nightly by a Claude Code routine (`--plan`;
-  its prompt is copied in `docs/request-sync-routine.md`). Withdrawn entries
+  `source-request` issues, run nightly by a Claude Code routine
+  (`--plan --with-withdrawn`; its prompt is copied in
+  `docs/request-sync-routine.md`). Withdrawn entries
   (`create_if_missing: false`, `state_reason: not_planned`) appear only with
-  `--plan --with-withdrawn`, which the routine may pass only once its prompt
-  honors both fields. When applying directly it also closes any marked
+  `--plan --with-withdrawn`, which the routine passes (its prompt honors both
+  fields since 2026-11-09). When applying directly it also closes any marked
   issue in neither list (only if the feed carries `withdrawn`; closing all of
   them, or more than three, needs `--close-unlisted`). GitHub keeps old titles
   and bodies; only deleting an issue by hand removes them.
