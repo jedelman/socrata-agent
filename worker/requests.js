@@ -55,6 +55,7 @@
 // `request-deleted:`, which a `request:` prefix list doesn't match.
 
 import { sha256hex } from './invites.js';
+import { publicTextViolations, publicTextMessage } from '../src/public-text.js';
 
 const NOTE_CHARS = 300;
 const KEEP_NOTES = 20;
@@ -186,11 +187,16 @@ export function normalizeRecord(r) {
   return { ...r, first: asDay(r.first), last: asDay(r.last), needs };
 }
 
-export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.now() }) {
+export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.now(), streets }) {
   const source = clip(body?.source, 200);
   if (source.length < 3) return { ok: false, status: 400, error: 'Name the source to add.' };
   const url = clip(body?.url, 500);
   const need = clip(body?.need, NOTE_CHARS);
+  // A note can go public once the steward approves it, so it's checked before
+  // anything is written (docs/gaps.md §16 item 5). The refusal says what to
+  // change and never repeats the text.
+  const bad = need ? publicTextViolations(need, { streets }) : [];
+  if (bad.length) return { ok: false, status: 400, error: `Please edit the note: ${publicTextMessage(bad)}`, codes: bad };
   const day = dayOf(now);
   const rateKey = `request-rate:${day}:${visitor}`;
   const used = Number((await kv.get(rateKey)) || 0);

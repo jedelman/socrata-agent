@@ -1,0 +1,7666 @@
+{
+  "city": "norfolk",
+  "built": "2026-11-06",
+  "rebuilt": "2026-11-09",
+  "note": "Every request the gap build made, in order, and each response as read (trimmed to the fields the build uses). build-gaps --check replays these.",
+  "steps": [
+    {
+      "n": 1,
+      "tool": "check dataset name",
+      "dataset": "ere7-kake",
+      "url": "https://data.norfolk.gov/api/views/ere7-kake.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 2,
+      "tool": "street list for the public-text checks",
+      "dataset": "ere7-kake",
+      "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%200",
+      "soql": "SELECT street_name AS s WHERE street_name IS NOT NULL GROUP BY street_name ORDER BY street_name LIMIT 500 OFFSET 0",
+      "ok": true,
+      "rows": 500
+    },
+    {
+      "n": 3,
+      "tool": "street list for the public-text checks",
+      "dataset": "ere7-kake",
+      "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%20500",
+      "soql": "SELECT street_name AS s WHERE street_name IS NOT NULL GROUP BY street_name ORDER BY street_name LIMIT 500 OFFSET 500",
+      "ok": true,
+      "rows": 500
+    },
+    {
+      "n": 4,
+      "tool": "street list for the public-text checks",
+      "dataset": "ere7-kake",
+      "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201000",
+      "soql": "SELECT street_name AS s WHERE street_name IS NOT NULL GROUP BY street_name ORDER BY street_name LIMIT 500 OFFSET 1000",
+      "ok": true,
+      "rows": 500
+    },
+    {
+      "n": 5,
+      "tool": "street list for the public-text checks",
+      "dataset": "ere7-kake",
+      "url": "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201500",
+      "soql": "SELECT street_name AS s WHERE street_name IS NOT NULL GROUP BY street_name ORDER BY street_name LIMIT 500 OFFSET 1500",
+      "ok": true,
+      "rows": 450
+    },
+    {
+      "n": 6,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=tree",
+      "soql": "q=tree",
+      "ok": true,
+      "rows": 5
+    },
+    {
+      "n": 7,
+      "tool": "describe dataset",
+      "dataset": "mrv3-rcpc",
+      "url": "https://data.norfolk.gov/api/views/mrv3-rcpc.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 8,
+      "tool": "check dataset name",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 9,
+      "tool": "gap catalog: Forestry removals by status",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_street%2C%20sum(case(contractor_cost%20%3E%200%2C1%2Ctrue%2C0))%20AS%20cc%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20has_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
+      "soql": "SELECT status_code, status_description, count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS no_street, sum(case(contractor_cost > 0,1,true,0)) AS cc, sum(case(end_date IS NOT NULL,1,true,0)) AS has_end WHERE area = 'Forestry' AND primary_task_description = 'Removal' GROUP BY status_code, status_description ORDER BY status_code, status_description LIMIT 100",
+      "ok": true,
+      "rows": 9
+    },
+    {
+      "n": 10,
+      "tool": "gap catalog: Complete removals: dates covered",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20min(created_datetime)%20AS%20min_created_datetime%2C%20max(created_datetime)%20AS%20max_created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20LIMIT%20100",
+      "soql": "SELECT min(created_datetime) AS min_created_datetime, max(created_datetime) AS max_created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 11,
+      "tool": "gap catalog: Complete removals with no street, by year",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20date_extract_y(created_datetime)%20AS%20y%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20GROUP%20BY%20y%20ORDER%20BY%20y%20LIMIT%20100",
+      "soql": "SELECT date_extract_y(created_datetime) AS y, count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS part WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 GROUP BY y ORDER BY y LIMIT 100",
+      "ok": true,
+      "rows": 7
+    },
+    {
+      "n": 12,
+      "tool": "gap catalog: Complete removals since a year ago",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS part, sum(case(street IS NULL AND ward IS NULL AND civic_league IS NULL,1,true,0)) AS no_loc WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND created_datetime >= '2025-11-06T00:00:00' LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 13,
+      "tool": "gap catalog: Complete removals ending in the last year: end date vs created",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-06T00%3A00%3A00'%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(date_trunc_ymd(end_date) < date_trunc_ymd(created_datetime),1,true,0)) AS before, sum(case(date_trunc_ymd(end_date) = date_trunc_ymd(created_datetime),1,true,0)) AS same WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND end_date >= '2025-11-06T00:00:00' AND end_date < '2026-11-06T00:00:00' LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 14,
+      "tool": "gap catalog: Complete removals, all time: end date vs created",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20IS%20NOT%20NULL%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(date_trunc_ymd(end_date) < date_trunc_ymd(created_datetime),1,true,0)) AS before, sum(case(date_trunc_ymd(end_date) = date_trunc_ymd(created_datetime),1,true,0)) AS same WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND end_date IS NOT NULL LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 15,
+      "tool": "describe dataset",
+      "dataset": "cmvv-agyb",
+      "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 16,
+      "tool": "describe dataset",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 17,
+      "tool": "describe dataset",
+      "dataset": "jz6u-9g3c",
+      "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 18,
+      "tool": "describe dataset",
+      "dataset": "u85v-sad9",
+      "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 19,
+      "tool": "gap catalog: Removals with status New Work Order or On-Going",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20with_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(end_date IS NOT NULL,1,true,0)) AS with_end WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 20,
+      "tool": "gap catalog: median created_datetime",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20176",
+      "soql": "SELECT created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) ORDER BY created_datetime, work_order_number LIMIT 1 OFFSET 176",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 21,
+      "tool": "gap catalog: Forestry problem codes",
+      "dataset": "qzfe-wj25",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200",
+      "soql": "SELECT problem_description AS v, count(*) AS n WHERE area = 'Forestry' GROUP BY problem_description ORDER BY n DESC, problem_description LIMIT 200",
+      "ok": true,
+      "rows": 18
+    },
+    {
+      "n": 22,
+      "tool": "gap catalog: city trees with no usable trunk size",
+      "dataset": "cmvv-agyb",
+      "url": "https://data.norfolk.gov/resource/cmvv-agyb.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_range%2C%20sum(case(trunk_diameter%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_dia%2C%20sum(case((trunk_diameter%20IS%20NULL%20OR%20trunk_diameter%20%3C%3D%200)%20AND%20trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_usable%20WHERE%20(common_name%20IS%20NULL%20OR%20common_name%20!%3D%20'PRIVATE%20TREES')%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(trunk_diameter_range IS NULL,1,true,0)) AS no_range, sum(case(trunk_diameter IS NULL,1,true,0)) AS no_dia, sum(case((trunk_diameter IS NULL OR trunk_diameter <= 0) AND trunk_diameter_range IS NULL,1,true,0)) AS no_usable WHERE (common_name IS NULL OR common_name != 'PRIVATE TREES') LIMIT 100",
+      "ok": true,
+      "rows": 1
+    },
+    {
+      "n": 23,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=line+clearance",
+      "soql": "q=line clearance",
+      "ok": true,
+      "rows": 0
+    },
+    {
+      "n": 24,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=Dominion",
+      "soql": "q=Dominion",
+      "ok": true,
+      "rows": 4
+    },
+    {
+      "n": 25,
+      "tool": "check dataset name",
+      "dataset": "dszu-h9cf",
+      "url": "https://data.norfolk.gov/api/views/dszu-h9cf.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 26,
+      "tool": "gap catalog: upcoming public meetings",
+      "dataset": "dszu-h9cf",
+      "url": "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-06T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025",
+      "soql": "SELECT date_and_time, organization, type WHERE date_and_time >= '2026-11-06T00:00:00' ORDER BY date_and_time LIMIT 25",
+      "ok": true,
+      "rows": 25
+    }
+  ],
+  "responses": {
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=Dominion": {
+      "read": "2026-11-07T01:01:59.432Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 4,
+        "results": [
+          {
+            "resource": {
+              "id": "5qpt-tdve",
+              "name": "Streetlights and Outages Reports"
+            }
+          },
+          {
+            "resource": {
+              "id": "kdpy-v28a",
+              "name": "Street Light Outages"
+            }
+          },
+          {
+            "resource": {
+              "id": "9v4p-ntch",
+              "name": "Municipal Building Energy Use"
+            }
+          },
+          {
+            "resource": {
+              "id": "ere7-kake",
+              "name": "Address Information"
+            }
+          }
+        ]
+      }
+    },
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=line+clearance": {
+      "read": "2026-11-07T01:01:59.371Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 0,
+        "results": []
+      }
+    },
+    "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=tree": {
+      "read": "2026-11-07T01:01:56.359Z",
+      "status": 200,
+      "body": {
+        "resultSetSize": 5,
+        "results": [
+          {
+            "resource": {
+              "id": "jz6u-9g3c",
+              "name": "Significant Trees"
+            }
+          },
+          {
+            "resource": {
+              "id": "cmvv-agyb",
+              "name": "City Tree Inventory"
+            }
+          },
+          {
+            "resource": {
+              "id": "u85v-sad9",
+              "name": "Tree Planting Program"
+            }
+          },
+          {
+            "resource": {
+              "id": "qzfe-wj25",
+              "name": "Work Orders"
+            }
+          },
+          {
+            "resource": {
+              "id": "mrv3-rcpc",
+              "name": "STORM | System to Track, Organize, Record, and Map"
+            }
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/cmvv-agyb.json": {
+      "read": "2026-11-07T01:01:58.110Z",
+      "status": 200,
+      "body": {
+        "id": "cmvv-agyb",
+        "name": "City Tree Inventory",
+        "description": "This dataset shows all city-managed trees, the majority of which are located on public property, lining streets, or in right of ways. The original inventory of these trees was conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners. No official re-inventory has been conducted since then by City officials or ISA Certified Arborists, however, tree records in this dataset have been and are being updated over time by City Staff. This dataset will be updated in the Open Data Portal every weekday.",
+        "attribution": "Parks & Recreation, Parks & Forestry Operations",
+        "rowsUpdatedAt": 1793968028,
+        "modifyingViewUid": null,
+        "metadata": {
+          "custom_fields": {
+            "Updates": {
+              "Update Frequency": "Daily",
+              "Update Workflow": "Automated"
+            }
+          }
+        },
+        "columns": [
+          {
+            "fieldName": "tree_id",
+            "dataTypeName": "text",
+            "description": "The unique identifier of the tree."
+          },
+          {
+            "fieldName": "common_name",
+            "dataTypeName": "text",
+            "description": "The common name of the tree."
+          },
+          {
+            "fieldName": "genus",
+            "dataTypeName": "text",
+            "description": "The Latin genus name of the tree."
+          },
+          {
+            "fieldName": "species",
+            "dataTypeName": "text",
+            "description": "The Latin species name of the tree."
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text",
+            "description": "The address location of the tree."
+          },
+          {
+            "fieldName": "trunk_diameter",
+            "dataTypeName": "number",
+            "description": "The approximate trunk diameter of the tree. Since trees grow over time, the current diameter may be larger than what data shows."
+          },
+          {
+            "fieldName": "trunk_diameter_range",
+            "dataTypeName": "text",
+            "description": "If available, the approximate trunk diameter range of the tree. This field is in the process of being updated over time."
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number",
+            "description": "The longitude coordinate of the tree."
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number",
+            "description": "The latitude coordinate of the tree."
+          },
+          {
+            "fieldName": "latitude_longitude_point",
+            "dataTypeName": "point",
+            "description": "Georeferenced point for mapping."
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "superward",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "civic_league",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": ":@computed_region_25t2_rbz7",
+            "dataTypeName": "number",
+            "description": "This column was automatically created in order to record in what polygon from the dataset 'US Counties' (25t2-rbz7) the point in column 'latitude_longitude_point' is located.  This enables the creation of region maps (choropleths) in the visualization canvas and data lens."
+          },
+          {
+            "fieldName": ":@computed_region_x6fk_ihs5",
+            "dataTypeName": "number",
+            "description": "This column was automatically created in order to record in what polygon from the dataset 'Civic Leagues' (x6fk-ihs5) the point in column 'latitude_longitude_point' is located.  This enables the creation of region maps (choropleths) in the visualization canvas and data lens."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/dszu-h9cf.json": {
+      "read": "2026-11-07T01:01:59.584Z",
+      "status": 200,
+      "body": {
+        "id": "dszu-h9cf",
+        "name": "Public Meeting Notices",
+        "description": "The public meeting notices dataset includes a listing of public meetings conducted by the City of Norfolk. The date, time, location, address, and links to the meeting video, agenda, and minutes are included. The meetings listed in this dataset include, but are not limited to, City Council Work Session and Formal Session, Planning Commission, Board of Zoning Appeals, and Architectural Review Board meetings. This dataset will be updated twice-daily on weekdays.",
+        "attribution": "City Clerk",
+        "rowsUpdatedAt": 1793986327,
+        "modifyingViewUid": null,
+        "metadata": {
+          "custom_fields": {
+            "Updates": {
+              "Update Frequency": "Daily",
+              "Update Workflow": "Automated"
+            }
+          }
+        },
+        "columns": [
+          {
+            "fieldName": "date_and_time",
+            "dataTypeName": "calendar_date",
+            "description": "The date and time of the public meeting."
+          },
+          {
+            "fieldName": "organization",
+            "dataTypeName": "text",
+            "description": "The organization that is meeting (“City Council”, “Planning Commission”, “Norfolk Wetlands Board”, “Board of Zoning Appeals”, etc.)"
+          },
+          {
+            "fieldName": "type",
+            "dataTypeName": "text",
+            "description": "Describes the type of public meeting (“Special Session”, “Regular Meeting”, “Informal Session”, “Formal Session”, etc.)"
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text",
+            "description": "A description of the location of the public meeting (“11th Floor Council Chamber”, “Ernie Morgan Center”, “Webex Electronic”, “10th Floor Conference Room”, etc.)"
+          },
+          {
+            "fieldName": "address",
+            "dataTypeName": "text",
+            "description": "The address location of the public meeting (“City Hall, 810 Union Street, Norfolk, VA 23510”, “3500 A Granby Street, Norfolk, VA 23504”, etc.)"
+          },
+          {
+            "fieldName": "meeting_link",
+            "dataTypeName": "url",
+            "description": "The link to the primary details page for the public meeting."
+          },
+          {
+            "fieldName": "agenda_link",
+            "dataTypeName": "url",
+            "description": "The link to the meeting agenda."
+          },
+          {
+            "fieldName": "agenda_packet_link",
+            "dataTypeName": "url",
+            "description": "The link to the meeting agenda packet."
+          },
+          {
+            "fieldName": "summary_link",
+            "dataTypeName": "url",
+            "description": "The link to the summary of the meeting."
+          },
+          {
+            "fieldName": "minutes_link",
+            "dataTypeName": "url",
+            "description": "The link to the meeting minutes."
+          },
+          {
+            "fieldName": "video_link",
+            "dataTypeName": "url",
+            "description": "A link to the meeting video."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/ere7-kake.json": {
+      "read": "2026-11-07T01:01:55.397Z",
+      "status": 200,
+      "body": {
+        "id": "ere7-kake",
+        "name": "Address Information",
+        "description": "The Address Information Resource is a compilation of information related to active and pending addresses in the City of Norfolk.  It provides a consolidated source to allow for quick and easy access to information about an address including details related to school districts, municipal services, planning, public safety, and civic leadership.  It is one of the main data resources that provides content for the Norfolk AIR website (https://air.norfolk.gov/#/).",
+        "attribution": "City of Norfolk's Information Technology Department",
+        "rowsUpdatedAt": 1793967768,
+        "modifyingViewUid": null,
+        "metadata": {
+          "custom_fields": {
+            "Updates": {
+              "Update Frequency": "Daily",
+              "Update Workflow": "Automated"
+            }
+          }
+        },
+        "columns": [
+          {
+            "fieldName": "tax_account_number",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "gpin",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "full_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "address_status",
+            "dataTypeName": "text",
+            "description": "Status of Address. Active or Pending\n"
+          },
+          {
+            "fieldName": "house_number",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "full_street_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "predirectional",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "pretype",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "street_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "street_type",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "suffix_direction",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "parcel_centroid_latitude",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "parcel_centroid_longitude",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "state_plane_x_coordinate",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "state_plane_y_coordinate",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "precinct_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "polling_place",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "precinct_number",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "polling_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "super_ward_district",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "super_ward_representative",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "super_ward_website",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "u_s_house_representatives",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "u_s_house_representative_url",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "u_s_house_representative",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "u_s_house_representative_1",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "virginia_house_district",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "virginia_house_district_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "virginia_house_district_email",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "virginia_house_district_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "virginia_house_district_web",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "senate_district",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "senate_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "senate_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "senate_email",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "senate_website",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "ward_district",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "ward_representative",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "ward_website",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "civic_league",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "civic_league_meeting_frequency",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "civic_league_meeting_time",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "civic_league_meeting_location",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "civic_league_president",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "civic_league_email",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "downtown_service_district",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "economic_district",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "empowerment_zone_code",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "empowerment_zone_description",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "enterprise_zone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "hub_zone_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "hub_zone",
+            "dataTypeName": "checkbox"
+          },
+          {
+            "fieldName": "opportunity_zone_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "opportunity_zone",
+            "dataTypeName": "checkbox"
+          },
+          {
+            "fieldName": "technology_zone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "tourism_zone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "elementary_school_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "elementary_school_url",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "elementary_school_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "elementary_school_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "middle_school_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "middle_school_url",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "middle_school_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "middle_school_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "high_school_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "high_school_url",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "high_school_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "high_school_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "neighborhood_service_area",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "planning_district_number",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "planning_district_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "planning_district_characteristics",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "street_sweeping",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "police_car_district",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "police_precincts",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "police_sector",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "concurrent_police_jurisdiction",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "fire_demand_zone",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "fire_rescue_first_responder",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "evacuation_zone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "recycling_day",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "recycling_week",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "recycle_truck",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "trash_route",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "trash_section",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "trash_day",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_park",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_park_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_recreation_facility",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_recreation_facility_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "recreation_facility_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_library",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearestlibrary_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_library_phone",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nearest_fire_hydrant",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "approximate_distance_to_nearest_fire_hydrant_ft_",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "census_block",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "census_tract_number",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "replate_no",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "house_plate_number",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "zip_codes",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "dominion_power_grid_panel",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "gem_lot",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "light_rail_buffer",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "geocoded_column",
+            "dataTypeName": "point"
+          },
+          {
+            "fieldName": "address_type",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": ":@computed_region_25t2_rbz7",
+            "dataTypeName": "number",
+            "description": "This column was automatically created in order to record in what polygon from the dataset 'US Counties' (25t2-rbz7) the point in column 'geocoded_column' is located.  This enables the creation of region maps (choropleths) in the visualization canvas and data lens."
+          },
+          {
+            "fieldName": ":@computed_region_x6fk_ihs5",
+            "dataTypeName": "number",
+            "description": "This column was automatically created in order to record in what polygon from the dataset 'Civic Leagues' (x6fk-ihs5) the point in column 'geocoded_column' is located.  This enables the creation of region maps (choropleths) in the visualization canvas and data lens."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/jz6u-9g3c.json": {
+      "read": "2026-11-07T01:01:58.284Z",
+      "status": 200,
+      "body": {
+        "id": "jz6u-9g3c",
+        "name": "Significant Trees",
+        "description": "Volunteers with the Norfolk Master Gardeners gather this data about significant trees in Norfolk.  The data collected about these trees includes diameter, height, canopy spread, general location and species.  The data is updated every five years.",
+        "attribution": "Recreation, Parks & Open Space (Parks and Forestry Operations)",
+        "rowsUpdatedAt": 1616788609,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "id",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "nomination_date",
+            "dataTypeName": "calendar_date"
+          },
+          {
+            "fieldName": "genus",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "species",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "common_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "public_yes",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "diameter_dbh",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "height_ft",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "spread",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "subjective_points",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "date_modified",
+            "dataTypeName": "calendar_date"
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number"
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/mrv3-rcpc.json": {
+      "read": "2026-11-07T01:01:56.455Z",
+      "status": 200,
+      "body": {
+        "id": "mrv3-rcpc",
+        "name": "STORM | System to Track, Organize, Record, and Map",
+        "description": "This dataset provides an extract from Norfolk's STORM application.  STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events.  The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc. This dataset provides a record of reported events entered into STORM beginning in 2010; the dataset is updated during and after weather events.",
+        "attribution": "City of Norfolk, Department of Information Technology",
+        "rowsUpdatedAt": 1587670703,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "address",
+            "dataTypeName": "text",
+            "description": "Address where incident occurred"
+          },
+          {
+            "fieldName": "date",
+            "dataTypeName": "calendar_date",
+            "description": "Date the incident was entered into STORM"
+          },
+          {
+            "fieldName": "_event",
+            "dataTypeName": "text",
+            "description": "Name of inclement weather event"
+          },
+          {
+            "fieldName": "event_type",
+            "dataTypeName": "text",
+            "description": "Type of inclement weather event"
+          },
+          {
+            "fieldName": "comments",
+            "dataTypeName": "text",
+            "description": "Details about the incident  "
+          },
+          {
+            "fieldName": "location_type",
+            "dataTypeName": "text",
+            "description": "Location type of the incident"
+          },
+          {
+            "fieldName": "status",
+            "dataTypeName": "text",
+            "description": "Status of the event"
+          },
+          {
+            "fieldName": "user",
+            "dataTypeName": "text",
+            "description": "User that entered the information"
+          },
+          {
+            "fieldName": "user_modified",
+            "dataTypeName": "text",
+            "description": "User that modified the information"
+          },
+          {
+            "fieldName": "modified_date",
+            "dataTypeName": "calendar_date",
+            "description": "Date information was modified"
+          },
+          {
+            "fieldName": "planning_district_number",
+            "dataTypeName": "text",
+            "description": "Planning District Number"
+          },
+          {
+            "fieldName": "planning_district",
+            "dataTypeName": "text",
+            "description": "Planning district in which incident occurred "
+          },
+          {
+            "fieldName": "civic_league",
+            "dataTypeName": "text",
+            "description": "Civic league in which incident occurred"
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number",
+            "description": "Ward in which incident occurred "
+          },
+          {
+            "fieldName": "super_ward",
+            "dataTypeName": "number",
+            "description": "Super ward in which incident occurred "
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number",
+            "description": "Latitude is the angular distance north or south from the equator of a point on the earth's surface, measured on the meridian of the point."
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number",
+            "description": "Longitude is the angular distance east or west on the earth's surface. Expressed either in degrees or by some corresponding difference in time."
+          },
+          {
+            "fieldName": "coordinates",
+            "dataTypeName": "location",
+            "description": "Coordinates of the property. Used to display the property on a map.\n "
+          },
+          {
+            "fieldName": ":@computed_region_25t2_rbz7",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_x6fk_ihs5",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_b3ci_nw94",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_38t5_wna6",
+            "dataTypeName": "number"
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/qzfe-wj25.json": {
+      "read": "2026-11-07T01:01:58.199Z",
+      "status": 200,
+      "body": {
+        "id": "qzfe-wj25",
+        "name": "Work Orders",
+        "description": "This dataset contains data on Work Orders performed by field crews from the Department of Parks & Recreation, the Department of Transportation, and the Environmental Storm Water Management and Streets & Bridges Divisions of the Department of Public Works. The data comes from the city’s implementation of CentralSquare’s Enterprise Asset Management platform, also known as Lucity. This dataset is updated daily on weekdays.",
+        "attribution": "Departments of Parks and Recreation, Public Works, and Transportation",
+        "rowsUpdatedAt": 1793967921,
+        "modifyingViewUid": null,
+        "metadata": {
+          "custom_fields": {
+            "Updates": {
+              "Update Frequency": "Daily",
+              "Update Workflow": "Automated"
+            }
+          }
+        },
+        "columns": [
+          {
+            "fieldName": "work_order_number",
+            "dataTypeName": "text",
+            "description": "A unique number assigned by the system to identify the work order."
+          },
+          {
+            "fieldName": "category_code",
+            "dataTypeName": "text",
+            "description": "Code assigned to the work order category."
+          },
+          {
+            "fieldName": "category_description",
+            "dataTypeName": "text",
+            "description": "Description of the work order category."
+          },
+          {
+            "fieldName": "problem_code",
+            "dataTypeName": "text",
+            "description": "Code assigned to the problem type."
+          },
+          {
+            "fieldName": "problem_description",
+            "dataTypeName": "text",
+            "description": "Description of the problem."
+          },
+          {
+            "fieldName": "reason",
+            "dataTypeName": "text",
+            "description": "Source of the problem to be remedied; used for work orders associated with storms."
+          },
+          {
+            "fieldName": "primary_task_code",
+            "dataTypeName": "text",
+            "description": "Code assigned to the primary action to be taken in response to the work order."
+          },
+          {
+            "fieldName": "primary_task_description",
+            "dataTypeName": "text",
+            "description": "A brief description of the primary action to be taken in response to the work order."
+          },
+          {
+            "fieldName": "status_code",
+            "dataTypeName": "number",
+            "description": "Code assigned to the current status of the work order."
+          },
+          {
+            "fieldName": "status_description",
+            "dataTypeName": "text",
+            "description": "Current status of the work order."
+          },
+          {
+            "fieldName": "status_datetime",
+            "dataTypeName": "calendar_date",
+            "description": "Last date and time that the status of the work order was updated."
+          },
+          {
+            "fieldName": "created_datetime",
+            "dataTypeName": "calendar_date",
+            "description": "Date and time the work order was created."
+          },
+          {
+            "fieldName": "start_date",
+            "dataTypeName": "calendar_date",
+            "description": "Date the work on the work order began."
+          },
+          {
+            "fieldName": "end_date",
+            "dataTypeName": "calendar_date",
+            "description": "Date the work on the work order was completed."
+          },
+          {
+            "fieldName": "last_modified_datetime",
+            "dataTypeName": "calendar_date",
+            "description": "Date and time the work order was last modified."
+          },
+          {
+            "fieldName": "priority",
+            "dataTypeName": "text",
+            "description": "Priority description of the work order."
+          },
+          {
+            "fieldName": "area",
+            "dataTypeName": "text",
+            "description": "Name of the department or division that is responsible for the work order."
+          },
+          {
+            "fieldName": "department",
+            "dataTypeName": "text",
+            "description": "Name of the department that is responsible for the work order."
+          },
+          {
+            "fieldName": "assigned_crew",
+            "dataTypeName": "text",
+            "description": "Name of the work crew that has been assigned to the work order."
+          },
+          {
+            "fieldName": "inventory_type",
+            "dataTypeName": "text",
+            "description": "The type of asset worked on. If a work order spans multiple types of assets, only the primary one will be displayed."
+          },
+          {
+            "fieldName": "actual_labor_cost",
+            "dataTypeName": "number",
+            "description": "Cost of City labor in completing the work order."
+          },
+          {
+            "fieldName": "actual_equipment_cost",
+            "dataTypeName": "number",
+            "description": "Cost of City equipment in completing the work order."
+          },
+          {
+            "fieldName": "actual_material_cost",
+            "dataTypeName": "number",
+            "description": "Cost of City purchased materials in completing the work order."
+          },
+          {
+            "fieldName": "contractor_cost",
+            "dataTypeName": "number",
+            "description": "Cost of contractor labor and materials in completing the work order."
+          },
+          {
+            "fieldName": "total_cost",
+            "dataTypeName": "number",
+            "description": "Total of Actual Labor Cost, Actual Equipment Cost, Actual Material Cost, and Contractor Cost."
+          },
+          {
+            "fieldName": "street",
+            "dataTypeName": "text",
+            "description": "Name of the street where the work is to be performed. If a work order spans multiple streets, only the primary one will be displayed. "
+          },
+          {
+            "fieldName": "maintenance_zone",
+            "dataTypeName": "text",
+            "description": "Maintenance zone that the work order is located in. If a work order spans multiple zones, only the one associated with the primary street will be displayed."
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number",
+            "description": "Ward that the work order is located in. If a work order spans multiple wards, only the one associated with the primary street will be displayed."
+          },
+          {
+            "fieldName": "superward",
+            "dataTypeName": "number",
+            "description": "Superward that the work order is located in. If a work order spans both superwards, only the one associated with the primary street will be displayed."
+          },
+          {
+            "fieldName": "civic_league",
+            "dataTypeName": "text",
+            "description": "Civic League that the work order is located in. If a work order spans multiple civic leagues, only the one associated with the primary street will be displayed."
+          },
+          {
+            "fieldName": "planning_district",
+            "dataTypeName": "text",
+            "description": "Planning District that the work order is located in. If a work order spans multiple planning districts, only the one associated with the primary street will be displayed."
+          },
+          {
+            "fieldName": "neighborhood_service_area",
+            "dataTypeName": "text",
+            "description": "Neighborhood Service Area that the work order is located in. If a work order spans multiple service areas, only the one associated with the primary street will be displayed."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/u85v-sad9.json": {
+      "read": "2026-11-07T01:01:58.378Z",
+      "status": 200,
+      "body": {
+        "id": "u85v-sad9",
+        "name": "Tree Planting Program",
+        "description": "Recreation, Parks and Open Space’s Bureau of Parks and Urban Forestry plants hundreds of trees each year along city streets, within city parks, and on other city properties.  This dataset gives pertinent tree species information, shows important geographic information about which parts of Norfolk are receiving trees in a given year, and historical data about planting date.  City staff utilizes Microsoft excel to track tree planting information. This dataset will show where the City of Norfolk plants its trees on city owned properties.  This data is updated annually.",
+        "attribution": "Parks and Forestry Operations, Recreation, Parks and Open Spaces",
+        "rowsUpdatedAt": 1566305491,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "genus",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "species",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "common_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "street_number",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "street_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "site",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "delivered",
+            "dataTypeName": "calendar_date"
+          },
+          {
+            "fieldName": "completed",
+            "dataTypeName": "calendar_date"
+          },
+          {
+            "fieldName": "estimated_canopy_coverage",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "source",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "geocoded_column",
+            "dataTypeName": "point"
+          },
+          {
+            "fieldName": "program_year",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_x6fk_ihs5",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_b3ci_nw94",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_38t5_wna6",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_25t2_rbz7",
+            "dataTypeName": "number"
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/resource/cmvv-agyb.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_range%2C%20sum(case(trunk_diameter%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_dia%2C%20sum(case((trunk_diameter%20IS%20NULL%20OR%20trunk_diameter%20%3C%3D%200)%20AND%20trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_usable%20WHERE%20(common_name%20IS%20NULL%20OR%20common_name%20!%3D%20'PRIVATE%20TREES')%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:59.269Z",
+      "status": 200,
+      "body": [
+        {
+          "whole": "93997",
+          "no_range": "65858",
+          "no_dia": "25174",
+          "no_usable": "6918"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-06T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025": {
+      "read": "2026-11-07T01:01:59.790Z",
+      "status": 200,
+      "body": [
+        {
+          "date_and_time": "2026-11-09T16:00:00.000",
+          "organization": "Architectural Review Board",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-09T17:30:00.000",
+          "organization": "E. Little Creek Advisory Committee",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-11-10T00:00:00.000",
+          "organization": "Civil Service Commission",
+          "type": "Special Meeting"
+        },
+        {
+          "date_and_time": "2026-11-10T16:00:00.000",
+          "organization": "City Council",
+          "type": "Informal Session"
+        },
+        {
+          "date_and_time": "2026-11-10T17:30:00.000",
+          "organization": "Southside Task Force",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-11-10T18:00:00.000",
+          "organization": "City Council",
+          "type": "Formal Session"
+        },
+        {
+          "date_and_time": "2026-11-11T17:15:00.000",
+          "organization": "Veterans Affairs Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-12T08:30:00.000",
+          "organization": "City Council",
+          "type": "Greater Wards Corner Task Force- 3+ Councilmembers"
+        },
+        {
+          "date_and_time": "2026-11-12T08:30:00.000",
+          "organization": "Greater Wards Corner Task Force",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-11-12T09:00:00.000",
+          "organization": "Norfolk Redevelopment and Housing Authority",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-12T12:00:00.000",
+          "organization": "Norfolk Recreation Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-12T16:30:00.000",
+          "organization": "Norfolk Arts Commission",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-11-13T08:30:00.000",
+          "organization": "Ghent Task Force",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-11-13T13:00:00.000",
+          "organization": "Hampton Roads Disability Services Board",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-16T15:00:00.000",
+          "organization": "Social Services Advisory Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-16T16:00:00.000",
+          "organization": "Mayor's Commission on Housing",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-11-17T13:00:00.000",
+          "organization": "Norfolk Public Library Board",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-17T16:00:00.000",
+          "organization": "Tidewater Community College Board",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-17T18:00:00.000",
+          "organization": "Mayor's Advisory Committee/St. Paul's Area",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-18T14:45:00.000",
+          "organization": "Community Policy and Management Team",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-18T17:30:00.000",
+          "organization": "Norfolk Environmental Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-19T10:30:00.000",
+          "organization": "Hampton Roads Transportation Planning Organization",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-19T12:00:00.000",
+          "organization": "Planning Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-19T12:30:00.000",
+          "organization": "Hampton Roads Planning District Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-11-19T13:00:00.000",
+          "organization": "Commission for Persons with Disabilities",
+          "type": "Regular Meeting"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%200": {
+      "read": "2026-11-07T01:01:55.560Z",
+      "status": 200,
+      "body": [
+        {
+          "s": "10TH BAY"
+        },
+        {
+          "s": "10TH VIEW"
+        },
+        {
+          "s": "11TH"
+        },
+        {
+          "s": "11TH BAY"
+        },
+        {
+          "s": "11TH VIEW"
+        },
+        {
+          "s": "12TH BAY"
+        },
+        {
+          "s": "12TH VIEW"
+        },
+        {
+          "s": "13TH"
+        },
+        {
+          "s": "13TH BAY"
+        },
+        {
+          "s": "13TH VIEW"
+        },
+        {
+          "s": "14TH BAY"
+        },
+        {
+          "s": "14TH VIEW"
+        },
+        {
+          "s": "15TH BAY"
+        },
+        {
+          "s": "15TH VIEW"
+        },
+        {
+          "s": "16TH BAY"
+        },
+        {
+          "s": "17TH"
+        },
+        {
+          "s": "17TH BAY"
+        },
+        {
+          "s": "18TH"
+        },
+        {
+          "s": "18TH BAY"
+        },
+        {
+          "s": "19TH"
+        },
+        {
+          "s": "19TH BAY"
+        },
+        {
+          "s": "1ST BAY"
+        },
+        {
+          "s": "1ST VIEW"
+        },
+        {
+          "s": "20TH"
+        },
+        {
+          "s": "20TH BAY"
+        },
+        {
+          "s": "21ST"
+        },
+        {
+          "s": "21ST BAY"
+        },
+        {
+          "s": "22ND"
+        },
+        {
+          "s": "22ND BAY"
+        },
+        {
+          "s": "23RD"
+        },
+        {
+          "s": "23RD BAY"
+        },
+        {
+          "s": "24TH"
+        },
+        {
+          "s": "24TH BAY"
+        },
+        {
+          "s": "25TH"
+        },
+        {
+          "s": "25TH BAY"
+        },
+        {
+          "s": "26TH"
+        },
+        {
+          "s": "26TH BAY"
+        },
+        {
+          "s": "27TH"
+        },
+        {
+          "s": "27TH BAY"
+        },
+        {
+          "s": "28TH"
+        },
+        {
+          "s": "28TH BAY"
+        },
+        {
+          "s": "29TH"
+        },
+        {
+          "s": "29TH BAY"
+        },
+        {
+          "s": "2ND"
+        },
+        {
+          "s": "2ND BAY"
+        },
+        {
+          "s": "30TH"
+        },
+        {
+          "s": "30TH BAY"
+        },
+        {
+          "s": "31ST"
+        },
+        {
+          "s": "32ND"
+        },
+        {
+          "s": "33RD"
+        },
+        {
+          "s": "34TH"
+        },
+        {
+          "s": "35TH"
+        },
+        {
+          "s": "36TH"
+        },
+        {
+          "s": "37TH"
+        },
+        {
+          "s": "38TH"
+        },
+        {
+          "s": "39TH"
+        },
+        {
+          "s": "3RD"
+        },
+        {
+          "s": "3RD BAY"
+        },
+        {
+          "s": "3RD VIEW"
+        },
+        {
+          "s": "40TH"
+        },
+        {
+          "s": "41ST"
+        },
+        {
+          "s": "42ND"
+        },
+        {
+          "s": "43RD"
+        },
+        {
+          "s": "44TH"
+        },
+        {
+          "s": "45TH"
+        },
+        {
+          "s": "46TH"
+        },
+        {
+          "s": "47TH"
+        },
+        {
+          "s": "48TH"
+        },
+        {
+          "s": "49TH"
+        },
+        {
+          "s": "4TH BAY"
+        },
+        {
+          "s": "4TH VIEW"
+        },
+        {
+          "s": "50TH"
+        },
+        {
+          "s": "51ST"
+        },
+        {
+          "s": "52ND"
+        },
+        {
+          "s": "53RD"
+        },
+        {
+          "s": "5TH BAY"
+        },
+        {
+          "s": "6TH BAY"
+        },
+        {
+          "s": "6TH VIEW"
+        },
+        {
+          "s": "7TH BAY"
+        },
+        {
+          "s": "7TH VIEW"
+        },
+        {
+          "s": "8TH BAY"
+        },
+        {
+          "s": "8TH VIEW"
+        },
+        {
+          "s": "9TH BAY"
+        },
+        {
+          "s": "9TH VIEW"
+        },
+        {
+          "s": "A"
+        },
+        {
+          "s": "ABBEY"
+        },
+        {
+          "s": "ABBOTT"
+        },
+        {
+          "s": "ABILENE"
+        },
+        {
+          "s": "ABINGDON"
+        },
+        {
+          "s": "ADAIR"
+        },
+        {
+          "s": "ADDERLEY"
+        },
+        {
+          "s": "ADDISON"
+        },
+        {
+          "s": "ADELE"
+        },
+        {
+          "s": "ADMIRAL TAUSSIG"
+        },
+        {
+          "s": "AFTON"
+        },
+        {
+          "s": "AIRWAY"
+        },
+        {
+          "s": "ALABAMA"
+        },
+        {
+          "s": "ALBEMARLE"
+        },
+        {
+          "s": "ALBERT"
+        },
+        {
+          "s": "ALDEN"
+        },
+        {
+          "s": "ALDER"
+        },
+        {
+          "s": "ALDOW"
+        },
+        {
+          "s": "ALEXANDER"
+        },
+        {
+          "s": "ALFRED"
+        },
+        {
+          "s": "ALGONQUIN"
+        },
+        {
+          "s": "ALIDA"
+        },
+        {
+          "s": "ALLEN"
+        },
+        {
+          "s": "ALLIED"
+        },
+        {
+          "s": "ALMA"
+        },
+        {
+          "s": "ALMEDA"
+        },
+        {
+          "s": "ALMOND"
+        },
+        {
+          "s": "ALPINE"
+        },
+        {
+          "s": "ALSACE"
+        },
+        {
+          "s": "ALSON"
+        },
+        {
+          "s": "AMARILLO"
+        },
+        {
+          "s": "AMBLER"
+        },
+        {
+          "s": "AMELIA"
+        },
+        {
+          "s": "AMHERST"
+        },
+        {
+          "s": "ANDERSON"
+        },
+        {
+          "s": "ANDES"
+        },
+        {
+          "s": "ANDREA"
+        },
+        {
+          "s": "ANDREW"
+        },
+        {
+          "s": "ANGLEWOOD"
+        },
+        {
+          "s": "ANITA"
+        },
+        {
+          "s": "ANNA"
+        },
+        {
+          "s": "ANNE"
+        },
+        {
+          "s": "APEX"
+        },
+        {
+          "s": "APPLETON"
+        },
+        {
+          "s": "APPLETREE"
+        },
+        {
+          "s": "APPOMATTOX"
+        },
+        {
+          "s": "ARA"
+        },
+        {
+          "s": "ARBOR"
+        },
+        {
+          "s": "ARCADIA"
+        },
+        {
+          "s": "ARCHCOVE"
+        },
+        {
+          "s": "ARDEN"
+        },
+        {
+          "s": "ARDMORE"
+        },
+        {
+          "s": "ARGALL"
+        },
+        {
+          "s": "ARGONNE"
+        },
+        {
+          "s": "ARGYLE"
+        },
+        {
+          "s": "ARIZONA"
+        },
+        {
+          "s": "ARKANSAS"
+        },
+        {
+          "s": "ARLINGTON"
+        },
+        {
+          "s": "ARMFIELD"
+        },
+        {
+          "s": "ARMISTEAD"
+        },
+        {
+          "s": "ARMISTEAD BRIDGE"
+        },
+        {
+          "s": "ARROWWOOD"
+        },
+        {
+          "s": "ARTHUR"
+        },
+        {
+          "s": "ASBURY"
+        },
+        {
+          "s": "ASFARI"
+        },
+        {
+          "s": "ASHBY"
+        },
+        {
+          "s": "ASHLAND"
+        },
+        {
+          "s": "ASHLAWN"
+        },
+        {
+          "s": "ASPIN"
+        },
+        {
+          "s": "ASTOR"
+        },
+        {
+          "s": "ATLANS"
+        },
+        {
+          "s": "ATLANTA"
+        },
+        {
+          "s": "ATLANTIC"
+        },
+        {
+          "s": "ATTERBURY"
+        },
+        {
+          "s": "ATWATER"
+        },
+        {
+          "s": "ATWOOD"
+        },
+        {
+          "s": "AUBURN"
+        },
+        {
+          "s": "AUSTIN"
+        },
+        {
+          "s": "A VIEW"
+        },
+        {
+          "s": "AVON"
+        },
+        {
+          "s": "AVORY"
+        },
+        {
+          "s": "AYLIFF"
+        },
+        {
+          "s": "AZALEA"
+        },
+        {
+          "s": "AZALEA GARDEN"
+        },
+        {
+          "s": "AZALEA POINT"
+        },
+        {
+          "s": "B"
+        },
+        {
+          "s": "BAECHER"
+        },
+        {
+          "s": "BAGNALL"
+        },
+        {
+          "s": "BAILEY"
+        },
+        {
+          "s": "BAINBRIDGE"
+        },
+        {
+          "s": "BAKER"
+        },
+        {
+          "s": "BALDWIN"
+        },
+        {
+          "s": "BALL"
+        },
+        {
+          "s": "BALLENTINE"
+        },
+        {
+          "s": "BALTIMORE"
+        },
+        {
+          "s": "BALVIEW"
+        },
+        {
+          "s": "BANCKER"
+        },
+        {
+          "s": "BANGOR"
+        },
+        {
+          "s": "BANK"
+        },
+        {
+          "s": "BANKHEAD"
+        },
+        {
+          "s": "BANNING"
+        },
+        {
+          "s": "BAPAUME"
+        },
+        {
+          "s": "BARBARA"
+        },
+        {
+          "s": "BARBERRY"
+        },
+        {
+          "s": "BARCLIFF"
+        },
+        {
+          "s": "BARHARBOR"
+        },
+        {
+          "s": "BARKWOOD"
+        },
+        {
+          "s": "BARNEY"
+        },
+        {
+          "s": "BARNHOLLOW"
+        },
+        {
+          "s": "BARRAUD"
+        },
+        {
+          "s": "BARRE"
+        },
+        {
+          "s": "BARTEE"
+        },
+        {
+          "s": "BARTIN"
+        },
+        {
+          "s": "BARTON"
+        },
+        {
+          "s": "BATAAN"
+        },
+        {
+          "s": "BATTERSEA"
+        },
+        {
+          "s": "BAY"
+        },
+        {
+          "s": "BAYBERRY"
+        },
+        {
+          "s": "BAYCHESTER"
+        },
+        {
+          "s": "BAY DUNES"
+        },
+        {
+          "s": "BAY FRONT"
+        },
+        {
+          "s": "BAYNE"
+        },
+        {
+          "s": "BAY OAKS"
+        },
+        {
+          "s": "BAYONNE"
+        },
+        {
+          "s": "BAY POINT"
+        },
+        {
+          "s": "BAYSIDE"
+        },
+        {
+          "s": "BAYVIEW"
+        },
+        {
+          "s": "BAYVILLE"
+        },
+        {
+          "s": "BAYWOOD"
+        },
+        {
+          "s": "BEACH"
+        },
+        {
+          "s": "BEACHMONT"
+        },
+        {
+          "s": "BEACH VIEW"
+        },
+        {
+          "s": "BEACON HILL"
+        },
+        {
+          "s": "BEAMON"
+        },
+        {
+          "s": "BEARDEN"
+        },
+        {
+          "s": "BEATTY"
+        },
+        {
+          "s": "BEAUMONT"
+        },
+        {
+          "s": "BECK"
+        },
+        {
+          "s": "BECKET"
+        },
+        {
+          "s": "BECKNER"
+        },
+        {
+          "s": "BEDFORD"
+        },
+        {
+          "s": "BEECHWOOD"
+        },
+        {
+          "s": "BEEKMAN"
+        },
+        {
+          "s": "BELGRAVE"
+        },
+        {
+          "s": "BELL"
+        },
+        {
+          "s": "BELLAMY"
+        },
+        {
+          "s": "BELLEFIELD"
+        },
+        {
+          "s": "BELLEVUE"
+        },
+        {
+          "s": "BELLMORE"
+        },
+        {
+          "s": "BELVEDERE"
+        },
+        {
+          "s": "BENJAMIN"
+        },
+        {
+          "s": "BENNINGFIELD"
+        },
+        {
+          "s": "BENTON"
+        },
+        {
+          "s": "BENWOOD"
+        },
+        {
+          "s": "BERGEN"
+        },
+        {
+          "s": "BERKLEY"
+        },
+        {
+          "s": "BERRY HILL"
+        },
+        {
+          "s": "BERTHA"
+        },
+        {
+          "s": "BESS"
+        },
+        {
+          "s": "BESSIE"
+        },
+        {
+          "s": "BETH"
+        },
+        {
+          "s": "BETTY"
+        },
+        {
+          "s": "BEVERLY"
+        },
+        {
+          "s": "BI COUNTY"
+        },
+        {
+          "s": "BILL"
+        },
+        {
+          "s": "BILLINGS"
+        },
+        {
+          "s": "BILTMORE"
+        },
+        {
+          "s": "BIRCH"
+        },
+        {
+          "s": "BIRMINGHAM"
+        },
+        {
+          "s": "BISON"
+        },
+        {
+          "s": "BIVENS"
+        },
+        {
+          "s": "BLACKSTONE"
+        },
+        {
+          "s": "BLACKWOOD"
+        },
+        {
+          "s": "BLADES"
+        },
+        {
+          "s": "BLAIR"
+        },
+        {
+          "s": "BLAKE"
+        },
+        {
+          "s": "BLAND"
+        },
+        {
+          "s": "BLANFORD"
+        },
+        {
+          "s": "BLOW"
+        },
+        {
+          "s": "BLUEBERRY"
+        },
+        {
+          "s": "BLUESTONE"
+        },
+        {
+          "s": "BOISSEVAIN"
+        },
+        {
+          "s": "BOLLING"
+        },
+        {
+          "s": "BOLTON"
+        },
+        {
+          "s": "BOND"
+        },
+        {
+          "s": "BONDALE"
+        },
+        {
+          "s": "BONNOT"
+        },
+        {
+          "s": "BOOTH"
+        },
+        {
+          "s": "BORB"
+        },
+        {
+          "s": "BORDEAUX"
+        },
+        {
+          "s": "BOTETOURT"
+        },
+        {
+          "s": "BOULDER"
+        },
+        {
+          "s": "BOURBON"
+        },
+        {
+          "s": "BOUSH"
+        },
+        {
+          "s": "BOUSH CREEK"
+        },
+        {
+          "s": "BOWDENS FERRY"
+        },
+        {
+          "s": "BOWE"
+        },
+        {
+          "s": "BOWER"
+        },
+        {
+          "s": "BOWWOOD"
+        },
+        {
+          "s": "BOXWOOD"
+        },
+        {
+          "s": "BOYCE"
+        },
+        {
+          "s": "BRACEY"
+        },
+        {
+          "s": "BRACKENRIDGE"
+        },
+        {
+          "s": "BRADEN"
+        },
+        {
+          "s": "BRADFORD"
+        },
+        {
+          "s": "BRADLEY"
+        },
+        {
+          "s": "BRAMBLETON"
+        },
+        {
+          "s": "BRANCH"
+        },
+        {
+          "s": "BRANCHWOOD"
+        },
+        {
+          "s": "BRANDON"
+        },
+        {
+          "s": "BRENNAN"
+        },
+        {
+          "s": "BRENTWOOD"
+        },
+        {
+          "s": "BREST"
+        },
+        {
+          "s": "BRETON"
+        },
+        {
+          "s": "BRIAR HILL"
+        },
+        {
+          "s": "BRIARWOOD"
+        },
+        {
+          "s": "BRICKBY"
+        },
+        {
+          "s": "BRICKELL"
+        },
+        {
+          "s": "BRIDGEPORT"
+        },
+        {
+          "s": "BRIDGETTE"
+        },
+        {
+          "s": "BRIDLE"
+        },
+        {
+          "s": "BRIGHTLEY"
+        },
+        {
+          "s": "BRIGHTON"
+        },
+        {
+          "s": "BRINDA"
+        },
+        {
+          "s": "BRISTOL"
+        },
+        {
+          "s": "BROADFIELD"
+        },
+        {
+          "s": "BROADWAY"
+        },
+        {
+          "s": "BROCK"
+        },
+        {
+          "s": "BROCKWELL"
+        },
+        {
+          "s": "BROMLEY"
+        },
+        {
+          "s": "BROOKE"
+        },
+        {
+          "s": "BROOKFIELD"
+        },
+        {
+          "s": "BROOKNEAL"
+        },
+        {
+          "s": "BROOKSIDE"
+        },
+        {
+          "s": "BROOKVILLE"
+        },
+        {
+          "s": "BROOKWOOD"
+        },
+        {
+          "s": "BROUGHTON"
+        },
+        {
+          "s": "BROWN"
+        },
+        {
+          "s": "BRUCE"
+        },
+        {
+          "s": "BRUNSWICK"
+        },
+        {
+          "s": "BUCHANAN"
+        },
+        {
+          "s": "BUCK"
+        },
+        {
+          "s": "BUCKINGHAM"
+        },
+        {
+          "s": "BUCKMAN"
+        },
+        {
+          "s": "BUDD"
+        },
+        {
+          "s": "BUFFALO"
+        },
+        {
+          "s": "BULL RUN"
+        },
+        {
+          "s": "BUNSEN"
+        },
+        {
+          "s": "BURBANK"
+        },
+        {
+          "s": "BURGOYNE"
+        },
+        {
+          "s": "BURKSDALE"
+        },
+        {
+          "s": "BURLEIGH"
+        },
+        {
+          "s": "BURRAGE"
+        },
+        {
+          "s": "BURRELL"
+        },
+        {
+          "s": "BURTON STATION"
+        },
+        {
+          "s": "BUTE"
+        },
+        {
+          "s": "BUTTERCUP"
+        },
+        {
+          "s": "BUTTERWORTH"
+        },
+        {
+          "s": "BUXBY"
+        },
+        {
+          "s": "C"
+        },
+        {
+          "s": "CABOT"
+        },
+        {
+          "s": "CALHOUN"
+        },
+        {
+          "s": "CALIENTE"
+        },
+        {
+          "s": "CALLA"
+        },
+        {
+          "s": "CALVIN"
+        },
+        {
+          "s": "CAMBRIDGE"
+        },
+        {
+          "s": "CAMELLIA"
+        },
+        {
+          "s": "CAMPBELL"
+        },
+        {
+          "s": "CAMPOS"
+        },
+        {
+          "s": "CAMPOSTELLA"
+        },
+        {
+          "s": "CANTON"
+        },
+        {
+          "s": "CAP"
+        },
+        {
+          "s": "CAPE HENRY"
+        },
+        {
+          "s": "CAPEVIEW"
+        },
+        {
+          "s": "CAPITOL"
+        },
+        {
+          "s": "CAPTAINS"
+        },
+        {
+          "s": "CARIBOU"
+        },
+        {
+          "s": "CARILLO"
+        },
+        {
+          "s": "CARL"
+        },
+        {
+          "s": "CARLISLE"
+        },
+        {
+          "s": "CARLTON"
+        },
+        {
+          "s": "CAROLINA"
+        },
+        {
+          "s": "CAROLINE"
+        },
+        {
+          "s": "CARONA"
+        },
+        {
+          "s": "CARR"
+        },
+        {
+          "s": "CARRAWAY"
+        },
+        {
+          "s": "CARRENE"
+        },
+        {
+          "s": "CARRIAGE"
+        },
+        {
+          "s": "CARROLL"
+        },
+        {
+          "s": "CARSWELL"
+        },
+        {
+          "s": "CARY"
+        },
+        {
+          "s": "CASS"
+        },
+        {
+          "s": "CASTLETON"
+        },
+        {
+          "s": "CATALPA"
+        },
+        {
+          "s": "CATHERINE"
+        },
+        {
+          "s": "CATON"
+        },
+        {
+          "s": "CAVERN"
+        },
+        {
+          "s": "CECELIA"
+        },
+        {
+          "s": "CEDAR"
+        },
+        {
+          "s": "CEDAR LEVEL"
+        },
+        {
+          "s": "CEDARWOOD"
+        },
+        {
+          "s": "CENTER"
+        },
+        {
+          "s": "CENTRAL"
+        },
+        {
+          "s": "CENTRAL BUSINESS PARK"
+        },
+        {
+          "s": "CHALFIN"
+        },
+        {
+          "s": "CHAMBERS"
+        },
+        {
+          "s": "CHANELKA"
+        },
+        {
+          "s": "CHAPEL"
+        },
+        {
+          "s": "CHAPIN"
+        },
+        {
+          "s": "CHARLESTON"
+        },
+        {
+          "s": "CHARLNEY"
+        },
+        {
+          "s": "CHARLOTTE"
+        },
+        {
+          "s": "CHARNWOOD"
+        },
+        {
+          "s": "CHATHAM"
+        },
+        {
+          "s": "CHELA"
+        },
+        {
+          "s": "CHELSEA"
+        },
+        {
+          "s": "CHERRY"
+        },
+        {
+          "s": "CHESAPEAKE"
+        },
+        {
+          "s": "CHESAPEAKE BAY"
+        },
+        {
+          "s": "CHESHIRE"
+        },
+        {
+          "s": "CHESTER"
+        },
+        {
+          "s": "CHESTERFIELD"
+        },
+        {
+          "s": "CHEVY"
+        },
+        {
+          "s": "CHILD CARE"
+        },
+        {
+          "s": "CHILDRENS"
+        },
+        {
+          "s": "CHIPPING"
+        },
+        {
+          "s": "CHIRONNA"
+        },
+        {
+          "s": "CHRISTOPHER"
+        },
+        {
+          "s": "CHRYSLON"
+        },
+        {
+          "s": "CHURCH"
+        },
+        {
+          "s": "CIRCLE"
+        },
+        {
+          "s": "CITADEL"
+        },
+        {
+          "s": "CITY HALL"
+        },
+        {
+          "s": "CLAIBORNE"
+        },
+        {
+          "s": "CLARE"
+        },
+        {
+          "s": "CLAREMONT"
+        },
+        {
+          "s": "CLARENCE"
+        },
+        {
+          "s": "CLARION"
+        },
+        {
+          "s": "CLARK"
+        },
+        {
+          "s": "CLAUD"
+        },
+        {
+          "s": "CLAY"
+        },
+        {
+          "s": "CLAYTON"
+        },
+        {
+          "s": "CLEMENTS"
+        },
+        {
+          "s": "CLEMSON"
+        },
+        {
+          "s": "CLEVELAND"
+        },
+        {
+          "s": "CLIFTON"
+        },
+        {
+          "s": "CLONCURRY"
+        },
+        {
+          "s": "CLOVERLEAF"
+        },
+        {
+          "s": "CMA CGM"
+        },
+        {
+          "s": "COACH WAY"
+        },
+        {
+          "s": "COBURN"
+        },
+        {
+          "s": "COHOON"
+        },
+        {
+          "s": "COINBROOK"
+        },
+        {
+          "s": "COLANE"
+        },
+        {
+          "s": "COLCHESTER"
+        },
+        {
+          "s": "COLEMAN"
+        },
+        {
+          "s": "COLGATE"
+        },
+        {
+          "s": "COLIN"
+        },
+        {
+          "s": "COLLEGE"
+        },
+        {
+          "s": "COLLEY"
+        },
+        {
+          "s": "COLMAR"
+        },
+        {
+          "s": "COLON"
+        },
+        {
+          "s": "COLONIAL"
+        },
+        {
+          "s": "COLONY POINT"
+        },
+        {
+          "s": "COLUMBIA"
+        },
+        {
+          "s": "COLUMBUS"
+        },
+        {
+          "s": "COMMANDER"
+        },
+        {
+          "s": "COMMERCIAL"
+        },
+        {
+          "s": "COMMODORE"
+        },
+        {
+          "s": "COMMONWEALTH"
+        },
+        {
+          "s": "COMSTOCK"
+        },
+        {
+          "s": "CONDOR"
+        },
+        {
+          "s": "CONGRESS"
+        },
+        {
+          "s": "CONNECTICUT"
+        },
+        {
+          "s": "CONOGA"
+        },
+        {
+          "s": "CONSOLE"
+        },
+        {
+          "s": "CONWAY"
+        },
+        {
+          "s": "COOKE"
+        },
+        {
+          "s": "CORBELL"
+        },
+        {
+          "s": "CORBETT"
+        },
+        {
+          "s": "CORBIN"
+        },
+        {
+          "s": "CORE"
+        },
+        {
+          "s": "CORNELL"
+        },
+        {
+          "s": "CORNICK"
+        },
+        {
+          "s": "CORNWALL"
+        },
+        {
+          "s": "CORNWALLIS"
+        },
+        {
+          "s": "CORPORATE"
+        },
+        {
+          "s": "CORPREW"
+        },
+        {
+          "s": "CORTLANDT"
+        },
+        {
+          "s": "COTTAGE"
+        },
+        {
+          "s": "COUGAR"
+        },
+        {
+          "s": "COUNT BASIE"
+        },
+        {
+          "s": "COUNTY"
+        },
+        {
+          "s": "COURTNEY"
+        },
+        {
+          "s": "COVEL"
+        },
+        {
+          "s": "COVENANT"
+        },
+        {
+          "s": "COVENTRY"
+        },
+        {
+          "s": "COVINGTON"
+        },
+        {
+          "s": "COWAND"
+        },
+        {
+          "s": "COYOTE"
+        },
+        {
+          "s": "CRAFFORD"
+        },
+        {
+          "s": "CRAIG"
+        },
+        {
+          "s": "CRANE"
+        },
+        {
+          "s": "CRATEN"
+        },
+        {
+          "s": "CRAVEN"
+        },
+        {
+          "s": "CREAMER"
+        },
+        {
+          "s": "CREEKWOOD"
+        },
+        {
+          "s": "CRESCENT"
+        },
+        {
+          "s": "CROFT"
+        },
+        {
+          "s": "CROMWELL"
+        },
+        {
+          "s": "CROSMAN"
+        },
+        {
+          "s": "CROSS"
+        },
+        {
+          "s": "CROYDEN"
+        },
+        {
+          "s": "CULFOR"
+        },
+        {
+          "s": "CULPEPPER"
+        },
+        {
+          "s": "CUMBERLAND"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201000": {
+      "read": "2026-11-07T01:01:55.857Z",
+      "status": 200,
+      "body": [
+        {
+          "s": "KILLAM"
+        },
+        {
+          "s": "KILMER"
+        },
+        {
+          "s": "KIMBALL"
+        },
+        {
+          "s": "KIMBERLY"
+        },
+        {
+          "s": "KINCAID"
+        },
+        {
+          "s": "KINGSLEY"
+        },
+        {
+          "s": "KINGS LYNN"
+        },
+        {
+          "s": "KINGSTON"
+        },
+        {
+          "s": "KINGSWAY"
+        },
+        {
+          "s": "KINGSWELL"
+        },
+        {
+          "s": "KINGWOOD"
+        },
+        {
+          "s": "KIRBY"
+        },
+        {
+          "s": "KIRBYHAIGH"
+        },
+        {
+          "s": "KIRKLAND"
+        },
+        {
+          "s": "KITCHENER"
+        },
+        {
+          "s": "KITTRELL"
+        },
+        {
+          "s": "KNOX"
+        },
+        {
+          "s": "KOSTELL"
+        },
+        {
+          "s": "KRICK"
+        },
+        {
+          "s": "LADD"
+        },
+        {
+          "s": "LAFAYETTE"
+        },
+        {
+          "s": "LAGOON"
+        },
+        {
+          "s": "LAKEBRIDGE"
+        },
+        {
+          "s": "LAKE HERBERT"
+        },
+        {
+          "s": "LAKE RIDGE"
+        },
+        {
+          "s": "LAKESIDE"
+        },
+        {
+          "s": "LAKE TAYLOR"
+        },
+        {
+          "s": "LAKE TERRACE"
+        },
+        {
+          "s": "LAKEWOOD"
+        },
+        {
+          "s": "LAKE WRIGHT"
+        },
+        {
+          "s": "LAMBERT"
+        },
+        {
+          "s": "LAMBERTS POINT"
+        },
+        {
+          "s": "LAMESA"
+        },
+        {
+          "s": "LAMONT"
+        },
+        {
+          "s": "LANCASTER"
+        },
+        {
+          "s": "LANCE"
+        },
+        {
+          "s": "LAND"
+        },
+        {
+          "s": "LANDALE"
+        },
+        {
+          "s": "LANDING"
+        },
+        {
+          "s": "LANGLEY"
+        },
+        {
+          "s": "LANKFORD"
+        },
+        {
+          "s": "LANSING"
+        },
+        {
+          "s": "LARCHMONT"
+        },
+        {
+          "s": "LARKIN"
+        },
+        {
+          "s": "LARRYMORE"
+        },
+        {
+          "s": "LASALLE"
+        },
+        {
+          "s": "LASSER"
+        },
+        {
+          "s": "LATHAN"
+        },
+        {
+          "s": "LATIMER"
+        },
+        {
+          "s": "LAUREL"
+        },
+        {
+          "s": "LAVALETTE"
+        },
+        {
+          "s": "LAWSON"
+        },
+        {
+          "s": "LAYTON"
+        },
+        {
+          "s": "LEAD"
+        },
+        {
+          "s": "LEAFWOOD"
+        },
+        {
+          "s": "LEAKE"
+        },
+        {
+          "s": "LEANDER"
+        },
+        {
+          "s": "LEA VIEW"
+        },
+        {
+          "s": "LECLAIR"
+        },
+        {
+          "s": "LEEPOINT"
+        },
+        {
+          "s": "LEICESTER"
+        },
+        {
+          "s": "LEIGH"
+        },
+        {
+          "s": "LEMBLA"
+        },
+        {
+          "s": "LENA"
+        },
+        {
+          "s": "LENOIR"
+        },
+        {
+          "s": "LENOX"
+        },
+        {
+          "s": "LENS"
+        },
+        {
+          "s": "LEO"
+        },
+        {
+          "s": "LEONARD"
+        },
+        {
+          "s": "LEPAGE"
+        },
+        {
+          "s": "LESLIE"
+        },
+        {
+          "s": "LESNER"
+        },
+        {
+          "s": "LESSELLE"
+        },
+        {
+          "s": "LEVINE"
+        },
+        {
+          "s": "LEWIS"
+        },
+        {
+          "s": "LEX"
+        },
+        {
+          "s": "LEXAN"
+        },
+        {
+          "s": "LEXINGTON"
+        },
+        {
+          "s": "LIBERTY"
+        },
+        {
+          "s": "LIGHT"
+        },
+        {
+          "s": "LIGHTHOUSE"
+        },
+        {
+          "s": "LIGHTWOOD"
+        },
+        {
+          "s": "LIGON"
+        },
+        {
+          "s": "LILAC"
+        },
+        {
+          "s": "LIMESTONE"
+        },
+        {
+          "s": "LINCOLN"
+        },
+        {
+          "s": "LIND"
+        },
+        {
+          "s": "LINDALE"
+        },
+        {
+          "s": "LINDENWOOD"
+        },
+        {
+          "s": "LINDSAY"
+        },
+        {
+          "s": "LINK"
+        },
+        {
+          "s": "LION"
+        },
+        {
+          "s": "LISA"
+        },
+        {
+          "s": "LITTLE BAY"
+        },
+        {
+          "s": "LITTLE CREEK"
+        },
+        {
+          "s": "LITTLE JOHN"
+        },
+        {
+          "s": "LIVERPOOL"
+        },
+        {
+          "s": "LLEWELLYN"
+        },
+        {
+          "s": "LOAM"
+        },
+        {
+          "s": "LOCKAMY"
+        },
+        {
+          "s": "LOCUST"
+        },
+        {
+          "s": "LOGAN"
+        },
+        {
+          "s": "LOIS"
+        },
+        {
+          "s": "LONDON"
+        },
+        {
+          "s": "LONGDALE"
+        },
+        {
+          "s": "LONGWOOD"
+        },
+        {
+          "s": "LORENGO"
+        },
+        {
+          "s": "LORRAINE"
+        },
+        {
+          "s": "LOUISA"
+        },
+        {
+          "s": "LOUISIANA"
+        },
+        {
+          "s": "LOUVETT"
+        },
+        {
+          "s": "LOUVICK"
+        },
+        {
+          "s": "LOVITT"
+        },
+        {
+          "s": "LOWERY"
+        },
+        {
+          "s": "LUCAS"
+        },
+        {
+          "s": "LUCIAN"
+        },
+        {
+          "s": "LUCILE"
+        },
+        {
+          "s": "LUDLOW"
+        },
+        {
+          "s": "LUNENBERG"
+        },
+        {
+          "s": "LUXEMBOURG"
+        },
+        {
+          "s": "LYDIA"
+        },
+        {
+          "s": "LYNDHURST"
+        },
+        {
+          "s": "LYNN"
+        },
+        {
+          "s": "LYNNBROOK"
+        },
+        {
+          "s": "LYNN RIVER"
+        },
+        {
+          "s": "LYONS"
+        },
+        {
+          "s": "MACDONALD"
+        },
+        {
+          "s": "MACE"
+        },
+        {
+          "s": "MACON"
+        },
+        {
+          "s": "MADISON"
+        },
+        {
+          "s": "MAGAZINE"
+        },
+        {
+          "s": "MAGNOLIA"
+        },
+        {
+          "s": "MAHONE"
+        },
+        {
+          "s": "MAIDEN"
+        },
+        {
+          "s": "MAIN"
+        },
+        {
+          "s": "MAJESTIC"
+        },
+        {
+          "s": "MAJOR"
+        },
+        {
+          "s": "MALBON"
+        },
+        {
+          "s": "MALDEN"
+        },
+        {
+          "s": "MALLARD"
+        },
+        {
+          "s": "MALLORY"
+        },
+        {
+          "s": "MALMGREN"
+        },
+        {
+          "s": "MALTBY"
+        },
+        {
+          "s": "MALVERN"
+        },
+        {
+          "s": "MAMIE"
+        },
+        {
+          "s": "MANASSAS"
+        },
+        {
+          "s": "MANCHESTER"
+        },
+        {
+          "s": "MANGROVE"
+        },
+        {
+          "s": "MANSON"
+        },
+        {
+          "s": "MANTEO"
+        },
+        {
+          "s": "MAPLE"
+        },
+        {
+          "s": "MAPLESHADE"
+        },
+        {
+          "s": "MAPLETON"
+        },
+        {
+          "s": "MAPLEWOOD"
+        },
+        {
+          "s": "MAPOLE"
+        },
+        {
+          "s": "MARATHON"
+        },
+        {
+          "s": "MARCHANT"
+        },
+        {
+          "s": "MARCY"
+        },
+        {
+          "s": "MARGARET"
+        },
+        {
+          "s": "MARIETTA"
+        },
+        {
+          "s": "MARINA"
+        },
+        {
+          "s": "MARINER"
+        },
+        {
+          "s": "MARINERS"
+        },
+        {
+          "s": "MARINERS POINT"
+        },
+        {
+          "s": "MARION"
+        },
+        {
+          "s": "MARIUS"
+        },
+        {
+          "s": "MARKET"
+        },
+        {
+          "s": "MARLBORO"
+        },
+        {
+          "s": "MARLFIELD"
+        },
+        {
+          "s": "MARLINA"
+        },
+        {
+          "s": "MARLOW"
+        },
+        {
+          "s": "MARNE"
+        },
+        {
+          "s": "MARSH"
+        },
+        {
+          "s": "MARSHALL"
+        },
+        {
+          "s": "MARTINS"
+        },
+        {
+          "s": "MARTONE"
+        },
+        {
+          "s": "MARVIN"
+        },
+        {
+          "s": "MARY"
+        },
+        {
+          "s": "MARYLAND"
+        },
+        {
+          "s": "MASI"
+        },
+        {
+          "s": "MASON"
+        },
+        {
+          "s": "MASON CREEK"
+        },
+        {
+          "s": "MASSACHUSETTS"
+        },
+        {
+          "s": "MATOAKA"
+        },
+        {
+          "s": "MATTHEW HENSON"
+        },
+        {
+          "s": "MAUDE B DAVIS"
+        },
+        {
+          "s": "MAURICE"
+        },
+        {
+          "s": "MAURY"
+        },
+        {
+          "s": "MAY"
+        },
+        {
+          "s": "MAYCOX"
+        },
+        {
+          "s": "MAYFIELD"
+        },
+        {
+          "s": "MAYFLOWER"
+        },
+        {
+          "s": "MAYMONT"
+        },
+        {
+          "s": "MCCLOY"
+        },
+        {
+          "s": "MCCLURE"
+        },
+        {
+          "s": "MCDOWELL"
+        },
+        {
+          "s": "MCFARLAND"
+        },
+        {
+          "s": "MCGINNIS"
+        },
+        {
+          "s": "MCKANN"
+        },
+        {
+          "s": "MCLEAN"
+        },
+        {
+          "s": "MCLEMORE"
+        },
+        {
+          "s": "MCNEAL"
+        },
+        {
+          "s": "MCNUTT"
+        },
+        {
+          "s": "MEADOW BROOK"
+        },
+        {
+          "s": "MEADOW CREEK"
+        },
+        {
+          "s": "MEADOW LAKE"
+        },
+        {
+          "s": "MEADOWLAWN"
+        },
+        {
+          "s": "MEADS"
+        },
+        {
+          "s": "MELLWOOD"
+        },
+        {
+          "s": "MELON"
+        },
+        {
+          "s": "MELROSE"
+        },
+        {
+          "s": "MEMORIAL"
+        },
+        {
+          "s": "MERCER"
+        },
+        {
+          "s": "MERIDIAN"
+        },
+        {
+          "s": "MERRIMAC"
+        },
+        {
+          "s": "MERRITT"
+        },
+        {
+          "s": "MERVIS"
+        },
+        {
+          "s": "MICHAEL"
+        },
+        {
+          "s": "MICHIGAN"
+        },
+        {
+          "s": "MIDDLE"
+        },
+        {
+          "s": "MIDDLESEX"
+        },
+        {
+          "s": "MIDDLETON"
+        },
+        {
+          "s": "MIDDLE TOWNE"
+        },
+        {
+          "s": "MIDFIELD"
+        },
+        {
+          "s": "MIDGE"
+        },
+        {
+          "s": "MIDLAND"
+        },
+        {
+          "s": "MIDTOWN TUNNEL"
+        },
+        {
+          "s": "MILDRED"
+        },
+        {
+          "s": "MILES"
+        },
+        {
+          "s": "MILITARY"
+        },
+        {
+          "s": "MILL"
+        },
+        {
+          "s": "MILLARD"
+        },
+        {
+          "s": "MILLBROOK"
+        },
+        {
+          "s": "MILLER"
+        },
+        {
+          "s": "MILLER STORE"
+        },
+        {
+          "s": "MILTATE"
+        },
+        {
+          "s": "MILTON"
+        },
+        {
+          "s": "MIMOSA"
+        },
+        {
+          "s": "MINNESOTA"
+        },
+        {
+          "s": "MINNIE"
+        },
+        {
+          "s": "MISSION"
+        },
+        {
+          "s": "MISSISSIPPI"
+        },
+        {
+          "s": "MISSOURI"
+        },
+        {
+          "s": "MODLIN"
+        },
+        {
+          "s": "MODOC"
+        },
+        {
+          "s": "MOHAWK"
+        },
+        {
+          "s": "MONA"
+        },
+        {
+          "s": "MONACO"
+        },
+        {
+          "s": "MONARCH"
+        },
+        {
+          "s": "MONITOR"
+        },
+        {
+          "s": "MONROE"
+        },
+        {
+          "s": "MONTAGUE"
+        },
+        {
+          "s": "MONTANA"
+        },
+        {
+          "s": "MONTCLAIR"
+        },
+        {
+          "s": "MONTEREY"
+        },
+        {
+          "s": "MONTGOMERY"
+        },
+        {
+          "s": "MONTICELLO"
+        },
+        {
+          "s": "MONTPELIER"
+        },
+        {
+          "s": "MONTY"
+        },
+        {
+          "s": "MOORING"
+        },
+        {
+          "s": "MOOSE"
+        },
+        {
+          "s": "MORRIS"
+        },
+        {
+          "s": "MORTON"
+        },
+        {
+          "s": "MORWIN"
+        },
+        {
+          "s": "MOSELEY"
+        },
+        {
+          "s": "MOULTRIE"
+        },
+        {
+          "s": "MOWBRAY"
+        },
+        {
+          "s": "MT PLEASANT"
+        },
+        {
+          "s": "MT VERNON"
+        },
+        {
+          "s": "MUIRFIELD"
+        },
+        {
+          "s": "MULBERRY"
+        },
+        {
+          "s": "MUNDEN"
+        },
+        {
+          "s": "MUNSON"
+        },
+        {
+          "s": "MURRAY"
+        },
+        {
+          "s": "MUSKOGEE"
+        },
+        {
+          "s": "MYERS"
+        },
+        {
+          "s": "MYRTLE"
+        },
+        {
+          "s": "NANCY"
+        },
+        {
+          "s": "NANSEMOND"
+        },
+        {
+          "s": "NANSEMOND BAY"
+        },
+        {
+          "s": "NASHVILLE"
+        },
+        {
+          "s": "NATHAN"
+        },
+        {
+          "s": "NATRONA"
+        },
+        {
+          "s": "NAVAL BASE"
+        },
+        {
+          "s": "NELLA"
+        },
+        {
+          "s": "NELMS"
+        },
+        {
+          "s": "NELSON"
+        },
+        {
+          "s": "NEOMA"
+        },
+        {
+          "s": "NESBITT"
+        },
+        {
+          "s": "NEVADA"
+        },
+        {
+          "s": "NEW"
+        },
+        {
+          "s": "NEWARK"
+        },
+        {
+          "s": "NEWELL"
+        },
+        {
+          "s": "NEW HAMPSHIRE"
+        },
+        {
+          "s": "NEW JERSEY"
+        },
+        {
+          "s": "NEWPORT"
+        },
+        {
+          "s": "NEWTOWN"
+        },
+        {
+          "s": "NEW YORK"
+        },
+        {
+          "s": "NIAGARA"
+        },
+        {
+          "s": "NICHAL"
+        },
+        {
+          "s": "NICHOLSON"
+        },
+        {
+          "s": "NICKOLES"
+        },
+        {
+          "s": "NIPSIC"
+        },
+        {
+          "s": "NOBLE"
+        },
+        {
+          "s": "NORCHESTER"
+        },
+        {
+          "s": "NORCOVA"
+        },
+        {
+          "s": "NORFOLK"
+        },
+        {
+          "s": "NORFOLK CROSSING"
+        },
+        {
+          "s": "NORLAND"
+        },
+        {
+          "s": "NORMAN"
+        },
+        {
+          "s": "NORMANDY"
+        },
+        {
+          "s": "NORRISTOWN"
+        },
+        {
+          "s": "NORTHAMPTON"
+        },
+        {
+          "s": "NORTH BLAKE"
+        },
+        {
+          "s": "NORTH BRANDON"
+        },
+        {
+          "s": "NORTH BRISTON"
+        },
+        {
+          "s": "NORTH CENTER"
+        },
+        {
+          "s": "NORTH FAIRWATER"
+        },
+        {
+          "s": "NORTHGATE"
+        },
+        {
+          "s": "NORTH GATE"
+        },
+        {
+          "s": "NORTH INGLESIDE"
+        },
+        {
+          "s": "NORTH LAKEBRIDGE"
+        },
+        {
+          "s": "NORTH LAKELAND"
+        },
+        {
+          "s": "NORTH LEXAN"
+        },
+        {
+          "s": "NORTH ROSEMONT"
+        },
+        {
+          "s": "NORTH SHIRLAND"
+        },
+        {
+          "s": "NORTH SHORE"
+        },
+        {
+          "s": "NORTH STONEBRIDGE"
+        },
+        {
+          "s": "NORTH VEAUX"
+        },
+        {
+          "s": "NORTH VIEW"
+        },
+        {
+          "s": "NORVA"
+        },
+        {
+          "s": "NORVELLA"
+        },
+        {
+          "s": "NORVIEW"
+        },
+        {
+          "s": "NORWAY"
+        },
+        {
+          "s": "NOTTAWAY"
+        },
+        {
+          "s": "N S TERMINAL"
+        },
+        {
+          "s": "OAK"
+        },
+        {
+          "s": "OAKFIELD"
+        },
+        {
+          "s": "OAK GROVE"
+        },
+        {
+          "s": "OAKLAWN"
+        },
+        {
+          "s": "OAKMONT"
+        },
+        {
+          "s": "OAK PARK"
+        },
+        {
+          "s": "OAKWOOD"
+        },
+        {
+          "s": "OBENDORFER"
+        },
+        {
+          "s": "OCEAN"
+        },
+        {
+          "s": "OCEAN VIEW"
+        },
+        {
+          "s": "OCELLA"
+        },
+        {
+          "s": "OCONNER"
+        },
+        {
+          "s": "OETJEN"
+        },
+        {
+          "s": "OGDEN"
+        },
+        {
+          "s": "OKEEFE"
+        },
+        {
+          "s": "OKLAHOMA"
+        },
+        {
+          "s": "OLD BRANDON"
+        },
+        {
+          "s": "OLD COURT"
+        },
+        {
+          "s": "OLD MILL"
+        },
+        {
+          "s": "OLD OCEAN VIEW"
+        },
+        {
+          "s": "OLD PHILLIPS"
+        },
+        {
+          "s": "OLEAN"
+        },
+        {
+          "s": "OLEO"
+        },
+        {
+          "s": "OLINGER"
+        },
+        {
+          "s": "OLNEY"
+        },
+        {
+          "s": "OMOHUNDRO"
+        },
+        {
+          "s": "ONEIDA"
+        },
+        {
+          "s": "ORANGE"
+        },
+        {
+          "s": "ORANGEWOOD"
+        },
+        {
+          "s": "ORAPAX"
+        },
+        {
+          "s": "ORCHARD"
+        },
+        {
+          "s": "ORCHID"
+        },
+        {
+          "s": "ORION"
+        },
+        {
+          "s": "ORLEANS"
+        },
+        {
+          "s": "OSBORNE"
+        },
+        {
+          "s": "OSPREY WATCH"
+        },
+        {
+          "s": "OTIS"
+        },
+        {
+          "s": "OVERBROOK"
+        },
+        {
+          "s": "OWENS"
+        },
+        {
+          "s": "OXFORD"
+        },
+        {
+          "s": "PACE"
+        },
+        {
+          "s": "PADDOCK"
+        },
+        {
+          "s": "PAINTER"
+        },
+        {
+          "s": "PALEM"
+        },
+        {
+          "s": "PALLISTER"
+        },
+        {
+          "s": "PALL MALL"
+        },
+        {
+          "s": "PALMER"
+        },
+        {
+          "s": "PALMETTO"
+        },
+        {
+          "s": "PALMYRA"
+        },
+        {
+          "s": "PAMELA"
+        },
+        {
+          "s": "PAMLICO"
+        },
+        {
+          "s": "PARISH"
+        },
+        {
+          "s": "PARK"
+        },
+        {
+          "s": "PARKDALE"
+        },
+        {
+          "s": "PARKER"
+        },
+        {
+          "s": "PARKTOWN"
+        },
+        {
+          "s": "PARKVIEW"
+        },
+        {
+          "s": "PARTRIDGE"
+        },
+        {
+          "s": "PASADENA"
+        },
+        {
+          "s": "PASCAL"
+        },
+        {
+          "s": "PASTEUR"
+        },
+        {
+          "s": "PATENT"
+        },
+        {
+          "s": "PATRICIAN"
+        },
+        {
+          "s": "PATRICK"
+        },
+        {
+          "s": "PAUL"
+        },
+        {
+          "s": "PAULIN"
+        },
+        {
+          "s": "PEACE HAVEN"
+        },
+        {
+          "s": "PEACHTREE"
+        },
+        {
+          "s": "PEAKE"
+        },
+        {
+          "s": "PEARL"
+        },
+        {
+          "s": "PEBBLE"
+        },
+        {
+          "s": "PECAN POINT"
+        },
+        {
+          "s": "PEDDARS"
+        },
+        {
+          "s": "PEFLEY"
+        },
+        {
+          "s": "PELHAM"
+        },
+        {
+          "s": "PEMBROKE"
+        },
+        {
+          "s": "PENDER"
+        },
+        {
+          "s": "PENDLETON"
+        },
+        {
+          "s": "PENNINGTON"
+        },
+        {
+          "s": "PENNSYLVANIA"
+        },
+        {
+          "s": "PEPPER MILL"
+        },
+        {
+          "s": "PERCH"
+        },
+        {
+          "s": "PERONNE"
+        },
+        {
+          "s": "PERSHING"
+        },
+        {
+          "s": "PETERSON"
+        },
+        {
+          "s": "PHELPS"
+        },
+        {
+          "s": "PHILLIP"
+        },
+        {
+          "s": "PHILPOTTS"
+        },
+        {
+          "s": "PICADILLY"
+        },
+        {
+          "s": "PICKETT"
+        },
+        {
+          "s": "PIERCE"
+        },
+        {
+          "s": "PIKE"
+        },
+        {
+          "s": "PILOT"
+        },
+        {
+          "s": "PINECROFT"
+        },
+        {
+          "s": "PINEDALE"
+        },
+        {
+          "s": "PINE GROVE"
+        },
+        {
+          "s": "PINE HARBOR"
+        },
+        {
+          "s": "PINE HOLLOW"
+        },
+        {
+          "s": "PINEHURST"
+        },
+        {
+          "s": "PINERIDGE"
+        },
+        {
+          "s": "PINE TREE"
+        },
+        {
+          "s": "PINEVIEW"
+        },
+        {
+          "s": "PINEWELL"
+        },
+        {
+          "s": "PINEY BRANCH"
+        },
+        {
+          "s": "PINTER"
+        },
+        {
+          "s": "PIPING ROCK"
+        },
+        {
+          "s": "PLEASANT"
+        },
+        {
+          "s": "PLEASANT POINT"
+        },
+        {
+          "s": "PLUME"
+        },
+        {
+          "s": "PLYMOUTH"
+        },
+        {
+          "s": "POE"
+        },
+        {
+          "s": "POLLARD"
+        },
+        {
+          "s": "POMONA"
+        },
+        {
+          "s": "POMROY"
+        },
+        {
+          "s": "POPE"
+        },
+        {
+          "s": "POPLAR"
+        },
+        {
+          "s": "POPLAR HALL"
+        },
+        {
+          "s": "POPPLETON"
+        },
+        {
+          "s": "POPPY"
+        },
+        {
+          "s": "PORTAL"
+        },
+        {
+          "s": "PORTVIEW"
+        },
+        {
+          "s": "POSEY"
+        },
+        {
+          "s": "POSTON"
+        },
+        {
+          "s": "POTOMAC"
+        },
+        {
+          "s": "POWDER HORN"
+        },
+        {
+          "s": "POWHATAN"
+        },
+        {
+          "s": "PREMIUM OUTLETS"
+        },
+        {
+          "s": "PRESIDENTIAL"
+        },
+        {
+          "s": "PRETTY LAKE"
+        },
+        {
+          "s": "PRETTY WALK"
+        },
+        {
+          "s": "PRIMROSE"
+        },
+        {
+          "s": "PRINCE"
+        },
+        {
+          "s": "PRINCE EDWARD"
+        },
+        {
+          "s": "PRINCESS ANNE"
+        },
+        {
+          "s": "PRINCETON"
+        },
+        {
+          "s": "PRIORY"
+        },
+        {
+          "s": "PRITCHARD"
+        },
+        {
+          "s": "PRODUCTION"
+        },
+        {
+          "s": "PROESCHER"
+        },
+        {
+          "s": "PROGRESS"
+        },
+        {
+          "s": "PRYER"
+        },
+        {
+          "s": "PUGH"
+        },
+        {
+          "s": "PURDY"
+        },
+        {
+          "s": "PYTHIAN"
+        },
+        {
+          "s": "QUAIL"
+        },
+        {
+          "s": "QUEENS"
+        },
+        {
+          "s": "QUILL"
+        },
+        {
+          "s": "QUINCY"
+        },
+        {
+          "s": "RABY"
+        },
+        {
+          "s": "RACINE"
+        },
+        {
+          "s": "RADER"
+        },
+        {
+          "s": "RADFORD"
+        },
+        {
+          "s": "RADNOR"
+        },
+        {
+          "s": "RAINEY"
+        },
+        {
+          "s": "RALEIGH"
+        },
+        {
+          "s": "RALLSTON"
+        },
+        {
+          "s": "RALPH"
+        },
+        {
+          "s": "RAMBLEWOOD"
+        },
+        {
+          "s": "RAMSEY"
+        },
+        {
+          "s": "RANDALL"
+        },
+        {
+          "s": "RANDOLPH"
+        },
+        {
+          "s": "RANKIN"
+        },
+        {
+          "s": "RANSOM"
+        },
+        {
+          "s": "RAY"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201500": {
+      "read": "2026-11-07T01:01:56.033Z",
+      "status": 200,
+      "body": [
+        {
+          "s": "REBEL"
+        },
+        {
+          "s": "RED BROOK"
+        },
+        {
+          "s": "REDGATE"
+        },
+        {
+          "s": "RED MILL"
+        },
+        {
+          "s": "REDMON"
+        },
+        {
+          "s": "REDWING"
+        },
+        {
+          "s": "REDWOOD"
+        },
+        {
+          "s": "REEL"
+        },
+        {
+          "s": "REEVES"
+        },
+        {
+          "s": "REGENT"
+        },
+        {
+          "s": "REILLY"
+        },
+        {
+          "s": "REMSEN"
+        },
+        {
+          "s": "RESERVOIR"
+        },
+        {
+          "s": "RESILIENCE"
+        },
+        {
+          "s": "RESTMERE"
+        },
+        {
+          "s": "REVERE"
+        },
+        {
+          "s": "RHODE ISLAND"
+        },
+        {
+          "s": "RIALTO"
+        },
+        {
+          "s": "RICH"
+        },
+        {
+          "s": "RICHARDSON"
+        },
+        {
+          "s": "RICHMOND"
+        },
+        {
+          "s": "RICHVIEW"
+        },
+        {
+          "s": "RIDDICK"
+        },
+        {
+          "s": "RIDGEFIELD"
+        },
+        {
+          "s": "RIDGELEY"
+        },
+        {
+          "s": "RIDGEWELL"
+        },
+        {
+          "s": "RIPPARD"
+        },
+        {
+          "s": "RIPPLEMEAD"
+        },
+        {
+          "s": "RIVER"
+        },
+        {
+          "s": "RIVER EDGE"
+        },
+        {
+          "s": "RIVER OAKS"
+        },
+        {
+          "s": "RIVERPOINT"
+        },
+        {
+          "s": "RIVER ROAD"
+        },
+        {
+          "s": "RIVERS EDGE"
+        },
+        {
+          "s": "RIVER SHORE"
+        },
+        {
+          "s": "RIVERSIDE"
+        },
+        {
+          "s": "RIVERVIEW"
+        },
+        {
+          "s": "RIVERWOOD"
+        },
+        {
+          "s": "ROBERTS"
+        },
+        {
+          "s": "ROBIN HOOD"
+        },
+        {
+          "s": "ROCKBRIDGE"
+        },
+        {
+          "s": "ROCKINGHAM"
+        },
+        {
+          "s": "RODMAN"
+        },
+        {
+          "s": "ROGERS"
+        },
+        {
+          "s": "ROLAND"
+        },
+        {
+          "s": "ROLFE"
+        },
+        {
+          "s": "ROLLESTON"
+        },
+        {
+          "s": "RONALD"
+        },
+        {
+          "s": "ROPER"
+        },
+        {
+          "s": "ROSE"
+        },
+        {
+          "s": "ROSECLAIR"
+        },
+        {
+          "s": "ROSEFIELD"
+        },
+        {
+          "s": "ROSEMONT"
+        },
+        {
+          "s": "ROSLYN"
+        },
+        {
+          "s": "ROSMAR"
+        },
+        {
+          "s": "ROSSO"
+        },
+        {
+          "s": "ROSWELL"
+        },
+        {
+          "s": "ROUND BAY"
+        },
+        {
+          "s": "ROXBORO"
+        },
+        {
+          "s": "ROYALE"
+        },
+        {
+          "s": "ROYAL WINDSOR"
+        },
+        {
+          "s": "RUFFIN"
+        },
+        {
+          "s": "RUFFNER"
+        },
+        {
+          "s": "RUGBY"
+        },
+        {
+          "s": "RUGOSA ROSE"
+        },
+        {
+          "s": "RUNNYMEDE"
+        },
+        {
+          "s": "RUSH"
+        },
+        {
+          "s": "RUTHVEN"
+        },
+        {
+          "s": "SABAN"
+        },
+        {
+          "s": "SABRE"
+        },
+        {
+          "s": "SADDLE ROCK"
+        },
+        {
+          "s": "SAINT DENIS"
+        },
+        {
+          "s": "SAINT FRANCIS"
+        },
+        {
+          "s": "SAINT GEORGE"
+        },
+        {
+          "s": "SAINT JULIAN"
+        },
+        {
+          "s": "SAINT LOUIS"
+        },
+        {
+          "s": "SAINT MIHIEL"
+        },
+        {
+          "s": "SAINT PAUL"
+        },
+        {
+          "s": "SAINT PAULS"
+        },
+        {
+          "s": "SAIPAN"
+        },
+        {
+          "s": "SALEM"
+        },
+        {
+          "s": "SALTER"
+        },
+        {
+          "s": "SAN ANTONIO"
+        },
+        {
+          "s": "SANDPIPER"
+        },
+        {
+          "s": "SANDY"
+        },
+        {
+          "s": "SANGAMON"
+        },
+        {
+          "s": "SANTOS"
+        },
+        {
+          "s": "SARANAC"
+        },
+        {
+          "s": "SCOTT"
+        },
+        {
+          "s": "SEABREEZE"
+        },
+        {
+          "s": "SEAFARER"
+        },
+        {
+          "s": "SEAVIEW"
+        },
+        {
+          "s": "SEA WOLF"
+        },
+        {
+          "s": "SEAY"
+        },
+        {
+          "s": "SECURITY"
+        },
+        {
+          "s": "SEDGEFIELD"
+        },
+        {
+          "s": "SEDGEWICK"
+        },
+        {
+          "s": "SEEKEL"
+        },
+        {
+          "s": "SELBY"
+        },
+        {
+          "s": "SELDEN"
+        },
+        {
+          "s": "SELLGER"
+        },
+        {
+          "s": "SELMA"
+        },
+        {
+          "s": "SEMMES"
+        },
+        {
+          "s": "SEVERN"
+        },
+        {
+          "s": "SEWELLS POINT"
+        },
+        {
+          "s": "SHADYWOOD"
+        },
+        {
+          "s": "SHAFER"
+        },
+        {
+          "s": "SHANKS"
+        },
+        {
+          "s": "SHARON"
+        },
+        {
+          "s": "SHARPLEY"
+        },
+        {
+          "s": "SHAW"
+        },
+        {
+          "s": "SHELTON"
+        },
+        {
+          "s": "SHENANDOAH"
+        },
+        {
+          "s": "SHEPPARD"
+        },
+        {
+          "s": "SHERMAN"
+        },
+        {
+          "s": "SHERWOOD"
+        },
+        {
+          "s": "SHERWOOD FOREST"
+        },
+        {
+          "s": "SHERYL"
+        },
+        {
+          "s": "SHIPP"
+        },
+        {
+          "s": "SHIPS CROSSING"
+        },
+        {
+          "s": "SHIP WATCH"
+        },
+        {
+          "s": "SHIRLAND"
+        },
+        {
+          "s": "SHIRLEY"
+        },
+        {
+          "s": "SHOOP"
+        },
+        {
+          "s": "SHORE"
+        },
+        {
+          "s": "SHOREWOOD"
+        },
+        {
+          "s": "SHOSHONE"
+        },
+        {
+          "s": "SHREVEPORT"
+        },
+        {
+          "s": "SIGMON"
+        },
+        {
+          "s": "SIGONELLA"
+        },
+        {
+          "s": "SILBERT"
+        },
+        {
+          "s": "SILVERWOOD"
+        },
+        {
+          "s": "SILVEY"
+        },
+        {
+          "s": "SIMMS"
+        },
+        {
+          "s": "SIMONS"
+        },
+        {
+          "s": "SIMPSON"
+        },
+        {
+          "s": "SINCLAIR"
+        },
+        {
+          "s": "SIR OLIVER"
+        },
+        {
+          "s": "SKYLINE"
+        },
+        {
+          "s": "SLOANE"
+        },
+        {
+          "s": "SMITH"
+        },
+        {
+          "s": "SOMERSET"
+        },
+        {
+          "s": "SOMME"
+        },
+        {
+          "s": "SORBY"
+        },
+        {
+          "s": "SOUTH"
+        },
+        {
+          "s": "SOUTHAMPTON"
+        },
+        {
+          "s": "SOUTH ARDEN"
+        },
+        {
+          "s": "SOUTH BLAKE"
+        },
+        {
+          "s": "SOUTH BOTETOURT"
+        },
+        {
+          "s": "SOUTH BRADEN"
+        },
+        {
+          "s": "SOUTH BRISTON"
+        },
+        {
+          "s": "SOUTH CAPE HENRY"
+        },
+        {
+          "s": "SOUTH ELEANOR"
+        },
+        {
+          "s": "SOUTH FAIRWATER"
+        },
+        {
+          "s": "SOUTH LAKEBRIDGE"
+        },
+        {
+          "s": "SOUTH LAKELAND"
+        },
+        {
+          "s": "SOUTH LEXAN"
+        },
+        {
+          "s": "SOUTH MAIN"
+        },
+        {
+          "s": "SOUTH QUAIL"
+        },
+        {
+          "s": "SOUTH RIDGELEY"
+        },
+        {
+          "s": "SOUTH RIVER"
+        },
+        {
+          "s": "SOUTH STONEBRIDGE"
+        },
+        {
+          "s": "SOUTH VEAUX"
+        },
+        {
+          "s": "SOUTH WARWICK"
+        },
+        {
+          "s": "SPARTAN"
+        },
+        {
+          "s": "SPAULDING"
+        },
+        {
+          "s": "SPOTSWOOD"
+        },
+        {
+          "s": "SPRINGFIELD"
+        },
+        {
+          "s": "SPRINGHILL"
+        },
+        {
+          "s": "SPRINGMEADOW"
+        },
+        {
+          "s": "SPRINGWOOD"
+        },
+        {
+          "s": "SPRUCE"
+        },
+        {
+          "s": "SPY GLASS"
+        },
+        {
+          "s": "STAFFORD"
+        },
+        {
+          "s": "STANART"
+        },
+        {
+          "s": "STANDARD"
+        },
+        {
+          "s": "STANHOPE"
+        },
+        {
+          "s": "STANWIX"
+        },
+        {
+          "s": "STAPLETON"
+        },
+        {
+          "s": "STARKE"
+        },
+        {
+          "s": "STATE"
+        },
+        {
+          "s": "STATEN"
+        },
+        {
+          "s": "STATLER"
+        },
+        {
+          "s": "STEINER"
+        },
+        {
+          "s": "STEPHAN"
+        },
+        {
+          "s": "STEPHENS"
+        },
+        {
+          "s": "STEPHENSON"
+        },
+        {
+          "s": "STERLING"
+        },
+        {
+          "s": "STOCKLEY"
+        },
+        {
+          "s": "STOCKTON"
+        },
+        {
+          "s": "STONEY POINT NORTH"
+        },
+        {
+          "s": "STONEY POINT SOUTH"
+        },
+        {
+          "s": "STONY RUN"
+        },
+        {
+          "s": "STOWBRIDGE"
+        },
+        {
+          "s": "STOWE"
+        },
+        {
+          "s": "STRAND"
+        },
+        {
+          "s": "STRATFORD"
+        },
+        {
+          "s": "STRATHMORE"
+        },
+        {
+          "s": "STRIBLING"
+        },
+        {
+          "s": "STRICKLER"
+        },
+        {
+          "s": "STUART"
+        },
+        {
+          "s": "STUDELEY"
+        },
+        {
+          "s": "STURGIS"
+        },
+        {
+          "s": "SUBURBAN"
+        },
+        {
+          "s": "SUMMERS"
+        },
+        {
+          "s": "SUMMIT"
+        },
+        {
+          "s": "SUNNY"
+        },
+        {
+          "s": "SUNSET"
+        },
+        {
+          "s": "SUNSHINE"
+        },
+        {
+          "s": "SURREY"
+        },
+        {
+          "s": "SUSSEX"
+        },
+        {
+          "s": "SUTTON"
+        },
+        {
+          "s": "SWAN"
+        },
+        {
+          "s": "SWANSON"
+        },
+        {
+          "s": "SWEET BRIAR"
+        },
+        {
+          "s": "SYCAMORE"
+        },
+        {
+          "s": "SYLVAN"
+        },
+        {
+          "s": "TABB"
+        },
+        {
+          "s": "TABOR"
+        },
+        {
+          "s": "TAIT"
+        },
+        {
+          "s": "TALBOT HALL"
+        },
+        {
+          "s": "TALLWOOD"
+        },
+        {
+          "s": "TALLYHO"
+        },
+        {
+          "s": "TAPLEY"
+        },
+        {
+          "s": "TAPPAHANNOCK"
+        },
+        {
+          "s": "TARPON"
+        },
+        {
+          "s": "TARRALL"
+        },
+        {
+          "s": "TARRALLTON"
+        },
+        {
+          "s": "TARRANT"
+        },
+        {
+          "s": "TAYLOR"
+        },
+        {
+          "s": "TAYLORS"
+        },
+        {
+          "s": "TAZEWELL"
+        },
+        {
+          "s": "TEAL"
+        },
+        {
+          "s": "TEMPLAR"
+        },
+        {
+          "s": "TENNESSEE"
+        },
+        {
+          "s": "TERMINAL"
+        },
+        {
+          "s": "TERRY"
+        },
+        {
+          "s": "TEXAS"
+        },
+        {
+          "s": "THAXTON"
+        },
+        {
+          "s": "THAYOR"
+        },
+        {
+          "s": "THISTLE"
+        },
+        {
+          "s": "THOLE"
+        },
+        {
+          "s": "THOMAS"
+        },
+        {
+          "s": "THOMPSON"
+        },
+        {
+          "s": "THURGOOD"
+        },
+        {
+          "s": "THURSTON"
+        },
+        {
+          "s": "TIDAL"
+        },
+        {
+          "s": "TIDES"
+        },
+        {
+          "s": "TIDEWATER"
+        },
+        {
+          "s": "TIFTON"
+        },
+        {
+          "s": "TILLMAN"
+        },
+        {
+          "s": "TIMOTHY"
+        },
+        {
+          "s": "TOBY"
+        },
+        {
+          "s": "TODD"
+        },
+        {
+          "s": "TOLER"
+        },
+        {
+          "s": "TOWNLEY"
+        },
+        {
+          "s": "TOWNSEND"
+        },
+        {
+          "s": "TRAFALGAR"
+        },
+        {
+          "s": "TRANQUILITY"
+        },
+        {
+          "s": "TRANT"
+        },
+        {
+          "s": "TREE CHOP"
+        },
+        {
+          "s": "TRICE"
+        },
+        {
+          "s": "TRINITY"
+        },
+        {
+          "s": "TRIPPLE"
+        },
+        {
+          "s": "TROUVILLE"
+        },
+        {
+          "s": "TROY"
+        },
+        {
+          "s": "TUCKER"
+        },
+        {
+          "s": "TULANE"
+        },
+        {
+          "s": "TULIP"
+        },
+        {
+          "s": "TULLIBEE"
+        },
+        {
+          "s": "TUNSTALL"
+        },
+        {
+          "s": "TURNER"
+        },
+        {
+          "s": "TUTTLE"
+        },
+        {
+          "s": "TWILLEY"
+        },
+        {
+          "s": "TYNDALE"
+        },
+        {
+          "s": "TYPO"
+        },
+        {
+          "s": "UNDERWOOD"
+        },
+        {
+          "s": "UNION"
+        },
+        {
+          "s": "UNIVERSITY"
+        },
+        {
+          "s": "UPPER BRANDON"
+        },
+        {
+          "s": "UPSHUR"
+        },
+        {
+          "s": "USAA"
+        },
+        {
+          "s": "UTAH"
+        },
+        {
+          "s": "VAIDEN"
+        },
+        {
+          "s": "VALLEAU"
+        },
+        {
+          "s": "VALLEY"
+        },
+        {
+          "s": "VAN PATTEN"
+        },
+        {
+          "s": "VAN WYCK"
+        },
+        {
+          "s": "VENDOME"
+        },
+        {
+          "s": "VENTURA"
+        },
+        {
+          "s": "VERDUN"
+        },
+        {
+          "s": "VERNON"
+        },
+        {
+          "s": "VERO"
+        },
+        {
+          "s": "VERSAILLES"
+        },
+        {
+          "s": "VICK"
+        },
+        {
+          "s": "VICKSBURG"
+        },
+        {
+          "s": "VICTORIA"
+        },
+        {
+          "s": "VICTORY"
+        },
+        {
+          "s": "VILLA"
+        },
+        {
+          "s": "VILLAGE"
+        },
+        {
+          "s": "VILLEMONT"
+        },
+        {
+          "s": "VIMY RIDGE"
+        },
+        {
+          "s": "VINCENT"
+        },
+        {
+          "s": "VINE"
+        },
+        {
+          "s": "VIRGILINA"
+        },
+        {
+          "s": "VIRGIN"
+        },
+        {
+          "s": "VIRGINIA"
+        },
+        {
+          "s": "VIRGINIA BEACH"
+        },
+        {
+          "s": "VIRGINIAN"
+        },
+        {
+          "s": "VISTA"
+        },
+        {
+          "s": "VIVIAN"
+        },
+        {
+          "s": "VOSS"
+        },
+        {
+          "s": "WADE"
+        },
+        {
+          "s": "WAILES"
+        },
+        {
+          "s": "WAKE"
+        },
+        {
+          "s": "WAKEFIELD"
+        },
+        {
+          "s": "WALKE"
+        },
+        {
+          "s": "WALKER"
+        },
+        {
+          "s": "WALL"
+        },
+        {
+          "s": "WALMER"
+        },
+        {
+          "s": "WALNUT HILL"
+        },
+        {
+          "s": "WALSINGHAM"
+        },
+        {
+          "s": "WALTERS"
+        },
+        {
+          "s": "WALTHAM"
+        },
+        {
+          "s": "WALTON"
+        },
+        {
+          "s": "WAPITI"
+        },
+        {
+          "s": "WARBLER"
+        },
+        {
+          "s": "WAREHOUSE"
+        },
+        {
+          "s": "WARNER"
+        },
+        {
+          "s": "WARREN"
+        },
+        {
+          "s": "WARRINGTON"
+        },
+        {
+          "s": "WARWICK"
+        },
+        {
+          "s": "WASHINGTON"
+        },
+        {
+          "s": "WATER"
+        },
+        {
+          "s": "WATERFRONT"
+        },
+        {
+          "s": "WATERSIDE"
+        },
+        {
+          "s": "WATERVIEW"
+        },
+        {
+          "s": "WATER WORKS"
+        },
+        {
+          "s": "WATSON"
+        },
+        {
+          "s": "WAUKESHA"
+        },
+        {
+          "s": "WAVERLY"
+        },
+        {
+          "s": "WAYCROSS"
+        },
+        {
+          "s": "WAYLAND"
+        },
+        {
+          "s": "WAYLON"
+        },
+        {
+          "s": "WAYMAN"
+        },
+        {
+          "s": "WAYNE"
+        },
+        {
+          "s": "WEBB"
+        },
+        {
+          "s": "WEBSTER"
+        },
+        {
+          "s": "WEDGEFIELD"
+        },
+        {
+          "s": "WEDGEWOOD"
+        },
+        {
+          "s": "WEEMS"
+        },
+        {
+          "s": "WEISS"
+        },
+        {
+          "s": "WELAKA"
+        },
+        {
+          "s": "WELLINGTON"
+        },
+        {
+          "s": "WELLMAN"
+        },
+        {
+          "s": "WELLS"
+        },
+        {
+          "s": "WESLEYAN"
+        },
+        {
+          "s": "WEST"
+        },
+        {
+          "s": "WEST AZALEA POINT"
+        },
+        {
+          "s": "WEST BELVEDERE"
+        },
+        {
+          "s": "WEST BONNER"
+        },
+        {
+          "s": "WEST BOTETOURT"
+        },
+        {
+          "s": "WESTCLIFF"
+        },
+        {
+          "s": "WESTCOVE"
+        },
+        {
+          "s": "WEST GLEN"
+        },
+        {
+          "s": "WEST INGRAM"
+        },
+        {
+          "s": "WEST KENMORE"
+        },
+        {
+          "s": "WEST MCGINNIS"
+        },
+        {
+          "s": "WESTMINSTER"
+        },
+        {
+          "s": "WESTMONT"
+        },
+        {
+          "s": "WEST MOREELL"
+        },
+        {
+          "s": "WESTMORELAND"
+        },
+        {
+          "s": "WEST MOWBRAY"
+        },
+        {
+          "s": "WEST NORCOVA"
+        },
+        {
+          "s": "WESTOVER"
+        },
+        {
+          "s": "WESTPORT"
+        },
+        {
+          "s": "WEST RIVER"
+        },
+        {
+          "s": "WEST TANNERS CREEK"
+        },
+        {
+          "s": "WESTWOOD"
+        },
+        {
+          "s": "WEYANOKE"
+        },
+        {
+          "s": "WHALEY"
+        },
+        {
+          "s": "WHARTON"
+        },
+        {
+          "s": "WHEELING"
+        },
+        {
+          "s": "WHILE"
+        },
+        {
+          "s": "WHIT"
+        },
+        {
+          "s": "WHITAKER"
+        },
+        {
+          "s": "WHITE CHAPEL"
+        },
+        {
+          "s": "WHITE HALL"
+        },
+        {
+          "s": "WHITEHEAD"
+        },
+        {
+          "s": "WHITEHORN"
+        },
+        {
+          "s": "WHITING"
+        },
+        {
+          "s": "WHITNEY"
+        },
+        {
+          "s": "WHITTIER"
+        },
+        {
+          "s": "WIDE"
+        },
+        {
+          "s": "WIDGEON"
+        },
+        {
+          "s": "WILBY"
+        },
+        {
+          "s": "WILDWOOD"
+        },
+        {
+          "s": "WILEY"
+        },
+        {
+          "s": "WILKIE"
+        },
+        {
+          "s": "WILLARD"
+        },
+        {
+          "s": "WILLBEN"
+        },
+        {
+          "s": "WILLINGHAM"
+        },
+        {
+          "s": "WILLOUGHBY"
+        },
+        {
+          "s": "WILLOUGHBY BAY"
+        },
+        {
+          "s": "WILLOW"
+        },
+        {
+          "s": "WILLOW GROVE"
+        },
+        {
+          "s": "WILLOW WOOD"
+        },
+        {
+          "s": "WILMINGTON"
+        },
+        {
+          "s": "WILSON"
+        },
+        {
+          "s": "WINBURNE"
+        },
+        {
+          "s": "WINDERMERE"
+        },
+        {
+          "s": "WINDHAM"
+        },
+        {
+          "s": "WINDSOR POINT"
+        },
+        {
+          "s": "WINGFIELD"
+        },
+        {
+          "s": "WINSHIRE"
+        },
+        {
+          "s": "WINSTEAD"
+        },
+        {
+          "s": "WINSTON"
+        },
+        {
+          "s": "WINTHROP"
+        },
+        {
+          "s": "WINWARD"
+        },
+        {
+          "s": "WISE"
+        },
+        {
+          "s": "WISTERIA"
+        },
+        {
+          "s": "WITHERS"
+        },
+        {
+          "s": "WOLCOTT"
+        },
+        {
+          "s": "WOLFE"
+        },
+        {
+          "s": "WOLFERTON"
+        },
+        {
+          "s": "WOOD"
+        },
+        {
+          "s": "WOODALL"
+        },
+        {
+          "s": "WOODBINE"
+        },
+        {
+          "s": "WOODBURY"
+        },
+        {
+          "s": "WOODCOCK"
+        },
+        {
+          "s": "WOODFIN"
+        },
+        {
+          "s": "WOODFORD"
+        },
+        {
+          "s": "WOODIS"
+        },
+        {
+          "s": "WOODLAND"
+        },
+        {
+          "s": "WOODRIDGE"
+        },
+        {
+          "s": "WOODROW"
+        },
+        {
+          "s": "WOODVIEW"
+        },
+        {
+          "s": "WOODWAY"
+        },
+        {
+          "s": "WOODY"
+        },
+        {
+          "s": "WOOLSEY"
+        },
+        {
+          "s": "WORKWOOD"
+        },
+        {
+          "s": "WORONOCA"
+        },
+        {
+          "s": "WORTH"
+        },
+        {
+          "s": "WYNGATE"
+        },
+        {
+          "s": "WYOMING"
+        },
+        {
+          "s": "WYTHE"
+        },
+        {
+          "s": "YARMOUTH"
+        },
+        {
+          "s": "YODER"
+        },
+        {
+          "s": "YORK"
+        },
+        {
+          "s": "YORKTOWN"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%20500": {
+      "read": "2026-11-07T01:01:55.698Z",
+      "status": 200,
+      "body": [
+        {
+          "s": "CURIE"
+        },
+        {
+          "s": "CURLEW"
+        },
+        {
+          "s": "CURTIS"
+        },
+        {
+          "s": "CYPRESS"
+        },
+        {
+          "s": "DAISY"
+        },
+        {
+          "s": "DAKOTA"
+        },
+        {
+          "s": "DALLAS"
+        },
+        {
+          "s": "DAN"
+        },
+        {
+          "s": "DANA"
+        },
+        {
+          "s": "DANBURY"
+        },
+        {
+          "s": "DANE"
+        },
+        {
+          "s": "DANIEL"
+        },
+        {
+          "s": "DANWOOD"
+        },
+        {
+          "s": "DARDEN"
+        },
+        {
+          "s": "DARE"
+        },
+        {
+          "s": "DAVID"
+        },
+        {
+          "s": "DAVIDSON"
+        },
+        {
+          "s": "DAVIS"
+        },
+        {
+          "s": "DAYTON"
+        },
+        {
+          "s": "DEAN"
+        },
+        {
+          "s": "DEBBIE"
+        },
+        {
+          "s": "DEBREE"
+        },
+        {
+          "s": "DECKER"
+        },
+        {
+          "s": "DECRENY"
+        },
+        {
+          "s": "DEEPDALE"
+        },
+        {
+          "s": "DEERFIELD"
+        },
+        {
+          "s": "DEFOE"
+        },
+        {
+          "s": "DEGRASSE"
+        },
+        {
+          "s": "DEHLMAN"
+        },
+        {
+          "s": "DELANO"
+        },
+        {
+          "s": "DELAWARE"
+        },
+        {
+          "s": "DELEVAN"
+        },
+        {
+          "s": "DELL"
+        },
+        {
+          "s": "DELLWOOD"
+        },
+        {
+          "s": "DENHART"
+        },
+        {
+          "s": "DENISON"
+        },
+        {
+          "s": "DENSMORE"
+        },
+        {
+          "s": "DENVER"
+        },
+        {
+          "s": "DEVON"
+        },
+        {
+          "s": "DEVONSHIRE"
+        },
+        {
+          "s": "DEWBERRY"
+        },
+        {
+          "s": "DEY"
+        },
+        {
+          "s": "DICKSON"
+        },
+        {
+          "s": "DIESEL"
+        },
+        {
+          "s": "DIGGS"
+        },
+        {
+          "s": "DINWIDDIE"
+        },
+        {
+          "s": "DIVEN"
+        },
+        {
+          "s": "DIXIE"
+        },
+        {
+          "s": "DOGWOOD"
+        },
+        {
+          "s": "DOLPHIN"
+        },
+        {
+          "s": "DOMINION"
+        },
+        {
+          "s": "DON"
+        },
+        {
+          "s": "DORA"
+        },
+        {
+          "s": "DORIS"
+        },
+        {
+          "s": "DOROTHY"
+        },
+        {
+          "s": "DORWIN"
+        },
+        {
+          "s": "DOSWELL"
+        },
+        {
+          "s": "DOUGLAS"
+        },
+        {
+          "s": "DOUMMAR"
+        },
+        {
+          "s": "DOVE"
+        },
+        {
+          "s": "DOVER"
+        },
+        {
+          "s": "DOVERCOURT"
+        },
+        {
+          "s": "DRAPER"
+        },
+        {
+          "s": "DRIFTWOOD"
+        },
+        {
+          "s": "DRUID"
+        },
+        {
+          "s": "DRUMMOND"
+        },
+        {
+          "s": "DUBOSE"
+        },
+        {
+          "s": "DUCK POND"
+        },
+        {
+          "s": "DUDLEY"
+        },
+        {
+          "s": "DUFFYS"
+        },
+        {
+          "s": "DUKE"
+        },
+        {
+          "s": "DULWICH"
+        },
+        {
+          "s": "DUMONT"
+        },
+        {
+          "s": "DUNBAR"
+        },
+        {
+          "s": "DUNDAFF"
+        },
+        {
+          "s": "DUNDALE"
+        },
+        {
+          "s": "DUNE"
+        },
+        {
+          "s": "DUNFIELD"
+        },
+        {
+          "s": "DUNGEE"
+        },
+        {
+          "s": "DUNKIRK"
+        },
+        {
+          "s": "DUNMORE"
+        },
+        {
+          "s": "DUNN"
+        },
+        {
+          "s": "DUNNING"
+        },
+        {
+          "s": "DUNWAY"
+        },
+        {
+          "s": "DUPONT"
+        },
+        {
+          "s": "DUPRE"
+        },
+        {
+          "s": "DURE"
+        },
+        {
+          "s": "DUVALL"
+        },
+        {
+          "s": "D VIEW"
+        },
+        {
+          "s": "E"
+        },
+        {
+          "s": "EAGLE"
+        },
+        {
+          "s": "EARL"
+        },
+        {
+          "s": "EARLSCOURT"
+        },
+        {
+          "s": "EARLY"
+        },
+        {
+          "s": "EASON"
+        },
+        {
+          "s": "EAST"
+        },
+        {
+          "s": "EAST BEACH"
+        },
+        {
+          "s": "EAST BONNER"
+        },
+        {
+          "s": "EAST BOTETOURT"
+        },
+        {
+          "s": "EAST END"
+        },
+        {
+          "s": "EAST GLEN"
+        },
+        {
+          "s": "EAST INGRAM"
+        },
+        {
+          "s": "EAST KENMORE"
+        },
+        {
+          "s": "EAST LEXINGTON"
+        },
+        {
+          "s": "EAST MALDEN"
+        },
+        {
+          "s": "EAST MCGINNIS"
+        },
+        {
+          "s": "EAST MOREELL"
+        },
+        {
+          "s": "EAST MOWBRAY"
+        },
+        {
+          "s": "EAST NORCOVA"
+        },
+        {
+          "s": "EASTON"
+        },
+        {
+          "s": "EASTOVER"
+        },
+        {
+          "s": "EAST TANNERS CREEK"
+        },
+        {
+          "s": "EASTWOOD"
+        },
+        {
+          "s": "EASY"
+        },
+        {
+          "s": "EDEN"
+        },
+        {
+          "s": "EDGEWATER"
+        },
+        {
+          "s": "EDGEWOOD"
+        },
+        {
+          "s": "EDISON"
+        },
+        {
+          "s": "EDWARD"
+        },
+        {
+          "s": "EDWIN"
+        },
+        {
+          "s": "EFFIE"
+        },
+        {
+          "s": "EILERS"
+        },
+        {
+          "s": "ELAINE"
+        },
+        {
+          "s": "ELEANOR"
+        },
+        {
+          "s": "ELGO"
+        },
+        {
+          "s": "ELIZABETH"
+        },
+        {
+          "s": "ELIZABETH RIVER"
+        },
+        {
+          "s": "ELK"
+        },
+        {
+          "s": "ELKHORN"
+        },
+        {
+          "s": "ELKIN"
+        },
+        {
+          "s": "ELLIOTT"
+        },
+        {
+          "s": "ELLSMERE"
+        },
+        {
+          "s": "ELM"
+        },
+        {
+          "s": "ELMERE"
+        },
+        {
+          "s": "ELMHURST"
+        },
+        {
+          "s": "ELMORE"
+        },
+        {
+          "s": "ELM VIEW"
+        },
+        {
+          "s": "ELMWOOD"
+        },
+        {
+          "s": "ELNORA"
+        },
+        {
+          "s": "ELON"
+        },
+        {
+          "s": "EL PASO"
+        },
+        {
+          "s": "ELSIE"
+        },
+        {
+          "s": "ELTHAM"
+        },
+        {
+          "s": "ELVIN"
+        },
+        {
+          "s": "ELWOOD"
+        },
+        {
+          "s": "EMMA"
+        },
+        {
+          "s": "EMMETT"
+        },
+        {
+          "s": "EMORY"
+        },
+        {
+          "s": "ENFIELD"
+        },
+        {
+          "s": "ENTERPRISE"
+        },
+        {
+          "s": "ERNIES"
+        },
+        {
+          "s": "ESCADRILLE"
+        },
+        {
+          "s": "ESQUIRE"
+        },
+        {
+          "s": "ESSEX"
+        },
+        {
+          "s": "ESTER"
+        },
+        {
+          "s": "ETHAN ALLEN"
+        },
+        {
+          "s": "ETHEL"
+        },
+        {
+          "s": "ETHERIDGE"
+        },
+        {
+          "s": "EUSTIS"
+        },
+        {
+          "s": "EUWANEE"
+        },
+        {
+          "s": "EVA"
+        },
+        {
+          "s": "EVANGELINE"
+        },
+        {
+          "s": "EVANS"
+        },
+        {
+          "s": "EVELYN"
+        },
+        {
+          "s": "EVELYN T BUTTS"
+        },
+        {
+          "s": "EVERGLADES"
+        },
+        {
+          "s": "EVERGREEN"
+        },
+        {
+          "s": "EWING"
+        },
+        {
+          "s": "EXECUTIVE"
+        },
+        {
+          "s": "EXETER"
+        },
+        {
+          "s": "F"
+        },
+        {
+          "s": "FABER"
+        },
+        {
+          "s": "FACTORY"
+        },
+        {
+          "s": "FAIRBANKS"
+        },
+        {
+          "s": "FAIRFAX"
+        },
+        {
+          "s": "FAIRFIELD"
+        },
+        {
+          "s": "FALA"
+        },
+        {
+          "s": "FARADAY"
+        },
+        {
+          "s": "FARGO"
+        },
+        {
+          "s": "FARIS"
+        },
+        {
+          "s": "FARRAGUT"
+        },
+        {
+          "s": "FARRELL"
+        },
+        {
+          "s": "FAULK"
+        },
+        {
+          "s": "FAUQUIER"
+        },
+        {
+          "s": "FAWN"
+        },
+        {
+          "s": "FAYTON"
+        },
+        {
+          "s": "FAYVER"
+        },
+        {
+          "s": "FEARER"
+        },
+        {
+          "s": "FECHTELLER"
+        },
+        {
+          "s": "FENCHURCH"
+        },
+        {
+          "s": "FENNER"
+        },
+        {
+          "s": "FENTON"
+        },
+        {
+          "s": "FENTRESS"
+        },
+        {
+          "s": "FERNCLIFF"
+        },
+        {
+          "s": "FERNWOOD"
+        },
+        {
+          "s": "FIFE"
+        },
+        {
+          "s": "FILBERT"
+        },
+        {
+          "s": "FILER"
+        },
+        {
+          "s": "FINCH"
+        },
+        {
+          "s": "FINNEY"
+        },
+        {
+          "s": "FISHERMANS"
+        },
+        {
+          "s": "FLANDERS"
+        },
+        {
+          "s": "FLEETWOOD"
+        },
+        {
+          "s": "FLETCHER"
+        },
+        {
+          "s": "FLICKER"
+        },
+        {
+          "s": "FLORIDA"
+        },
+        {
+          "s": "FLOWERFIELD"
+        },
+        {
+          "s": "FLUVANNA"
+        },
+        {
+          "s": "FONTAINE"
+        },
+        {
+          "s": "FONTAINEBLEAU"
+        },
+        {
+          "s": "FORBES"
+        },
+        {
+          "s": "FORD"
+        },
+        {
+          "s": "FORDWICK"
+        },
+        {
+          "s": "FORESTTOWN"
+        },
+        {
+          "s": "FORGE"
+        },
+        {
+          "s": "FORREST"
+        },
+        {
+          "s": "FORSYTHE"
+        },
+        {
+          "s": "FORT WORTH"
+        },
+        {
+          "s": "FOXDALE"
+        },
+        {
+          "s": "FOXHOUND"
+        },
+        {
+          "s": "FOXS LAIR"
+        },
+        {
+          "s": "FOXWELL"
+        },
+        {
+          "s": "FRAMENT"
+        },
+        {
+          "s": "FRANCIS"
+        },
+        {
+          "s": "FRANK"
+        },
+        {
+          "s": "FREDERICK"
+        },
+        {
+          "s": "FREEMASON"
+        },
+        {
+          "s": "FREMONT"
+        },
+        {
+          "s": "FRESH MEADOW"
+        },
+        {
+          "s": "FRIDEN"
+        },
+        {
+          "s": "FRIZZELL"
+        },
+        {
+          "s": "FRONT"
+        },
+        {
+          "s": "FULCHER"
+        },
+        {
+          "s": "FULTON"
+        },
+        {
+          "s": "G"
+        },
+        {
+          "s": "GABRIEL"
+        },
+        {
+          "s": "GAIL"
+        },
+        {
+          "s": "GAINOR"
+        },
+        {
+          "s": "GALT"
+        },
+        {
+          "s": "GALVESTON"
+        },
+        {
+          "s": "GAMAGE"
+        },
+        {
+          "s": "GAMBOLS"
+        },
+        {
+          "s": "GARDNER"
+        },
+        {
+          "s": "GARFIELD"
+        },
+        {
+          "s": "GARLAND"
+        },
+        {
+          "s": "GARREN"
+        },
+        {
+          "s": "GARRETT"
+        },
+        {
+          "s": "GATE HOUSE"
+        },
+        {
+          "s": "GATES"
+        },
+        {
+          "s": "GATLING"
+        },
+        {
+          "s": "GAY"
+        },
+        {
+          "s": "GAZEL"
+        },
+        {
+          "s": "GENEVA"
+        },
+        {
+          "s": "GEORGE"
+        },
+        {
+          "s": "GEORGETOWN"
+        },
+        {
+          "s": "GEORGIA"
+        },
+        {
+          "s": "GHENT COMMONS"
+        },
+        {
+          "s": "GIFFORD"
+        },
+        {
+          "s": "GILES"
+        },
+        {
+          "s": "GILMER"
+        },
+        {
+          "s": "GILPIN"
+        },
+        {
+          "s": "GLADE"
+        },
+        {
+          "s": "GLADSTONE"
+        },
+        {
+          "s": "GLEN"
+        },
+        {
+          "s": "GLENCOVE"
+        },
+        {
+          "s": "GLENDALE"
+        },
+        {
+          "s": "GLENDON"
+        },
+        {
+          "s": "GLENEAGLES"
+        },
+        {
+          "s": "GLEN ECHO"
+        },
+        {
+          "s": "GLENHAVEN"
+        },
+        {
+          "s": "GLEN MYRTLE"
+        },
+        {
+          "s": "GLENOAK"
+        },
+        {
+          "s": "GLENROCK"
+        },
+        {
+          "s": "GLENROIE"
+        },
+        {
+          "s": "GLOUCESTER"
+        },
+        {
+          "s": "GODFREY"
+        },
+        {
+          "s": "GOFF"
+        },
+        {
+          "s": "GOOCHLAND"
+        },
+        {
+          "s": "GOODMAN"
+        },
+        {
+          "s": "GORDON"
+        },
+        {
+          "s": "GORNTO"
+        },
+        {
+          "s": "GOSNOLD"
+        },
+        {
+          "s": "GOVERNMENT"
+        },
+        {
+          "s": "GOWRIE"
+        },
+        {
+          "s": "GRACE"
+        },
+        {
+          "s": "GRAMEL"
+        },
+        {
+          "s": "GRANBY"
+        },
+        {
+          "s": "GRANDY"
+        },
+        {
+          "s": "GRANITE"
+        },
+        {
+          "s": "GRANTHAM"
+        },
+        {
+          "s": "GRAYDON"
+        },
+        {
+          "s": "GRAYFALCON"
+        },
+        {
+          "s": "GRAYSON"
+        },
+        {
+          "s": "GREEN"
+        },
+        {
+          "s": "GREENBRIER"
+        },
+        {
+          "s": "GREENDALE"
+        },
+        {
+          "s": "GREEN LEAF"
+        },
+        {
+          "s": "GREENPLAIN"
+        },
+        {
+          "s": "GREEN VIEW"
+        },
+        {
+          "s": "GREENWAY"
+        },
+        {
+          "s": "GREENWICH"
+        },
+        {
+          "s": "GREENWOOD"
+        },
+        {
+          "s": "GREGORY"
+        },
+        {
+          "s": "GRESHAM"
+        },
+        {
+          "s": "GREYFALCON"
+        },
+        {
+          "s": "GRIMES"
+        },
+        {
+          "s": "GROVE"
+        },
+        {
+          "s": "GUAM"
+        },
+        {
+          "s": "GUESTWICK"
+        },
+        {
+          "s": "GUNN"
+        },
+        {
+          "s": "GURLEY"
+        },
+        {
+          "s": "GUY"
+        },
+        {
+          "s": "GYGAX"
+        },
+        {
+          "s": "GYM"
+        },
+        {
+          "s": "H"
+        },
+        {
+          "s": "HACIENDA"
+        },
+        {
+          "s": "HADLEY"
+        },
+        {
+          "s": "HADLOCK"
+        },
+        {
+          "s": "HAGAN"
+        },
+        {
+          "s": "HALE"
+        },
+        {
+          "s": "HALIFAX"
+        },
+        {
+          "s": "HALPRIN"
+        },
+        {
+          "s": "HALSTEAD"
+        },
+        {
+          "s": "HALTER"
+        },
+        {
+          "s": "HAMMETT"
+        },
+        {
+          "s": "HAMMOCK"
+        },
+        {
+          "s": "HAMMOND"
+        },
+        {
+          "s": "HAMPSHIRE"
+        },
+        {
+          "s": "HAMPTON"
+        },
+        {
+          "s": "HANBURY"
+        },
+        {
+          "s": "HANCOCK"
+        },
+        {
+          "s": "HANK"
+        },
+        {
+          "s": "HANNAH"
+        },
+        {
+          "s": "HANOVER"
+        },
+        {
+          "s": "HANSFORD"
+        },
+        {
+          "s": "HANSON"
+        },
+        {
+          "s": "HANYEN"
+        },
+        {
+          "s": "HARBOR POINTE"
+        },
+        {
+          "s": "HARBOR VIEW"
+        },
+        {
+          "s": "HARBOR WALK"
+        },
+        {
+          "s": "HARDWOOD"
+        },
+        {
+          "s": "HARDY"
+        },
+        {
+          "s": "HARGROVE"
+        },
+        {
+          "s": "HARITON"
+        },
+        {
+          "s": "HARMON"
+        },
+        {
+          "s": "HARMONY"
+        },
+        {
+          "s": "HARMOTT"
+        },
+        {
+          "s": "HAROLD"
+        },
+        {
+          "s": "HARPER"
+        },
+        {
+          "s": "HARRELL"
+        },
+        {
+          "s": "HARRINGTON"
+        },
+        {
+          "s": "HARRISONS"
+        },
+        {
+          "s": "HARTFORD"
+        },
+        {
+          "s": "HARTWICK"
+        },
+        {
+          "s": "HARVARD"
+        },
+        {
+          "s": "HARVEY"
+        },
+        {
+          "s": "HASTINGS"
+        },
+        {
+          "s": "HATTON"
+        },
+        {
+          "s": "HAVEN"
+        },
+        {
+          "s": "HAYES"
+        },
+        {
+          "s": "HEAD"
+        },
+        {
+          "s": "HEDGEWOOD"
+        },
+        {
+          "s": "HELENA"
+        },
+        {
+          "s": "HELSLEY"
+        },
+        {
+          "s": "HEMLOCK"
+        },
+        {
+          "s": "HENNEMAN"
+        },
+        {
+          "s": "HENRICO"
+        },
+        {
+          "s": "HENRY"
+        },
+        {
+          "s": "HERBERT"
+        },
+        {
+          "s": "HERBERT COLLINS"
+        },
+        {
+          "s": "HERON"
+        },
+        {
+          "s": "HETHERSETT"
+        },
+        {
+          "s": "HEUTTE"
+        },
+        {
+          "s": "HIBIE"
+        },
+        {
+          "s": "HICKORY"
+        },
+        {
+          "s": "HICKS"
+        },
+        {
+          "s": "HIGHLAND"
+        },
+        {
+          "s": "HILLANDALE"
+        },
+        {
+          "s": "HILLSIDE"
+        },
+        {
+          "s": "HILTON"
+        },
+        {
+          "s": "HOGGARD"
+        },
+        {
+          "s": "HOLLAND"
+        },
+        {
+          "s": "HOLLINS"
+        },
+        {
+          "s": "HOLLISTER"
+        },
+        {
+          "s": "HOLLY"
+        },
+        {
+          "s": "HOLLYBRIAR"
+        },
+        {
+          "s": "HOLLY POINT"
+        },
+        {
+          "s": "HOLT"
+        },
+        {
+          "s": "HONAKER"
+        },
+        {
+          "s": "HONEYSUCKLE"
+        },
+        {
+          "s": "HOOPER"
+        },
+        {
+          "s": "HORTON"
+        },
+        {
+          "s": "HOUGH"
+        },
+        {
+          "s": "HOUSTON"
+        },
+        {
+          "s": "HOWARD"
+        },
+        {
+          "s": "HOWE"
+        },
+        {
+          "s": "HUDSON"
+        },
+        {
+          "s": "HUGHART"
+        },
+        {
+          "s": "HUGO"
+        },
+        {
+          "s": "HULLVIEW"
+        },
+        {
+          "s": "HUMBOLDT"
+        },
+        {
+          "s": "HUMMEL"
+        },
+        {
+          "s": "HUNT"
+        },
+        {
+          "s": "HUNTER"
+        },
+        {
+          "s": "HUNTERS"
+        },
+        {
+          "s": "HUNTINGTON"
+        },
+        {
+          "s": "HUNTSMAN"
+        },
+        {
+          "s": "HURLEY"
+        },
+        {
+          "s": "HYDE"
+        },
+        {
+          "s": "HYDE PARK"
+        },
+        {
+          "s": "HYDRO"
+        },
+        {
+          "s": "I"
+        },
+        {
+          "s": "IKEA"
+        },
+        {
+          "s": "ILLINOIS"
+        },
+        {
+          "s": "INCA"
+        },
+        {
+          "s": "INCHON"
+        },
+        {
+          "s": "INDIAN RIVER"
+        },
+        {
+          "s": "INEZ"
+        },
+        {
+          "s": "INGLE"
+        },
+        {
+          "s": "INGLESIDE"
+        },
+        {
+          "s": "INGRAM"
+        },
+        {
+          "s": "INLET"
+        },
+        {
+          "s": "INLET POINT"
+        },
+        {
+          "s": "INTERNATIONAL"
+        },
+        {
+          "s": "INVENTORS"
+        },
+        {
+          "s": "INWOOD"
+        },
+        {
+          "s": "IOWA"
+        },
+        {
+          "s": "IRVING"
+        },
+        {
+          "s": "IRWIN"
+        },
+        {
+          "s": "ISAAC"
+        },
+        {
+          "s": "IVALOO"
+        },
+        {
+          "s": "IVOR"
+        },
+        {
+          "s": "J"
+        },
+        {
+          "s": "JACOB"
+        },
+        {
+          "s": "JACQUELYN"
+        },
+        {
+          "s": "JAMAICA"
+        },
+        {
+          "s": "JAMESTOWN"
+        },
+        {
+          "s": "JANA"
+        },
+        {
+          "s": "JANAF"
+        },
+        {
+          "s": "JANE"
+        },
+        {
+          "s": "JANET"
+        },
+        {
+          "s": "JARRETT"
+        },
+        {
+          "s": "JASMINE"
+        },
+        {
+          "s": "JASON"
+        },
+        {
+          "s": "JASPER"
+        },
+        {
+          "s": "JAY"
+        },
+        {
+          "s": "JEAN"
+        },
+        {
+          "s": "JEFFERSON"
+        },
+        {
+          "s": "JEFFREY"
+        },
+        {
+          "s": "JENIFER"
+        },
+        {
+          "s": "JENNY"
+        },
+        {
+          "s": "JERNIGAN"
+        },
+        {
+          "s": "JEROME"
+        },
+        {
+          "s": "JERRY"
+        },
+        {
+          "s": "JERRYLEE"
+        },
+        {
+          "s": "JERSEY"
+        },
+        {
+          "s": "JETT"
+        },
+        {
+          "s": "JOAN"
+        },
+        {
+          "s": "JOE AUSTIN"
+        },
+        {
+          "s": "JOHN FOSTER"
+        },
+        {
+          "s": "JOHNNIE BRANCH"
+        },
+        {
+          "s": "JOHNS"
+        },
+        {
+          "s": "JOHNSON"
+        },
+        {
+          "s": "JOHNSTONS"
+        },
+        {
+          "s": "JOLIMA"
+        },
+        {
+          "s": "JOLLIFF"
+        },
+        {
+          "s": "JOLLY ROGER"
+        },
+        {
+          "s": "JONATHAN"
+        },
+        {
+          "s": "JOSEPH GREEN"
+        },
+        {
+          "s": "JOYCE"
+        },
+        {
+          "s": "JOYNER"
+        },
+        {
+          "s": "JUBILEE"
+        },
+        {
+          "s": "JULIANNA"
+        },
+        {
+          "s": "JUNIPER"
+        },
+        {
+          "s": "KANE"
+        },
+        {
+          "s": "KANSAS"
+        },
+        {
+          "s": "KANTER"
+        },
+        {
+          "s": "KAREN MARIE"
+        },
+        {
+          "s": "KARLIN"
+        },
+        {
+          "s": "KATHY"
+        },
+        {
+          "s": "KEARNEY"
+        },
+        {
+          "s": "KEARSARGE"
+        },
+        {
+          "s": "KEENE"
+        },
+        {
+          "s": "KEGAGIE"
+        },
+        {
+          "s": "KELLER"
+        },
+        {
+          "s": "KEMPSVILLE"
+        },
+        {
+          "s": "KENLAKE"
+        },
+        {
+          "s": "KENNEBECK"
+        },
+        {
+          "s": "KENNEDY"
+        },
+        {
+          "s": "KENNON"
+        },
+        {
+          "s": "KENOSHA"
+        },
+        {
+          "s": "KENOVA"
+        },
+        {
+          "s": "KENTON"
+        },
+        {
+          "s": "KENTUCKY"
+        },
+        {
+          "s": "KENWOOD"
+        },
+        {
+          "s": "KERREY"
+        },
+        {
+          "s": "KERSEY"
+        },
+        {
+          "s": "KESWICK"
+        },
+        {
+          "s": "KEVIN"
+        },
+        {
+          "s": "KIDD"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-06T00%3A00%3A00'%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:57.861Z",
+      "status": 200,
+      "body": [
+        {
+          "whole": "360",
+          "before": "22",
+          "same": "93"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20IS%20NOT%20NULL%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:57.982Z",
+      "status": 200,
+      "body": [
+        {
+          "whole": "2378",
+          "before": "628",
+          "same": "240"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20with_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:58.527Z",
+      "status": 200,
+      "body": [
+        {
+          "whole": "353",
+          "with_end": "50"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:57.709Z",
+      "status": 200,
+      "body": [
+        {
+          "whole": "272",
+          "part": "24",
+          "no_loc": "22"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20176": {
+      "read": "2026-11-07T01:01:58.649Z",
+      "status": 200,
+      "body": [
+        {
+          "created_datetime": "2024-04-09T11:28:45.000"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20date_extract_y(created_datetime)%20AS%20y%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20GROUP%20BY%20y%20ORDER%20BY%20y%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:57.592Z",
+      "status": 200,
+      "body": [
+        {
+          "y": "2020",
+          "whole": "205",
+          "part": "21"
+        },
+        {
+          "y": "2021",
+          "whole": "315",
+          "part": "44"
+        },
+        {
+          "y": "2022",
+          "whole": "499",
+          "part": "101"
+        },
+        {
+          "y": "2023",
+          "whole": "407",
+          "part": "134"
+        },
+        {
+          "y": "2024",
+          "whole": "343",
+          "part": "149"
+        },
+        {
+          "y": "2025",
+          "whole": "363",
+          "part": "112"
+        },
+        {
+          "y": "2026",
+          "whole": "246",
+          "part": "21"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20min(created_datetime)%20AS%20min_created_datetime%2C%20max(created_datetime)%20AS%20max_created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:57.425Z",
+      "status": 200,
+      "body": [
+        {
+          "min_created_datetime": "2020-08-05T08:31:36.000",
+          "max_created_datetime": "2026-10-30T11:42:52.000"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200": {
+      "read": "2026-11-07T01:01:58.974Z",
+      "status": 200,
+      "body": [
+        {
+          "v": "General Maintenance",
+          "n": "4215"
+        },
+        {
+          "v": "Stump",
+          "n": "2879"
+        },
+        {
+          "v": "Limb / Tree Down",
+          "n": "827"
+        },
+        {
+          "v": "Dead Tree",
+          "n": "770"
+        },
+        {
+          "v": "Blocking Street",
+          "n": "557"
+        },
+        {
+          "v": "Routine Maintenance",
+          "n": "430"
+        },
+        {
+          "v": "Broken Hanging Limb",
+          "n": "351"
+        },
+        {
+          "v": "Damaged Tree",
+          "n": "258"
+        },
+        {
+          "v": "Diseased",
+          "n": "127"
+        },
+        {
+          "v": "Damaging Curb/Sidewalk",
+          "n": "79"
+        },
+        {
+          "v": "Raised",
+          "n": "5"
+        },
+        {
+          "v": "Cracked",
+          "n": "3"
+        },
+        {
+          "v": "Trash & Debris",
+          "n": "3"
+        },
+        {
+          "v": "Storm Damage",
+          "n": "2"
+        },
+        {
+          "v": "Buckle",
+          "n": "1"
+        },
+        {
+          "v": "Damaged Equipment",
+          "n": "1"
+        },
+        {
+          "v": "Down Trees",
+          "n": "1"
+        },
+        {
+          "v": "Preventative Maintenance",
+          "n": "1"
+        }
+      ]
+    },
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_street%2C%20sum(case(contractor_cost%20%3E%200%2C1%2Ctrue%2C0))%20AS%20cc%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20has_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100": {
+      "read": "2026-11-07T01:01:56.871Z",
+      "status": 200,
+      "body": [
+        {
+          "status_code": "2",
+          "status_description": "New Work Order",
+          "whole": "336",
+          "no_street": "79",
+          "cc": "12",
+          "has_end": "41"
+        },
+        {
+          "status_code": "4",
+          "status_description": "On-Going",
+          "whole": "17",
+          "no_street": "6",
+          "cc": "5",
+          "has_end": "9"
+        },
+        {
+          "status_code": "940",
+          "status_description": "Delete WO",
+          "whole": "7",
+          "no_street": "6",
+          "cc": "0",
+          "has_end": "1"
+        },
+        {
+          "status_code": "947",
+          "status_description": "Transferred to Another Department",
+          "whole": "4",
+          "no_street": "2",
+          "cc": "0",
+          "has_end": "4"
+        },
+        {
+          "status_code": "951",
+          "status_description": "WO Cancelled",
+          "whole": "5",
+          "no_street": "0",
+          "cc": "0",
+          "has_end": "3"
+        },
+        {
+          "status_code": "953",
+          "status_description": "No Problem Found",
+          "whole": "1",
+          "no_street": "0",
+          "cc": "0",
+          "has_end": "1"
+        },
+        {
+          "status_code": "956",
+          "status_description": "Non-Asset Work Complete",
+          "whole": "1",
+          "no_street": "1",
+          "cc": "0",
+          "has_end": "1"
+        },
+        {
+          "status_code": "957",
+          "status_description": "Duplicate Work Order",
+          "whole": "21",
+          "no_street": "7",
+          "cc": "0",
+          "has_end": "21"
+        },
+        {
+          "status_code": "999",
+          "status_description": "Complete",
+          "whole": "2378",
+          "no_street": "582",
+          "cc": "563",
+          "has_end": "2378"
+        }
+      ]
+    }
+  }
+}

@@ -4,13 +4,15 @@
 import { blockReport, lookupAddress, searchLegislation } from './block.js';
 import { soqlString, ACCESS } from './socrata.js';
 import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
+import { NOTE_UNANSWERED_TOOL, noteUnanswered } from './gaps/answer.js';
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
   function: { name, description, parameters: { type: 'object', properties, required, additionalProperties: false } },
 });
 
-export function toolsFor(city, plugins = []) {
+// opts.gaps (a built gap file) adds note_unanswered after suggest_data_source.
+export function toolsFor(city, plugins = [], opts = {}) {
   const tools = [
     T('search_datasets', `Search ${city.name}'s open data catalog by keyword. Returns dataset ids, names and descriptions.`, {
       query: { type: 'string', description: 'Keywords, e.g. "trees", "building permits".' },
@@ -55,6 +57,7 @@ export function toolsFor(city, plugins = []) {
       why: { type: 'string', description: 'One sentence: what this source would let you answer.' },
     }, ['need', 'source', 'why'])
   );
+  if (opts.gaps) tools.push(NOTE_UNANSWERED_TOOL(opts.gaps));
   const core = new Set(tools.map((t) => t.function.name));
   for (const def of pluginToolDefs(plugins, city)) {
     if (core.has(def.function.name)) throw new Error(`Plugin "${def.function.name}" would replace a core tool.`);
@@ -80,6 +83,10 @@ export async function runTool(ctx, name, args) {
       ctx.suggestions.push({ need: clip(args.need, 300), source: clip(args.source, 200), why: clip(args.why, 300), ...(/^https:\/\//i.test(url) ? { url } : {}) });
       return { noted: true, note: 'The person will see this suggestion with a button to request it. In your answer, say plainly what you could not find and that they can ask for this source to be added.' };
     }
+    case 'note_unanswered':
+      // Gated in code: with gaps off this is an unknown tool, whatever the model emits.
+      if (!ctx.gaps) throw new Error(`Unknown tool ${name}`);
+      return noteUnanswered(ctx, args);
     case 'search_datasets':
       return socrata.searchCatalog(args.query);
     case 'describe_dataset':

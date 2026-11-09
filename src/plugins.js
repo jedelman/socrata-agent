@@ -17,6 +17,7 @@
 import { lookupAddress } from './block.js';
 import { ACCESS } from './socrata.js';
 import { deepFreeze } from './cities/index.js';
+import { gapStatementsFor } from './gaps/answer.js';
 import { networkFetch } from './request-budget.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,48}$/;
@@ -96,7 +97,11 @@ export function pluginContext(ctx) {
     json: async (url, info) => ctx.http.json(guardPluginUrl(city, url), info),
     text: async (url, info) => ctx.http.text(guardPluginUrl(city, url), info),
   });
+  // With gaps on, a plugin's case file can say what the records couldn't
+  // answer (docs/gaps.md §8.4). With gaps off the context is unchanged.
+  const gaps = ctx.gaps ? { gapStatements: (caseId) => deepFreeze(gapStatementsFor(ctx.gaps.data, caseId)) } : {};
   return Object.freeze({
+    ...gaps,
     city: deepFreeze(city),
     // A plugin's dataset `name` is a display label only: the real name is
     // always looked up for the exclusion check.

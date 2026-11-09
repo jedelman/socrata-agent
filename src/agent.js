@@ -11,6 +11,9 @@ import { systemPrompt } from './prompt.js';
 import { voiceViolations, REWRITE_INSTRUCTION } from './voice.js';
 import { tracedHttp } from './plugins.js';
 import { openrouterProvider } from './providers/openrouter.js';
+import { worldClaimViolations, GAP_REWRITE_ADDENDUM } from './gaps/kinds.js';
+import { matchGaps, gapItem, citeCatalog, classifyRefusal, refilterUnanswered, absenceFor, gapsMarkdown } from './gaps/answer.js';
+import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
 import { requestBudget } from './request-budget.js';
 
@@ -72,10 +75,14 @@ export function budgetNote({ limit, refused }) {
  * so an answer built on them still shows where its data came from.
  * `apiKey` is the key for the model's provider (see keyNameFor). `effort`
  * (low|medium|high|xhigh|max) applies to Claude models only.
+ * `gaps` (off by default) is { data, streets?, absenceLines? }: a built gap
+ * file (data/gaps/<city>.json) and options (docs/gaps.md §8). With gaps off,
+ * every output is byte-identical to a build without gaps.
  * `subrequestBudget` caps the outbound requests this answer may make, model
  * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
  * requests stop short of it, keeping enough for the final answer.
- * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget }.
+ * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget },
+ * plus { gaps, unanswered, fallback } when gaps are on.
  */
 export async function ask({
   question,
@@ -95,6 +102,7 @@ export async function ask({
   subrequestBudget,
   onEvent = () => {},
   onCost = () => {},
+  gaps = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // A bad setting must never make the tool loop unbounded.
@@ -102,6 +110,21 @@ export async function ask({
   // One counter for every fetch this answer makes: tools and model alike.
   const budget = requestBudget({ limit: subrequestBudget, fetchImpl });
   const ctx = createContext({ city, indexes, appToken, plugins, budget });
+  const gapsOn = Boolean(gaps?.data);
+  const today = new Date().toISOString().slice(0, 10);
+  if (gapsOn) {
+    ctx.gaps = { data: gaps.data, streets: gaps.streets, absenceLines: gaps.absenceLines === true };
+    ctx.attempted = [];
+    // Trace steps recorded during a tool call that threw: a step can be ok
+    // (the dataset-name check before a failed query) while its call errored.
+    ctx.erroredSteps = new Set();
+    ctx.unanswered = [];
+    // Each tool's value as it returned, for the gap predicates: content is
+    // cut at RESULT_CHARS, and a cut JSON value doesn't parse.
+    ctx.toolValues = [];
+  }
+  // Absence lines date their reading as the gap statements do (America/New_York).
+  const gapDay = gapsOn ? buildDate() : null;
   if (carried.length) {
     await ctx.trace.record(
       {
@@ -124,15 +147,16 @@ export async function ask({
   // the answer: the final answer at its worst, and one voice rewrite call.
   budget.setReserve(perComplete + perCall);
   llm.init({
-    systemPrompt: systemPrompt(city, new Date().toISOString().slice(0, 10)),
+    systemPrompt: gapsOn ? systemPrompt(city, today, { gaps: true }) : systemPrompt(city, today),
     history,
     question,
-    toolDefs: toolsFor(city, plugins),
+    toolDefs: gapsOn ? toolsFor(city, plugins, { gaps: gaps.data }) : toolsFor(city, plugins),
   });
   let cost = 0;
   let answer = '';
   let steps = 0;
   let refusal = null;
+  let fallback = false;
   // Set when the request budget ended the tool loop.
   let budgetStopped = false;
   const spend = (usd) => {
@@ -149,12 +173,14 @@ export async function ask({
     spend(out.cost);
     if (out.refusal) {
       refusal = out.refusal;
+      fallback = true;
       answer = "I can't answer that one: the model declined it. The queries I ran before it stopped are in the trace below.";
       break;
     }
     if (!out.calls.length || lastStep) {
       answer = out.text;
       if (!answer) {
+        fallback = true;
         answer = out.truncated
           ? 'I ran out of room before I could finish. The queries I ran are in the trace below.'
           : budgetStopped
@@ -168,20 +194,43 @@ export async function ask({
     steps++;
     llm.appendAssistant();
     const results = [];
-    for (const call of out.calls) {
+    for (const [i, call] of out.calls.entries()) {
       let content;
       let isError = false;
+      let value;
+      const mark = ctx.trace.steps.length;
       const refusedBefore = budget.refused;
+      if (gapsOn) {
+        ctx.batchCalls = out.calls.slice(i + 1).map((c) => ({ name: c.name, args: c.args }));
+        ctx.toolResults = toolResults;
+      }
       try {
         if (call.error) throw new Error(call.error);
         onEvent({ type: 'tool', name: call.name, args: call.args });
-        const result = await runTool(ctx, call.name, call.args);
+        value = await runTool(ctx, call.name, call.args);
         // The tool returns what it has; code adds the note, whatever the tool,
         // ahead of the result so a long result cut to size still carries it.
-        content = JSON.stringify(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE, result } : result);
+        content = JSON.stringify(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE, result: value } : value);
       } catch (err) {
         isError = true;
         content = JSON.stringify({ ...(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE } : {}), error: String(err?.message || err) });
+        if (gapsOn) {
+          ctx.attempted.push({ name: call.name, ok: false, ...(classifyRefusal(ctx.socrata, err?.message || err) || {}) });
+          for (const s of ctx.trace.steps.slice(mark)) ctx.erroredSteps.add(s);
+        }
+      }
+      if (gapsOn && !isError) {
+        if (budget.refused > refusedBefore) {
+          // A result the request budget cut short counts for gaps as an
+          // errored call does: none of its steps, no value, no absence line,
+          // so a budget stop never makes a gap touch or bite.
+          ctx.attempted.push({ name: call.name, ok: false, budget: true });
+          for (const s of ctx.trace.steps.slice(mark)) ctx.erroredSteps.add(s);
+        } else {
+          ctx.attempted.push({ name: call.name, ok: true });
+          ctx.toolValues.push({ name: call.name, value });
+          absenceFor(ctx, call.name, value, gapDay);
+        }
       }
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
@@ -198,21 +247,34 @@ export async function ask({
   // Voice check: one rewrite, then report honestly if it still fails. The
   // rewrite is one API call (no second try when cut off), sent only if it fits
   // in what is left of the budget; otherwise the check fails honestly.
-  let violations = refusal ? [] : voiceViolations(answer);
+  // With gaps on, world claims and predictions are caught in the same rewrite.
+  const check = gapsOn ? (a) => [...voiceViolations(a), ...worldClaimViolations(a)] : voiceViolations;
+  let violations = refusal ? [] : check(answer);
   let rewritten = false;
   let rewriteSkipped = false;
   if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
   else if (violations.length) {
     onEvent({ type: 'rewrite', violations });
     llm.appendAssistant();
-    llm.appendUser(REWRITE_INSTRUCTION);
+    llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
     const out = await llm.complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
     if (out.text && !out.refusal && !out.truncated) {
       answer = out.text;
       rewritten = true;
-      violations = voiceViolations(answer);
+      violations = check(answer);
     }
+  }
+
+  // Gaps: attached by code from what this turn ran, never by the model.
+  let gapOut = null;
+  let unanswered = [];
+  if (gapsOn) {
+    unanswered = refilterUnanswered(ctx, toolResults);
+    ctx.unanswered = unanswered;
+    const m = fallback || refusal ? { shown: [], more: 0 } : matchGaps(ctx, toolResults);
+    if (m.shown.length) await citeCatalog(ctx, m.shown.length + m.more);
+    gapOut = { shown: m.shown.map((x) => gapItem(x, ctx)), more: m.more, measured: gaps.data.built, noted: unanswered.length > 0 };
   }
 
   const used = budget.summary();
@@ -231,9 +293,11 @@ export async function ask({
     // in plain words when its budget ended the search.
     requestBudget: { ...used, reached, ...(reached ? { note: budgetNote(used) } : {}) },
     ...(refusal ? { refusal } : {}),
+    ...(gapsOn ? { gaps: gapOut, unanswered, fallback } : {}),
     markdown: {
       trace: ctx.trace.toMarkdown(),
       resources: ctx.resources.toMarkdown(),
+      ...(gapsOn ? { gaps: gapsMarkdown(gapOut) } : {}),
     },
   };
 }

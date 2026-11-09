@@ -13,6 +13,9 @@
 import { ask, keyNameFor, providerOf } from '../src/agent.js';
 import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
+import norfolkStreets from '../data/gaps/norfolk-streets.json';
+import norfolkGaps from '../data/gaps/norfolk.json';
+import { compileStreets } from '../src/public-text.js';
 import UI from './ui.html';
 import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
@@ -34,6 +37,14 @@ import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
+
+// Street names per city, used only to refuse addresses in text that could go
+// public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
+// at isolate startup, so no request pays for it in its CPU time.
+const STREETS = { norfolk: compileStreets(norfolkStreets.streets) };
+// Built gap files per city (scripts/build-gaps.js). An answer carries gaps only
+// when its deployment sets gaps.enabled (in a reviewed PR); none does yet.
+const GAPS = { norfolk: norfolkGaps };
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -204,6 +215,7 @@ async function handleAsk(req, env, ctx) {
       onCost: (usd) => {
         cost += usd;
       },
+      ...(deployment.gaps?.enabled === true && GAPS[cityId] ? { gaps: { data: GAPS[cityId], streets: STREETS[cityId], absenceLines: deployment.gaps.absenceLines === true } } : {}),
     });
     const { toolResults, ...answer } = out;
     if (conversationId) {
@@ -349,7 +361,7 @@ async function handleRequest(req, env) {
     if (setup) return json({ error: setup }, 503);
     if (!(await inviteAccess(req, env, kv)).invite) return json({ error: 'Sign in or enter your invite code first.' }, 401);
   }
-  const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env) });
+  const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env), streets: STREETS[allowedCities(env)[0]] });
   if (!out.ok) return json({ error: out.error }, out.status);
   return json(raiseResponse(out), 200, { 'Cache-Control': 'no-store' });
 }

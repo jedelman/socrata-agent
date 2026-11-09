@@ -33,6 +33,9 @@ Usage
 Options
   --city <id|domain>   norfolk (default), seattle, chicago, or any Socrata domain
   --config <file>      a deployment config (plugins, notes, contacts); see deployments/
+  --gaps               with ask: say what the records couldn't answer, from the built
+                       gap catalog (data/gaps/<city>.json); also on with config gaps.enabled
+  --absence-lines      with --gaps: add absence lines (trees_on_my_block only)
 
 Examples
   socrata-agent ask "What's going on at 111 Pennsylvania Ave?"
@@ -69,16 +72,33 @@ const { values, positionals } = parseArgs({
     model: { type: 'string' },
     effort: { type: 'string' },
     json: { type: 'boolean', default: false },
+    gaps: { type: 'boolean', default: false },
+    'absence-lines': { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
 });
 
 async function loadDeployment() {
-  if (!values.config) return { city: getCity(values.city || 'norfolk'), plugins: [], model: undefined };
+  if (!values.config) return { city: getCity(values.city || 'norfolk'), plugins: [], model: undefined, gaps: undefined };
   const mod = await import(pathToFileURL(resolve(values.config)).href);
   const config = mod.default || {};
   const city = applyConfig(getCity(values.city || config.city || 'norfolk'), config);
-  return { city, plugins: (config.plugins || []).map(definePlugin), model: config.model };
+  return { city, plugins: (config.plugins || []).map(definePlugin), model: config.model, gaps: config.gaps };
+}
+
+// The built gap catalog for a city, when gaps are on (off by default).
+async function loadGaps(city, gapsConfig) {
+  const on = values.gaps || gapsConfig?.enabled === true;
+  if (!on) return null;
+  try {
+    const data = JSON.parse(await readFile(new URL(`../data/gaps/${city.id}.json`, import.meta.url), 'utf8'));
+    const streets = JSON.parse(await readFile(new URL(`../data/gaps/${city.id}-streets.json`, import.meta.url), 'utf8')).streets;
+    return { data, streets, absenceLines: values['absence-lines'] || gapsConfig?.absenceLines === true };
+  } catch (err) {
+    // A missing file and a broken one are different problems; say which. Gaps stay off either way.
+    console.error(`warning: gaps are off: ${err?.code === 'ENOENT' ? `data/gaps/${city.id}.json or its street list is missing; run scripts/build-gaps.js` : `couldn't read the gap files (${err?.message || err})`}`);
+    return null;
+  }
 }
 
 const [cmd, ...rest] = positionals;
@@ -109,7 +129,8 @@ try {
   } else if (cmd === 'ask') {
     const question = rest.join(' ').trim();
     if (!question) throw new Error('ask needs a question');
-    const { city, plugins, model: configModel } = await loadDeployment();
+    const { city, plugins, model: configModel, gaps: gapsConfig } = await loadDeployment();
+    const gaps = await loadGaps(city, gapsConfig);
     const model = values.model || configModel || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL;
     const out = await ask({
       question,
@@ -120,6 +141,7 @@ try {
       appToken: process.env.SOCRATA_APP_TOKEN,
       model,
       effort: values.effort,
+      ...(gaps ? { gaps } : {}),
       // Unset: no cap (the count still runs and is reported).
       subrequestBudget: cliSubrequestBudget(process.env.SUBREQUEST_BUDGET),
       onEvent: (e) => {
@@ -137,6 +159,7 @@ try {
         const how = out.voice.rewritten ? ' after rewrite' : out.voice.rewriteSkipped ? ' (no rewrite: the request budget was used up)' : '';
         console.log(`⚠ Voice check failed${how}: ${out.voice.violations.join(' | ')}\n`);
       }
+      if (out.markdown.gaps) console.log(`## What I couldn't answer from the records I read\n${out.markdown.gaps}\n`);
       console.log(`## Resources\n${out.markdown.resources}\n`);
       console.log(`## Trace\n${out.markdown.trace}\n`);
       const r = out.requestBudget;

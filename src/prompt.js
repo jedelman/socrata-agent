@@ -1,4 +1,16 @@
-export function systemPrompt(city, today) {
+// opts.gaps (docs/gaps.md §8.3) swaps the source-suggestion line for one that
+// also calls note_unanswered. With {} the prompt is byte-identical.
+const SUGGEST_LINE = '- When the records you can reach don\'t answer the question, say so, then call suggest_data_source with the specific source that would (an ordinance, a plan, a report, a dataset). Don\'t guess what that source says.';
+const GAPS_LINE = '- When the records you can reach don\'t answer the question, or answer it only in part, say so, then call note_unanswered with a citywide version of the question: no street, block, ward, civic league or landmark, and no names. For numbers about a gap, use only the statements it returns. If you know a specific source that would answer it (an ordinance, a plan, a report, a dataset), also call suggest_data_source. Don\'t guess what that source says.';
+
+export function systemPrompt(city, today, opts = {}) {
+  const text = basePrompt(city, today);
+  if (!opts.gaps) return text;
+  if (!text.includes(SUGGEST_LINE)) throw new Error('The prompt no longer holds the line note_unanswered replaces.');
+  return text.replace(SUGGEST_LINE, GAPS_LINE);
+}
+
+function basePrompt(city, today) {
   const hasBlock = Boolean(city.address);
   const hasMeetings = Boolean(city.meetings);
   return `You help people find out what their city government is doing, using ${city.name}'s open data portal (${city.portal}) and public meeting records. Today is ${today}.

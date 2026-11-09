@@ -32,8 +32,13 @@ export function theRecord(ctx, doc) {
     rows: doc.findings.length,
     note: `${verified.length} findings with their quotes checked against the source; ${doc.findings.length - verified.length} marked unverified`,
   });
+  // With gaps on (docs/gaps.md §8.4): up to three code-written gap statements
+  // for this case, placed first so they survive when a long tool result is
+  // cut. The key is absent with gaps off.
+  const couldnt = typeof ctx.gapStatements === 'function' ? ctx.gapStatements(doc.id) : [];
   const record = {
     question: doc.title,
+    ...(couldnt.length ? { what_i_couldnt_answer: couldnt } : {}),
     steward: doc.steward,
     license: doc.license === 'CC-BY-4.0' ? 'CC BY 4.0: reuse with credit to whoever found each finding' : doc.license,
     summary: doc.summary,

@@ -7,7 +7,8 @@
 // Each turn keeps the question, the answer, and the tool results behind it
 // (trimmed), which the next question gets back as data. It also keeps the
 // record shown under the answer (the code-written trace, the hand-off, the
-// voice check, the model, steps and cost, and any suggested sources), so a
+// voice check, the model, steps and cost, any suggested sources, and with
+// gaps on the gap statements shown), so a
 // reopened conversation shows how each answer was found. The model never
 // sees that record; only the person who asked does.
 
@@ -36,7 +37,7 @@ const clip = (v, n) => (v == null ? undefined : String(v).slice(0, n));
 const MAX_TRACE_STEPS = 60;
 
 /** The record shown under an answer, kept with its turn: bounded, and only the fields the page renders. */
-export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget } = {}) {
+export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget, gaps } = {}) {
   const r = resources || {};
   return {
     trace: (Array.isArray(trace) ? trace : []).slice(0, MAX_TRACE_STEPS).map((t) => ({
@@ -57,6 +58,12 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
       ? { limit: Number.isFinite(requestBudget.limit) ? requestBudget.limit : null, used: requestBudget.used, refused: Number(requestBudget.refused) || 0, reached: Boolean(requestBudget.reached), note: clip(requestBudget.note, 400) }
       : undefined,
     suggestions: (suggestions || []).slice(0, 2).map((x) => ({ need: clip(x.need, 300), source: clip(x.source, 200), why: clip(x.why, 300), url: clip(x.url, 500) })),
+    // Gaps on only (docs/gaps.md §8.5): the catalog's own text per gap shown,
+    // at most three, and nothing else. No absence line (it can name the
+    // person's street), no token, no draft. Gaps off adds no key at all.
+    ...(gaps?.shown?.length
+      ? { gaps: gaps.shown.slice(0, 3).map((g) => ({ gap: clip(g.gap, 120), statement: clip(g.statement, 600), measured: clip(g.measured, 10) })) }
+      : {}),
   };
 }
 
@@ -74,7 +81,8 @@ export async function saveTurn(kv, uid, id, conv, { city, question, answer, tool
     at: new Date(now).toISOString(),
     question: String(question).slice(0, QUESTION_CHARS),
     answer: String(answer).slice(0, ANSWER_CHARS),
-    tools: tools.map((t) => ({ name: t.name, args: t.args, result: clipResult(String(t.content)) })),
+    // note_unanswered keeps only what was noted, never the drafted question.
+    tools: tools.map((t) => ({ name: t.name, args: t.name === 'note_unanswered' ? { answered: t.args?.answered, gaps: t.args?.gaps } : t.args, result: clipResult(String(t.content)) })),
     ...(record ? { record: answerRecord(record) } : {}),
   }].slice(-MAX_TURNS);
   const next = { city, created: conv?.created || new Date(now).toISOString(), turns };

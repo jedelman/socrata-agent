@@ -611,6 +611,20 @@ test('a closed issue is re-closed when the reason changes (fulfilled, then withd
   assert.deepEqual(ops2, [{ op: 'update', number: 2, patch: { state: 'closed', state_reason: 'completed' } }]);
 });
 
+test('a note that could go public is checked before anything is written, and the refusal never repeats it', async () => {
+  const kv = fakeKV();
+  const out = await addRequest({ body: { source: 'Norfolk tree ordinance', need: 'Is the oak at 1500 Bolling Ave protected? Call 757-664-4253', public: true }, kv, visitor: 'v', streets: ['BOLLING'] });
+  assert.equal(out.ok, false);
+  assert.equal(out.status, 400);
+  assert.match(out.error, /house numbers/);
+  assert.doesNotMatch(out.error, /Bolling|1500|757/);
+  assert.equal(kv.store.size, 0, 'no rate key, no record');
+  const ok = await addRequest({ body: { source: 'Norfolk tree ordinance', need: 'Are street trees protected citywide?', public: true }, kv, visitor: 'v', streets: ['BOLLING'] });
+  assert.equal(ok.ok, true);
+  assert.equal((await addRequest({ body: { source: 'Norfolk tree ordinance', need: '1500 BOLLING?' }, kv, visitor: 'v', streets: ['BOLLING'] })).ok, false, 'a number before a street name');
+  assert.equal((await addRequest({ body: { source: 'Norfolk tree ordinance' }, kv, visitor: 'v' })).ok, true, 'no note, nothing to check');
+});
+
 test('the admin page and the contributor guide promise a closed issue only once the sync runs with --with-withdrawn', async () => {
   const { readFileSync } = await import('node:fs');
   const admin = readFileSync(new URL('../worker/admin.html', import.meta.url), 'utf8');

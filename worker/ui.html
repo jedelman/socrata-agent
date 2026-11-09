@@ -308,7 +308,21 @@ $('#log').addEventListener('submit', async (e) => {
     f.querySelector('button').disabled = true;
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
-// One answer with what was found behind it: the voice notice, suggested
+// What the records couldn't answer (docs/gaps.md §8.5). Only with gaps on;
+// code-written text, escaped, never through md(). A reopened answer's record
+// keeps only {gap, statement, measured} per gap (worker/conversations.js), so
+// label, title and the open state show only on a live answer.
+function renderGaps(g) {
+  if (!g?.shown?.length) return '';
+  const today = new Date().toISOString().slice(0, 10);
+  const stale = (d) => (Date.parse(today) - Date.parse(d)) / 864e5 > 14;
+  // Open when a gap bit or was named, or the question was noted as unanswered (§8.5).
+  const open = g.noted || g.shown.some((x) => x.bit || x.named);
+  const n = g.shown.length + (g.more || 0);
+  return `<details class="gaps"${open ? ' open' : ''}><summary>What I couldn't answer from the records I read <small>(${n})</small></summary><ul class="plain">${g.shown.map((x) => `<li>${x.label ? `<span class="role">${esc(x.label)}</span> ` : ''}${x.title ? `<strong>${esc(x.title)}</strong><br>` : ''}${esc(x.statement)}<br><small>measured ${esc(x.measured)}${stale(x.measured) ? ' · due for a re-check' : ''}${x.notice ? ` · ${esc(x.notice)}` : ''}</small>${x.absence ? `<br><small>${esc(x.absence)}</small>` : ''}</li>`).join('')}${g.more ? `<li><small>${esc(g.more)} more in the gap catalog</small></li>` : ''}</ul></details>`;
+}
+// One answer with what was found behind it: the voice notice, what the
+// records couldn't answer (gaps on only), suggested
 // sources, the hand-off, the trace and the model line. The same for a live
 // answer and for one reopened from a saved conversation (`at` set); turns
 // saved before records were kept show the answer alone.
@@ -316,7 +330,7 @@ function renderAnswer(answer, r, at) {
   const when = at ? `${esc(String(at).slice(0, 16).replace('T', ' '))} UTC` : '';
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
-  return `<div class="answer">${md(answer)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
+  return `<div class="answer">${md(answer)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
 }
 function renderTrace(t) {
   if (!t?.length) return '';

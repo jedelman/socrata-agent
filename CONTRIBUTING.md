@@ -50,3 +50,53 @@ node bin/socrata-agent.js tool block_report '{"address":"810 Union St"}' > /dev/
 
 Model comparisons (`scripts/compare-models.js`) cost real money. Keep them small,
 and commit the output to `eval/`.
+
+### The gap file and its inputs
+
+`data/gaps/norfolk.json` is built from stored portal responses plus repo files:
+the case files (`data/cases/*.json`), the legislation index
+(`data/norfolk-legislation.json`) and the Norfolk profile
+(`src/cities/norfolk.js`). A PR that edits any of them, or `src/gaps/`, reruns
+
+```bash
+node scripts/build-gaps.js --offline
+npm run check:gaps
+```
+
+and commits `data/gaps` and `docs/gaps-norfolk.md` with the change. When two
+branches touch those inputs, whichever merges second reruns it before merging.
+
+**The gap build is run by hand** until Jason decides whether to automate it.
+No workflow runs it or checks it: rerun `build-gaps --offline` yourself after
+the weekly legislation refresh commits a new index, after the monthly archive
+PR changes case files, and after any edit to the inputs above. `npm test`,
+which gates the deploy, never fails because the committed gap file trails its
+inputs: its replay test only skips, naming the fix. Review what the rebuild
+changed before committing it, and treat a gap that moves on or off the board,
+or changes state, as a change for review (`docs/gaps.md` §5.4):
+
+```bash
+cp data/gaps/norfolk.json /tmp/gaps-before.json
+node scripts/build-gaps.js --offline
+node scripts/build-gaps.js --same-states /tmp/gaps-before.json
+```
+
+A live build (`node scripts/build-gaps.js`, read-only against the portal) is
+also by hand, and so are the spec's weekly re-measure and its PR rules.
+
+**Proposed automation, for Jason to decide** (drafted on the gaps branch and
+taken out of it, since the brief allowed only read-only weekly steps):
+
+1. A `check-gaps` job in `ci.yml`, outside `npm test`, running
+   `npm run check:gaps` on every push and PR. It fails when the committed gap
+   file trails its inputs, without stopping the Workers Builds deploy.
+2. In `refresh-norfolk.yml`, after the index build and only when the index
+   changed: `build-gaps --offline`, then `--same-states` against the file
+   before it. With no state change, the gap file commits with the index.
+   Otherwise the rebuild is set aside and opened as a PR (the workflow would
+   need `pull-requests: write`). A failed rebuild never stops the index commit.
+3. In `archive-case-sources.yml`, when case files changed: `build-gaps
+   --offline`, with `data/gaps` and `docs/gaps-norfolk.md` added to the
+   archive PR, so the gap file's finding evidence changes beside its sources.
+4. The spec's weekly live re-measure (`refresh-gaps.yml`, `docs/gaps.md`
+   §5.4): numbers within ±25% to main, anything else to a PR. Not drafted.

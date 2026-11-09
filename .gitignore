@@ -4,6 +4,8 @@ node_modules/
 # Waitlist exports hold people's email addresses.
 *waitlist*.csv
 dist/
+# Gap candidates from scripts/find-gaps.js: never committed, bundled or served.
+data/gaps/*.candidates.json
 
 # Documents not yet cleared for the public repo (see data/documents/README.md).
 data/documents/private/

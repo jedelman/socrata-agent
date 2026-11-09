@@ -1,0 +1,696 @@
+{
+ "note": "A live trees_on_my_block run, replayed by test/gaps-answer.test.js through test/fixtures/trees-live.js. The Address Information row is cut to the fields the lookup reads.",
+ "address": "111 Pennsylvania Ave",
+ "recorded": "2026-11-07T01:04:08.919Z",
+ "responses": {
+  "address": [
+   {
+    "full_address": "111 PENNSYLVANIA AVENUE",
+    "gpin": "1438184218",
+    "house_number": "111",
+    "full_street_name": "PENNSYLVANIA AVENUE",
+    "street_name": "PENNSYLVANIA",
+    "street_type": "AVENUE",
+    "ward_district": "2",
+    "parcel_centroid_latitude": "36.88223592",
+    "parcel_centroid_longitude": "-76.28240994",
+    "census_tract_number": "28",
+    "civic_league": "Colonial Place and Riverview"
+   }
+  ],
+  "view:qzfe-wj25": {
+   "id": "qzfe-wj25",
+   "name": "Work Orders",
+   "attribution": "Departments of Parks and Recreation, Public Works, and Transportation",
+   "rowsUpdatedAt": 1793967921,
+   "columns": [
+    {
+     "fieldName": "work_order_number",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "category_code",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "category_description",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "problem_code",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "problem_description",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "reason",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "primary_task_code",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "primary_task_description",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "status_code",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "status_description",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "status_datetime",
+     "dataTypeName": "calendar_date"
+    },
+    {
+     "fieldName": "created_datetime",
+     "dataTypeName": "calendar_date"
+    },
+    {
+     "fieldName": "start_date",
+     "dataTypeName": "calendar_date"
+    },
+    {
+     "fieldName": "end_date",
+     "dataTypeName": "calendar_date"
+    },
+    {
+     "fieldName": "last_modified_datetime",
+     "dataTypeName": "calendar_date"
+    },
+    {
+     "fieldName": "priority",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "area",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "department",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "assigned_crew",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "inventory_type",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "actual_labor_cost",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "actual_equipment_cost",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "actual_material_cost",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "contractor_cost",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "total_cost",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "street",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "maintenance_zone",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "ward",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "superward",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "civic_league",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "planning_district",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "neighborhood_service_area",
+     "dataTypeName": "text"
+    }
+   ]
+  },
+  "wo:span": [
+   {
+    "first": "2020-08-05T08:31:36.000",
+    "last": "2026-11-05T14:45:03.000"
+   }
+  ],
+  "view:cmvv-agyb": {
+   "id": "cmvv-agyb",
+   "name": "City Tree Inventory",
+   "attribution": "Parks & Recreation, Parks & Forestry Operations",
+   "rowsUpdatedAt": 1793968028,
+   "columns": [
+    {
+     "fieldName": "tree_id",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "common_name",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "genus",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "species",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "location",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "trunk_diameter",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "trunk_diameter_range",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": "longitude",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "latitude",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "latitude_longitude_point",
+     "dataTypeName": "point"
+    },
+    {
+     "fieldName": "ward",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "superward",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": "civic_league",
+     "dataTypeName": "text"
+    },
+    {
+     "fieldName": ":@computed_region_25t2_rbz7",
+     "dataTypeName": "number"
+    },
+    {
+     "fieldName": ":@computed_region_x6fk_ihs5",
+     "dataTypeName": "number"
+    }
+   ]
+  },
+  "inv:sizes": [
+   {
+    "r": "0\" to 6\"",
+    "n": "3"
+   },
+   {
+    "r": "12\" to 18\"",
+    "n": "1"
+   },
+   {
+    "r": "18\" to 24\"",
+    "n": "1"
+   },
+   {
+    "r": "30\" to 36\"",
+    "n": "1"
+   },
+   {
+    "r": "36\" to 42\"",
+    "n": "1"
+   },
+   {
+    "r": "6\" to 12\"",
+    "n": "5"
+   },
+   {
+    "n": "16"
+   }
+  ],
+  "wo:street-by-task": [
+   {
+    "t": "Pruning",
+    "p": "General Maintenance",
+    "n": "4",
+    "cost": "2700.41"
+   },
+   {
+    "t": "Stump Grinding",
+    "p": "Stump",
+    "n": "4",
+    "cost": "1632.20"
+   },
+   {
+    "t": "Removal",
+    "p": "General Maintenance",
+    "n": "2",
+    "cost": "648.05"
+   },
+   {
+    "t": "Removal",
+    "p": "Damaged Tree",
+    "n": "2",
+    "cost": "409.325"
+   },
+   {
+    "t": "Stump Grinding",
+    "p": "General Maintenance",
+    "n": "1",
+    "cost": "232.04"
+   },
+   {
+    "t": "Plantings",
+    "p": "General Maintenance",
+    "n": "1",
+    "cost": "34.265"
+   },
+   {
+    "t": "Tree Maintenance",
+    "p": "Broken Hanging Limb",
+    "n": "1",
+    "cost": "0.0"
+   }
+  ],
+  "inv:species": [
+   {
+    "common_name": "Crapemyrtle",
+    "n": "12"
+   },
+   {
+    "common_name": "Cherry And Plum Spp.",
+    "n": "2"
+   },
+   {
+    "common_name": "Water Oak",
+    "n": "2"
+   },
+   {
+    "common_name": "Willow Oak",
+    "n": "2"
+   },
+   {
+    "common_name": "Maple Spp.",
+    "n": "1"
+   },
+   {
+    "common_name": "American Sycamore",
+    "n": "1"
+   },
+   {
+    "common_name": "Pin Oak",
+    "n": "1"
+   },
+   {
+    "common_name": "ROSE-OF-SHARON",
+    "n": "1"
+   },
+   {
+    "common_name": "Sawtooth Oak",
+    "n": "1"
+   },
+   {
+    "common_name": "Southern Red Oak",
+    "n": "1"
+   },
+   {
+    "common_name": "Other Or Unknown Live Tree",
+    "n": "1"
+   },
+   {
+    "common_name": "Black Walnut",
+    "n": "1"
+   },
+   {
+    "common_name": "Elm Spp.",
+    "n": "1"
+   },
+   {
+    "common_name": "London Planetree",
+    "n": "1"
+   }
+  ],
+  "wo:street-latest": [
+   {
+    "work_order_number": "25-028920",
+    "primary_task_description": "Removal",
+    "problem_description": "General Maintenance",
+    "status_description": "New Work Order",
+    "created_datetime": "2025-09-10T13:26:47.000"
+   },
+   {
+    "work_order_number": "25-026686",
+    "primary_task_description": "Removal",
+    "problem_description": "Damaged Tree",
+    "status_description": "Complete",
+    "created_datetime": "2025-08-25T14:00:33.000"
+   },
+   {
+    "work_order_number": "25-009187",
+    "primary_task_description": "Plantings",
+    "problem_description": "General Maintenance",
+    "status_description": "Complete",
+    "created_datetime": "2025-03-26T13:45:01.000"
+   },
+   {
+    "work_order_number": "25-005938",
+    "primary_task_description": "Stump Grinding",
+    "problem_description": "General Maintenance",
+    "status_description": "Complete",
+    "created_datetime": "2025-02-27T16:32:14.000"
+   },
+   {
+    "work_order_number": "25-005937",
+    "primary_task_description": "Stump Grinding",
+    "problem_description": "Stump",
+    "status_description": "Complete",
+    "created_datetime": "2025-02-27T16:20:03.000"
+   },
+   {
+    "work_order_number": "25-005729",
+    "primary_task_description": "Stump Grinding",
+    "problem_description": "Stump",
+    "status_description": "Complete",
+    "created_datetime": "2025-02-26T13:45:12.000"
+   },
+   {
+    "work_order_number": "24-025980",
+    "primary_task_description": "Pruning",
+    "problem_description": "General Maintenance",
+    "status_description": "Complete",
+    "created_datetime": "2024-08-06T10:11:55.000"
+   },
+   {
+    "work_order_number": "24-002324",
+    "primary_task_description": "Stump Grinding",
+    "problem_description": "Stump",
+    "status_description": "Complete",
+    "created_datetime": "2024-01-19T10:07:48.000"
+   },
+   {
+    "work_order_number": "24-002322",
+    "primary_task_description": "Removal",
+    "problem_description": "Damaged Tree",
+    "status_description": "Complete",
+    "created_datetime": "2024-01-19T10:04:24.000"
+   },
+   {
+    "work_order_number": "23-007062",
+    "primary_task_description": "Pruning",
+    "problem_description": "General Maintenance",
+    "status_description": "Complete",
+    "created_datetime": "2023-03-07T09:30:53.000"
+   }
+  ],
+  "wo:leagues": [
+   {
+    "n": "185"
+   },
+   {
+    "civic_league": "Ghent Neighborhood League",
+    "n": "281"
+   },
+   {
+    "civic_league": "Lafayette Shores Homeowners Association",
+    "n": "29"
+   },
+   {
+    "civic_league": "ODU Village",
+    "n": "17"
+   },
+   {
+    "civic_league": "Villa Heights",
+    "n": "3"
+   },
+   {
+    "civic_league": "Ghent Square Comminuty Association",
+    "n": "132"
+   },
+   {
+    "civic_league": "Colonial Place/ Riverview",
+    "n": "324"
+   },
+   {
+    "civic_league": "Highland Park",
+    "n": "64"
+   },
+   {
+    "civic_league": "Freemason Street Area Association",
+    "n": "111"
+   },
+   {
+    "civic_league": "Talbot Park",
+    "n": "1"
+   },
+   {
+    "civic_league": "Belvedere",
+    "n": "53"
+   },
+   {
+    "civic_league": "Larchmont/ Edgewater",
+    "n": "529"
+   },
+   {
+    "civic_league": "Downtown Norfolk Civic League",
+    "n": "155"
+   },
+   {
+    "civic_league": "Lakewood",
+    "n": "24"
+   },
+   {
+    "civic_league": "Suburban Acres",
+    "n": "197"
+   },
+   {
+    "civic_league": "Bollingbrook",
+    "n": "8"
+   },
+   {
+    "civic_league": "Lamberts Point",
+    "n": "84"
+   },
+   {
+    "civic_league": "No Civic League",
+    "n": "49"
+   },
+   {
+    "civic_league": "Lafayette/ Winona",
+    "n": "187"
+   },
+   {
+    "civic_league": "Kensington/ Old Dominion",
+    "n": "43"
+   },
+   {
+    "civic_league": "West Ghent",
+    "n": "187"
+   },
+   {
+    "civic_league": "Park Place",
+    "n": "223"
+   },
+   {
+    "civic_league": "Cromwell Farms/ Ellsworth",
+    "n": "64"
+   },
+   {
+    "civic_league": "Roland Park",
+    "n": "108"
+   },
+   {
+    "civic_league": "Riverpoint",
+    "n": "33"
+   }
+  ],
+  "inv:leagues": [
+   {
+    "n": "2645"
+   },
+   {
+    "civic_league": "Ghent Neighborhood League",
+    "n": "3221"
+   },
+   {
+    "civic_league": "Lafayette Shores Homeowners Association",
+    "n": "313"
+   },
+   {
+    "civic_league": "ODU Village",
+    "n": "413"
+   },
+   {
+    "civic_league": "Villa Heights",
+    "n": "23"
+   },
+   {
+    "civic_league": "Ghent Square Comminuty Association",
+    "n": "717"
+   },
+   {
+    "civic_league": "Colonial Place/ Riverview",
+    "n": "2632"
+   },
+   {
+    "civic_league": "Highland Park",
+    "n": "615"
+   },
+   {
+    "civic_league": "Freemason Street Area Association",
+    "n": "439"
+   },
+   {
+    "civic_league": "Talbot Park",
+    "n": "34"
+   },
+   {
+    "civic_league": "Belvedere",
+    "n": "587"
+   },
+   {
+    "civic_league": "Larchmont/ Edgewater",
+    "n": "4666"
+   },
+   {
+    "civic_league": "Downtown Norfolk Civic League",
+    "n": "1408"
+   },
+   {
+    "civic_league": "Lakewood",
+    "n": "582"
+   },
+   {
+    "civic_league": "Suburban Acres",
+    "n": "1377"
+   },
+   {
+    "civic_league": "Bollingbrook",
+    "n": "72"
+   },
+   {
+    "civic_league": "Lamberts Point",
+    "n": "1187"
+   },
+   {
+    "civic_league": "No Civic League",
+    "n": "260"
+   },
+   {
+    "civic_league": "Lafayette/ Winona",
+    "n": "1485"
+   },
+   {
+    "civic_league": "Kensington/ Old Dominion",
+    "n": "453"
+   },
+   {
+    "civic_league": "West Ghent",
+    "n": "1786"
+   },
+   {
+    "civic_league": "Park Place",
+    "n": "1924"
+   },
+   {
+    "civic_league": "Cromwell Farms/ Ellsworth",
+    "n": "444"
+   },
+   {
+    "civic_league": "Roland Park",
+    "n": "585"
+   },
+   {
+    "civic_league": "Riverpoint",
+    "n": "301"
+   }
+  ],
+  "wo:league-tasks": [
+   {
+    "t": "Plantings",
+    "n": "19",
+    "cost": "3510.920"
+   },
+   {
+    "t": "Pruning",
+    "n": "87",
+    "cost": "21566.345"
+   },
+   {
+    "t": "Removal",
+    "n": "98",
+    "cost": "42147.795"
+   },
+   {
+    "t": "Stump Grinding",
+    "n": "109",
+    "cost": "26275.375"
+   },
+   {
+    "t": "Tree Maintenance",
+    "n": "11",
+    "cost": "959.80"
+   }
+  ],
+  "inv:count": [
+   {
+    "n": "93997"
+   }
+  ],
+  "wo:city-tasks": [
+   {
+    "t": "Plantings",
+    "n": "560",
+    "cost": "136095.8175"
+   },
+   {
+    "t": "Pruning",
+    "n": "3293",
+    "cost": "889904.3555"
+   },
+   {
+    "t": "Removal",
+    "n": "2770",
+    "cost": "1319748.7240"
+   },
+   {
+    "t": "Stump Grinding",
+    "n": "2995",
+    "cost": "752443.1960"
+   },
+   {
+    "t": "Tree Maintenance",
+    "n": "357",
+    "cost": "87103.285"
+   }
+  ]
+ }
+}

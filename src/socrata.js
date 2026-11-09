@@ -103,7 +103,7 @@ export function clampLimit(soql) {
 
 // Top-level clause boundaries in a SoQL $query, outside literals and parentheses.
 const CLAUSES = /\b(select|where|group\s+by|having|order\s+by|limit|offset|search)\b/gi;
-function topLevelClauses(soql) {
+export function topLevelClauses(soql) {
   const code = stripLiterals(soql);
   const depthAt = [];
   let d = 0;
@@ -240,8 +240,11 @@ export class Socrata {
 
   remember(id, v) {
     if (!this.metaCache) this.metaCache = new Map();
-    const columns = (v.columns || []).map((c) => c.fieldName).filter((f) => f && !f.startsWith(':'));
-    this.metaCache.set(id, { name: v.name || '', columns, parent: v.modifyingViewUid || null });
+    const data = (v.columns || []).filter((c) => c.fieldName && !c.fieldName.startsWith(':'));
+    const columns = data.map((c) => c.fieldName);
+    // Each data column's Socrata type, for checks that go by type, not name.
+    const types = Object.fromEntries(data.map((c) => [c.fieldName.toLowerCase(), String(c.dataTypeName || '')]));
+    this.metaCache.set(id, { name: v.name || '', columns, types, parent: v.modifyingViewUid || null });
     this.names.set(id, v.name || '');
   }
 
@@ -315,6 +318,33 @@ export class Socrata {
           page: links.page,
         };
       });
+  }
+
+  /**
+   * The catalog search as the gap builder needs it: the raw resultSetSize,
+   * and each result marked by whether Siren may open it. Excluded datasets
+   * are counted but never named. searchCatalog itself is unchanged.
+   */
+  async catalogSearchRaw(q, limit = 20) {
+    const params = new URLSearchParams({ domains: this.domain, only: 'dataset', limit: String(limit) });
+    if (q) params.set('q', q);
+    const url = `https://api.us.socrata.com/api/catalog/v1?${params}`;
+    const data = await this.getJSON(url, { tool: 'search datasets (raw counts)', soql: q ? `q=${q}` : 'all' });
+    const results = (data.results || []).map((r) => r.resource);
+    const excluded = results.filter((r) => this.isExcluded(r.id, r.name));
+    // Sorted by id, so the same catalog gives the same order every time.
+    // `returned` says how many results this page held; a caller that needs
+    // the whole set checks it against result_set_size.
+    return {
+      q: q || '',
+      result_set_size: Number(data.resultSetSize ?? results.length),
+      returned: results.length,
+      excluded: excluded.length,
+      results: results
+        .filter((r) => !this.isExcluded(r.id, r.name))
+        .map((r) => ({ id: r.id, name: r.name, open_to_siren: !this.restricted(r.id) }))
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    };
   }
 
   async describe(id, { access = ACCESS.GENERIC } = {}) {
