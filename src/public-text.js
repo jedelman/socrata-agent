@@ -323,6 +323,28 @@ export function publicTextViolations(text, { streets, ownPlace } = {}) {
   return [...new Set(out)];
 }
 
+/**
+ * For text a steward reviews before it goes public (request notes): when the
+ * only address codes come from a number between 1800 and 2100 ("the 2024
+ * Colley Ave streetscape plan"), it may be a year, not a house number. Returns
+ * { codes, maybeYear }: the codes that still block, and whether a year-like
+ * number was let through for the steward to check. Automated public text
+ * (gap statements, bot posts) keeps the strict publicTextViolations.
+ */
+export function noteTextReview(text, opts = {}) {
+  const codes = publicTextViolations(text, opts);
+  const addressCodes = new Set(['house_number', 'number_street']);
+  if (!codes.some((c) => addressCodes.has(c))) return { codes, maybeYear: false };
+  const t = normalizePublic(text);
+  const yearLike = /\b(1[89]\d\d|20\d\d|2100)\b/g;
+  if (!yearLike.test(t)) return { codes, maybeYear: false };
+  // Read the year-like numbers as words, then check again.
+  const masked = t.replace(/\b(1[89]\d\d|20\d\d|2100)\b/g, 'year');
+  const again = publicTextViolations(masked, opts);
+  if (again.some((c) => addressCodes.has(c))) return { codes, maybeYear: false };
+  return { codes: codes.filter((c) => !addressCodes.has(c)), maybeYear: true };
+}
+
 const MESSAGES = {
   house_number: 'Leave out house numbers and addresses.',
   number_street: 'Leave out house numbers and addresses.',
