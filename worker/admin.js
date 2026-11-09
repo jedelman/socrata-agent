@@ -10,7 +10,7 @@
 // charged to the day's upkeep budget first (endorsements.js chargeD1).
 
 import { isAdmin, currentUser } from './accounts.js';
-import { allRequests, decide, reviewNote, requestByPublicId } from './requests.js';
+import { allRequests, decide, reviewNote, requestByPublicId, isRequestId } from './requests.js';
 import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeAll, endorseDb, dbSetupError } from './endorsements.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { purgePublicList } from './public-list.js';
@@ -79,7 +79,7 @@ export async function handleAdmin(req, env, path, ctx) {
   }
   if (req.method === 'POST' && path === '/api/admin/requests/decide') {
     const body = (await readJson(req)) || {};
-    const validId = typeof body.id === 'string' && /^[0-9a-f]{12}$/.test(body.id);
+    const validId = isRequestId(body.id);
     // With endorsements switched on, a decision freezes the live count; if it
     // can't be read, refuse rather than lose it.
     if (dbMissing && DECIDED.has(body.status)) return json({ error: dbMissing }, 503, headers);

@@ -43,11 +43,11 @@
 
 import { hmacHex, boundary } from './crypto.js';
 import { setting } from './limits.js';
-import { requestKey, publicId, publicNumber } from './requests.js';
+import { requestKey, publicNumber, currentId } from './requests.js';
 
 export { publicNumber };
 
-const ID_RE = /^[0-9a-f]{12}$/;
+const ID_RE = /^(?:[0-9a-f]{12}|[a-z2-7]{16})$/;
 const NOT_FOUND = Object.freeze({ ok: false, status: 404, code: 'not_found', error: 'No open request has that id.' });
 const BUSY = Object.freeze({ ok: false, status: 429, code: 'busy', error: "That's a lot of endorsing for one day. Try again tomorrow." });
 const BUSY_NOW = Object.freeze({ ok: false, status: 429, code: 'busy', error: 'Lots of endorsing from here right now. Try again in a minute.' });
@@ -369,7 +369,7 @@ export async function endorse({ kv, db, env, id, session, visitor, publicList, n
   const r = (publicList?.requests || []).find((x) => x.id === id && x.status === 'accepted');
   if (!r) return NOT_FOUND;
   const key = await requestKey(r.source);
-  if (publicId(key) !== id) return NOT_FOUND;
+  if ((await currentId(kv, r.source)) !== id) return NOT_FOUND;
   const cur = await kv.get(key, 'json');
   if (cur?.status !== 'accepted') return NOT_FOUND;
 

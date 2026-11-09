@@ -13,6 +13,7 @@
 //   node scripts/invites.js request-fulfilled <request id> --by <PR or commit link>
 //   node scripts/invites.js request-reopen <request id>
 //   node scripts/invites.js request-note <request id> <note id> approve|delete
+//   node scripts/invites.js request-ids [--apply]       (one-time: give every legacy request a random public id)
 //   node scripts/invites.js endorsements                 (Bluesky endorsement counts; deletes expired endorsements first)
 //   node scripts/invites.js endorsements-clear <id>      (delete one request's endorsements)
 //   node scripts/invites.js endorsements-purge           (delete expired Bluesky rows, as the daily cron does)
@@ -54,7 +55,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { newCode, inviteKey, sha256hex, csvField as csv } from '../worker/invites.js';
-import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, decisionKey, decisionOf, stewardView, withDeleted, freezeAtDecision } from '../worker/requests.js';
+import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, decisionKey, decisionOf, stewardView, withDeleted, freezeAtDecision, idKey, pidKey, idsOf, newPublicId, PUBLIC_ID_RE } from '../worker/requests.js';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -197,17 +198,32 @@ function clearEndorsements(id) {
   d1(`DELETE FROM endorsements WHERE request_id = ${sqlId(id)}`);
 }
 
-// One request by the id `requests` prints, with the same exactly-one check
-// the Worker uses: { key, cur }.
+// One request by the id `requests` prints, with the same rules the Worker
+// uses (worker/requests.js findRequest): a random id through its reverse
+// index; a legacy hex id (or a longer prefix of the hash) by key prefix,
+// exactly one match, and only while that request has no random id.
+// -> { key, cur, deleted, ids }
 function requestById(arg) {
   const id = String(arg || '').trim().toLowerCase();
-  if (!/^[0-9a-f]{6,64}$/.test(id)) throw new Error('Give the request id from `requests` (the first column).');
-  const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
-  if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
-  const key = matches[0].name;
+  let key;
+  if (PUBLIC_ID_RE.test(id)) {
+    if (!exists(pidKey(id))) throw new Error('No request has that id.');
+    const hash = dry ? '0'.repeat(64) : wrangler(['get', pidKey(id), '--text']).trim();
+    if (!/^[0-9a-f]{64}$/.test(hash)) throw new Error('No request has that id.');
+    key = `request:${hash}`;
+  } else if (/^[0-9a-f]{6,64}$/.test(id)) {
+    const matches = JSON.parse(wrangler(['list', '--prefix', `request:${id}`]) || '[]');
+    if (matches.length !== 1) throw new Error(matches.length ? 'That id matches more than one request; use more of it.' : 'No request has that id.');
+    key = matches[0].name;
+  } else {
+    throw new Error('Give the request id from `requests` (the first column).');
+  }
   // As every reader sees it: the side keys laid over the record.
-  const { r: cur, deleted } = readRequest(key);
-  return { key, cur, deleted };
+  const { r: cur, deleted, ids } = readRequest(key);
+  if (PUBLIC_ID_RE.test(id) ? ids.id !== id : ids.assigned) {
+    throw new Error(ids.assigned ? `That request now has the id ${ids.id}; use that.` : 'No request has that id.');
+  }
+  return { key, cur, deleted, ids };
 }
 
 // An invite by its code, its 64-character hash, or invite:<hash>.
@@ -231,8 +247,8 @@ function keyNames(prefix) {
   return new Set((JSON.parse(wrangler(['list', '--prefix', prefix]) || '[]') || []).map((k) => k.name));
 }
 
-// The side keys of one request that exist: its tombstone and its decision.
-const sideKeysOf = (key) => new Set([...keyNames(deletedKey(key)), ...keyNames(decisionKey(key))]);
+// The side keys of one request that exist: its tombstone, its decision and its id.
+const sideKeysOf = (key) => new Set([...keyNames(deletedKey(key)), ...keyNames(decisionKey(key)), ...keyNames(idKey(key))]);
 
 // A request record as the Worker reads it: deleted notes dropped and the
 // stored decision laid over it (see worker/requests.js). `sides` is the set
@@ -243,7 +259,8 @@ function readRequest(key, sides = sideKeysOf(key)) {
   const r = JSON.parse(wrangler(['get', key, '--text']) || '{}');
   const deleted = readOptionalJson(deletedKey(key), sides);
   const decision = readOptionalJson(decisionKey(key), sides);
-  return { r: stewardView(r, Array.isArray(deleted) ? deleted : [], decision), deleted: Array.isArray(deleted) ? deleted : [] };
+  const ids = idsOf(key, readOptionalJson(idKey(key), sides));
+  return { r: stewardView(r, Array.isArray(deleted) ? deleted : [], decision), deleted: Array.isArray(deleted) ? deleted : [], ids };
 }
 function readOptionalJson(key, sides) {
   if (dry || !sides.has(key)) return null;
@@ -296,12 +313,15 @@ async function main() {
     // here but never on the public list, even if approved.
     const keys = JSON.parse(wrangler(['list', '--prefix', 'request:']) || '[]');
     // Every request's side keys from two listings, not two reads per request.
-    const sides = new Set([...keyNames('request-deleted:'), ...keyNames('request-decision:')]);
-    const rows = keys.map(({ name }) => [name, normalizeRecord(readRequest(name, sides).r)]).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
+    const sides = new Set([...keyNames('request-deleted:'), ...keyNames('request-decision:'), ...keyNames('request-id:')]);
+    const rows = keys.map(({ name }) => {
+      const read = readRequest(name, sides);
+      return [name, normalizeRecord(read.r), read.ids];
+    }).sort((a, b) => (b[1].count || 0) - (a[1].count || 0));
     const only = opt('status', '');
-    for (const [name, r] of rows) {
+    for (const [, r, ids] of rows) {
       if (only && (r.status || 'new') !== only) continue;
-      console.log(`${publicId(name)}  ${String(r.status || 'new').padEnd(9)} ${String(r.count).padStart(4)}  ${r.source}${r.url ? `  <${r.url}>` : ''}  (last ${r.last || ''})`);
+      console.log(`${ids.id.padEnd(16)}  ${String(r.status || 'new').padEnd(9)} ${String(r.count).padStart(4)}  ${r.source}${r.url ? `  <${r.url}>` : ''}  (last ${r.last || ''})`);
       // Only public notes need a decision, as on the admin page.
       for (const n of r.needs) console.log(`        ${n.id}  ${n.day || ''}  ${n.public && n.review !== 'ok' ? '[pending] ' : ''}${n.public ? '' : '[private] '}${n.text}`);
     }
@@ -365,7 +385,7 @@ async function main() {
     const id = String(argv[1] || '').trim().toLowerCase();
     const noteId = String(argv[2] || '').trim().toLowerCase();
     const action = String(argv[3] || '').trim().toLowerCase();
-    if (!/^[0-9a-f]{6,64}$/.test(id)) throw new Error('Give the request id from `requests` (the first column).');
+    if (!/^[0-9a-f]{6,64}$/.test(id) && !PUBLIC_ID_RE.test(id)) throw new Error('Give the request id from `requests` (the first column).');
     if (!/^[0-9a-z-]{1,24}$/.test(noteId)) throw new Error('Give the note id from `requests` (the first column under the request).');
     const { key, cur, deleted } = requestById(id);
     const next = withNoteReview(cur, noteId, action);
@@ -373,6 +393,35 @@ async function main() {
     if (action === 'delete') wrangler(['put', deletedKey(key), JSON.stringify(withDeleted(deleted, noteId))]);
     wrangler(['put', key, JSON.stringify(next)]);
     console.error(`${cur.source}: note ${noteId} ${action === 'delete' ? 'deleted' : 'approved'}.`);
+  } else if (cmd === 'request-ids') {
+    // One time (Jason, 2026-11-09): every request from before random ids gets
+    // one, so no public id is a hash anyone can recompute from a guessed
+    // source. Prints the plan; writes only with --apply. A request that has
+    // been public keeps its legacy id as `formerly`: that id is already in
+    // its GitHub issue's marker, and the sync matches on it, so the issue is
+    // updated, not duplicated. Run it before turning on endorsements, since
+    // an endorsement points at the id. The Worker's reads never write ids.
+    const keys = JSON.parse(wrangler(['list', '--prefix', 'request:']) || '[]');
+    const sides = new Set([...keyNames('request-deleted:'), ...keyNames('request-decision:'), ...keyNames('request-id:')]);
+    const apply = flag('apply');
+    let n = 0;
+    for (const { name } of keys) {
+      if (sides.has(idKey(name))) continue;
+      const { r } = readRequest(name, sides);
+      const wasPublic = r.was_public === true || r.status === 'accepted' || r.status === 'fulfilled';
+      const id = newPublicId();
+      const rec = { id, ...(wasPublic ? { formerly: publicId(name) } : {}) };
+      n++;
+      console.log(`${publicId(name)} -> ${id}${wasPublic ? '  (was public: the old id stays as its issue marker)' : ''}`);
+      if (apply) {
+        // The reverse index first: an id record never points at nothing.
+        wrangler(['put', pidKey(id), name.slice('request:'.length)]);
+        wrangler(['put', idKey(name), JSON.stringify(rec)]);
+      }
+    }
+    console.error(n === 0 ? 'Every request already has a random id. Nothing to do.'
+      : apply ? `Gave ${n} request${n === 1 ? '' : 's'} a random id. Run the issue sync (docs/request-sync-routine.md) to put the new ids in the issue bodies.`
+        : `Dry run: ${n} request${n === 1 ? '' : 's'} would get a random id. Run again with --apply to write them.`);
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -381,7 +430,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | endorsements | endorsements-clear <id> | endorsements-purge [--all]  [--endorsements | --no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] | endorsements | endorsements-clear <id> | endorsements-purge [--all]  [--endorsements | --no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

@@ -90,6 +90,12 @@ generic mode.
   location for five minutes (with `BLUESKY_LOGIN` on, it goes through
   `public-list.js` instead: 60 seconds, with endorsement counts on listed
   requests only; with the flag off its body is exactly the requests-only list).
+  Public request ids are random (16 base32 characters, `request-id:<hash>`
+  and the reverse index `request-pid:<id>`, minted at creation, never
+  written by reads); requests from before that keep their legacy hex id
+  until the steward runs `node scripts/invites.js request-ids --apply`, which
+  keeps a public one's old id as `formerly` so the issue mirror matches its
+  existing marker. A request never answers to two ids.
   A request accepted once carries `was_public`; if it leaves the list,
   `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to

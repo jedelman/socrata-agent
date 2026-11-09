@@ -8,7 +8,7 @@ import {
   publicNumber, publicPolicy, youngFlag, endorsementId, issuerBucket, orphanedIds, purgeExpired, purgeAll, sweepOrphans, PURGE_LIMIT, endorseDb, dbSetupError, StorageError, SQL,
   chargeD1, budgetCaps, ROWS, UPKEEP, LIST, VISITOR_MAX, OVER_BUDGET,
 } from '../worker/endorsements.js';
-import { addRequest, decide, requestKey, publicId, publicRequests, freezeAtDecision } from '../worker/requests.js';
+import { addRequest, decide, requestKey, publicId, publicRequests, freezeAtDecision, currentId } from '../worker/requests.js';
 import { cachedPublicList, purgePublicList, computePublicList } from '../worker/public-list.js';
 import { hmacHex, boundary } from '../worker/crypto.js';
 import { fakeKV, fakeLimiter, fakeCache, SECRET } from './fake-atproto.js';
@@ -26,7 +26,7 @@ async function world(over = {}) {
   const ids = {};
   for (const [name, status] of [['open1', 'accepted'], ['open2', 'accepted'], ['fresh', 'new'], ['nope', 'declined'], ['done', 'fulfilled']]) {
     await addRequest({ body: { source: `Source ${name}` }, kv, visitor: name, now: NOW });
-    const id = publicId(await requestKey(`Source ${name}`));
+    const id = await currentId(kv, `Source ${name}`);
     ids[name] = id;
     if (status !== 'new') await decide(kv, { id, status, fulfilled_by: status === 'fulfilled' ? 'https://github.com/o/r/pull/1' : undefined }, NOW);
   }

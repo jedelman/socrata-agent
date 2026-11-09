@@ -2,7 +2,7 @@
 // GitHub mirror.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addRequest, requestKey, publicRequests, publicView, withStatus, publicId } from '../worker/requests.js';
+import { addRequest, requestKey, publicRequests, publicView, withStatus, publicId, currentId } from '../worker/requests.js';
 import { issueBody, issueTitle, mdText } from '../scripts/sync-request-issues.js';
 
 function fakeKV() {
@@ -36,7 +36,9 @@ test('nothing is public until the steward accepts it, and old notes stay private
   list = await publicRequests(kv, Date.parse('2026-11-06T13:00:00Z'));
   assert.equal(list.requests.length, 1);
   let r = list.requests[0];
-  assert.equal(r.id, publicId(key));
+  assert.equal(r.id, await currentId(kv, 'Norfolk City Code, Chapter 45'));
+  assert.match(r.id, /^[a-z2-7]{16}$/, 'a random id, not a hash of the source');
+  assert.notEqual(r.id, publicId(key));
   assert.equal(r.count, 2);
   assert.deepEqual(r.notes, [], 'accepting a request approves none of its notes');
   for (const n of (await allRequests(kv)).find((x) => x.id === r.id).needs) assert.ok((await reviewNote(kv, { id: r.id, note: n.id, action: 'approve' })).ok);
@@ -683,4 +685,59 @@ test('a year-like number before a street name lets the note through, flagged for
   await addRequest({ body: { source: 'Tree budget', need: 'How much was spent on pruning?', public: true }, kv, visitor: 'v', streets });
   const plain = [...kv.store.entries()].find(([k, v]) => k.startsWith('request:') && v.includes('pruning'));
   assert.ok(!JSON.parse(plain[1]).needs[0].flags);
+});
+
+// --- Random public ids (Jason, 2026-11-09) ---
+import { idKey, pidKey } from '../worker/requests.js';
+
+test('a new request gets a random id at creation; a stale raise never changes it', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Tree permits' }, kv, visitor: 'a' });
+  const key = await requestKey('Tree permits');
+  const id = await currentId(kv, 'Tree permits');
+  assert.match(id, /^[a-z2-7]{16}$/);
+  assert.equal(await kv.get(pidKey(id)), key.slice('request:'.length));
+  // A raise that read the record (it exists) never mints again.
+  await addRequest({ body: { source: 'Tree permits' }, kv, visitor: 'b' });
+  assert.equal(await currentId(kv, 'Tree permits'), id);
+  const other = fakeKV();
+  await addRequest({ body: { source: 'Tree permits' }, kv: other, visitor: 'a' });
+  assert.notEqual(await currentId(other, 'Tree permits'), id, 'random, not derived from the source');
+  assert.equal((await requestByPublicId(kv, id)).key, key);
+  assert.equal(await requestByPublicId(kv, publicId(key)), null, 'the hash id never resolves for a request with a random id');
+});
+
+test('a legacy request answers to its hex id until migrated, then only to its random id; formerly reaches the feed only', async () => {
+  const kv = fakeKV();
+  const key = await requestKey('Old source');
+  await kv.put(key, JSON.stringify({ source: 'Old source', count: 1, status: 'accepted', needs: [] }));
+  assert.equal((await publicRequests(kv)).requests[0].id, publicId(key));
+  assert.ok(await requestByPublicId(kv, publicId(key)));
+  // What `request-ids --apply` writes.
+  await kv.put(pidKey('abcdefghijklmnop'), key.slice('request:'.length));
+  await kv.put(idKey(key), JSON.stringify({ id: 'abcdefghijklmnop', formerly: publicId(key) }));
+  const [item] = (await publicRequests(kv)).requests;
+  assert.equal(item.id, 'abcdefghijklmnop');
+  assert.equal(item.formerly, publicId(key));
+  assert.equal(await requestByPublicId(kv, publicId(key)), null);
+  assert.ok((await decide(kv, { id: 'abcdefghijklmnop', status: 'declined' })).ok);
+  assert.deepEqual((await publicRequests(kv)).withdrawn.map((w) => [w.id, w.formerly]), [['abcdefghijklmnop', publicId(key)]]);
+  // An index entry pointing at another request's hash doesn't resolve.
+  await kv.put(pidKey('zzzzzzzzzzzzzzzz'), key.slice('request:'.length));
+  assert.equal(await requestByPublicId(kv, 'zzzzzzzzzzzzzzzz'), null);
+});
+
+test('the mirror keeps a migrated request on its old issue marker, with the new id in the body', () => {
+  const r = { id: 'abcdefghijklmnop', formerly: 'aaaaaaaaaaaa', source: 'S', count: 1, status: 'accepted', notes: [] };
+  const [entry, gone] = plan([r], 'https://x/requests', 'o/r', [{ id: 'bbbbbbbbbbbbbbbb', formerly: 'cccccccccccc', day: '2026-11-09' }]);
+  assert.equal(entry.marker, '<!-- source-request:aaaaaaaaaaaa -->');
+  assert.match(entry.body, /id `abcdefghijklmnop`/);
+  assert.ok(!entry.body.includes('id `aaaaaaaaaaaa`'));
+  assert.equal(gone.marker, '<!-- source-request:cccccccccccc -->');
+  const existing = [{ number: 7, state: 'open', title: issueTitle(r), body: '<!-- source-request:aaaaaaaaaaaa -->\nold' }, { number: 8, state: 'open', title: 't', body: '<!-- source-request:cccccccccccc -->' }];
+  const ops = operations({ existing, requests: [r], withdrawn: [{ id: 'bbbbbbbbbbbbbbbb', formerly: 'cccccccccccc', day: '2026-11-09' }], pageUrl: 'https://x/requests', repo: 'o/r' });
+  assert.ok(!ops.some((o) => o.op === 'create'), 'no duplicate issue');
+  assert.deepEqual(ops.map((o) => o.number).sort(), [7, 8]);
+  // A new request (random id, never migrated) is marked with its own id.
+  assert.equal(plan([{ ...r, formerly: undefined }], '', 'o/r')[0].marker, '<!-- source-request:abcdefghijklmnop -->');
 });

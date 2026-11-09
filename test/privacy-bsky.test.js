@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleLogin, handleCallback, handleEndorse, handleUnendorse, bskyVisitor, FLOW_COOKIE, BSKY_COOKIE, openSession } from '../worker/bluesky.js';
-import { addRequest, decide, requestKey, publicId } from '../worker/requests.js';
+import { addRequest, decide, requestKey, currentId } from '../worker/requests.js';
 import { startLogin, userId } from '../worker/accounts.js';
 import { hmacHex, sha256, hex, boundary } from '../worker/crypto.js';
 import { visitorId } from '../worker/limits.js';
@@ -36,8 +36,8 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
   // Three requests: two accepted, one new. The asker's visitor hash is the one index.js uses.
   const visitorHash = hex(await sha256(`${env.IP_SALT}:${visitorId(IP)}`)).slice(0, 32);
   for (const s of ['Source one', 'Source two', 'Source three']) await addRequest({ body: { source: s }, kv, visitor: visitorHash });
-  const id1 = publicId(await requestKey('Source one'));
-  const id2 = publicId(await requestKey('Source two'));
+  const id1 = await currentId(kv, 'Source one');
+  const id2 = await currentId(kv, 'Source two');
   await decide(kv, { id: id1, status: 'accepted' });
   await decide(kv, { id: id2, status: 'accepted' });
   await kv.put(`redeem-failures:${new Date().toISOString().slice(0, 13)}:${visitorHash}`, '1', { expirationTtl: 7200 });
@@ -64,7 +64,7 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
   // KV: the Bluesky side wrote nothing there. Only what requests, invites
   // and email sign-in already keep.
   const kvKeys = [...kv.store.keys()];
-  for (const k of kvKeys) assert.match(k, /^(request|request-decision|request-deleted|request-rate|redeem-failures|login-rate|login):/, `${k} is not a Bluesky key`);
+  for (const k of kvKeys) assert.match(k, /^(request|request-decision|request-deleted|request-id|request-pid|request-rate|redeem-failures|login-rate|login):/, `${k} is not a Bluesky key`);
   assert.ok(kvKeys.some((k) => k.startsWith('login-rate:')));
 
   // D1: every row of every table.

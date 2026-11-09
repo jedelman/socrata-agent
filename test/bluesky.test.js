@@ -556,12 +556,12 @@ dbTest('endorse and unendorse carry no purge and no orphan sweep: expired rows a
 
 dbTest('me reads D1 at most once per session: the set rides in the sealed cookie, and endorse and unendorse keep it current', async () => {
   const env = readyEnv();
-  const { requestKey, publicId, addRequest, decide } = await import('../worker/requests.js');
+  const { currentId, addRequest, decide } = await import('../worker/requests.js');
   const { endorsementId } = await import('../worker/endorsements.js');
   const ids = [];
   for (const src of ['Source A', 'Source B']) {
     await addRequest({ body: { source: src }, kv: env.LIMITS, visitor: src, now: T0 });
-    const id = publicId(await requestKey(src));
+    const id = await currentId(env.LIMITS, src);
     await decide(env.LIMITS, { id, status: 'accepted' }, T0);
     ids.push(id);
   }

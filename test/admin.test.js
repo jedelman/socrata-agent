@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleAdmin, scheduledPurge } from '../worker/admin.js';
-import { addRequest, decide, requestKey, publicId } from '../worker/requests.js';
+import { addRequest, decide, requestKey, currentId } from '../worker/requests.js';
 import { signUser, userId, USER_COOKIE } from '../worker/accounts.js';
 import { endorsementId, UPKEEP } from '../worker/endorsements.js';
 import { readyEnv, SECRET } from './fake-atproto.js';
@@ -19,7 +19,7 @@ const FAR = Math.floor(Date.now() / 1000) + 400 * 86400;
 async function world(over = {}) {
   const env = readyEnv({ ADMIN_EMAILS: STEWARD, ...over });
   await addRequest({ body: { source: 'Source A' }, kv: env.LIMITS, visitor: 'v' });
-  const id = publicId(await requestKey('Source A'));
+  const id = await currentId(env.LIMITS, 'Source A');
   await decide(env.LIMITS, { id, status: 'accepted' });
   const cookie = `${USER_COOKIE}=${await signUser(SECRET, await userId(SECRET, STEWARD))}`;
   return { env, id, cookie };

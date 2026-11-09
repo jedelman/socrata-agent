@@ -33,26 +33,32 @@
 // A request that was ever public carries was_public. If it later leaves the
 // public list (declined, or set back to new), the public feed lists it under
 // `withdrawn` with the day, for WITHDRAWN_DAYS, so the GitHub mirror can close
-// its issue. Known limit: a public id is the first 12 hex of sha256 of the
-// normalized source text, so anyone can confirm a guessed source against it,
-// withdrawn ones included while they are listed. A random id stored at
-// acceptance would fix that; issue markers depend on the current scheme, so
-// it is left for a later change.
+// its issue.
 //
-// Endorsements (endorsements.js) are the one place a person's identity
-// touches requests. They live in D1 (SIREN_DB), not in KV with the requests:
-// to count a Bluesky account once per request, D1 keeps HMAC(INVITE_SECRET,
-// request + account), never the DID, the handle, the issuer or any token, and
-// one account's endorsements on different requests have nothing in common.
-// Counts are public, for public requests only; endorsers are pseudonymous to
-// anyone without the key. When a request is decided, its count is frozen into
-// the decision (endorsements_at_decision, a steward-owned field kept in
-// `request-decision:` like the rest) and the per-account rows are deleted;
-// any written around the decision are swept within minutes. This module
-// never imports endorsements.js: callers count and pass the counts in.
+// Public ids are random (Jason, 2026-11-09, before any endorsement existed):
+// 16 base32 characters (80 bits) minted when a request is first raised, kept
+// in `request-id:<hash>` ({id, formerly?}) with the reverse index
+// `request-pid:<id>` -> hash. Raises never rewrite either key, so a stale
+// raise can't change an id. The storage key stays the hash of the source
+// text, for pooling. Requests from before random ids show their legacy id
+// (the first 12 hex of that hash, which anyone could recompute from a
+// guessed source) until the steward runs `node scripts/invites.js
+// request-ids --apply` once; reads never write an id. A migrated request
+// that had been public keeps its legacy id as `formerly`, already public in
+// its GitHub issue marker, so the mirror updates that issue rather than
+// opening a second one; nothing else shows it. A legacy id stops resolving
+// once a random id is assigned, so a request never answers to two ids.
+//
+// Endorsements are records in the endorsers' own Bluesky repositories
+// (docs/bluesky-endorsements.md); nothing about an endorser is stored here.
+// When a request is decided, its endorsement count is frozen into the
+// decision (endorsements_at_decision, a steward-owned field kept in
+// `request-decision:` like the rest). This module never calls the network:
+// callers count and pass the counts in.
 // Nothing else may be keyed under `request:` (the list and steward tools
-// parse every such key); the side keys use `request-decision:` and
-// `request-deleted:`, which a `request:` prefix list doesn't match.
+// parse every such key); the side keys use `request-decision:`,
+// `request-deleted:`, `request-id:` and `request-pid:`, which a `request:`
+// prefix list doesn't match.
 
 import { sha256hex } from './invites.js';
 import { noteTextReview, publicTextMessage } from '../src/public-text.js';
@@ -146,9 +152,55 @@ export function stewardView(stored, deleted, decision) {
   return withDecision(normalizeRecord(dropDeleted(stored, deleted)), decision);
 }
 
+/** A random public id: 16 base32 characters (80 bits), never derived from the source. */
+export const PUBLIC_ID_RE = /^[a-z2-7]{16}$/;
+/** The id requests had before random ids: the first 12 hex of the storage key's hash. */
+export const LEGACY_ID_RE = /^[0-9a-f]{12}$/;
+/** Either kind of id, as routes and the steward tools accept it. */
+export const isRequestId = (id) => typeof id === 'string' && (PUBLIC_ID_RE.test(id) || LEGACY_ID_RE.test(id));
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+
+export function newPublicId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(10));
+  let bits = 0;
+  let acc = 0;
+  let out = '';
+  for (const b of bytes) {
+    acc = (acc << 8) | b;
+    bits += 8;
+    while (bits >= 5) {
+      out += B32[(acc >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  return out;
+}
+
+/** Where a request's random id is kept ({id, formerly?}). Raises write it only when they create the request. */
+export const idKey = (key) => key.replace(/^request:/, 'request-id:');
+/** The reverse index: a random id -> the 64-hex hash of its storage key. */
+export const pidKey = (id) => `request-pid:${id}`;
+
+/**
+ * A request's ids from its key and its stored id record: { id, formerly?,
+ * assigned }. Without a valid record, the legacy id and assigned: false.
+ */
+export function idsOf(key, rec) {
+  if (rec && typeof rec === 'object' && typeof rec.id === 'string' && PUBLIC_ID_RE.test(rec.id)) {
+    return { id: rec.id, ...(typeof rec.formerly === 'string' && LEGACY_ID_RE.test(rec.formerly) ? { formerly: rec.formerly } : {}), assigned: true };
+  }
+  return { id: publicId(key), assigned: false };
+}
+
+/** A request's current public id, by its source text (the steward tools and tests). */
+export async function currentId(kv, source) {
+  const key = await requestKey(source);
+  return idsOf(key, await kv.get(idKey(key), 'json')).id;
+}
+
 async function readRequest(kv, key) {
-  const [stored, deleted, decision] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key), kv.get(decisionKey(key), 'json')]);
-  return { cur: stewardView(stored, deleted, decision), deleted };
+  const [stored, deleted, decision, idRec] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key), kv.get(decisionKey(key), 'json'), kv.get(idKey(key), 'json')]);
+  return { cur: stewardView(stored, deleted, decision), deleted, ids: idsOf(key, idRec) };
 }
 
 /**
@@ -206,7 +258,16 @@ export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.no
   if (used >= perDay) return { ok: false, status: 429, error: 'That is a lot of requests for one day. Thank you; try again tomorrow.' };
   await kv.put(rateKey, String(used + 1), { expirationTtl: 90000 });
   const key = await requestKey(source);
-  const cur = (await readRequest(kv, key)).cur || normalizeRecord({ source, url: '', count: 0, first: day, needs: [], status: 'new' });
+  const read = await readRequest(kv, key);
+  const cur = read.cur || normalizeRecord({ source, url: '', count: 0, first: day, needs: [], status: 'new' });
+  // A new request gets its random id now, before its record, in keys raises
+  // never rewrite. An existing one keeps whatever it has (a legacy one waits
+  // for the steward's `request-ids` migration).
+  if (!read.cur && !read.ids.assigned) {
+    const id = newPublicId();
+    await kv.put(pidKey(id), key.slice('request:'.length));
+    await kv.put(idKey(key), JSON.stringify({ id }));
+  }
   const note = { id: `n${randomHex(4)}`, text: need, day, public: body?.public === true, review: 'pending', ...(maybeYear ? { flags: ['maybe_year'] } : {}) };
   const next = {
     ...cur,
@@ -229,7 +290,10 @@ export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.no
  */
 export const raiseResponse = (out) => (out.public ? { ok: true, count: out.count } : { ok: true });
 
-/** The short public id of a request: the first 12 hex of its key. */
+/**
+ * The legacy public id of a request: the first 12 hex of its key. A request's
+ * current id comes from idsOf (its random id once it has one).
+ */
 export const publicId = (key) => key.replace(/^request:/, '').slice(0, 12);
 
 const ZERO = Object.freeze({ n: 0, young: 0, unknown: 0 });
@@ -251,10 +315,13 @@ export function publicNumber(c, policy = 'established') {
  * adds `endorsements`: the live public number for an accepted request, the
  * number frozen at decision for a fulfilled one.
  */
-export function publicView(key, r, live, policy = 'established') {
+export function publicView(key, r, live, policy = 'established', ids = idsOf(key, null)) {
   const n = normalizeRecord(r);
   const out = {
-    id: publicId(key),
+    id: ids.id,
+    // A legacy id already public in its GitHub issue marker; the mirror
+    // matches on it. The page never shows it.
+    ...(ids.formerly ? { formerly: ids.formerly } : {}),
     source: n.source,
     ...(n.url ? { url: n.url } : {}),
     count: n.count,
@@ -285,7 +352,10 @@ export async function requestRows(kv) {
     keys.push(...page.keys.map((k) => k.name));
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
-  const rows = await Promise.all(keys.map(async (k) => [k, (await readRequest(kv, k)).cur]));
+  const rows = await Promise.all(keys.map(async (k) => {
+    const { cur, ids } = await readRequest(kv, k);
+    return [k, cur, ids];
+  }));
   return rows.filter(([, r]) => r);
 }
 
@@ -307,15 +377,15 @@ export async function requestRows(kv) {
  */
 export async function publicRequests(kv, now = Date.now(), { counts, policy = 'established', statuses, rows: given } = {}) {
   const rows = given || await requestRows(kv);
-  if (statuses) for (const [k, r] of rows) statuses.set(publicId(k), r.status || 'new');
+  if (statuses) for (const [k, r, ids] of rows) statuses.set((ids || idsOf(k, null)).id, r.status || 'new');
   const since = dayOf(now - WITHDRAWN_DAYS * 86400000);
   const shown = rows
     .filter(([, r]) => PUBLIC.has(r.status || 'new'))
-    .map(([k, r]) => publicView(k, r, counts ? counts.get(publicId(k)) || ZERO : undefined, policy));
+    .map(([k, r, ids = idsOf(k, null)]) => publicView(k, r, counts ? counts.get(ids.id) || ZERO : undefined, policy, ids));
   shown.sort((a, b) => (a.status !== b.status ? (a.status === 'accepted' ? -1 : 1) : b.count - a.count || (b.endorsements || 0) - (a.endorsements || 0)));
   const withdrawn = rows
     .filter(([, r]) => r.was_public === true && !PUBLIC.has(r.status || 'new'))
-    .map(([k, r]) => ({ id: publicId(k), day: asDay(r.decided) || null }))
+    .map(([k, r, ids = idsOf(k, null)]) => ({ id: ids.id, day: asDay(r.decided) || null, ...(ids.formerly ? { formerly: ids.formerly } : {}) }))
     // A withdrawal with no day (never expected) is kept rather than dropped.
     .filter((w) => !w.day || w.day >= since)
     .sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -354,9 +424,9 @@ export function withNoteReview(r, noteId, action) {
 }
 
 /** One request as the steward sees it: all statuses, every note with its id, day, public and review. */
-export function adminView(key, r) {
+export function adminView(key, r, ids = idsOf(key, null)) {
   const n = normalizeRecord(r);
-  return { id: publicId(key), ...n, status: n.status || 'new', needs: n.needs.map(({ id, text, day, public: pub, review, flags }) => ({ id, text, day, public: pub, review, ...(flags?.length ? { flags } : {}) })) };
+  return { id: ids.id, ...n, status: n.status || 'new', needs: n.needs.map(({ id, text, day, public: pub, review, flags }) => ({ id, text, day, public: pub, review, ...(flags?.length ? { flags } : {}) })) };
 }
 
 /**
@@ -377,24 +447,37 @@ export function freezeAtDecision(cur, status, live) {
 /** Every request, for the steward: all statuses, private and pending notes marked, live endorsement counts. */
 export async function allRequests(kv, counts = new Map()) {
   return (await requestRows(kv))
-    .map(([k, r]) => ({ ...adminView(k, r), endorsements: { ...(counts.get(publicId(k)) || ZERO) } }))
+    .map(([k, r, ids]) => ({ ...adminView(k, r, ids), endorsements: { ...(counts.get(ids.id) || ZERO) } }))
     .sort((a, b) => b.count - a.count);
 }
 
+/**
+ * One request by its current id: a random id through the reverse index, or a
+ * legacy id by key prefix, only while that request has no random id (so a
+ * request never answers to two ids).
+ */
 async function findRequest(kv, id) {
-  if (typeof id !== 'string' || !/^[0-9a-f]{12}$/.test(id)) return { error: { ok: false, status: 400, error: 'Give the request id.' } };
-  const page = await kv.list({ prefix: `request:${id}` });
-  if (page.keys.length !== 1) return { error: { ok: false, status: 404, error: 'No single request has that id.' } };
-  const key = page.keys[0].name;
-  const { cur, deleted } = await readRequest(kv, key);
-  if (!cur) return { error: { ok: false, status: 404, error: 'No single request has that id.' } };
-  return { key, cur, deleted };
+  if (!isRequestId(id)) return { error: { ok: false, status: 400, error: 'Give the request id.' } };
+  const missing = { error: { ok: false, status: 404, error: 'No single request has that id.' } };
+  let key;
+  if (PUBLIC_ID_RE.test(id)) {
+    const hash = await kv.get(pidKey(id));
+    if (typeof hash !== 'string' || !/^[0-9a-f]{64}$/.test(hash)) return missing;
+    key = `request:${hash}`;
+  } else {
+    const page = await kv.list({ prefix: `request:${id}` });
+    if (page.keys.length !== 1) return missing;
+    key = page.keys[0].name;
+  }
+  const { cur, deleted, ids } = await readRequest(kv, key);
+  if (!cur || ids.id !== id) return missing;
+  return { key, cur, deleted, ids };
 }
 
-/** The one request whose key starts `request:<id>`, as readers see it: { key, cur } or null. */
+/** The one request with this current id, as readers see it: { key, cur, ids } or null. */
 export async function requestByPublicId(kv, id) {
   const found = await findRequest(kv, id);
-  return found.error ? null : { key: found.key, cur: found.cur };
+  return found.error ? null : { key: found.key, cur: found.cur, ids: found.ids };
 }
 
 /**
@@ -406,7 +489,7 @@ export async function requestByPublicId(kv, id) {
 export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.now(), { live } = {}) {
   const found = await findRequest(kv, id);
   if (found.error) return found.error;
-  const { key, cur } = found;
+  const { key, cur, ids } = found;
   let next;
   try {
     next = withStatus(cur, status, { steward_note: note, fulfilled_by }, now);
@@ -422,7 +505,7 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
   // still see this decision.
   await kv.put(decisionKey(key), JSON.stringify(decisionOf(next)));
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, live) };
+  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, live, undefined, ids) };
 }
 
 const NOTE_ID = /^[0-9a-z-]{1,24}$/;
@@ -436,7 +519,7 @@ const NOTE_ID = /^[0-9a-z-]{1,24}$/;
 export async function reviewNote(kv, { id, note, action, deleted: sent }) {
   const found = await findRequest(kv, id);
   if (found.error) return found.error;
-  const { key, cur, deleted } = found;
+  const { key, cur, deleted, ids } = found;
   if (typeof note !== 'string' || !NOTE_ID.test(note)) return { ok: false, status: 400, error: 'Give the note id.' };
   let next;
   try {
@@ -451,5 +534,5 @@ export async function reviewNote(kv, { id, note, action, deleted: sent }) {
     await kv.put(deletedKey(key), JSON.stringify(withDeleted([...new Set([...deleted, ...known])], note)));
   }
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, request: publicView(key, next), needs: adminView(key, next).needs };
+  return { ok: true, request: publicView(key, next, undefined, undefined, ids), needs: adminView(key, next, ids).needs };
 }

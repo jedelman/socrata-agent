@@ -155,7 +155,7 @@ export async function sealSession(secret, { eid, handle, created, issuer, endors
 }
 
 const BARE_HTTPS = /^https:\/\/[a-z0-9.-]+$/;
-const ID_RE = /^[0-9a-f]{12}$/;
+const ID_RE = /^(?:[0-9a-f]{12}|[a-z2-7]{16})$/;
 
 export async function openSession(secret, value, now = Date.now()) {
   const s = await unseal(secret, SESSION_PURPOSE, value);

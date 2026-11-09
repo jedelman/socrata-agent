@@ -53,8 +53,16 @@
 
 const LABEL = 'source-request';
 const marker = (id) => `<!-- source-request:${id} -->`;
-const MARKER = /<!-- source-request:([0-9a-f]{12}) -->/;
-const ID = /^[0-9a-f]{12}$/;
+// A request's id is random (16 base32 characters); requests from before
+// random ids had a 12-hex id, which may still be in an issue's marker. A
+// migrated request that was public carries that old id as `formerly` in the
+// feed, and its issue keeps the old marker, so the sync updates the issue it
+// already has instead of opening a second one.
+const MARKER = /<!-- source-request:([0-9a-f]{12}|[a-z2-7]{16}) -->/;
+const ID = /^(?:[0-9a-f]{12}|[a-z2-7]{16})$/;
+const LEGACY = /^[0-9a-f]{12}$/;
+/** The id an entry's marker carries: the legacy id of a migrated request, else its id. */
+export const markerId = (r) => (typeof r?.formerly === 'string' && LEGACY.test(r.formerly) ? r.formerly : r.id);
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -87,7 +95,7 @@ export function issueTitle(r) {
 
 export function issueBody(r, pageUrl, repo = process.env.GITHUB_REPOSITORY) {
   const lines = [
-    marker(r.id),
+    marker(markerId(r)),
     `**Source:** ${mdText(r.source)}`,
     ...(r.url ? [`**Link given:** ${mdText(r.url)} (not checked; confirm it before relying on it)`] : []),
     `**Asked for by:** ${r.count} ${r.count === 1 ? 'person' : 'people'} through ${pageUrl ? `[the request list](${pageUrl})` : 'the request list'} · id \`${r.id}\``,
@@ -129,18 +137,18 @@ function github(env, fetchImpl) {
 /** The issues the public list should have, as plain data. Withdrawn requests come last, closed with the fixed text. */
 export function plan(requests, pageUrl, repo, withdrawn = []) {
   const live = requests.map((r) => ({
-    id: r.id,
-    marker: marker(r.id),
+    id: markerId(r),
+    marker: marker(markerId(r)),
     title: issueTitle(r),
     body: issueBody(r, pageUrl, repo),
     state: r.status === 'fulfilled' ? 'closed' : 'open',
     ...(r.status === 'fulfilled' ? { state_reason: 'completed' } : {}),
     label: LABEL,
   }));
-  const listed = new Set(requests.map((r) => r.id));
+  const listed = new Set(requests.map((r) => markerId(r)));
   const gone = (withdrawn || [])
-    .filter((w) => ID.test(String(w?.id || '')) && !listed.has(w.id))
-    .map((w) => ({ id: w.id, marker: marker(w.id), title: withdrawnTitle(), body: withdrawnBody(w.id, w.day), state: 'closed', state_reason: 'not_planned', create_if_missing: false, label: LABEL }));
+    .filter((w) => ID.test(String(w?.id || '')) && !listed.has(markerId(w)))
+    .map((w) => ({ id: markerId(w), marker: marker(markerId(w)), title: withdrawnTitle(), body: withdrawnBody(markerId(w), w.day), state: 'closed', state_reason: 'not_planned', create_if_missing: false, label: LABEL }));
   return [...live, ...gone];
 }
 
