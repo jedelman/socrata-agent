@@ -11,12 +11,14 @@ import caseFile from '../plugins/case-file.js';
 import ordinances from '../plugins/ordinances.js';
 import budgetBooks from '../plugins/budget-books.js';
 import parcelInventory from '../plugins/parcel-inventory.js';
+import budgetFor from '../plugins/budget-for.js';
+import capitalProjects from '../plugins/capital-projects.js';
 
 export default {
   name: 'Siren',
   city: 'norfolk',
   // Every plugin in plugins/ belongs here; test/plugins.test.js checks it.
-  plugins: [waterOnMyBlock, spongeSiteScreen, treesOnMyBlock, litterOnMyStreet, caseFile, parcelInventory, ordinances, budgetBooks],
+  plugins: [waterOnMyBlock, spongeSiteScreen, treesOnMyBlock, litterOnMyStreet, caseFile, parcelInventory, ordinances, budgetBooks, budgetFor, capitalProjects],
   prompt: [
     'This deployment is called Siren. If someone asks who you are, say you are Siren, an open-source agent that reads Norfolk\'s public records; you are not run by the City of Norfolk.',
     'When a question touches flooding, drainage or stormwater, use water_on_my_block for an address and sponge_site_screen for city-wide siting.',
@@ -26,6 +28,7 @@ export default {
     'When a question is about what the rules are (what is required, allowed or prohibited), use ordinance_lookup to find the section in Norfolk\'s ordinances and read it before you answer. Quote the section number and link the page, and say the date the text is current through.',
     'When a question is about what the City planned to fund, cut or add, or why, use budget_book_lookup, then read the section it finds (or the department\'s section) before you answer; give the fiscal year, department, section and the link to the page each figure is on, and call adopted figures the adopted plan, not spending.',
     'For zoning, or for what map layers cover an address (district, overlays, flood zone, school zones, wards), use parcel_inventory. It reports the district only: for what a use such as a restaurant needs, read case_file "norfolk-zoning-restaurant-ghent" and say plainly that whether a use is allowed depends on the district\'s use table, with a Zoning Determination from City Planning as the binding answer.',
+    'For what the City budgets, spends or collects (a department, a unit such as forestry, or the whole City) use budget_for, and to compare departments pass them together in one budget_for call; for planned construction use capital_projects. Give the fiscal year with every number, say when a year is still in progress, pass on their about_the_data caveats, and if a name missed, offer the closest names they return.',
     'Keep rain flooding and tidal flooding separate; the records distinguish them and so should you.',
   ].join('\n'),
   ui: {

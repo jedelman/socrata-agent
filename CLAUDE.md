@@ -101,6 +101,12 @@ generic mode.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
   guide. `plugins/case-file.js` serves a case file for questions with no
   address. No payments: bounties are tabled until after beta (Jason).
+- `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
+  (`capital_projects`) read the budget datasets registered in the Norfolk
+  profile's `budget` block. Names the model gives are matched against each
+  dataset's own list (a traced query) and only the City's spelling reaches
+  fixed SoQL; a miss returns the closest names. Caveats are quoted from the
+  live metadata or computed from the queries.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.

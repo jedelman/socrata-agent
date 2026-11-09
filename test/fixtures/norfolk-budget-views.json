@@ -1,0 +1,551 @@
+{
+ "_note": "Trimmed /api/views/<id>.json metadata for the budget datasets, read live from data.norfolk.gov on 2026-11-06.",
+ "mdwe-dquf": {
+  "id": "mdwe-dquf",
+  "name": "Annual Expenditures",
+  "attribution": "Department of Budget and Strategic Planning",
+  "description": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years. The city's fiscal year runs July 1 to June 30.  The city’s financial system, where transactions are recorded daily, is the source for this data. The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.  The data is refreshed daily on weekdays, and the expenditure amounts are current as of the date it was last refreshed.  \n\n*Disclaimer: Expenditures will reflect the previous fiscal year’s activity until final entries have been made and the accounting period has been closed.\n\nThis data is updated daily on weekdays.",
+  "rowsUpdatedAt": 1793967996,
+  "metadata": {
+   "custom_fields": {
+    "Updates": {
+     "Update Frequency": "Daily",
+     "Update Workflow": "Automated"
+    }
+   }
+  },
+  "columns": [
+   {
+    "fieldName": "fiscal_year",
+    "dataTypeName": "number",
+    "name": "Fiscal Year",
+    "description": "Fiscal year (FY) in which the expenditure took place; the city’s fiscal year runs from July 1 to June 30. For example, FY 2020 began on July 1, 2019 and will end on June 30, 2020."
+   },
+   {
+    "fieldName": "department_name",
+    "dataTypeName": "text",
+    "name": "Department Name",
+    "description": "Department that is responsible for the expenditure"
+   },
+   {
+    "fieldName": "fund_name",
+    "dataTypeName": "text",
+    "name": "Fund Name",
+    "description": "Name of the fund source for the expenditure"
+   },
+   {
+    "fieldName": "unit_name",
+    "dataTypeName": "text",
+    "name": "Unit Name",
+    "description": "Name of the responsible unit/division/bureau within the department"
+   },
+   {
+    "fieldName": "expenditure_category",
+    "dataTypeName": "text",
+    "name": "Expenditure Category",
+    "description": "Description of the expenditure category, such as personnel or contractual services"
+   },
+   {
+    "fieldName": "object_name",
+    "dataTypeName": "text",
+    "name": "Object Name",
+    "description": "Description of the expenditure type"
+   },
+   {
+    "fieldName": "actual_expenses",
+    "dataTypeName": "number",
+    "name": "Actual Expenses",
+    "description": "Sum of fiscal year-to-date expenditures for this department/fund/unit/object line"
+   },
+   {
+    "fieldName": "current_expense_budget",
+    "dataTypeName": "number",
+    "name": "Current Expense Budget",
+    "description": "Total annual budgeted expenditures for this department/fund/unit/object line"
+   }
+  ]
+ },
+ "id3i-2az4": {
+  "id": "id3i-2az4",
+  "name": "Annual Revenues",
+  "attribution": "Department of Budget and Strategic Planning",
+  "description": "This dataset summarizes the city’s various revenue sources.  The revenue dataset reflects money coming into the city; some examples include real estate tax payments, state aid and parking fine collections. The city’s financial system, where revenue collections are recorded daily, is the source for this data. \n\nThis data also contains current budget information based on the revenue budget adopted by City Council ahead of each fiscal year.  This budget allows city staff to monitor and track revenue collections during the year.   The data set includes the current fiscal year and two previous fiscal years.  \n\n*Disclaimer: Revenues will reflect the previous fiscal year’s activity until final entries have been made and the accounting period has been closed.\n\nThis data is updated daily on weekdays.",
+  "rowsUpdatedAt": 1793968012,
+  "metadata": {
+   "custom_fields": {
+    "Updates": {
+     "Update Frequency": "Daily",
+     "Update Workflow": "Automated"
+    }
+   }
+  },
+  "columns": [
+   {
+    "fieldName": "fiscal_year",
+    "dataTypeName": "number",
+    "name": "Fiscal Year",
+    "description": "Fiscal year (FY) in which the revenue was collected; the city’s fiscal year runs from July 1 to June 30.  For example, FY 2020 began on July 1, 2019 and will end on June 30, 2020."
+   },
+   {
+    "fieldName": "department_name",
+    "dataTypeName": "text",
+    "name": "Department Name",
+    "description": "Department that is responsible for the revenue"
+   },
+   {
+    "fieldName": "unit_name",
+    "dataTypeName": "text",
+    "name": "Unit Name",
+    "description": "Name of the responsible unit/division/bureau within the department"
+   },
+   {
+    "fieldName": "fund_name",
+    "dataTypeName": "text",
+    "name": "Fund Name",
+    "description": "Name of the fund receiving the revenue"
+   },
+   {
+    "fieldName": "revenue_source_name",
+    "dataTypeName": "text",
+    "name": "Revenue Source Name",
+    "description": "Description of the revenue source"
+   },
+   {
+    "fieldName": "revenue_name",
+    "dataTypeName": "text",
+    "name": "Revenue Name",
+    "description": "Description of the revenue category such as taxes, fees, or state-aid"
+   },
+   {
+    "fieldName": "total_collected",
+    "dataTypeName": "number",
+    "name": "Total Collected",
+    "description": "Amount of revenue collected fiscal year-to-date (YTD) for this department/fund/unit/revenue source line"
+   },
+   {
+    "fieldName": "total_budgeted",
+    "dataTypeName": "number",
+    "name": "Total Budgeted",
+    "description": "Total annual budgeted revenues for this department/fund/unit/revenue source line"
+   }
+  ]
+ },
+ "7jsp-eyjg": {
+  "id": "7jsp-eyjg",
+  "name": "Performance Measures",
+  "attribution": "Department of Budget and Strategic Planning",
+  "description": "Performance measures are data metrics defined and tracked by city departments to measure the city government’s effectiveness and efficiency of service delivery. Data for the performance measures are derived from department data tracking systems. Each performance measure is connected to one of the strategic goals and objectives that the City has defined as a high priority. The performance measures will be reviewed and refined annually to ensure they are representative of the priorities set out by City Council and the community.",
+  "rowsUpdatedAt": 1791310399,
+  "metadata": {},
+  "columns": [
+   {
+    "fieldName": "department_id",
+    "dataTypeName": "number",
+    "name": "Department ID",
+    "description": "The ID of the department that defined and tracks the performance measure."
+   },
+   {
+    "fieldName": "department",
+    "dataTypeName": "text",
+    "name": "Department",
+    "description": "The City of Norfolk department that defined and tracks the performance measure."
+   },
+   {
+    "fieldName": "program_id",
+    "dataTypeName": "text",
+    "name": "Program ID",
+    "description": "The ID of the program that the performance measure is related to. A program is set of related activities or tasks intended to produce a desired result for a specific population."
+   },
+   {
+    "fieldName": "program_name",
+    "dataTypeName": "text",
+    "name": "Program",
+    "description": "The City of Norfolk program that the performance measure is related to. A program is set of related activities or tasks intended to produce a desired result for a specific population."
+   },
+   {
+    "fieldName": "measure_id",
+    "dataTypeName": "number",
+    "name": "Measure ID",
+    "description": "The ID of the measure."
+   },
+   {
+    "fieldName": "measure_description",
+    "dataTypeName": "text",
+    "name": "Measure",
+    "description": "The description of the measured outcome and impact of a program. It is generally the results of an activity, plan, process, or program."
+   },
+   {
+    "fieldName": "strategic_objective",
+    "dataTypeName": "text",
+    "name": "Strategic Objective",
+    "description": "Broad local government service areas used to better understand how city funds are allocated across each of the functional areas. Each program is mapped to a strategic objective and the program measures are used to track progress in the program as well as the strategic objective area."
+   },
+   {
+    "fieldName": "demand_level",
+    "dataTypeName": "text",
+    "name": "Demand Level",
+    "description": "Details whether a program has the resources necessary to meet the established standard for each service. Standards are set by compliance regulations or a well-defined expectation. The program’s ability to meet that standard falls into one of three categories: Does Not Meet Demand, Meets Demand – Maintains, or Meets Demand – Exceeds."
+   },
+   {
+    "fieldName": "fy_2022",
+    "dataTypeName": "number",
+    "name": "FY 2022",
+    "description": "The metric value as of FY 2022. The fiscal year runs from July 1, 2021 to June 30, 2022. Values 99999 = “Yes” and 99998 = “No”."
+   },
+   {
+    "fieldName": "fy_2023",
+    "dataTypeName": "number",
+    "name": "FY 2023",
+    "description": "The metric value as of FY 2023. The fiscal year runs from July 1, 2022 to June 30, 2023. Values 99999 = “Yes” and 99998 = “No”."
+   },
+   {
+    "fieldName": "fy_2024",
+    "dataTypeName": "number",
+    "name": "FY 2024",
+    "description": "The metric value as of FY 2024. The fiscal year runs from July 1, 2023 to June 30, 2024. Values 99999 = “Yes” and 99998 = “No”."
+   },
+   {
+    "fieldName": "fy_2025",
+    "dataTypeName": "number",
+    "name": "FY 2025 ",
+    "description": "The metric value as of FY 2025. The fiscal year runs from July 1, 2024 to June 30, 2025. Values 99999 = “Yes” and 99998 = “No”."
+   },
+   {
+    "fieldName": "fy_2026_projection",
+    "dataTypeName": "number",
+    "name": "FY 2026 Projection",
+    "description": "The projected measure as of FY 2026. This number will be updated when the actual measure is finalized after FY 2026 is complete. Values 99999 = “Yes” and 99998 = “No”."
+   },
+   {
+    "fieldName": "fy_2027_adopted",
+    "dataTypeName": "number",
+    "name": "FY 2027 Adopted",
+    "description": "The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year. Values 99999 = “Yes” and 99998 = “No”."
+   },
+   {
+    "fieldName": "fy_2027_target",
+    "dataTypeName": "number",
+    "name": "FY 2027 target",
+    "description": "The goal for the measure in the given fiscal year. It is the standard that is set for each measure and is rooted in either best practices, historical performance, industry regulations, leadership expectation or backlog. Values 99999 = “Yes” and 99998 = “No”."
+   }
+  ]
+ },
+ "6tqj-4az3": {
+  "id": "6tqj-4az3",
+  "name": "Capital Improvement Plan (CIP) Projects - FY 2027",
+  "attribution": "Department of Budget & Strategic Planning",
+  "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY 2027 Adopted CIP. Each capital project included in the CIP is either approved for funding in FY 2027 or included as a planned project in FY 2027 through FY 2031. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+  "rowsUpdatedAt": 1790967655,
+  "metadata": {
+   "custom_fields": {
+    "Updates": {
+     "Update Frequency": "Yearly",
+     "Update Workflow": "Manual"
+    }
+   }
+  },
+  "columns": [
+   {
+    "fieldName": "project_id",
+    "dataTypeName": "text",
+    "name": "Project ID",
+    "description": "Unique project identifier"
+   },
+   {
+    "fieldName": "department",
+    "dataTypeName": "text",
+    "name": "Department",
+    "description": "The department that is responsible for the project"
+   },
+   {
+    "fieldName": "project_name",
+    "dataTypeName": "text",
+    "name": "Project Name",
+    "description": "Name of the project"
+   },
+   {
+    "fieldName": "description",
+    "dataTypeName": "text",
+    "name": "Description",
+    "description": "Detailed description of the work the project will entail"
+   },
+   {
+    "fieldName": "location",
+    "dataTypeName": "text",
+    "name": "Location",
+    "description": "Specific address or location name, when available, for the project"
+   },
+   {
+    "fieldName": "fund",
+    "dataTypeName": "number",
+    "name": "Fund",
+    "description": "The City fund that aligns to the funding of the project"
+   },
+   {
+    "fieldName": "amount",
+    "dataTypeName": "number",
+    "name": "Amount FY 27 - FY 31",
+    "description": "The adopted funding amount included in the FY 2027 to FY 2031 Capital Improvement Plan"
+   },
+   {
+    "fieldName": "amount_fy_27",
+    "dataTypeName": "number",
+    "name": "Amount FY 27",
+    "description": "Adopted Amount FY 27 – The adopted funding amount included in the FY 2027 to FY 2031 Capital Improvement Plan for planned spending in FY 2027"
+   },
+   {
+    "fieldName": "ward",
+    "dataTypeName": "number",
+    "name": "Ward",
+    "description": "The Ward in which the project is located"
+   },
+   {
+    "fieldName": "latitude",
+    "dataTypeName": "number",
+    "name": "Latitude",
+    "description": "The latitude coordinate for the project's location"
+   },
+   {
+    "fieldName": "longitude",
+    "dataTypeName": "number",
+    "name": "Longitude",
+    "description": "The longitude coordinate for the project's location"
+   }
+  ]
+ },
+ "dpv9-3yq2": {
+  "id": "dpv9-3yq2",
+  "name": "Capital Improvement Plan (CIP) Projects - FY 2026",
+  "attribution": "Department of Budget & Strategic Planning",
+  "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY 2026 Adopted CIP. Each capital project included in the CIP is either approved for funding in FY 2026 or included as a planned project in FY 2026 through FY 2030. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+  "rowsUpdatedAt": 1790966978,
+  "metadata": {
+   "custom_fields": {
+    "Updates": {
+     "Update Frequency": "Yearly",
+     "Update Workflow": "Manual"
+    }
+   }
+  },
+  "columns": [
+   {
+    "fieldName": "project_id",
+    "dataTypeName": "text",
+    "name": "Project ID",
+    "description": "Unique project identifier"
+   },
+   {
+    "fieldName": "department",
+    "dataTypeName": "text",
+    "name": "Department",
+    "description": "The department that is responsible for the project."
+   },
+   {
+    "fieldName": "project_name",
+    "dataTypeName": "text",
+    "name": "Master Project Name",
+    "description": "Name of the project"
+   },
+   {
+    "fieldName": "description",
+    "dataTypeName": "text",
+    "name": "Description",
+    "description": "Detailed description of the work the project will entail"
+   },
+   {
+    "fieldName": "location",
+    "dataTypeName": "text",
+    "name": "Location",
+    "description": "Specific address or location name, when available, for the project"
+   },
+   {
+    "fieldName": "fund",
+    "dataTypeName": "number",
+    "name": "Fund",
+    "description": "The City fund that aligns to the funding of the project"
+   },
+   {
+    "fieldName": "amount",
+    "dataTypeName": "number",
+    "name": "Amount FY 26 - FY 30",
+    "description": "The adopted funding amount included in the FY 2026 to FY 2030 Capital Improvement Plan"
+   },
+   {
+    "fieldName": "amount_fy_26",
+    "dataTypeName": "number",
+    "name": "Amount FY 26",
+    "description": "Adopted Amount FY 26 – The adopted funding amount included in the FY 2026"
+   },
+   {
+    "fieldName": "ward",
+    "dataTypeName": "number",
+    "name": "Ward",
+    "description": "The Ward in which the project is located"
+   },
+   {
+    "fieldName": "latitude",
+    "dataTypeName": "number",
+    "name": "Latitude",
+    "description": "The latitude coordinate for the project's location"
+   },
+   {
+    "fieldName": "longitude",
+    "dataTypeName": "number",
+    "name": "Longitude",
+    "description": "The longitude coordinate for the project's location"
+   }
+  ]
+ },
+ "6njp-hen5": {
+  "id": "6njp-hen5",
+  "name": "Capital Improvement Plan (CIP) Projects - FY 2025",
+  "attribution": "Department of Budget & Strategic Planning",
+  "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY 2025 Adopted CIP. Each capital project included in the CIP is either approved for funding in FY 2025 or included as a planned project in FY 2026 through FY 2029. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+  "rowsUpdatedAt": 1737494868,
+  "metadata": {},
+  "columns": [
+   {
+    "fieldName": "project_id",
+    "dataTypeName": "number",
+    "name": "Project ID",
+    "description": "Unique project identifier"
+   },
+   {
+    "fieldName": "department",
+    "dataTypeName": "text",
+    "name": "Department",
+    "description": "The department that is responsible for the project"
+   },
+   {
+    "fieldName": "project_name",
+    "dataTypeName": "text",
+    "name": "Project Name",
+    "description": "Name of the project"
+   },
+   {
+    "fieldName": "description",
+    "dataTypeName": "text",
+    "name": "Description",
+    "description": "Detailed description of the work the project will entail"
+   },
+   {
+    "fieldName": "location",
+    "dataTypeName": "text",
+    "name": "Location",
+    "description": "Specific address or location name, when available, for the project"
+   },
+   {
+    "fieldName": "ward",
+    "dataTypeName": "number",
+    "name": "Ward",
+    "description": "The Ward in which the project is located"
+   },
+   {
+    "fieldName": "adopted_amount_fy_25",
+    "dataTypeName": "number",
+    "name": "Adopted Amount FY 25",
+    "description": "Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025"
+   },
+   {
+    "fieldName": "adopted_amount_fy_25_fy_29",
+    "dataTypeName": "number",
+    "name": "Adopted Amount FY 25 - FY 29",
+    "description": "The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan"
+   },
+   {
+    "fieldName": "fund",
+    "dataTypeName": "number",
+    "name": "Fund",
+    "description": "The City fund that aligns to the funding of the project"
+   },
+   {
+    "fieldName": "latitude",
+    "dataTypeName": "number",
+    "name": "Latitude",
+    "description": "The latitude coordinate for the project's location"
+   },
+   {
+    "fieldName": "longitude",
+    "dataTypeName": "number",
+    "name": "Longitude",
+    "description": "The longitude coordinate for the project's location"
+   }
+  ]
+ },
+ "jbfz-2t3g": {
+  "id": "jbfz-2t3g",
+  "name": "Capital Improvement Plan (CIP) Projects - FY24",
+  "attribution": "Office of Budget and Strategic Planning",
+  "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY2024 adopted CIP. Each capital project included in the CIP is either approved for funding in FY2024 or included as a planned project in FY2025 through FY2028. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+  "rowsUpdatedAt": 1698869630,
+  "metadata": {},
+  "columns": [
+   {
+    "fieldName": "project_id",
+    "dataTypeName": "number",
+    "name": "Project ID",
+    "description": "Unique project identifier"
+   },
+   {
+    "fieldName": "department",
+    "dataTypeName": "text",
+    "name": "Department",
+    "description": "The department that is responsible for the project"
+   },
+   {
+    "fieldName": "master_project_name",
+    "dataTypeName": "text",
+    "name": "Master Project Name",
+    "description": "Name of the project, or name of the master project if there are subprojects"
+   },
+   {
+    "fieldName": "subproject_name",
+    "dataTypeName": "text",
+    "name": "Subproject Name",
+    "description": "Name of the subproject that falls under a master project"
+   },
+   {
+    "fieldName": "description",
+    "dataTypeName": "text",
+    "name": "Description",
+    "description": "Detailed description of the work the project will entail"
+   },
+   {
+    "fieldName": "location",
+    "dataTypeName": "text",
+    "name": "Location",
+    "description": "Specific address or location name, when available, for the project"
+   },
+   {
+    "fieldName": "latitude",
+    "dataTypeName": "number",
+    "name": "Latitude",
+    "description": "The latitude coordinate for the project's location"
+   },
+   {
+    "fieldName": "longitude",
+    "dataTypeName": "number",
+    "name": "Longitude",
+    "description": "The longitude coordinate for the project's location"
+   },
+   {
+    "fieldName": "fund",
+    "dataTypeName": "number",
+    "name": "Fund",
+    "description": "The City fund that aligns to the funding of the project"
+   },
+   {
+    "fieldName": "amount",
+    "dataTypeName": "number",
+    "name": "Adopted Amount",
+    "description": "The adopted funding amount included in the FY2024 to FY2028 Capital Improvement Plan"
+   },
+   {
+    "fieldName": "ward",
+    "dataTypeName": "number",
+    "name": "Ward",
+    "description": "The Ward in which the project is located"
+   }
+  ]
+ }
+}
