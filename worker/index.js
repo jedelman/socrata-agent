@@ -28,7 +28,7 @@ import { addRequest, raiseResponse, publicRequests } from './requests.js';
 import { hmacHex } from './crypto.js';
 import { handleAdmin } from './admin.js';
 import { cachedPublicList } from './public-list.js';
-import { blueskyReady } from './bluesky.js';
+import { blueskyReady, handleMetadata, handleResolve } from './bluesky.js';
 import { handleEndorsers } from './endorsers.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
@@ -476,6 +476,12 @@ export default {
       if (list.unavailable) return unavailable();
       return json(list, 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
     }
+    // The browser client's OAuth client_id document, whenever PUBLIC_ORIGIN
+    // is set (so the rollout can check it with the flag off).
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/endorse-client-metadata.json') {
+      const { config } = getDeployment(env);
+      return handleMetadata(req, env, base, APP_NAME_OF(env, config));
+    }
     // Who endorsed one request on the public list (endorsers.js); 404 with the flag off.
     const endorsersPath = req.method === 'GET' && /^\/api\/requests\/([^/]{1,64})\/endorsers$/.exec(path);
     if (endorsersPath) return handleEndorsers(req, env, ctx, base, endorsersPath[1]);
@@ -515,6 +521,7 @@ export default {
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
     if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path, ctx);
+    if (req.method === 'POST' && path === '/api/bsky/resolve') return handleResolve(req, env);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);

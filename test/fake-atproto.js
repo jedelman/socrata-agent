@@ -3,7 +3,7 @@
 // `fetch` this returns, which routes by host and path.
 
 import { b64url, sha256, enc } from '../worker/crypto.js';
-import { ENDORSE_SOURCE } from '../worker/endorse-config.js';
+import { ENDORSE_SOURCE, OAUTH_SCOPE } from '../worker/endorse-config.js';
 
 export const W = {
   DID: 'did:plc:abcdefghijklmnopqrstuvwx',
@@ -109,7 +109,7 @@ export function fakeNetwork(overrides = {}) {
       if (state.codesUsed.has(form.code)) return json({ error: 'invalid_grant' }, 400, { 'DPoP-Nonce': 'nonce-tok-2' });
       state.codesUsed.add(form.code);
       state.issued++;
-      return json({ access_token: W.ACCESS, refresh_token: W.REFRESH, token_type: 'DPoP', scope: 'atproto', sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
+      return json({ access_token: W.ACCESS, token_type: 'DPoP', scope: state.grantedScope ?? OAUTH_SCOPE, sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
     },
     [`${host(W.ISSUER)}/oauth/revoke`]: async (u, init) => {
       const proof = decodeJwt(init.headers.DPoP);
@@ -143,6 +143,41 @@ export function fakeNetwork(overrides = {}) {
       const page = all.slice(start, start + limit);
       return json({ records: page.map(([rkey, value]) => ({ uri: `at://${u.searchParams.get('repo')}/${u.searchParams.get('collection')}/${rkey}`, cid: 'bafyfake', value })), ...(start + limit < all.length ? { cursor: String(start + limit) } : {}) });
     },
+    // Authenticated writes, as the reference PDS takes them: DPoP-bound token,
+    // a proof with ath, its own nonce (separate from the AS's).
+    ...Object.fromEntries(['createRecord', 'deleteRecord', 'applyWrites'].map((m) => [`${host(W.PDS)}/xrpc/com.atproto.repo.${m}`, async (u, init) => {
+      const proof = decodeJwt(init.headers.DPoP);
+      state.pdsWrites = state.pdsWrites || [];
+      if (init.headers.Authorization !== `DPoP ${state.liveToken ?? W.ACCESS}`) return json({ error: 'InvalidToken' }, 401);
+      if (proof.payload.ath !== b64url(await sha256(init.headers.Authorization.slice(5)))) return json({ error: 'InvalidDPoPProof' }, 401);
+      if (proof.payload.htu !== `${W.PDS}/xrpc/com.atproto.repo.${m}`) return json({ error: 'InvalidDPoPProof' }, 401);
+      if (proof.payload.nonce !== 'nonce-pds-1') return new Response(JSON.stringify({ error: 'use_dpop_nonce' }), { status: 401, headers: { 'Content-Type': 'application/json', 'DPoP-Nonce': 'nonce-pds-1', 'WWW-Authenticate': 'DPoP error="use_dpop_nonce"' } });
+      const body = JSON.parse(init.body);
+      state.pdsWrites.push({ method: m, body, nonce: proof.payload.nonce });
+      if (body.repo !== W.DID) return json({ error: 'InvalidRequest' }, 400);
+      const coll = () => {
+        if (!state.repos.has(W.DID)) state.repos.set(W.DID, new Map());
+        const r = state.repos.get(W.DID);
+        return (c) => {
+          if (!r.has(c)) r.set(c, new Map());
+          return r.get(c);
+        };
+      };
+      if (m === 'createRecord') {
+        const c = coll()(body.collection);
+        if ('validate' in body) return json({ error: 'InvalidRequest', message: 'validate must not be sent' }, 400);
+        if (c.has(body.rkey)) return json({ error: 'InvalidRequest', message: 'Record already exists' }, 400);
+        state.putRecord(W.DID, body.collection, body.rkey, body.record);
+        return json({ uri: `at://${W.DID}/${body.collection}/${body.rkey}`, cid: 'bafyfake' });
+      }
+      if (m === 'deleteRecord') {
+        coll()(body.collection).delete(body.rkey);
+        return json({});
+      }
+      if (body.writes.length > 200) return json({ error: 'InvalidRequest' }, 400);
+      for (const w of body.writes) coll()(w.collection).delete(w.rkey);
+      return json({});
+    }])),
     ...overrides,
   };
   /** Put a record in a fake repo (and, by default, in Constellation's index). */

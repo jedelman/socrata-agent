@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-// Rollout probe for Bluesky sign-in (docs/bluesky-endorsements.md, step 3).
-// Resolves a real account the way the Worker does, checks its PDS and
-// authorization server, and sends one PAR with the production client_id, then
-// prints what the AS said. It never opens a browser, never gets a code and
-// never gets tokens; the pending request expires on its own in minutes.
+// Rollout probe for Bluesky endorsing (docs/bluesky-endorsements.md,
+// "Rollout", steps 2 and 3). Checks the browser client's metadata at its
+// client_id URL, resolves a real account the way the browser does, checks
+// its PDS and authorization server, and sends one PAR with the production
+// client_id and the narrow repo scope, then prints what the AS said. It
+// never opens a browser, never gets a code and never gets tokens; the
+// pending request expires on its own in minutes. Whether the server actually
+// GRANTS the repo scope shows only in a real sign-in's token response: that
+// is step 3's browser check (the page refuses a token without it).
 //
 //   node scripts/bsky-probe.js --account alice.bsky.social
 //   node scripts/bsky-probe.js --account did:plc:... --origin https://jason-edelman.org --base /ask-siren
@@ -39,6 +43,8 @@ async function main() {
     if (meta.status !== 200) throw new Error('The client metadata must answer 200 at the client_id URL (no redirect). Deploy with PUBLIC_ORIGIN set first.');
     const doc = JSON.parse(meta.text);
     if (doc.client_id !== ids.clientId) throw new Error(`The metadata's client_id is ${doc.client_id}, not the URL it was served from.`);
+    if (doc.scope !== SCOPE) throw new Error(`The metadata declares scope "${doc.scope}", not "${SCOPE}".`);
+    console.log(`scope         ${doc.scope}`);
   }
   const account = await resolveAccount(input, opts);
   console.log(`did           ${account.did}`);
@@ -50,16 +56,31 @@ async function main() {
   const meta = await authServerMetadata(issuer, opts);
   console.log(`revocation    ${meta.revocation_endpoint || '(none on the issuer origin: no revoke)'}`);
   const { challenge } = await pkce();
-  const { jwk } = await newDpopKey();
+  const key = await newDpopKey();
   const out = await dpopPost(meta.pushed_authorization_request_endpoint, {
-    client_id: ids.clientId, response_type: 'code', redirect_uri: ids.redirectUri, scope: SCOPE,
-    state: randomToken(32), code_challenge: challenge, code_challenge_method: 'S256',
-    login_hint: input.kind === 'did' ? input.did : input.handle,
-  }, { jwk, fetchImpl: fetch });
-  console.log(`PAR           ${out.status}${out.json?.expires_in ? `, expires_in ${out.json.expires_in}` : ''}${out.nonce ? ', DPoP-Nonce present' : ', NO DPoP-Nonce'}`);
+    form: {
+      client_id: ids.clientId, response_type: 'code', response_mode: 'fragment', redirect_uri: ids.redirectUri, scope: SCOPE,
+      state: randomToken(32), code_challenge: challenge, code_challenge_method: 'S256',
+      login_hint: input.kind === 'did' ? input.did : input.handle,
+    },
+    key, fetchImpl: fetch,
+  });
+  console.log(`PAR           ${out.status}${out.json?.expires_in ? `, expires_in ${out.json.expires_in}` : ''}${out.responseNonce ? ', DPoP-Nonce present' : ', NO DPoP-Nonce'}`);
+  console.log(`fragment      ${(await authServerMetadataModes(meta, issuer, opts)) ? 'response_mode=fragment listed' : 'response_modes_supported does not list fragment: check before rollout'}`);
   if (out.status !== 201 && out.status !== 200) {
     console.log(`AS error      ${out.json?.error || '?'}: ${String(out.json?.error_description || '').slice(0, 300)}`);
     process.exitCode = 1;
+  }
+}
+
+// Whether the AS lists the fragment response mode (bsky.social does, 2026-11-09).
+async function authServerMetadataModes(meta, issuer, opts) {
+  const res = await safeFetch(`${issuer}/.well-known/oauth-authorization-server`, { fetchImpl: opts.fetchImpl, maxBytes: 65536 });
+  try {
+    const m = JSON.parse(res.text);
+    return Array.isArray(m.response_modes_supported) && m.response_modes_supported.includes('fragment');
+  } catch {
+    return false;
   }
 }
 

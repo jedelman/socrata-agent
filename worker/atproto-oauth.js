@@ -1,15 +1,21 @@
-// atproto OAuth, the client side, for identity only. Siren is a public web
-// client (token_endpoint_auth_method "none") that asks for scope "atproto"
-// and nothing else: PAR, PKCE S256, DPoP (ES256), the RFC 9207 iss check and
-// the sub check, then it revokes both tokens and throws them away. Built on
-// WebCrypto and fetch; no dependency. Pure: every call takes `fetchImpl`.
+// atproto OAuth, the client side. The browser is the client (a public web
+// client, token_endpoint_auth_method "none"), on the requests page: PAR,
+// PKCE S256, DPoP (ES256, a non-extractable key), the code returned in the
+// URL fragment, the RFC 9207 iss check, the sub check, and a check that the
+// server granted the narrow repo scope Siren asked for (it may grant less
+// without saying so). The Worker uses this module only for publicOrigin,
+// clientIds and clientMetadata; it never sees a token. Built on WebCrypto
+// and fetch; no dependency. Pure: every call takes `fetchImpl`. Served to
+// the browser as module text by index.js.
 //
-// Requirements from atproto.com/specs/oauth (read 2026-11-06, "as of October
-// 2026") and RFCs 9126 (PAR), 7636 (PKCE), 9449 (DPoP), 9207 (iss), 9728
-// (protected resource metadata) and 7009 (revocation).
+// Requirements from atproto.com/specs/oauth (read 2026-11-09, "as of October
+// 2026"), atproto.com/specs/permission, and RFCs 9126 (PAR), 7636 (PKCE),
+// 9449 (DPoP), 9207 (iss), 9728 (protected resource metadata) and 7009
+// (revocation).
 
 import { enc, b64url, randomToken, sha256 } from './crypto.js';
 import { safeFetch, safeUrl, isSupportedDid } from './atproto-identity.js';
+import { OAUTH_SCOPE, ENDORSE_NSID } from './endorse-config.js';
 
 export class OAuthError extends Error {
   constructor(code) {
@@ -19,7 +25,7 @@ export class OAuthError extends Error {
   }
 }
 
-export const SCOPE = 'atproto';
+export const SCOPE = OAUTH_SCOPE;
 export const MAX_ENDPOINT = 256;
 const MAX_NONCE = 512;
 const OAUTH_BYTES = 16384;
@@ -49,16 +55,20 @@ export function publicOrigin(env) {
   return null;
 }
 
-/** { clientId, redirectUri, clientUri, loopback } or null. */
+/**
+ * { clientId, redirectUri, clientUri, loopback } or null. A new client_id
+ * URL for the browser client, since servers cache client metadata for an
+ * unknown time; the code comes back to the requests page itself.
+ */
 export function clientIds(env, base = '') {
   const po = publicOrigin(env);
   if (!po || typeof base !== 'string' || !/^(\/[A-Za-z0-9._~-]+)*$/.test(base)) return null;
-  const redirectUri = `${po.origin}${base}/oauth/callback`;
+  const redirectUri = `${po.origin}${base}/requests`;
   if (po.loopback) {
     // The atproto localhost client: ASes synthesize its metadata.
-    return { clientId: `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${SCOPE}`, redirectUri, clientUri: null, loopback: true };
+    return { clientId: `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(SCOPE)}`, redirectUri, clientUri: null, loopback: true };
   }
-  return { clientId: `${po.origin}${base}/oauth-client-metadata.json`, redirectUri, clientUri: `${po.origin}${base}/`, loopback: false };
+  return { clientId: `${po.origin}${base}/endorse-client-metadata.json`, redirectUri, clientUri: `${po.origin}${base}/`, loopback: false };
 }
 
 /** The client metadata document, served at the client_id URL. */
@@ -68,8 +78,9 @@ export function clientMetadata({ clientId, redirectUri, clientUri, appName = 'Si
     client_name: appName,
     client_uri: clientUri,
     application_type: 'web',
-    // No refresh_token: Siren never refreshes. The spec allows leaving it out;
-    // the rollout probe (scripts/bsky-probe.js) checks that ASes agree.
+    // No refresh_token: an endorsing session is one access token, and a
+    // later action re-authorizes (D2, default, pending Jason). The spec
+    // allows leaving it out; the rollout probe checks that ASes agree.
     grant_types: ['authorization_code'],
     response_types: ['code'],
     redirect_uris: [redirectUri],
@@ -130,14 +141,18 @@ export async function authServerMetadata(issuer, { fetchImpl = fetch, signal } =
   if (!meta) throw new OAuthError('as_unsupported');
   if (meta.issuer !== issuer) throw new OAuthError('issuer_mismatch');
   const has = (field, v) => Array.isArray(meta[field]) && meta[field].includes(v);
-  const ok = has('scopes_supported', SCOPE)
+  // Granular repo scopes can't be listed in scopes_supported, so only
+  // `atproto` is checked here; the granted scope is checked on the token.
+  const ok = has('scopes_supported', 'atproto')
     && has('code_challenge_methods_supported', 'S256')
     && meta.authorization_response_iss_parameter_supported === true
     && meta.require_pushed_authorization_requests === true
     && has('dpop_signing_alg_values_supported', 'ES256')
     && meta.client_id_metadata_document_supported === true
     && has('token_endpoint_auth_methods_supported', 'none')
-    && (meta.response_types_supported === undefined || has('response_types_supported', 'code'));
+    && (meta.response_types_supported === undefined || has('response_types_supported', 'code'))
+    // The code must come back in the fragment, never in a query the Worker would log.
+    && (meta.response_modes_supported === undefined || has('response_modes_supported', 'fragment'));
   if (!ok) throw new OAuthError('as_unsupported');
   const authorization_endpoint = sameOriginEndpoint(meta.authorization_endpoint, issuer);
   const pushed_authorization_request_endpoint = sameOriginEndpoint(meta.pushed_authorization_request_endpoint, issuer);
@@ -153,63 +168,84 @@ export async function pkce() {
   return { verifier, challenge: b64url(await sha256(verifier)) };
 }
 
-/** A fresh P-256 key for one flow, kept compactly as { x, y, d }. */
+/**
+ * A fresh P-256 key for one sign-in: { privateKey, jwk } where the private
+ * key is non-extractable (it can sign, never be exported) and jwk is the
+ * public part for the proof header. IndexedDB keeps a CryptoKey as is.
+ */
 export async function newDpopKey() {
-  const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
-  const { x, y, d } = await crypto.subtle.exportKey('jwk', pair.privateKey);
-  return { jwk: { x, y, d } };
+  const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+  const { x, y } = await crypto.subtle.exportKey('jwk', pair.publicKey);
+  return { privateKey: pair.privateKey, jwk: { kty: 'EC', crv: 'P-256', x, y } };
 }
 
-async function signingKey(jwk) {
-  return crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-}
-
-/** A DPoP proof JWT (RFC 9449) for one request. No `ath`: Siren never calls a resource server. */
-export async function dpopProof({ jwk, htm, htu, nonce, now = Date.now() }) {
+/**
+ * A DPoP proof JWT (RFC 9449) for one request. With `accessToken`, it
+ * carries `ath`, the base64url SHA-256 of the token, as a resource server
+ * (the PDS) requires.
+ */
+export async function dpopProof({ key, htm, htu, nonce, accessToken, now = Date.now() }) {
   const u = new URL(htu);
   u.search = '';
   u.hash = '';
-  const header = { typ: 'dpop+jwt', alg: 'ES256', jwk: { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y } };
-  const payload = { jti: randomToken(16), htm, htu: u.href, iat: Math.floor(now / 1000), ...(nonce ? { nonce } : {}) };
+  const header = { typ: 'dpop+jwt', alg: 'ES256', jwk: { kty: 'EC', crv: 'P-256', x: key.jwk.x, y: key.jwk.y } };
+  const payload = {
+    jti: randomToken(16), htm, htu: u.href, iat: Math.floor(now / 1000),
+    ...(nonce ? { nonce } : {}),
+    ...(accessToken ? { ath: b64url(await sha256(accessToken)) } : {}),
+  };
   const input = `${b64url(enc.encode(JSON.stringify(header)))}.${b64url(enc.encode(JSON.stringify(payload)))}`;
-  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, await signingKey(jwk), enc.encode(input));
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key.privateKey, enc.encode(input));
   return `${input}.${b64url(new Uint8Array(sig))}`;
 }
 
 /**
- * A form POST with a DPoP proof, retried once with a fresh proof when the
- * server asks for a nonce. -> { status, json, nonce (the final response's
- * DPoP-Nonce, or null), latestNonce (the newest one seen) }.
+ * A POST with a DPoP proof, retried once with a fresh proof when the server
+ * asks for a nonce: a form to the authorization server, or JSON to the PDS
+ * with `Authorization: DPoP <token>`. The AS and the PDS keep separate
+ * nonces; the caller passes and keeps each. -> { status, json, nonce (the
+ * newest DPoP-Nonce seen, or the one passed in), responseNonce (the final
+ * response's own, or null) }.
  */
-export async function dpopPost(url, params, { jwk, nonce, fetchImpl = fetch, signal, now = Date.now() } = {}) {
-  const body = new URLSearchParams(params).toString();
+export async function dpopPost(url, { form, json, key, nonce, accessToken, fetchImpl = fetch, signal, now = Date.now() } = {}) {
+  const body = form ? new URLSearchParams(form).toString() : JSON.stringify(json);
   let latest = nonce || null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const proof = await dpopProof({ jwk, htm: 'POST', htu: url, nonce: latest, now });
+    const proof = await dpopProof({ key, htm: 'POST', htu: url, nonce: latest, accessToken, now });
     const res = await safeFetch(url, {
       fetchImpl, method: 'POST', body, signal, maxBytes: OAUTH_BYTES,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json', DPoP: proof },
+      headers: {
+        'Content-Type': form ? 'application/x-www-form-urlencoded' : 'application/json',
+        Accept: 'application/json',
+        DPoP: proof,
+        ...(accessToken ? { Authorization: `DPoP ${accessToken}` } : {}),
+      },
     });
     const got = res.headers.get('DPoP-Nonce') || null;
     if (got && got.length > MAX_NONCE) throw new OAuthError('dpop_nonce');
     if (got) latest = got;
-    const json = parseObject(res.text);
-    const asksNonce = json?.error === 'use_dpop_nonce'
+    const parsed = parseObject(res.text);
+    const asksNonce = parsed?.error === 'use_dpop_nonce'
       || (res.status === 401 && /use_dpop_nonce/.test(res.headers.get('WWW-Authenticate') || ''));
     if ((res.status === 400 || res.status === 401) && asksNonce && got) {
       if (attempt === 0) continue;
       throw new OAuthError('dpop_nonce');
     }
-    return { status: res.status, json, nonce: got, latestNonce: latest };
+    return { status: res.status, json: parsed, nonce: latest, responseNonce: got };
   }
   throw new OAuthError('dpop_nonce');
 }
 
-/** PAR (RFC 9126) with DPoP. -> { requestUri, nonce, expiresIn } or OAuthError('as_refused'). */
-export async function pushAuthorization({ meta, clientId, redirectUri, state, challenge, loginHint, jwk, fetchImpl = fetch, signal, now = Date.now() }) {
+/**
+ * PAR (RFC 9126) with DPoP, asking for the code in the URL fragment so it
+ * never reaches the Worker or its logs. -> { requestUri, nonce } or
+ * OAuthError('as_refused').
+ */
+export async function pushAuthorization({ meta, clientId, redirectUri, state, challenge, loginHint, key, fetchImpl = fetch, signal, now = Date.now() }) {
   const form = {
     client_id: clientId,
     response_type: 'code',
+    response_mode: 'fragment',
     redirect_uri: redirectUri,
     scope: SCOPE,
     state,
@@ -219,14 +255,14 @@ export async function pushAuthorization({ meta, clientId, redirectUri, state, ch
   };
   let out;
   try {
-    out = await dpopPost(meta.pushed_authorization_request_endpoint, form, { jwk, fetchImpl, signal, now });
+    out = await dpopPost(meta.pushed_authorization_request_endpoint, { form, key, fetchImpl, signal, now });
   } catch (err) {
     if (signal?.aborted) throw err;
     throw new OAuthError('as_refused');
   }
   const uri = out.json?.request_uri;
-  if ((out.status !== 201 && out.status !== 200) || typeof uri !== 'string' || !uri || uri.length > 2048 || !out.nonce) throw new OAuthError('as_refused');
-  return { requestUri: uri, nonce: out.nonce, expiresIn: typeof out.json.expires_in === 'number' ? out.json.expires_in : null };
+  if ((out.status !== 201 && out.status !== 200) || typeof uri !== 'string' || !uri || uri.length > 2048 || !out.responseNonce) throw new OAuthError('as_refused');
+  return { requestUri: uri, nonce: out.nonce };
 }
 
 export function authorizeUrl(meta, clientId, requestUri) {
@@ -238,48 +274,85 @@ export function authorizeUrl(meta, clientId, requestUri) {
 
 /**
  * The token request for the code. -> { token, nonce } or OAuthError('token_failed').
- * A refused response that still carries a token (a 200 with no DPoP-Nonce)
- * puts it on the error as `token` and `nonce`, so the caller can revoke it.
+ * A refused response that still carries a token puts it on the error as
+ * `token` and `nonce`, so the caller can revoke it.
  */
-export async function exchangeCode({ tokenEndpoint, code, verifier, clientId, redirectUri, jwk, nonce, fetchImpl = fetch, signal, now = Date.now() }) {
+export async function exchangeCode({ tokenEndpoint, code, verifier, clientId, redirectUri, key, nonce, fetchImpl = fetch, signal, now = Date.now() }) {
   let out;
   try {
-    out = await dpopPost(tokenEndpoint, { grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier, client_id: clientId }, { jwk, nonce, fetchImpl, signal, now });
+    out = await dpopPost(tokenEndpoint, { form: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, code_verifier: verifier, client_id: clientId }, key, nonce, fetchImpl, signal, now });
   } catch {
     throw new OAuthError('token_failed');
   }
-  if (out.status !== 200 || !out.json || !out.nonce) {
+  if (out.status !== 200 || !out.json || !out.responseNonce) {
     const err = new OAuthError('token_failed');
     if (out.json && ['access_token', 'refresh_token'].some((k) => typeof out.json[k] === 'string' && out.json[k])) {
       err.token = out.json;
-      err.nonce = out.latestNonce;
+      err.nonce = out.nonce;
     }
     throw err;
   }
-  return { token: out.json, nonce: out.latestNonce };
-}
-
-/** The token response must be DPoP-bound, carry the atproto scope, and name the bound DID. */
-export function checkTokenResponse(token, expectedDid) {
-  if (String(token?.token_type).toLowerCase() !== 'dpop') throw new OAuthError('token_type');
-  if (typeof token.scope !== 'string' || !token.scope.split(' ').includes(SCOPE)) throw new OAuthError('scope_missing');
-  if (typeof token.sub !== 'string' || !isSupportedDid(token.sub) || token.sub !== expectedDid) throw new OAuthError('account_mismatch');
+  return { token: out.json, nonce: out.nonce };
 }
 
 /**
- * RFC 7009: revoke the refresh token, then the access token, each with a
- * DPoP proof, carrying the nonce forward. Best effort; never throws.
+ * Whether a granted scope string lets Siren create and delete its
+ * endorsement records: a `repo:` permission (atproto.com/specs/permission)
+ * naming the collection (or `*`), whose actions (all three when none is
+ * given) include create and delete. Partial wildcards aren't a thing.
  */
-export async function revokeAll({ revocationEndpoint, token, clientId, jwk, nonce, fetchImpl = fetch, now = Date.now() }) {
+export function grantsEndorse(scope) {
+  if (typeof scope !== 'string' || scope.length > 4096) return false;
+  for (const tok of scope.split(' ')) {
+    let collections;
+    let params;
+    if (tok.startsWith('repo:')) {
+      const rest = tok.slice(5);
+      const q = rest.indexOf('?');
+      collections = [q < 0 ? rest : rest.slice(0, q)];
+      params = new URLSearchParams(q < 0 ? '' : rest.slice(q + 1));
+    } else if (tok.startsWith('repo?')) {
+      params = new URLSearchParams(tok.slice(5));
+      collections = params.getAll('collection');
+    } else {
+      continue;
+    }
+    const actions = params.getAll('action');
+    const acts = actions.length ? actions : ['create', 'update', 'delete'];
+    if (collections.some((c) => c === ENDORSE_NSID || c === '*') && acts.includes('create') && acts.includes('delete')) return true;
+  }
+  return false;
+}
+
+/**
+ * The token response must be DPoP-bound, carry `atproto` and the endorse
+ * permission, and name the bound DID.
+ */
+export function checkTokenResponse(token, expectedDid) {
+  if (String(token?.token_type).toLowerCase() !== 'dpop') throw new OAuthError('token_type');
+  if (typeof token.scope !== 'string' || !token.scope.split(' ').includes('atproto')) throw new OAuthError('scope_missing');
+  if (!grantsEndorse(token.scope)) throw new OAuthError('scope_narrow');
+  if (typeof token.sub !== 'string' || !isSupportedDid(token.sub) || token.sub !== expectedDid) throw new OAuthError('account_mismatch');
+  if (typeof token.access_token !== 'string' || !token.access_token || token.access_token.length > 8192) throw new OAuthError('token_failed');
+}
+
+/**
+ * RFC 7009: revoke the access token (and a refresh token, should a server
+ * issue one unasked) with a DPoP proof, carrying the nonce forward. Best
+ * effort; never throws. -> the newest nonce.
+ */
+export async function revokeTokens({ revocationEndpoint, token, clientId, key, nonce, fetchImpl = fetch, now = Date.now() }) {
   let n = nonce || null;
+  if (!revocationEndpoint) return n;
   for (const hint of ['refresh_token', 'access_token']) {
     const value = token?.[hint];
     if (typeof value !== 'string' || !value) continue;
     try {
-      const out = await dpopPost(revocationEndpoint, { token: value, token_type_hint: hint, client_id: clientId }, { jwk, nonce: n, fetchImpl, now });
-      n = out.latestNonce || n;
+      const out = await dpopPost(revocationEndpoint, { form: { token: value, token_type_hint: hint, client_id: clientId }, key, nonce: n, fetchImpl, now });
+      n = out.nonce || n;
     } catch {
-      // Revocation is best effort: the tokens are discarded either way.
+      // Revocation is best effort: the token is discarded either way.
     }
   }
+  return n;
 }
