@@ -12,7 +12,7 @@
       "built": "2026-11-09"
     }
   ],
-  "stays_current": "Built by code from the committed gap files, never edited by hand. scripts/build-gaps.js and scripts/build-gaps-proposed.js rewrite it after every live or offline build, and their --check fails when it differs from what those files build. Until Jason decides on automation, run node scripts/build-gaps.js --offline and node scripts/build-gaps-proposed.js --offline by hand after the agenda index or a case file changes, and a live build after a catalog or proposal change. Proposed automation, not added: a step after the weekly legislation refresh and the monthly case-file archive job that runs both --offline builds and opens a pull request when a state changes.",
+  "stays_current": "Built by code from the committed gap files, never edited by hand. scripts/build-gaps.js and scripts/build-gaps-proposed.js rewrite it after every live or offline build, and their --check fails when it differs from what those files build. Automated since 2026-11-09 (Jason: \"yes, we should automate the gap refresh\"): every Tuesday refresh-gaps.yml re-measures the catalog and the proposals live; the weekly legislation refresh rebuilds both offline when the agenda index changes, and the monthly case-file archive job does the same in its pull request. scripts/gap-refresh.js sends a rebuild where only measured numbers moved, each within ±25%, and dates straight to main, and anything else (a state change, a gap on or off the board, an id added or removed, a jump beyond ±25%, a failed measure, evidence turning unverified) to a pull request for review. A pull request that changes a catalog, a proposal or their inputs reruns both builds itself, and the CI job check-gaps fails until it does.",
   "counts": {
     "approved": {
       "total": 13,
@@ -243,17 +243,17 @@
           "state": "open",
           "measured": "2026-11-09",
           "shape": {
-            "part": 681,
+            "part": 682,
             "whole": 1437,
             "share_pct": 47,
-            "read": "2026-11-02T19:30:12.391Z"
+            "read": "2026-11-09T19:47:48.378Z"
           },
-          "short": "I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-02.",
+          "short": "I found no street address in the titles of 682 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-09.",
           "evidence": [
             {
               "type": "index",
               "file": "data/norfolk-legislation.json",
-              "read": "2026-11-02T19:30:12.391Z"
+              "read": "2026-11-09T19:47:48.378Z"
             }
           ],
           "questions": [
@@ -261,7 +261,7 @@
               "qid": "q1",
               "text": "Did the Council act on anything that affects my block?",
               "blocks": "part",
-              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-09, so I can't match them to a block."
+              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-09, so I can't match them to a block."
             }
           ],
           "actions": [
@@ -1370,7 +1370,7 @@
             {
               "type": "index",
               "file": "data/norfolk-legislation.json",
-              "read": "2026-11-02T19:30:12.391Z"
+              "read": "2026-11-09T19:47:48.378Z"
             }
           ],
           "questions": [
@@ -1384,7 +1384,7 @@
               "qid": "q2",
               "text": "When during the year was a department's budget changed, and by how much?",
               "blocks": "part",
-              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-02, measured 2026-11-09, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-09."
+              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-09, measured 2026-11-09, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-09."
             }
           ],
           "actions": [

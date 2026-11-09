@@ -95,21 +95,21 @@
       "topic": null,
       "checked_live": "2026-11-06",
       "how_much": {
-        "part": 681,
+        "part": 682,
         "whole": 1437,
-        "read": "2026-11-02T19:30:12.391Z"
+        "read": "2026-11-09T19:47:48.378Z"
       },
       "evidence": [
         {
           "type": "index",
           "file": "data/norfolk-legislation.json",
-          "built": "2026-11-02T19:30:12.391Z",
-          "counted": 681,
+          "built": "2026-11-09T19:47:48.378Z",
+          "counted": 682,
           "of": 1437
         }
       ],
-      "statement": "I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index (built 2026-11-02, meetings 2023-07-11 through 2026-10-22), so I can't match them to a block.",
-      "short": "I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-02.",
+      "statement": "I found no street address in the titles of 682 of 1,437 agenda items (47%) in Siren's agenda index (built 2026-11-09, meetings 2023-07-11 through 2026-10-22), so I can't match them to a block.",
+      "short": "I found no street address in the titles of 682 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-09.",
       "questions": [
         {
           "qid": "q1",
@@ -122,7 +122,7 @@
               "field": "addresses"
             }
           ],
-          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-09, so I can't match them to a block."
+          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-09, so I can't match them to a block."
         }
       ],
       "actions": [

@@ -60,33 +60,108 @@ and commit the output to `eval/`.
 `data/gaps/norfolk.json` is built from stored portal responses plus repo files:
 the case files (`data/cases/*.json`), the legislation index
 (`data/norfolk-legislation.json`) and the Norfolk profile
-(`src/cities/norfolk.js`). A PR that edits any of them, or `src/gaps/`, reruns
+(`src/cities/norfolk.js`). A PR that edits any of them, `src/gaps/` or a
+proposal module reruns
 
 ```bash
 node scripts/build-gaps.js --offline
-npm run check:gaps
+node scripts/build-gaps-proposed.js --offline
+npm run check:gaps && node scripts/build-gaps-proposed.js --check
 ```
 
-and commits `data/gaps` and `docs/gaps-norfolk.md` with the change. When two
-branches touch those inputs, whichever merges second reruns it before merging.
+and commits `data/gaps`, `docs/gaps-norfolk.md`, `docs/gaps-budget-proposed.md`
+and `docs/gaps-inventory.md` with the change. The CI job `check-gaps` fails
+until it does. It runs outside `npm test`, which gates the Workers Builds
+deploy and only skips its replay test, naming the fix, when the gap file
+trails its inputs. When two branches touch those inputs, whichever merges
+second reruns it before merging. A change to a measure needs a live build
+(`node scripts/build-gaps.js`, read-only against the portal).
 
-**The gap build is run by hand** until Jason decides whether to automate it.
-No workflow runs it or checks it: rerun `build-gaps --offline` yourself after
-the weekly legislation refresh commits a new index, after the monthly archive
-PR changes case files, and after any edit to the inputs above. `npm test`,
-which gates the deploy, never fails because the committed gap file trails its
-inputs: its replay test only skips, naming the fix. Review what the rebuild
-changed before committing it, and treat a gap that moves on or off the board,
-or changes state, as a change for review (`docs/gaps.md` §5.4):
+### The gap refresh is automated
+
+Jason decided on 2026-11-09: "yes, we should automate the gap refresh." Three
+workflows keep the gap files current (`docs/gaps.md` §5.4):
+
+- `refresh-gaps.yml`, Tuesdays 10:23 UTC: `verify-cases` read-only, then live
+  `build-gaps` and `build-gaps-proposed`, `npm test` and both `--check` runs,
+  then `scripts/gap-refresh.js`. The build reads each finding's verification
+  from the case files, so the `verify-cases` result is only reported in the
+  summary.
+- `refresh-norfolk.yml`, Mondays: when the legislation index changed, both
+  `--offline` rebuilds and their checks, then `gap-refresh`. The index and the
+  gap files land together, on main or on one branch with a PR. If the gap
+  rebuild fails, the index commits alone and the run fails, with the reason
+  in its summary: rerun the two offline builds above and commit them.
+- `archive-case-sources.yml`, monthly: when case files changed, both
+  `--offline` rebuilds join the case-file PR, with `gap-refresh`'s summary in
+  its body. A failed rebuild leaves them out, and the body says so.
+
+The two refresh jobs share one `concurrency:` group, so they never run at once.
+
+`gap-refresh` compares the gap files before and after (the catalog's built
+file and each proposal set's built records) and decides:
+
+- **Commit to main** when only measured numbers moved, each within ±25% of the
+  number before (25% exactly is within), and dates.
+- **Open a PR** for anything else: a state change, a gap moving on or off the
+  board, an id added or removed, a measured number beyond ±25% (zero to
+  nonzero, or any number to zero, included), a failed measure (on the board
+  with its last good measurement, or off it), evidence turning unverified (a
+  gap off the board for want of it, or a finding gone from a gap's evidence),
+  any other change in `how_much`, code-written text that changed beyond its
+  numbers and dates, or a change to a gap's catalog fields or the file's own.
+- **No commit** when nothing changed.
+
+The measured numbers are listed in `MEASURED_NUMBERS` in `scripts/gap-refresh.js`
+(`part`, `whole`, the series, window, by-status and all-time counts, columns read
+per dataset, the backlog counts and median age, problem-code counts, catalog
+result counts, the count of values read); a test holds every integer in the
+schema's `how_much` to that list or to `NOT_MEASURED` (`policy.line`, compared
+exactly). Dates are every `read`, `window.from`, `published.rows_updated`,
+`backlog.median_created`, `measured`, `last_good` and the span's ends.
+
+#### Handling a gap-refresh pull request
+
+The branch is `bot/gap-refresh-<date>` (weekly) or `bot/legislation-refresh-<date>`
+(index and gap files together). The body is the summary: "Why it needs review"
+lists each reason with its gap and rule, then each file shows what moved per
+gap, then the `verify-cases` signal. Check the reasons against the portal
+(each gap's evidence carries its query URL), then:
+
+- **A jump beyond ±25%**: if the records really moved, merge. If the portal
+  published a partial table, close the PR; next week re-measures.
+- **A state change**: `closing` means a re-measure met the gap's closing test;
+  a steward confirms before it closes (`docs/gaps.md` §12). Merge once checked.
+- **A failed measure**: the portal was down, a column changed, or the text
+  failed its checks; the build output in the run's log names it. On the board
+  the gap keeps its last good measurement with a notice. Fix the measure in
+  `src/gaps/` (a catalog change, for Jason's review) or merge to show the
+  notice; a measure that keeps failing opens a PR every week until it's fixed.
+- **Evidence unverified**: a cited finding is marked unverified, or its last
+  check is more than 30 days old. Usually the monthly archive PR, which renews
+  the checks, is waiting: merge it, and the next refresh brings the gap back.
+  Otherwise fix the finding by case-file PR.
+- **An id, catalog field, wording, shape or file change**: these come from a
+  code or catalog change, or a source whose own description changed. Review
+  them like a catalog change.
+- **`verify-cases` failed**: a finding's quote wasn't found. Fix the finding,
+  or mark it unverified, by case-file PR.
+
+A newer refresh PR rebuilds from main, so it supersedes an older one: close
+the older. Don't edit the generated files on a bot branch; rerun the builds.
+Pushes and PRs made with the workflow's token start no other workflow, CI
+included, so the refresh jobs run the same checks before they commit. Opening
+a PR needs the repository setting "Allow GitHub Actions to create and approve
+pull requests"; without it the branch is pushed and the run fails, naming it.
+
+To see the decision locally (read-only against the portal for a live build):
 
 ```bash
-cp data/gaps/norfolk.json /tmp/gaps-before.json
-node scripts/build-gaps.js --offline
-node scripts/build-gaps.js --same-states /tmp/gaps-before.json
+node scripts/gap-refresh.js snapshot /tmp/gaps-before
+node scripts/build-gaps.js --offline        # or node scripts/build-gaps.js
+node scripts/build-gaps-proposed.js --offline
+node scripts/gap-refresh.js decide --before /tmp/gaps-before
 ```
-
-A live build (`node scripts/build-gaps.js`, read-only against the portal) is
-also by hand, and so are the spec's weekly re-measure and its PR rules.
 
 ### The gap inventory
 
@@ -98,33 +173,9 @@ the board), retired ids and what is not a gap, with counts by state and topic
 and what changed since the build before the last state change. Code builds it
 from the committed gap files (`scripts/gaps-inventory.js`); never edit it by
 hand. Both `build-gaps.js` and `build-gaps-proposed.js` rewrite it after a
-live or offline build, and both fail `--check` when it trails those files. So
-after the inputs above change, run both offline builds:
-
-```bash
-node scripts/build-gaps.js --offline
-node scripts/build-gaps-proposed.js --offline
-node scripts/build-gaps.js --check && node scripts/build-gaps-proposed.js --check
-```
+live or offline build, and both fail `--check` when it trails those files, so
+the refresh workflows above keep it current, and a PR that changes the inputs
+runs both offline builds as shown above.
 
 `scripts/find-gaps.js` records no committed candidate count, so the inventory
 carries none.
-
-**Proposed automation, for Jason to decide** (drafted on the gaps branch and
-taken out of it, since the brief allowed only read-only weekly steps):
-
-1. A `check-gaps` job in `ci.yml`, outside `npm test`, running
-   `npm run check:gaps` on every push and PR. It fails when the committed gap
-   file trails its inputs, without stopping the Workers Builds deploy.
-2. In `refresh-norfolk.yml`, after the index build and only when the index
-   changed: `build-gaps --offline` and `build-gaps-proposed --offline` (which
-   also rebuild the gap inventory), then `--same-states` against the file
-   before it. With no state change, the gap file commits with the index.
-   Otherwise the rebuild is set aside and opened as a PR (the workflow would
-   need `pull-requests: write`). A failed rebuild never stops the index commit.
-3. In `archive-case-sources.yml`, when case files changed: `build-gaps
-   --offline` and `build-gaps-proposed --offline`, with `data/gaps`,
-   `docs/gaps-norfolk.md`, `docs/gaps-budget-proposed.md` and
-   `docs/gaps-inventory.md` added to the archive PR, so the gap file's finding evidence changes beside its sources.
-4. The spec's weekly live re-measure (`refresh-gaps.yml`, `docs/gaps.md`
-   §5.4): numbers within ±25% to main, anything else to a PR. Not drafted.

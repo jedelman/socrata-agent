@@ -205,9 +205,14 @@ generic mode.
   gaps in answers. `scripts/build-gaps.js` writes `data/gaps/norfolk.json`
   (bundled), its trace and `norfolk-streets.json` (Address Information street
   names, used only to refuse addresses in public text); `--offline` recomputes
-  the parts from repo files, `--check` replays and must match (run by
-  `npm test`; until Jason decides on automation, `--offline` is run by hand
-  after the legislation index or case files change, see CONTRIBUTING.md).
+  the parts from repo files, `--check` replays and must match (`npm test`
+  skips its replay when the files trail; the CI job `check-gaps` fails).
+  The refresh is automated (Jason, 2026-11-09): `refresh-gaps.yml`
+  re-measures live weekly, `refresh-norfolk.yml` and the archive job run
+  both `--offline` builds with their inputs, and `scripts/gap-refresh.js`
+  sends numbers within ±25% and dates to main and anything else to a pull
+  request (docs/gaps.md §5.4, CONTRIBUTING.md). A PR that edits the inputs
+  or `src/gaps/` still reruns both `--offline` builds itself.
   `scripts/find-gaps.js` writes gitignored candidates, never committed or
   shipped. `scripts/gaps-inventory.js` builds the running inventory
   (`data/gaps/inventory.json`, `docs/gaps-inventory.md`) from the committed

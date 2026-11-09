@@ -328,7 +328,8 @@ All of these go to `data.norfolk.gov/resource/<id>.json?$query=`.
 | `src/public-text.js` | `publicTextViolations`, `publicTextFlags` |
 | `scripts/build-gaps.js` | `--live` (default): measures, then writes `data/gaps/<city>.json` (bundled), `<city>.trace.json` (not bundled), `<city>-streets.json` (bundled, §6.3) and `docs/gaps-<city>.md`. `--offline`: recomputes only the parts derived from repo files. `--check`: see §5.3. |
 | `scripts/find-gaps.js` | The read-only candidate finder, writing to a gitignored path (§5.5) |
-| `src/gaps/proposed/<city>-<set>.js` · `scripts/build-gaps-proposed.js` | Proposed entries awaiting Jason's approval, in the catalog's entry shape and marked `proposed`. Nothing under `src/` or `worker/` imports them and `build-gaps.js` never reads them (`test/gaps-proposed.test.js`). The script measures them with the catalog's own builder and writes `data/gaps/proposed-<city>-<set>.trace.json` (not bundled) and a review page, e.g. `docs/gaps-budget-proposed.md`; `--check` replays it against the current repo files, and `--offline` rewrites the parts that come from repo files (the agenda index, case-file findings) after they change. |
+| `src/gaps/proposed/<city>-<set>.js` · `scripts/build-gaps-proposed.js` | Proposed entries awaiting Jason's approval, in the catalog's entry shape and marked `proposed`. Nothing under `src/` or `worker/` imports them and `build-gaps.js` never reads them (`test/gaps-proposed.test.js`). The script measures them with the catalog's own builder and writes `data/gaps/proposed-<city>-<set>.trace.json` (not bundled) and a review page, e.g. `docs/gaps-budget-proposed.md`; `--check` replays it against the current repo files, and `--offline` rewrites the parts that come from repo files (the agenda index, case-file findings) after they change; the refresh workflows run both builds (§5.4). |
+| `scripts/gap-refresh.js` | Where a rebuild goes (§5.4): compares the gap files before and after (each catalog's built file, each proposal set's built records) and decides `commit` (only measured numbers within ±25%, and dates), `pr` (anything else) or `none`, with a summary for the commit message or PR body and a machine-readable result. `snapshot` copies the files before a rebuild; `paths` lists what a rebuild writes. The refresh workflows run it. |
 | `scripts/gaps-inventory.js` | The running inventory (Jason, 2026-11-09): `data/gaps/inventory.json` (schema `INVENTORY_FILE`) and `docs/gaps-inventory.md`, every gap Siren knows of and its state, approved and proposed kept apart, with counts by state and topic and what changed. Built from the committed gap files only (each catalog's built file and module, each proposal set's built trace, never a proposal module); `build-gaps.js` and `build-gaps-proposed.js` rewrite it after every live or offline build and check it under `--check`. Every shown string takes the board's checks; a build-written reason that fails the public-text checks is withheld. |
 
 **Topics** (`TOPICS` in `src/gaps/<city>.js`): `trees` (approved 2026-11-06) and `budget` (Jason, 2026-11-09: "Budget should absolutely be a topic"). A topic names its datasets, its catalog search, a placement for every other hit (by the dataset's own description, read in the build, or, for a dataset Siren's rule restricts, by the rule's file:line), and optional `cleared` columns with a reviewer and reason, which a topic-wide `columns_absent` passes when its pattern matches them. The builder checks only the topics its entries name, so a topic no approved entry names adds no request to the catalog build; the proposed budget entries name `budget`, and their build checks it.
@@ -373,8 +374,8 @@ All of these go to `data.norfolk.gov/resource/<id>.json?$query=`.
 7. **Live and offline parts.**
    - Live parts are the Socrata measures.
    - Offline parts are derived from repo files: `index_count` over `data/norfolk-legislation.json`, finding evidence from `data/cases/*.json`, and policy file:line.
-   - `--offline` recomputes only the offline parts. It runs as a step in `refresh-norfolk.yml` (after :16) and in the archive PR job (`archive-case-sources.yml`), so those parts change in the same commit as their inputs.
-8. **`--check`** runs in CI with no network:
+   - `--offline` recomputes only the offline parts. It runs in `refresh-norfolk.yml` after the index build and in the archive PR job (`archive-case-sources.yml`), with `build-gaps-proposed --offline`, so those parts change in the same commit as their inputs (§5.4).
+8. **`--check`** runs in CI with no network (the `check-gaps` job in `ci.yml`, outside `npm test`, with `build-gaps-proposed --check`):
    - it recomputes every offline part from current inputs, and every statement from the stored results;
    - it checks that each stored query URL equals what `Socrata.query` builds today against a fake fetch;
    - it fails on any difference.
@@ -385,11 +386,14 @@ All of these go to `data.norfolk.gov/resource/<id>.json?$query=`.
 - **Failure.**
   - A failed measure keeps `last_good`, with the statement "I couldn't measure this on <date>. I show my last measurement, from <date>."
   - A gap left with no verified evidence goes to `evidence_unverified` and stays off the board.
-- **Weekly `refresh-gaps.yml`**, using the secret at `refresh-norfolk.yml:18`:
-  1. `verify-cases`, read-only (no `--write`). A failure marks that finding unverified for this build.
-  2. `build-gaps`.
-  3. Numbers-only changes within ±25% commit to main, as `refresh-norfolk.yml:19-26` does.
-  4. These open a PR instead, as `archive-case-sources.yml:7-11` does: a state change, a jump beyond ±25%, a failed measure, or evidence turning unverified. The alternative is J8.
+- **Weekly `refresh-gaps.yml`** (Tuesdays 10:23 UTC; automated by Jason's decision of 2026-11-09, J8), using the `SOCRATA_APP_TOKEN` secret, as `refresh-norfolk.yml` does:
+  1. `verify-cases`, read-only (no `--write`). The build reads each finding's verification from the case files and has no input for this run's result, so the result is a signal only: it goes in the summary, loudly when a finding failed, and changes neither the build nor the decision. A finding that fails stays cited until a steward marks it unverified, or until its last check is more than `STALE_DAYS` old.
+  2. Live `build-gaps` and `build-gaps-proposed`, then `npm test` and both `--check` runs.
+  3. `scripts/gap-refresh.js` decides. When only measured numbers moved, each within ±25% of the number before (25% exactly is within), and dates, the rebuild commits to main, as `refresh-norfolk.yml` does.
+  4. These open a PR instead (`bot/gap-refresh-<date>`, with the summary as its body), as `archive-case-sources.yml` does: a state change, a gap moving on or off the board, an id added or removed, a jump beyond ±25% (zero to nonzero, or any number to zero, included), a failed measure (on the board with `last_good`, or off it), or evidence turning unverified (a gap off the board for want of it, or a finding gone from a gap's evidence). So does any other change in a gap: in `how_much` beyond the measured numbers, in code-written text beyond its numbers and dates, or in its catalog fields, and any change to the file's own fields.
+  5. When nothing changed, nothing is committed.
+- **Measured numbers** (`MEASURED_NUMBERS` in `scripts/gap-refresh.js`): `part`, `whole`, `no_range`, `no_diameter`; each series point's `part` and `whole` (keyed by `k`); `window.part`, `window.whole` and each `window.also` count; each `by_status` point's `part` and `whole` (keyed by the statuses as recorded); `all_time.part` and `all_time.whole`; the columns read per dataset in `columns_absent` and `siblings`; `backlog.whole`, `backlog.with_end` and `backlog.median_days`; each problem code's `n` (keyed by value); each catalog search's `result_set_size` (keyed by the search); `values.count`. A test holds every integer in the schema's `how_much` to that list or to `NOT_MEASURED` (`policy.line`, compared exactly). Dates move freely: every `read`, `window.from`, `published.rows_updated`, `backlog.median_created`, `measured`, `last_good` and the span's ends. A series point or key added or removed is a change for review. The meetings list isn't a gap.
+- **With its inputs.** When the legislation index changes, `refresh-norfolk.yml` rebuilds both offline and decides the same way: the index and the gap files commit together to main, or go on one branch with a PR, so main never carries a new index with a stale gap file. If the gap rebuild fails, the index commits alone and the run fails, saying so in its summary. When case files change, the archive job adds both offline rebuilds to its PR with the summary; a failed rebuild never stops that PR.
 - **Concurrency.** `refresh-norfolk.yml` and `refresh-gaps.yml` share one `concurrency:` group.
 - **Staleness.** The board marks a measure older than 14 days "due for a re-check".
 
@@ -1010,7 +1014,7 @@ All run under `node --test` with fakes (fake KV, fake fetch, fake Rate Limiting,
    - The exact median, including the OFFSET path. A gap whose text fails is isolated from the others.
    - Deterministic output with no `ms`.
    - `--check` equality, and `--offline` against drifting inputs.
-   - The refresh split, as a dry run.
+   - The refresh split, as a dry run (`test/gap-refresh.test.js`).
 3. **Text.**
    - Every template, label, title, chip, header, unmeasured line, FOIA frame, absence line and bot string, rendered with large and small fixtures, returns `[]` from all applicable checks, `publicTextViolations` included.
    - The §1.12 sentences, rev 1's contract sentence and an undated number all fail.
@@ -1150,7 +1154,7 @@ The numbering follows rev 1. J28 to J31 are new, and P4 to P6 are facts only Jas
 - **J5** Place on questions: citywide.
 - **J6** Gaps in answers. This waits for J25.
 - **J7** Storage, decided by P4.
-- **J8** Refresh: the split in §5.4.
+- **J8** Refresh: the split in §5.4. Decided 2026-11-09: "yes, we should automate the gap refresh" (live in `refresh-gaps.yml`, `refresh-norfolk.yml` and `archive-case-sources.yml`).
 - **J9** Steward and steward label.
 - **J10** Appeals: once P6 exists.
 - **J11** Reason codes in the log: yes, source-request decisions included.
