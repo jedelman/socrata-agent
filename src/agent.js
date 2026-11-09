@@ -92,6 +92,9 @@ export function budgetNote({ limit, refused }) {
  *   { type: 'rewrite', step, violations }  the voice rewrite call about to go
  *   { type: 'refusal', step }  the model declined that step: its output,
  *       thinking included, is discarded
+ *   { type: 'fallback', step }  (with thinkingEvents) the model declined
+ *       partway and another model continues the step: the thinking sent so far
+ *       in that step came from the model that declined
  * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget },
  * plus { gaps, unanswered, fallback } when gaps are on.
  */
@@ -152,8 +155,9 @@ export async function ask({
   let step = -1;
   let nextStep = 0;
   const onThinking = thinkingEvents ? (text) => onEvent({ type: 'thinking', step, text }) : undefined;
+  const onFallback = thinkingEvents ? () => onEvent({ type: 'fallback', step }) : undefined;
   const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking })
+    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking, onFallback })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
   // Fetches one API call can take, and one complete() at worst (a cut-off
   // call's second try, each with its retry).

@@ -169,6 +169,7 @@ try {
         if (e.type === 'tool') console.error(`  → ${e.name} ${JSON.stringify(e.args)}`);
         if (e.type === 'rewrite') console.error(`  → voice check: rewriting (${e.violations.length} "there is")`);
         if (e.type === 'refusal' && values.thinking) console.error('  → the model declined; disregard its notes from that step');
+        if (e.type === 'fallback') console.error('  → the model declined partway and another model continues; disregard the notes above from this step');
       },
     });
     endThinking();

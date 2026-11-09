@@ -6,10 +6,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ask } from '../src/agent.js';
-import { afterFallback } from '../src/providers/anthropic.js';
+import { afterFallback, anthropicProvider } from '../src/providers/anthropic.js';
 import { getCity } from '../src/cities/index.js';
 import Anthropic from '@anthropic-ai/sdk';
-import { claudeResponse } from './fake-claude.js';
+import { claudeResponse, sseEvents } from './fake-claude.js';
 
 const KEY = 'sk-ant-test-secret-key-do-not-leak';
 const norfolk = getCity('norfolk');
@@ -165,7 +165,16 @@ test('a mid-stream server-side fallback: the declined partial is not run or echo
   ];
   const first = msg([...declined, fallback, ...served], 'tool_use', { ...usage(), iterations }, { model: 'claude-sonnet-5-5' });
   const { fetchImpl, requests } = mockApi([first, msg([{ type: 'text', text: 'I found no tree datasets.' }], 'end_turn', usage(), { model: 'claude-sonnet-5' })]);
-  const out = await ask({ question: 'trees?', city: norfolk, apiKey: KEY, model: 'claude-sonnet-5-5', fetchImpl, thinkingEvents: true });
+  const events = [];
+  const out = await ask({ question: 'trees?', city: norfolk, apiKey: KEY, model: 'claude-sonnet-5-5', fetchImpl, thinkingEvents: true, onEvent: (e) => events.push(e) });
+  // The declined model's notes are withdrawn when the fallback block opens,
+  // and the fallback model's notes for the same step follow.
+  const seq = events.filter((e) => e.type === 'thinking' || e.type === 'fallback');
+  const cut = seq.findIndex((e) => e.type === 'fallback');
+  assert.deepEqual(seq[cut], { type: 'fallback', step: 0 });
+  assert.equal(seq.slice(0, cut).map((e) => e.text).join(''), 'Declined model reasoning.');
+  assert.equal(seq.slice(cut + 1).map((e) => e.text).join(''), 'Fallback reasoning.');
+  assert.equal(seq.filter((e) => e.type === 'fallback').length, 1);
 
   assert.equal(requests[0].body.fallbacks, 'default');
   assert.match(requests[0].headers.get('anthropic-beta') || '', /server-side-fallback-2026-07-01/);
@@ -224,8 +233,9 @@ test('a stream that fails partway is not retried, never carries the key, and its
   );
   assert.equal(requests.length, 1, 'one fetch: the SDK retries only before a response arrives');
   assert.ok(events.some((e) => e.type === 'thinking'), 'the notes had started');
-  // message_start reported 1000 input tokens (and 1 output token so far).
-  assert.ok(Math.abs(spent - (1000 * 0.1 + 1 * 0.5) / 1e6) < 1e-12, `${spent}`);
+  // message_start reported 1000 input tokens; four 5-character thinking deltas
+  // had streamed (20 characters), estimated at one token per three: 7.
+  assert.ok(Math.abs(spent - (1000 * 0.1 + 7 * 0.5) / 1e6) < 1e-12, `${spent}`);
 });
 
 test('a stream that just stops (no message_stop) is an error, not a short answer', async () => {
@@ -281,4 +291,69 @@ test('OpenRouter models: no thinking events, the request unchanged', async () =>
   assert.equal(events.length, 0);
   assert.equal(bodies[0].stream, undefined);
   assert.equal(bodies[0].thinking, undefined);
+});
+
+test('a fallback that opens the message (nothing shown before it) withdraws nothing', async () => {
+  const fallback = { type: 'fallback', from: { model: 'claude-sonnet-5-5' }, to: { model: 'claude-sonnet-5' }, trigger: { type: 'refusal', category: 'cyber' } };
+  const reply = msg([fallback, { type: 'thinking', thinking: 'Served from the start.', signature: 's' }, { type: 'text', text: 'I found it.' }], 'end_turn', usage(), { model: 'claude-sonnet-5' });
+  const { fetchImpl } = mockApi([reply]);
+  const events = [];
+  const out = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-sonnet-5-5', fetchImpl, thinkingEvents: true, onEvent: (e) => events.push(e) });
+  assert.equal(out.answer, 'I found it.');
+  assert.equal(events.filter((e) => e.type === 'fallback').length, 0);
+  assert.equal(events.filter((e) => e.type === 'thinking').map((e) => e.text).join(''), 'Served from the start.');
+});
+
+test('a cut-off call whose retry fails: both attempts are spent before the error goes up', async () => {
+  const cut = msg([{ type: 'text', text: 'I found' }], 'max_tokens');
+  const retry = msg([{ type: 'text', text: 'I found it eventually.' }], 'end_turn');
+  const { fetchImpl, requests } = mockApi([cut, retry], [{}, { errorAfter: 3 }]);
+  let spent = 0;
+  await assert.rejects(
+    ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl, onCost: (usd) => { spent += usd; } }),
+    { message: /^Anthropic error: / }
+  );
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].body.max_tokens, 16000);
+  // The cut-off call in full, then the retry's input and its first 5
+  // characters (2 tokens at one per three).
+  const expected = HAIKU_CALL + (1000 * 0.1 + 2 * 0.5) / 1e6;
+  assert.ok(Math.abs(spent - expected) < 1e-12, `${spent} vs ${expected}`);
+});
+
+test('a stream that stalls is stopped at the deadline, priced from what streamed, and fails honestly', async () => {
+  const encoder = new TextEncoder();
+  const reply = msg([{ type: 'thinking', thinking: 'A long thought that never finishes.', signature: 's' }], 'end_turn');
+  const events = sseEvents(reply).slice(0, 4); // message_start, the block's start, two 5-character deltas
+  let aborted = false;
+  const fetchImpl = async (url, init = {}) => {
+    let sent = 0;
+    const body = new ReadableStream({
+      start(c) {
+        init.signal?.addEventListener('abort', () => {
+          aborted = true;
+          c.error(new DOMException('The operation was aborted.', 'AbortError'));
+        });
+      },
+      pull(c) {
+        if (sent < events.length) c.enqueue(encoder.encode(`event: ${events[sent].type}\ndata: ${JSON.stringify(events[sent++])}\n\n`));
+        else return new Promise(() => {}); // the body stalls: no more bytes, no end
+      },
+    });
+    return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+  };
+  const notes = [];
+  const llm = anthropicProvider({ apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl, onThinking: (t) => notes.push(t), streamDeadlineMs: 1000 });
+  llm.init({ systemPrompt: 's', history: [], question: 'q', toolDefs: [] });
+  const started = Date.now();
+  await assert.rejects(llm.complete(), (err) => {
+    assert.match(err.message, /^Anthropic error: the response did not finish within 1 s and was stopped$/);
+    assert.ok(!err.message.includes(KEY));
+    // 1000 input tokens, and 10 characters of thinking had streamed: 4 tokens.
+    assert.ok(Math.abs(err.cost - (1000 * 0.1 + 4 * 0.5) / 1e6) < 1e-12, String(err.cost));
+    return true;
+  });
+  assert.ok(aborted, 'the request was aborted, not left open');
+  assert.ok(Date.now() - started < 5000);
+  assert.equal(notes.join(''), 'A lon' + 'g tho');
 });

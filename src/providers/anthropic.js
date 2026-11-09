@@ -52,6 +52,10 @@ export const CLAUDE_MAX_TOKENS = 8000;
 const MAX_RETRIES = 1;
 // The output allowance for a call cut off at max_tokens, asked once more.
 const RETRY_MAX_TOKENS = 16000;
+// The SDK's timeout covers the wait for response headers, not a streamed body
+// that stalls. Past this, a call is aborted, priced from what it had streamed
+// and fails honestly. 16,000 output tokens at a slow 60 a second is 4.5 minutes.
+export const STREAM_DEADLINE_MS = 5 * 60_000;
 
 // Only these request headers leave the Worker. The SDK also reads settings
 // from the environment (ANTHROPIC_CUSTOM_HEADERS, for one) that could add
@@ -117,15 +121,35 @@ export function afterFallback(content) {
 }
 
 /**
+ * Usage for a call that failed partway: what message_start reported (the
+ * input), with output estimated from what had streamed, one token per three
+ * characters, since the API reports output only at the end. The summary of
+ * thinking is shorter than the thinking billed, so this can still be under.
+ */
+export function partialUsage(message) {
+  if (!message?.usage) return null;
+  let chars = 0;
+  for (const b of message.content || []) {
+    if (b.type === 'text') chars += (b.text || '').length;
+    else if (b.type === 'thinking') chars += (b.thinking || '').length;
+    else if (b.type === 'tool_use') chars += JSON.stringify(b.input ?? {}).length;
+  }
+  return { ...message.usage, output_tokens: Math.max(message.usage.output_tokens || 0, Math.ceil(chars / 3)) };
+}
+
+/**
  * A provider for src/agent.js. Holds the conversation in Messages API shape.
  * `complete()` returns { text, calls: [{ id, name, args }], cost, refusal }.
  * `onThinking(text)`, when given, gets each summarized-thinking delta as it
  * streams, and asks the API for display "summarized" (display changes what
  * comes back, not what is billed). It sees thinking only: never the answer,
  * the trace or the conversation, and the thinking blocks still go back to the
- * API unchanged with the rest of the turn.
+ * API unchanged with the rest of the turn. `onFallback()`, with onThinking, is
+ * called when a server-side fallback starts mid-stream after thinking was
+ * forwarded: the declining model's notes are to be withdrawn.
+ * `streamDeadlineMs` bounds each call (default STREAM_DEADLINE_MS).
  */
-export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking }) {
+export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking, onFallback, streamDeadlineMs = STREAM_DEADLINE_MS }) {
   if (!PRICES[model]) throw new Error(`No price on file for ${model}. Add it to PRICES in src/providers/anthropic.js before using it.`);
   // The base URL is pinned: without it the SDK reads ANTHROPIC_BASE_URL from
   // the environment, and inside a Claude Code session (or behind someone
@@ -163,7 +187,14 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
       // A response cut off at max_tokens may end in a half-written tool call:
       // never run it. Retry once with more room, then give up honestly.
       if (retryTruncated && out.truncated && max_tokens < RETRY_MAX_TOKENS) {
-        const retry = await call(allowTools, RETRY_MAX_TOKENS);
+        let retry;
+        try {
+          retry = await call(allowTools, RETRY_MAX_TOKENS);
+        } catch (err) {
+          // The cut-off attempt was paid for too: it goes up with the error.
+          err.cost = (Number(err.cost) || 0) + out.cost;
+          throw err;
+        }
         retry.cost += out.cost;
         out = retry;
       }
@@ -207,25 +238,48 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
       ? client.beta.messages.stream({ ...params, betas: [FALLBACK_BETA], fallbacks: 'default' })
       : client.messages.stream(params);
     if (onThinking) {
+      // Listeners that throw would end the stream; the notes are never worth that.
+      let forwarded = false;
       stream.on('thinking', (delta) => {
-        // A listener that throws would end the stream; the notes are never worth that.
         try {
-          if (delta) onThinking(delta);
+          if (!delta) return;
+          forwarded = true;
+          onThinking(delta);
         } catch {}
       });
+      // A `fallback` block mid-stream: the model that wrote the notes so far
+      // declined. (One that opens the message carries no notes before it.)
+      if (onFallback) {
+        stream.on('streamEvent', (event) => {
+          try {
+            if (event.type === 'content_block_start' && event.content_block?.type === 'fallback' && forwarded) {
+              forwarded = false;
+              onFallback();
+            }
+          } catch {}
+        });
+      }
     }
+    let stalled = false;
+    const deadline = setTimeout(() => {
+      stalled = true;
+      stream.abort();
+    }, streamDeadlineMs);
     let res;
     try {
       res = await stream.finalMessage();
     } catch (err) {
       // Report status and message only; never the request (it carries the key).
       const status = err instanceof Anthropic.APIError ? err.status : undefined;
-      const failed = new Error(`Anthropic ${status ?? 'error'}: ${String(err?.message || err).slice(0, 300)}`);
-      // A stream that failed partway: the input the API said it read (its
-      // message_start usage) is priced, so a failed call still counts toward
-      // the daily budget. Nothing is retried here.
-      failed.cost = priceUsage(stream.currentMessage?.usage, model);
+      const why = stalled ? `the response did not finish within ${Math.round(streamDeadlineMs / 1000)} s and was stopped` : String(err?.message || err).slice(0, 300);
+      const failed = new Error(`Anthropic ${status ?? 'error'}: ${why}`);
+      // A stream that failed or stalled partway: priced from what it had
+      // streamed (partialUsage), so a failed call still counts toward the
+      // daily budget. Nothing is retried here.
+      failed.cost = priceUsage(partialUsage(stream.currentMessage), model);
       throw failed;
+    } finally {
+      clearTimeout(deadline);
     }
     const cost = priceUsage(res.usage, model);
     // A refusal can come mid-stream, after partial output: discard all of it.
