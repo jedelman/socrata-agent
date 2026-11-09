@@ -15,6 +15,7 @@ import { worldClaimViolations, GAP_REWRITE_ADDENDUM } from './gaps/kinds.js';
 import { matchGaps, gapItem, citeCatalog, classifyRefusal, refilterUnanswered, absenceFor, gapsMarkdown } from './gaps/answer.js';
 import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
+import { requestBudget } from './request-budget.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 const RESULT_CHARS = 16000;
@@ -31,15 +32,40 @@ export const keyNameFor = (model) => (providerOf(model) === 'anthropic' ? 'ANTHR
 export const apiKeyFromEnv = (model, env = {}) =>
   providerOf(model) === 'anthropic' ? env.SIREN_ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY : env.OPENROUTER_API_KEY;
 
-export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [] }) {
+// Every client a tool can reach the network through gets the answer's
+// counting fetch (src/request-budget.js), never `fetchImpl` itself. Without a
+// `budget`, the count still runs, with no limit. Tools see only a read-only
+// view of the count (`ctx.requests`), never the counter: its model lane is
+// never refused and goes around the trace.
+export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins = [], budget = requestBudget({ fetchImpl }) }) {
   const trace = new Trace();
   const resources = new Resources();
-  const socrata = new Socrata({ city, trace, resources, appToken, fetchImpl });
-  const iqm2 = city.meetings?.kind === 'iqm2' ? new Iqm2({ base: city.meetings.iqm2, trace, resources, fetchImpl }) : null;
+  const socrata = new Socrata({ city, trace, resources, appToken, fetchImpl: budget.tool });
+  const iqm2 = city.meetings?.kind === 'iqm2' ? new Iqm2({ base: city.meetings.iqm2, trace, resources, fetchImpl: budget.tool }) : null;
   for (const c of city.contacts || []) resources.addContact({ ...c, source: 'city profile' });
   for (const l of city.links || []) resources.addLink(l);
-  const http = tracedHttp(trace, fetchImpl);
-  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, suggestions: [] };
+  const http = tracedHttp(trace, budget.tool);
+  const requests = Object.freeze({
+    get used() {
+      return budget.used;
+    },
+    summary: () => budget.summary(),
+  });
+  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, requests, suggestions: [] };
+}
+
+// What the model is told, and what the person reads, when an answer's
+// request budget runs out. Code-written, in the agent's voice.
+export const BUDGET_TOOL_NOTE =
+  "Some of this tool's requests were not sent: this answer's outbound request budget is used up. This result holds what came back before that; the requests not sent are marked refused in the trace.";
+export const BUDGET_STOP_NOTE =
+  "This answer's outbound request budget is used up, so no more tools can run. Answer now from what you found, and say plainly what you could not check.";
+export function budgetNote({ limit, refused }) {
+  const cap = limit == null ? 'outbound request limit' : `limit of ${limit} outbound requests`;
+  const skipped = refused
+    ? ` The ${refused === 1 ? 'request' : `${refused} requests`} I didn't send ${refused === 1 ? 'is' : 'are'} marked "refused" in the trace.`
+    : '';
+  return `I stopped at this answer's ${cap} and answered from what I had found.${skipped}`;
 }
 
 /**
@@ -52,8 +78,11 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
  * `gaps` (off by default) is { data, streets?, absenceLines? }: a built gap
  * file (data/gaps/<city>.json) and options (docs/gaps.md §8). With gaps off,
  * every output is byte-identical to a build without gaps.
- * Returns { answer, trace, resources, voice, cost, model, steps }, plus
- * { gaps, unanswered, fallback } when gaps are on.
+ * `subrequestBudget` caps the outbound requests this answer may make, model
+ * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
+ * requests stop short of it, keeping enough for the final answer.
+ * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget },
+ * plus { gaps, unanswered, fallback } when gaps are on.
  */
 export async function ask({
   question,
@@ -70,6 +99,7 @@ export async function ask({
   fetchImpl,
   referer,
   plugins = [],
+  subrequestBudget,
   onEvent = () => {},
   onCost = () => {},
   gaps = null,
@@ -77,7 +107,9 @@ export async function ask({
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // A bad setting must never make the tool loop unbounded.
   maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
-  const ctx = createContext({ city, indexes, appToken, fetchImpl, plugins });
+  // One counter for every fetch this answer makes: tools and model alike.
+  const budget = requestBudget({ limit: subrequestBudget, fetchImpl });
+  const ctx = createContext({ city, indexes, appToken, plugins, budget });
   const gapsOn = Boolean(gaps?.data);
   const today = new Date().toISOString().slice(0, 10);
   if (gapsOn) {
@@ -105,8 +137,15 @@ export async function ask({
   // Tool results from this question, returned so a conversation can keep them.
   const toolResults = [];
   const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl })
-    : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl, referer });
+    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model })
+    : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
+  // Fetches one API call can take, and one complete() at worst (a cut-off
+  // call's second try, each with its retry).
+  const perCall = llm.fetchesPerCall || 1;
+  const perComplete = llm.fetchesPerComplete || perCall;
+  // Tool requests stop while enough is left for the model calls that finish
+  // the answer: the final answer at its worst, and one voice rewrite call.
+  budget.setReserve(perComplete + perCall);
   llm.init({
     systemPrompt: gapsOn ? systemPrompt(city, today, { gaps: true }) : systemPrompt(city, today),
     history,
@@ -118,13 +157,18 @@ export async function ask({
   let steps = 0;
   let refusal = null;
   let fallback = false;
+  // Set when the request budget ended the tool loop.
+  let budgetStopped = false;
   const spend = (usd) => {
     cost += usd;
     onCost(usd);
   };
 
   for (;;) {
-    const lastStep = steps >= maxSteps;
+    // Tools are offered only while this call, a tool request after it and the
+    // reserve all fit. Otherwise the model answers now, with tools off.
+    if (!budget.roomForTools(perComplete)) budgetStopped = true;
+    const lastStep = steps >= maxSteps || budgetStopped;
     const out = await llm.complete({ allowTools: !lastStep });
     spend(out.cost);
     if (out.refusal) {
@@ -139,7 +183,9 @@ export async function ask({
         fallback = true;
         answer = out.truncated
           ? 'I ran out of room before I could finish. The queries I ran are in the trace below.'
-          : lastStep
+          : budgetStopped
+            ? "I reached this answer's request limit before I could answer. The queries I ran are in the trace below."
+            : lastStep
             ? 'I ran out of steps before I could answer. The queries I ran are in the trace below.'
             : "I couldn't put an answer together. The queries I ran are in the trace below.";
       }
@@ -153,6 +199,7 @@ export async function ask({
       let isError = false;
       let value;
       const mark = ctx.trace.steps.length;
+      const refusedBefore = budget.refused;
       if (gapsOn) {
         ctx.batchCalls = out.calls.slice(i + 1).map((c) => ({ name: c.name, args: c.args }));
         ctx.toolResults = toolResults;
@@ -161,39 +208,58 @@ export async function ask({
         if (call.error) throw new Error(call.error);
         onEvent({ type: 'tool', name: call.name, args: call.args });
         value = await runTool(ctx, call.name, call.args);
-        content = JSON.stringify(value);
+        // The tool returns what it has; code adds the note, whatever the tool,
+        // ahead of the result so a long result cut to size still carries it.
+        content = JSON.stringify(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE, result: value } : value);
       } catch (err) {
         isError = true;
-        content = JSON.stringify({ error: String(err?.message || err) });
+        content = JSON.stringify({ ...(budget.refused > refusedBefore ? { request_budget: BUDGET_TOOL_NOTE } : {}), error: String(err?.message || err) });
         if (gapsOn) {
           ctx.attempted.push({ name: call.name, ok: false, ...(classifyRefusal(ctx.socrata, err?.message || err) || {}) });
           for (const s of ctx.trace.steps.slice(mark)) ctx.erroredSteps.add(s);
         }
       }
       if (gapsOn && !isError) {
-        ctx.attempted.push({ name: call.name, ok: true });
-        ctx.toolValues.push({ name: call.name, value });
-        absenceFor(ctx, call.name, value, gapDay);
+        if (budget.refused > refusedBefore) {
+          // A result the request budget cut short counts for gaps as an
+          // errored call does: none of its steps, no value, no absence line,
+          // so a budget stop never makes a gap touch or bite.
+          ctx.attempted.push({ name: call.name, ok: false, budget: true });
+          for (const s of ctx.trace.steps.slice(mark)) ctx.erroredSteps.add(s);
+        } else {
+          ctx.attempted.push({ name: call.name, ok: true });
+          ctx.toolValues.push({ name: call.name, value });
+          absenceFor(ctx, call.name, value, gapDay);
+        }
       }
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
-      if (!isError) toolResults.push({ name: call.name, args: call.args, content });
+      // A result the budget cut short isn't kept for later turns: a follow-up
+      // runs the tool again under its own budget.
+      if (!isError && budget.refused === refusedBefore) toolResults.push({ name: call.name, args: call.args, content });
     }
-    llm.appendToolResults(results, steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null);
+    llm.appendToolResults(
+      results,
+      !budget.roomForTools(perComplete) ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null
+    );
   }
 
-  // Voice check: one rewrite, then report honestly if it still fails. With
-  // gaps on, world claims and predictions are caught in the same rewrite.
+  // Voice check: one rewrite, then report honestly if it still fails. The
+  // rewrite is one API call (no second try when cut off), sent only if it fits
+  // in what is left of the budget; otherwise the check fails honestly.
+  // With gaps on, world claims and predictions are caught in the same rewrite.
   const check = gapsOn ? (a) => [...voiceViolations(a), ...worldClaimViolations(a)] : voiceViolations;
   let violations = refusal ? [] : check(answer);
   let rewritten = false;
-  if (violations.length) {
+  let rewriteSkipped = false;
+  if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
+  else if (violations.length) {
     onEvent({ type: 'rewrite', violations });
     llm.appendAssistant();
     llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
-    const out = await llm.complete({ allowTools: false });
+    const out = await llm.complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
-    if (out.text && !out.refusal) {
+    if (out.text && !out.refusal && !out.truncated) {
       answer = out.text;
       rewritten = true;
       violations = check(answer);
@@ -211,16 +277,21 @@ export async function ask({
     gapOut = { shown: m.shown.map((x) => gapItem(x, ctx)), more: m.more, measured: gaps.data.built, noted: unanswered.length > 0 };
   }
 
+  const used = budget.summary();
+  const reached = budgetStopped || used.refused > 0;
   return {
     answer,
     trace: ctx.trace.toJSON(),
     resources: ctx.resources.toJSON(),
-    voice: { ok: violations.length === 0, rewritten, violations },
+    voice: { ok: violations.length === 0, rewritten, violations, ...(rewriteSkipped ? { rewriteSkipped } : {}) },
     cost,
     model,
     steps,
     toolResults,
     suggestions: ctx.suggestions,
+    // For the answer record: how many outbound requests this answer made, and
+    // in plain words when its budget ended the search.
+    requestBudget: { ...used, reached, ...(reached ? { note: budgetNote(used) } : {}) },
     ...(refusal ? { refusal } : {}),
     ...(gapsOn ? { gaps: gapOut, unanswered, fallback } : {}),
     markdown: {

@@ -32,7 +32,8 @@
     "build:gaps": "node scripts/build-gaps.js",
     "check:gaps": "node scripts/build-gaps.js --check",
     "build:gaps:proposed": "node scripts/build-gaps-proposed.js",
-    "find:gaps": "node scripts/find-gaps.js"
+    "find:gaps": "node scripts/find-gaps.js",
+    "ingest": "node scripts/ingest-document.js"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"

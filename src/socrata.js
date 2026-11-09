@@ -15,6 +15,9 @@
 //   suppressedRows    a predicate whose rows no level ever sees (Siren's own
 //                     first pipeline stage drops them; see suppressFirst)
 // Filtered views of a dataset are refused below core: query the parent.
+
+import { networkFetch } from './request-budget.js';
+
 export const ACCESS = Object.freeze({ GENERIC: 'generic', PLUGIN: 'plugin', CORE: 'core' });
 
 const MAX_LIMIT = 500;
@@ -210,7 +213,8 @@ export class Socrata {
     this.trace = trace;
     this.resources = resources;
     this.appToken = appToken;
-    this.fetch = fetchImpl || globalThis.fetch.bind(globalThis);
+    // On an answer this is the answer's counting fetch (src/request-budget.js).
+    this.fetch = fetchImpl || networkFetch;
     this.names = new Map();
   }
 

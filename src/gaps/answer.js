@@ -70,9 +70,11 @@ export function turnFacts(ctx, toolResults = [], extraCalls = []) {
     .map((c) => (c.name === 'query_dataset' ? { ok: true, dataset: c.args?.dataset_id, soql: String(c.args?.soql || '') } : { ok: true, dataset: c.args?.dataset_id, tool: 'describe dataset' }));
   const pendingRefused = generic.map((c) => pendingRefusal(ctx, c.args?.dataset_id)).filter(Boolean);
   const extraTools = extraCalls.map((c) => (typeof c === 'string' ? c : c?.name)).filter(Boolean);
-  // A step counts only when it succeeded inside a call that succeeded.
+  // A step counts only when it succeeded inside a call that succeeded. A step
+  // the request budget refused never counts (src/request-budget.js), nor does
+  // any step of a call the budget cut short (the agent marks those errored).
   const errored = ctx.erroredSteps || new Set();
-  const steps = [...ctx.trace.steps.filter((s) => s.ok && !errored.has(s)), ...pending];
+  const steps = [...ctx.trace.steps.filter((s) => s.ok && !s.refused && !errored.has(s)), ...pending];
   const attempted = ctx.attempted || [];
   return {
     steps,

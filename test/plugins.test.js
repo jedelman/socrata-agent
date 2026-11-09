@@ -7,7 +7,7 @@ import { toolsFor } from '../src/tools.js';
 import { getCity } from '../src/cities/index.js';
 import { systemPrompt } from '../src/prompt.js';
 import water, { tractGeoid, leagueKey, km, TIDE_GAUGES } from '../plugins/water-on-my-block.js';
-import trees, { summarize } from '../plugins/trees-on-my-block.js';
+import trees, { summarize, trunkSizes } from '../plugins/trees-on-my-block.js';
 import litter, { median, perMeter } from '../plugins/litter-on-my-street.js';
 import sponge from '../deployments/sponge-city-norfolk.config.js';
 import { verifyAccess, resetAccessCache } from '../worker/access.js';
@@ -166,7 +166,8 @@ function respondTreesLitter(url) {
   if (url.includes('/resource/cmvv-agyb')) {
     if (q.includes('GROUP BY civic_league')) return [{ civic_league: 'Colonial Place/ Riverview', n: '2100' }];
     if (q.includes('GROUP BY common_name')) return [{ common_name: 'Crapemyrtle', n: '12' }, { common_name: 'Willow Oak', n: '2' }];
-    if (q.includes('GROUP BY r')) return [{ r: '6" to 12"', n: '5' }, { n: '9' }];
+    // Shaped like the live answer for this circle on 2026-11-06: a tree carries a range or a diameter, rarely both.
+    if (q.includes('GROUP BY r, d')) return [{ d: '0.0', n: '3' }, { d: '17.0', n: '2' }, { d: '-1.0', n: '1' }, { r: '6" to 12"', n: '5' }, { r: '0" to 6"', d: '4.0', n: '1' }, { n: '2' }];
     return [{ n: '93993' }];
   }
   if (url.includes('/resource/iz5u-2wb3')) return q.includes('GROUP BY category') ? [{ category: 'smoking', n: '50' }, { category: 'drink', n: '50' }] : [{ object: 'cigarettebutt', n: '47' }, { object: 'bottle', n: '53' }];
@@ -182,7 +183,13 @@ function respondTreesLitter(url) {
 test('trees_on_my_block passes conformance and never counts private trees', async () => {
   const { result, requests } = await checkPlugin(trees, { city: norfolk, args: { address: '111 Pennsylvania Ave' }, respond: respondTreesLitter });
   assert.equal(result.near_you.city_trees, 14);
-  assert.equal(result.near_you.no_size_recorded, 9);
+  assert.equal(result.near_you.no_size_recorded, 6, 'empty, 0 and -1 diameters with no range');
+  assert.equal(result.near_you.no_diameter_recorded, 11);
+  assert.deepEqual(result.near_you.trunk_diameter, { trees: 3, min: 4, median: 17, max: 17 });
+  assert.deepEqual(result.near_you.trunk_diameter_range, [{ range: '0" to 6"', count: 1 }, { range: '6" to 12"', count: 5 }]);
+  assert.ok(requests.map(decodeURIComponent).some((u) => /trunk_diameter AS d/.test(u) && /GROUP BY r, d/.test(u)));
+  assert.ok(result.about_the_data.some((n) => /0 or less is counted as unrecorded/.test(n) && /6,918/.test(n)));
+  assert.ok(!result.about_the_data.some((n) => /most trees have no trunk size/.test(n)));
   assert.equal(result.civic_league.civic_league_matched, 'Colonial Place/ Riverview');
   assert.equal(result.civic_league.removals_per_planting, 5);
   assert.equal(result.civic_league.city_trees_in_inventory, 2100);
@@ -190,6 +197,28 @@ test('trees_on_my_block passes conformance and never counts private trees', asyn
   assert.ok(result.work_orders_cover.years > 6);
   for (const u of requests.filter((x) => x.includes('/resource/cmvv-agyb'))) assert.match(decodeURIComponent(u), /common_name != 'PRIVATE TREES'/);
   assert.ok(result.about_the_data.some((n) => /re-inventory/.test(n)));
+});
+
+test('trunk sizes read the diameter too, and count 0 or less as unrecorded', () => {
+  const s = trunkSizes([
+    { r: '12" to 18"', n: '2' },
+    { r: '6" to 12"', d: '0.0', n: '1' },
+    { d: '10.0', n: '1' },
+    { d: '20', n: '3' },
+    { d: '0.0', n: '4' },
+    { d: '-1.0', n: '1' },
+    { d: '', n: '1' },
+    { n: '5' },
+  ]);
+  assert.deepEqual(s.trunk_diameter_range, [{ range: '6" to 12"', count: 1 }, { range: '12" to 18"', count: 2 }]);
+  assert.deepEqual(s.trunk_diameter, { trees: 4, min: 10, median: 20, max: 20 });
+  assert.equal(s.no_diameter_recorded, 14);
+  assert.equal(s.no_size_recorded, 11, 'a range alone is a size; 0, -1, empty and missing diameters are not');
+  assert.equal(trunkSizes([{ d: '4', n: '1' }, { d: '9', n: '1' }]).trunk_diameter.median, 6.5);
+  const none = trunkSizes([{ d: '0.0', n: '2' }]);
+  assert.equal(none.trunk_diameter, null);
+  assert.equal(none.no_size_recorded, 2);
+  assert.deepEqual(trunkSizes([]), { trunk_diameter_range: [], trunk_diameter: null, no_diameter_recorded: 0, no_size_recorded: 0 });
 });
 
 test('tree summary ratios', () => {
@@ -252,6 +281,7 @@ test('the_record serves only checked findings, and puts every source in the trac
 });
 
 import caseFile from '../plugins/case-file.js';
+import parcelInventory, { SERVICES, cleanAttributes, identifyUrl } from '../plugins/parcel-inventory.js';
 
 test('case_file serves a record with no address, including the rules', async () => {
   const { result, trace } = await checkPlugin(caseFile, { city: norfolk, args: { topic: 'norfolk-trees' }, respond: () => [] });
@@ -271,4 +301,74 @@ test('the case verifier fails on a missing quote, and on a source unreachable to
   assert.equal(judge({ unreachable: true, checked: '2026-11-01', now }), 'warn', 'blocked from here, verified recently');
   assert.equal(judge({ unreachable: true, checked: '2026-09-01', now }), 'fail', `over ${STALE_DAYS} days`);
   assert.equal(judge({ unreachable: true, now }), 'fail', 'never verified');
+});
+
+// Fakes shaped like the live identify answers on 2026-11-07 (1300 Colley Ave).
+function respondParcel(url) {
+  if (url.includes('/resource/ere7-kake'))
+    return [{ full_address: '1300 COLLEY AVENUE', gpin: '1428629504', house_number: '1300', full_street_name: 'COLLEY AVENUE', street_name: 'COLLEY', ward_district: '2', parcel_centroid_latitude: '36.86666037', parcel_centroid_longitude: '-76.29843391', census_tract_number: '37', civic_league: 'Ghent Neighborhood League' }];
+  const svc = url.match(/OpenData\/([A-Za-z_]+)\/MapServer\/identify/)?.[1];
+  const R = {
+    Planning: [
+      { layerName: 'Zoning', attributes: { OBJECTID: '1', ZONE: 'C-C', last_edited_user: 'MSTRALE', 'Shape.STArea()': '1' } },
+      { layerName: 'Zoning Overlays', attributes: { NAME: 'Colley Avenue Pedestrian Commercial Overlay', URL: 'Null' } },
+      { layerName: 'Future Land Use', attributes: { LANDUSE: 'Commercial' } },
+    ],
+    Maps: [
+      { layerName: 'Wards', attributes: { WARD: '2', WARD_REP: 'Courtney Doyle' } },
+      { layerName: 'Civic Leagues', attributes: { LEAGUE: 'Ghent Neighborhood League', PRESIDENT: 'A Private Person', PRES_ADDRE: 'P.O. Box 1', E_MAIL: 'someone@example.org', MTG_FREQUE: '3rd Wednesday' } },
+    ],
+    Environmental: [{ layerName: 'FIRM', attributes: { FLD_ZONE: '0.2 PCT ANNUAL CHANCE FLOOD HAZARD', SFHA_TF: 'F' } }],
+    Public_Safety: [{ layerName: 'Police Precincts', attributes: { PRECINCT: '1' } }],
+    Parcels: [{ layerName: 'Parcels', attributes: { GPIN: '1428629504', TAX_ACCT: '08881900' } }],
+  };
+  if (svc === 'RPOS') return { error: { message: 'down' } };
+  if (svc) return { results: R[svc] || [] };
+  throw new Error(`unexpected request ${url}`);
+}
+
+test('parcel_inventory passes conformance and inventories every layer in one call per service', async () => {
+  const { result, trace, resources, requests } = await checkPlugin(parcelInventory, { city: norfolk, args: { address: '1300 Colley Ave' }, respond: respondParcel });
+  assert.equal(requests.filter((u) => u.includes('/MapServer/identify')).length, SERVICES.length);
+  assert.equal(result.layers.Planning.find((l) => l.layer === 'Zoning').ZONE, 'C-C');
+  assert.equal(result.layers.Parcels[0].GPIN, '1428629504');
+  assert.match(result.layers.RPOS.error, /down/);
+  assert.ok(trace.some((s) => /map layers at parcel centroid/.test(s.tool)));
+  assert.ok(resources.links.some((l) => /Zoning Ordinance/.test(l.title)));
+});
+
+test('parcel_inventory withholds people, editors and bookkeeping, and keeps elected officials', async () => {
+  const { result } = await checkPlugin(parcelInventory, { city: norfolk, args: { address: '1300 Colley Ave' }, respond: respondParcel });
+  const text = JSON.stringify(result.layers);
+  assert.doesNotMatch(text, /A Private Person|P\.O\. Box 1|someone@example|MSTRALE|STArea|OBJECTID|"Null"/);
+  assert.match(text, /Courtney Doyle/);
+  assert.match(text, /3rd Wednesday/);
+  assert.deepEqual(result.withheld_fields, ['Civic Leagues: E_MAIL', 'Civic Leagues: PRESIDENT', 'Civic Leagues: PRES_ADDRE']);
+});
+
+test('parcel_inventory field rules work on map aliases too', () => {
+  const { attributes, dropped } = cleanAttributes({ 'President Address': 'x', 'President Email': 'y', President: 'z', 'Meeting Time': '6:00 pm', 'Owner Name': 'q', 'Sector Color': 'BLUE' });
+  assert.deepEqual(Object.keys(attributes), ['Meeting Time', 'Sector Color']);
+  assert.equal(dropped.length, 4);
+  assert.match(decodeURIComponent(identifyUrl('Planning', -76.298, 36.866)), /OpenData\/Planning\/MapServer\/identify\?geometry=-76.298,36.866/);
+});
+
+// Built and merged is not the same as served: everything in data/cases/ and
+// plugins/ has to reach Siren.
+test('every case file is served by case_file, and every plugin is in Siren', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const { CASES } = await import('../plugins/case-file.js');
+  const { default: siren } = await import('../deployments/siren.config.js');
+  const caseDir = new URL('../data/cases/', import.meta.url);
+  for (const f of readdirSync(caseDir).filter((f) => f.endsWith('.json'))) {
+    const { id } = JSON.parse(readFileSync(new URL(f, caseDir), 'utf8'));
+    assert.ok(CASES[id], `data/cases/${f} (${id}) is not in plugins/case-file.js CASES`);
+  }
+  const served = new Set(siren.plugins.map((p) => p.name));
+  const pluginDir = new URL('../plugins/', import.meta.url);
+  for (const f of readdirSync(pluginDir).filter((f) => f.endsWith('.js'))) {
+    const mod = await import(new URL(f, pluginDir));
+    if (typeof mod.default?.run !== 'function') continue; // a helper module, not a plugin
+    assert.ok(served.has(mod.default.name), `plugins/${f} (${mod.default.name}) is not in deployments/siren.config.js`);
+  }
 });

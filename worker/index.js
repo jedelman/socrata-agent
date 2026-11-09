@@ -4,7 +4,8 @@
 //   - or, behind Cloudflare Access, per person (verified email) per day
 //                                          PER_USER_DAILY     default 40
 //   - for everyone per day, in dollars     DAILY_BUDGET_USD   default 2
-//   - per question: length, history, tool steps, output tokens
+//   - per question: length, history, tool steps, output tokens, and
+//     outbound requests (SUBREQUEST_BUDGET, default 45)
 // Limits are counted in KV (binding LIMITS). KV is eventually consistent, so a
 // burst can overshoot by a few requests; set an OpenRouter key limit as the
 // hard ceiling.
@@ -20,7 +21,7 @@ import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
-import { setting, visitorId, spentToday, recordSpend } from './limits.js';
+import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, raiseResponse, publicRequests, allRequests, decide, reviewNote } from './requests.js';
@@ -28,7 +29,7 @@ import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
-import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
+import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 
 // Street names per city, used only to refuse addresses in text that could go
 // public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
@@ -194,12 +195,8 @@ async function handleAsk(req, env, ctx) {
       appToken: env.SOCRATA_APP_TOKEN,
       model,
       effort: env.EFFORT || undefined,
-      maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
-      // Claude models think before answering, and thinking counts toward the
-      // allowance, so they get their own: MAX_TOKENS_CLAUDE.
-      maxTokens: providerOf(model) === 'anthropic'
-        ? setting(env.MAX_TOKENS_CLAUDE, 8000, { min: 1000, max: 16000 })
-        : setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
+      // Steps, outbound requests and tokens per answer (worker/limits.js).
+      ...askLimits(env, providerOf(model)),
       referer: new URL(req.url).origin,
       onCost: (usd) => {
         cost += usd;
@@ -208,7 +205,7 @@ async function handleAsk(req, env, ctx) {
     });
     const { toolResults, ...answer } = out;
     if (conversationId) {
-      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults }, { days: env.CONVERSATION_DAYS })
+      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
         .catch((err) => console.error('saving the conversation failed', err));
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
@@ -384,7 +381,7 @@ async function handleConversations(req, env, path) {
   if (req.method === 'GET' && path === '/api/conversation') {
     const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
     if (!conv) return json({ error: 'That conversation is gone (they expire) or was never yours.' }, 404, headers);
-    return json({ city: conv.city, turns: conv.turns.map((t) => ({ question: t.question, answer: t.answer, at: t.at })) }, 200, headers);
+    return json({ city: conv.city, turns: conv.turns.map(turnView) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/conversations/delete') {
     const body = await readJson(req);

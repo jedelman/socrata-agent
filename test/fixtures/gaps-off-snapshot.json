@@ -285,6 +285,14 @@
    }
   ],
   "suggestions": [],
+  "requestBudget": {
+   "limit": null,
+   "used": 5,
+   "tools": 2,
+   "model": 3,
+   "refused": 0,
+   "reached": false
+  },
   "markdown": {
    "trace": "1. **check dataset name** · `qzfe-wj25`\n   ok · 0 ms · [source](https://data.norfolk.gov/api/views/qzfe-wj25.json)\n2. **query** · `qzfe-wj25`\n   `SELECT count(*) AS n WHERE area = 'Forestry' LIMIT 100`\n   1 row · 0 ms · [source](https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20LIMIT%20100)",
    "resources": "**Datasets**\n- Work Orders (`qzfe-wj25`): [page](https://data.norfolk.gov/d/qzfe-wj25) · [download CSV](https://data.norfolk.gov/api/views/qzfe-wj25/rows.csv?accessType=DOWNLOAD) · [API docs](https://dev.socrata.com/foundry/data.norfolk.gov/qzfe-wj25)\n**Contacts**\n- City services (Norfolk Cares): (757) 664-6510 · [site](https://www.mynorfolk.org) · weekdays 8 a.m.–4 p.m.; MyNorfolk app or site after hours\n- City Clerk (to speak at Council): <ccouncil@norfolk.gov> · (757) 664-4253 · register by 3 p.m. the day of the meeting\n**Go further**\n- [Norfolk open data portal](https://data.norfolk.gov)\n- [Norfolk meetings, agendas and legislation (iqm2)](https://norfolkcityva.iqm2.com/Citizens/Default.aspx)\n- [How to write SoQL queries](https://dev.socrata.com/docs/queries/)"

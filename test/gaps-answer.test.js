@@ -14,7 +14,8 @@ import { CASES } from '../src/gaps/cases.js';
 import { treesKey } from './fixtures/trees-live.js';
 import { gapsOffScenario } from './fixtures/gaps-off-scenario.js';
 import { replayedGaps, PINNED_CASES } from './fixtures/gaps-pinned.js';
-import { saveTurn } from '../worker/conversations.js';
+import { saveTurn, answerRecord } from '../worker/conversations.js';
+import { definePlugin } from '../src/plugins.js';
 import trees from '../plugins/trees-on-my-block.js';
 import { theRecord } from '../plugins/cases.js';
 
@@ -68,13 +69,13 @@ test('gaps off: the prompt, tools and answer keys are unchanged, and note_unansw
   const a = await ask({ question: 'q', city: norfolk, apiKey: 'k', ...fakeWorld(script) });
   const b = await ask({ question: 'q', city: norfolk, apiKey: 'k', gaps: null, ...fakeWorld(script) });
   assert.deepEqual(strip(a), strip(b));
-  assert.deepEqual(Object.keys(a).sort(), ['answer', 'cost', 'markdown', 'model', 'resources', 'steps', 'suggestions', 'toolResults', 'trace', 'voice']);
+  assert.deepEqual(Object.keys(a).sort(), ['answer', 'cost', 'markdown', 'model', 'requestBudget', 'resources', 'steps', 'suggestions', 'toolResults', 'trace', 'voice']);
   assert.ok(a.trace.every((s) => !/gap catalog/.test(s.tool)));
   const ctx = createContext({ city: norfolk });
   assert.equal('gapStatements' in pluginContext(ctx), false);
 });
 
-test('gaps off: the prompt, core tools and a scripted answer are byte-identical to the merge base before gaps', async () => {
+test('gaps off: the prompt, core tools and a scripted answer are byte-identical to the code without gaps', async () => {
   const now = await gapsOffScenario({ ask, toolsFor, systemPrompt, getCity });
   assert.deepEqual(now, JSON.parse(read('test/fixtures/gaps-off-snapshot.json')));
 });
@@ -407,4 +408,69 @@ test('an answer built only from block_report attaches no Forestry gap', async ()
   const forestry = out.gaps.shown.filter((g) => /work-orders|tree-inventory|utility/.test(g.gap));
   assert.deepEqual(forestry, []);
   assert.deepEqual(out.gaps.shown.map((g) => g.gap), ['norfolk.legislation.no-address']);
+});
+
+// Request budget (src/request-budget.js) and gaps: a step the budget refused,
+// or any step of a call the budget cut short, counts for gaps as an errored
+// step does, so a budget stop never makes a gap touch or bite.
+const STREET_SOQL = "SELECT count(*) AS n WHERE area = 'Forestry' AND street = 'BOLLING' AND primary_task_description = 'Removal'";
+
+test('gaps on: a query the request budget refused attaches nothing', async () => {
+  const { fetchImpl } = fakeWorld([{ tools: [['query_dataset', { dataset_id: 'qzfe-wj25', soql: STREET_SOQL }]] }, { text: 'I found nothing I could read.' }]);
+  // 4: the first model call, the dataset-name check, then the query is refused (2 kept for the model).
+  const out = await ask({ question: 'Was a tree removed on Bolling?', city: norfolk, apiKey: 'k', fetchImpl, gaps: GAPS, subrequestBudget: 4 });
+  assert.ok(out.trace.some((s) => s.refused && String(s.soql).includes("street = 'BOLLING'")), 'the refused query is in the trace');
+  assert.equal(out.requestBudget.reached, true);
+  assert.deepEqual(out.gaps.shown, []);
+  assert.equal(out.gaps.more, 0);
+});
+
+test('gaps on: a call the request budget cut short does not make a gap bite, though its first query ran', async () => {
+  // A tool that keeps what it got: the second query is refused and caught.
+  const twoQueries = definePlugin({
+    name: 'two_forestry_queries',
+    cities: ['norfolk'],
+    description: 'test only',
+    async run(ctx) {
+      const first = await ctx.socrata.query('qzfe-wj25', STREET_SOQL, { tool: 'street removals' });
+      let second;
+      try {
+        second = await ctx.socrata.query('qzfe-wj25', "SELECT count(*) AS n WHERE area = 'Forestry'", { tool: 'all forestry' });
+      } catch (err) {
+        second = { error: String(err.message) };
+      }
+      return { first, second };
+    },
+  });
+  const script = [{ tools: [['two_forestry_queries', {}]] }, { text: 'I found 1 Forestry removal on that street.' }];
+  // Control: with no budget the street query bites the no-street gap.
+  const free = fakeWorld(script);
+  const open = await ask({ question: 'Was a tree removed on Bolling?', city: norfolk, apiKey: 'k', fetchImpl: free.fetchImpl, plugins: [twoQueries], gaps: GAPS });
+  assert.equal(open.gaps.shown.find((g) => g.gap === NO_STREET)?.bit, true);
+  // With a budget that refuses the second query, the call was cut short.
+  const tight = fakeWorld(script);
+  const out = await ask({ question: 'Was a tree removed on Bolling?', city: norfolk, apiKey: 'k', fetchImpl: tight.fetchImpl, plugins: [twoQueries], gaps: GAPS, subrequestBudget: 5 });
+  assert.ok(out.trace.some((s) => s.ok && String(s.soql).includes("street = 'BOLLING'")), 'the first query ran');
+  assert.ok(out.trace.some((s) => s.refused), 'a later request was refused');
+  assert.equal(out.requestBudget.reached, true);
+  assert.deepEqual(out.gaps.shown, []);
+  assert.equal(out.gaps.more, 0);
+  assert.deepEqual(out.unanswered, []);
+});
+
+test('turnFacts: a refused step never counts, whatever its other fields say', () => {
+  const g = liveGaps(DATA).find((x) => x.id === NO_STREET);
+  const step = { n: 1, ok: true, dataset: 'qzfe-wj25', soql: STREET_SOQL, tool: 'query' };
+  const facts = (steps) => turnFacts({ trace: { steps }, erroredSteps: new Set(), attempted: [] });
+  assert.equal(touches(g, facts([step])), true);
+  assert.equal(touches(g, facts([{ ...step, refused: true }])), false);
+});
+
+test('answerRecord keeps only {gap, statement, measured} per gap shown, and no gaps key with gaps off', () => {
+  const shown = [{ gap: NO_STREET, public_id: 'x', kind: 'k', label: 'L', title: 'T', statement: 'S', measured: '2026-11-06', state: 'live', bit: true, named: false, absence: 'I found no Forestry work orders on BOLLING' }];
+  const rec = answerRecord({ trace: [], gaps: { shown, more: 4, measured: '2026-11-06', noted: true } });
+  assert.deepEqual(rec.gaps, [{ gap: NO_STREET, statement: 'S', measured: '2026-11-06' }]);
+  assert.doesNotMatch(JSON.stringify(rec), /BOLLING/);
+  assert.equal('gaps' in answerRecord({ trace: [] }), false);
+  assert.equal('gaps' in answerRecord({ trace: [], gaps: { shown: [], more: 0 } }), false);
 });

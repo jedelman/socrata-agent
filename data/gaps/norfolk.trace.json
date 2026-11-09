@@ -1,6 +1,7 @@
 {
   "city": "norfolk",
   "built": "2026-11-06",
+  "rebuilt": "2026-11-09",
   "note": "Every request the gap build made, in order, and each response as read (trimmed to the fields the build uses). build-gaps --check replays these.",
   "steps": [
     {

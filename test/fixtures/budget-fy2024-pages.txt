@@ -1,0 +1,50 @@
+Pages from the FY 2024 Department Budgets PDF (norfolk.gov DocumentCenter 78214, PDF pages 1-2, 390-392), pdftotext -layout, some lines cut. Pages are separated by form feeds; this first line is not a page.
+Legislative
+This page intentionally left blank
+FIRE-RESCUE
+Program:                   Office of Fire-Rescue Chief
+Adjustments to Baseline Service Level Cost:
+                                                                                                   FY 2024     FTE
+Remove one-time funds to support Equity and Diversity event                                       (15,000)    0.0
+  Technical adjustment to remove one-time funds to support the Equity and Diversity Conference hosted by Norfolk
+  Fire-Rescue in October of 2022.
+Total                                                                                                     260,599      0.0
+
+Adopted Service Level Changes:
+                                                                                                       FY 2024       FTE
+Provide funds for fitness and wellness program                                                            7,000     0.0
+Total                                                                                                      13,266      0.0
+
+
+
+
+554 Fire-Rescue
+FIRE-RESCUE
+Program:                    Office of Fire-Rescue Chief
+Requested but Not Funded Service Level Changes:
+                                                                                                           FY 2024      FTE
+Provide funds for PulsePoint                                                                                 8,000      0.0
+  Provide funds to continue PulsePoint service. PulsePoint is a mobile application citizens download for real-time
+  notification if they are in the vicinity of a cardiac arrest, alerting them of the need for CPR simultaneous with the
+  dispatch of advanced medical care.
+Total                                                                                                      8,000       0.0
+
+
+Expenditure Summary
+                                                                        FY 2023 Adopted                  FY 2024 Adopted
+Personnel Services                                                           1,631,920                        1,775,027
+Total                                                                        1,914,055                        2,187,920
+                                                                                                         Fire-Rescue 555
+FIRE-RESCUE
+Program:                     Community Risk Reduction
+The Community Risk Reduction program consists of inspections of commercial establishments, nursing homes,
+hospitals, schools, as well as industrial/hazardous materials sites within the City of Norfolk. Inspections are conducted
+
+Performance Measures
+                                                              FY 2021       FY 2022   FY 2023          FY 2024
+                                                               Actual        Actual Projection        Adopted      Metric
+Number of fire code inspections                                 3,488        1,202      2,000           3,000       2,500
+Total number of fire investigations                                438         360            400            400      400
+Total number of fires                                              824         896            850            900      850
+556 Fire-Rescue
+

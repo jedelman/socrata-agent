@@ -1,6 +1,7 @@
 {
   "city": "norfolk",
   "built": "2026-11-06",
+  "rebuilt": "2026-11-09",
   "note": "Built by scripts/build-gaps.js. Every number comes from a dated query, metadata or a bundled file; the requests are in the trace file beside this one.",
   "gaps": [
     {
@@ -38,15 +39,15 @@
           "line": 38
         }
       ],
-      "statement": "I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-06, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”",
-      "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-06.",
+      "statement": "I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-09, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”",
+      "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "7f0de0bc0086",
           "text": "How many tree requests reached MyNorfolk 311 in my ward last year?",
           "blocks": "all",
-          "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-06."
+          "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09."
         }
       ],
       "actions": [
@@ -66,7 +67,7 @@
         "finding": true
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-09",
       "hand_off": []
     },
     {
@@ -121,7 +122,7 @@
               "field": "addresses"
             }
           ],
-          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-06, so I can't match them to a block."
+          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-09, so I can't match them to a block."
         }
       ],
       "actions": [
@@ -148,7 +149,7 @@
         "over": "whole"
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-09",
       "hand_off": []
     },
     {
@@ -977,11 +978,11 @@
             "prefix": "in decay. How often do you trim? ",
             "suffix": ". Unusual circumstances, such as storms"
           },
-          "checked": "2026-11-04",
+          "checked": "2026-11-06",
           "reverified": null
         }
       ],
-      "statement": "I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-04).",
+      "statement": "I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-06).",
       "short": "I found no dataset in Norfolk's catalog for the search “line clearance” and no Forestry problem code naming utility lines, searched 2026-11-06.",
       "questions": [
         {
@@ -1501,18 +1502,18 @@
           "case": "norfolk-trees",
           "id": "contract-removal",
           "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets",
-          "quote": "The contract is used to remove decaying or diseased trees",
+          "quote": "Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.",
           "selector": {
             "type": "TextQuoteSelector",
-            "exact": "The contract is used to remove decaying or diseased trees",
-            "prefix": "city's tree care maintenance contract. ",
-            "suffix": " throughout the city. A corresponding"
+            "exact": "Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.",
+            "prefix": "maintenance contract 250,000 0.0 ",
+            "suffix": " A corresponding adjustment can be"
           },
-          "checked": "2026-11-04",
+          "checked": "2026-11-06",
           "reverified": null
         }
       ],
-      "statement": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “The contract is used to remove decaying or diseased trees” (quote checked 2026-11-04).",
+      "statement": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.” (quote checked 2026-11-06).",
       "short": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
       "questions": [
         {
@@ -2517,7 +2518,7 @@
           "text": "All tree-care contracts and invoices from FY2020 to now, with trees pruned, removed and stump-ground per invoice."
         },
         "leave_out": "Please leave out the names and addresses of residents who made requests.",
-        "frame": "Siren drafted this from public records on 2026-11-06. Siren doesn't send requests; you do."
+        "frame": "Siren drafted this from public records on 2026-11-09. Siren doesn't send requests; you do."
       }
     },
     {
@@ -2552,7 +2553,7 @@
           }
         ],
         "leave_out": "Please leave out the names and addresses of residents who made requests.",
-        "frame": "Siren drafted this from public records on 2026-11-06. Siren doesn't send requests; you do."
+        "frame": "Siren drafted this from public records on 2026-11-09. Siren doesn't send requests; you do."
       }
     },
     {
