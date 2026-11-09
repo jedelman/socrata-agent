@@ -10,6 +10,14 @@ name: Archive case-file sources
 # "Allow GitHub Actions to create and approve pull requests"; without it the
 # branch is still pushed and the step says so.
 #
+# When the case files changed, it also rebuilds the gap files from them
+# offline (docs/gaps.md §5.3 item 7: build-gaps and build-gaps-proposed
+# --offline, which rewrite the gap inventory too) and adds data/gaps,
+# docs/gaps-norfolk.md, docs/gaps-budget-proposed.md and docs/gaps-inventory.md
+# to the same pull request, with scripts/gap-refresh.js's summary in its body,
+# so the gap files' finding evidence changes beside its sources. A failed
+# rebuild never stops the case-file pull request: the body says so instead.
+#
 # On pushes to a working branch that touch the verifier, it runs once as a
 # read-only probe (no writes, no saves, no PR), to show whether snapshots can be
 # looked up and read from GitHub's runners.
@@ -23,6 +31,10 @@ on:
 permissions:
   contents: write
   pull-requests: write
+env:
+  # Every path a gap rebuild writes (node scripts/gap-refresh.js paths;
+  # test/workflows.test.js holds this to it).
+  GAP_PATHS: data/gaps docs/gaps-budget-proposed.md docs/gaps-inventory.md docs/gaps-norfolk.md
 jobs:
   archive:
     runs-on: ubuntu-latest
@@ -37,6 +49,9 @@ jobs:
       - name: Probe (read-only)
         if: github.event_name == 'push'
         run: node scripts/verify-cases.js --archive --no-save
+      - name: Snapshot the gap files
+        if: github.event_name != 'push'
+        run: node scripts/gap-refresh.js snapshot "$RUNNER_TEMP/gaps-before"
       - name: Verify, archive and record
         if: github.event_name != 'push'
         run: |
@@ -49,12 +64,34 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if git diff --quiet -- data/cases; then echo "No changes to case files."; exit 0; fi
+          # Rebuild the gap files from the new case files. A failure here
+          # never stops the case-file pull request.
+          set +e
+          {
+            node scripts/build-gaps.js --offline &&
+            node scripts/build-gaps-proposed.js --offline &&
+            npm run check:gaps &&
+            node scripts/build-gaps-proposed.js --check &&
+            node scripts/gap-refresh.js decide --before "$RUNNER_TEMP/gaps-before" \
+              --context "Offline rebuild from the case files in this pull request (archive-case-sources.yml, run $GITHUB_RUN_ID)." \
+              --summary "$RUNNER_TEMP/gap-refresh.md" --result "$RUNNER_TEMP/gap-refresh.json"
+          } > "$RUNNER_TEMP/gaps.log" 2>&1
+          gaps_status=$?
+          set -e
+          cat "$RUNNER_TEMP/gaps.log"
           branch="bot/case-evidence-$(date -u +%Y-%m-%d)"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -c "$branch"
-          git add data/cases
-          git commit -m "Case files: archive snapshots and evidence, $(date -u +%Y-%m-%d)"
+          if [ "$gaps_status" = 0 ]; then
+            git add -- data/cases $GAP_PATHS
+            git commit -m "Case files: archive snapshots and evidence, $(date -u +%Y-%m-%d)" -m "With the gap files rebuilt offline from them."
+          else
+            git checkout HEAD -- $GAP_PATHS
+            git add data/cases
+            git commit -m "Case files: archive snapshots and evidence, $(date -u +%Y-%m-%d)" -m "The gap rebuild failed; the gap files are not in this commit."
+            echo "::warning title=Gap rebuild failed::The case-file pull request goes ahead without the gap files; its body says how to rebuild them."
+          fi
           git push -u origin "$branch"
           {
             echo "Monthly run of \`scripts/verify-cases.js --write --archive\` (exit ${VERIFY_EXIT})."
@@ -66,6 +103,25 @@ jobs:
             echo '```'
             grep -E '^(  (ok|\?\?|XX|-) |[a-z].*|Wayback|The Wayback|All quotes|[0-9]+ finding)' verify.log | tail -80
             echo '```'
+            echo
+            if [ "$gaps_status" = 0 ]; then
+              echo '**Gap files.** Rebuilt offline from these case files (`build-gaps --offline`, `build-gaps-proposed --offline`, both `--check` runs passing): `data/gaps`, `docs/gaps-norfolk.md`, `docs/gaps-budget-proposed.md` and `docs/gaps-inventory.md` are in this pull request. What changed in them, from `scripts/gap-refresh.js` (it decides `pr` for any change that needs review; everything here is reviewed with this pull request either way):'
+              echo
+              cat "$RUNNER_TEMP/gap-refresh.md"
+            else
+              echo '**Gap files: the offline rebuild failed**, so they are not in this pull request, and once it merges they trail these case files (the CI job check-gaps fails) until someone pushes the rebuild to this branch or to main:'
+              echo
+              echo '```'
+              echo 'node scripts/build-gaps.js --offline && node scripts/build-gaps-proposed.js --offline'
+              echo 'npm run check:gaps && node scripts/build-gaps-proposed.js --check'
+              echo '```'
+              echo
+              echo "The rebuild's output:"
+              echo
+              echo '```'
+              tail -n 40 "$RUNNER_TEMP/gaps.log"
+              echo '```'
+            fi
           } > body.md
           gh pr create --base main --head "$branch" --title "Case files: archive snapshots and evidence ($(date -u +%Y-%m-%d))" --body-file body.md \
             || echo "Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."

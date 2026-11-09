@@ -100,11 +100,12 @@ generic mode.
   A request accepted once carries `was_public`; if it leaves the list,
   `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
-  `source-request` issues, run nightly by a Claude Code routine (`--plan`;
-  its prompt is copied in `docs/request-sync-routine.md`). Withdrawn entries
+  `source-request` issues, run nightly by a Claude Code routine
+  (`--plan --with-withdrawn`; its prompt is copied in
+  `docs/request-sync-routine.md`). Withdrawn entries
   (`create_if_missing: false`, `state_reason: not_planned`) appear only with
-  `--plan --with-withdrawn`, which the routine may pass only once its prompt
-  honors both fields. When applying directly it also closes any marked
+  `--plan --with-withdrawn`, which the routine passes (its prompt honors both
+  fields since 2026-11-09). When applying directly it also closes any marked
   issue in neither list (only if the feed carries `withdrawn`; closing all of
   them, or more than three, needs `--close-unlisted`). GitHub keeps old titles
   and bodies; only deleting an issue by hand removes them.
@@ -205,9 +206,14 @@ generic mode.
   gaps in answers. `scripts/build-gaps.js` writes `data/gaps/norfolk.json`
   (bundled), its trace and `norfolk-streets.json` (Address Information street
   names, used only to refuse addresses in public text); `--offline` recomputes
-  the parts from repo files, `--check` replays and must match (run by
-  `npm test`; until Jason decides on automation, `--offline` is run by hand
-  after the legislation index or case files change, see CONTRIBUTING.md).
+  the parts from repo files, `--check` replays and must match (`npm test`
+  skips its replay when the files trail; the CI job `check-gaps` fails).
+  The refresh is automated (Jason, 2026-11-09): `refresh-gaps.yml`
+  re-measures live weekly, `refresh-norfolk.yml` and the archive job run
+  both `--offline` builds with their inputs, and `scripts/gap-refresh.js`
+  sends numbers within ±25% and dates to main and anything else to a pull
+  request (docs/gaps.md §5.4, CONTRIBUTING.md). A PR that edits the inputs
+  or `src/gaps/` still reruns both `--offline` builds itself.
   `scripts/find-gaps.js` writes gitignored candidates, never committed or
   shipped. `scripts/gaps-inventory.js` builds the running inventory
   (`data/gaps/inventory.json`, `docs/gaps-inventory.md`) from the committed

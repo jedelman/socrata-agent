@@ -6,7 +6,7 @@ Every gap Siren knows of and its state. A gap has a shape and consequences: what
 
 ## How it stays current
 
-Built by code from the committed gap files, never edited by hand. scripts/build-gaps.js and scripts/build-gaps-proposed.js rewrite it after every live or offline build, and their --check fails when it differs from what those files build. Until Jason decides on automation, run node scripts/build-gaps.js --offline and node scripts/build-gaps-proposed.js --offline by hand after the agenda index or a case file changes, and a live build after a catalog or proposal change. Proposed automation, not added: a step after the weekly legislation refresh and the monthly case-file archive job that runs both --offline builds and opens a pull request when a state changes.
+Built by code from the committed gap files, never edited by hand. scripts/build-gaps.js and scripts/build-gaps-proposed.js rewrite it after every live or offline build, and their --check fails when it differs from what those files build. Automated since 2026-11-09 (Jason: "yes, we should automate the gap refresh"): every Tuesday refresh-gaps.yml re-measures the catalog and the proposals live; the weekly legislation refresh rebuilds both offline when the agenda index changes, and the monthly case-file archive job does the same in its pull request. scripts/gap-refresh.js sends a rebuild where only measured numbers moved, each within ±25%, and dates straight to main, and anything else (a state change, a gap on or off the board, an id added or removed, a jump beyond ±25%, a failed measure, evidence turning unverified) to a pull request for review. A pull request that changes a catalog, a proposal or their inputs reruns both builds itself, and the CI job check-gaps fails until it does.
 
 ## Counts
 
@@ -73,9 +73,9 @@ Section: [docs/gaps-norfolk.md#mynorfolk-311-requests-out-of-sirens-reach-by-rul
 
 `norfolk.legislation.no-address` · Partial coverage (in the records I read) · topic: none · state: open · measured 2026-11-09
 
-I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-02.
+I found no street address in the titles of 682 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-09.
 
-Shape: 681 of 1,437 (47%).
+Shape: 682 of 1,437 (47%).
 
 Questions it leaves unanswered:
 

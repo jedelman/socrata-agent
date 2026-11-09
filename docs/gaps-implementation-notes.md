@@ -40,11 +40,12 @@ Each one is for Jason to accept into the spec, or to send back.
    the committed file they check only what holds in any state the spec
    allows (every catalog entry accounted for, the schema, the identifier
    rule), so a steward marking a finding unverified can't fail them.
-7. **No workflow runs the gap build (§5.3 item 7, §5.4).** The spec puts
-   `--offline` in `refresh-norfolk.yml` and the archive job, and adds a
-   weekly `refresh-gaps.yml`. None of these are in this branch: whether to
-   automate the gap build is Jason's call. Until then it's run by hand;
-   CONTRIBUTING.md says when, and lists the proposed automation.
+7. **Workflows run the gap build (§5.3 item 7, §5.4).** Left out of the
+   first branch as Jason's call; he decided on 2026-11-09 to automate it.
+   `refresh-norfolk.yml` and the archive job run both `--offline` builds,
+   the weekly `refresh-gaps.yml` re-measures live, and
+   `scripts/gap-refresh.js` decides between main and a pull request.
+   CONTRIBUTING.md says how to handle a refresh pull request.
 8. **Street checks in any case (§6.3).** `number_street` and `intersection`
    match street names in any case. After a house number, a tree species
    counts as a street only with a suffix, an ordinary word only where the

@@ -653,19 +653,24 @@ test('a note that could go public is checked before anything is written, and the
   assert.equal((await addRequest({ body: { source: 'Norfolk tree ordinance' }, kv, visitor: 'v' })).ok, true, 'no note, nothing to check');
 });
 
-test('the admin page and the contributor guide promise a closed issue only once the sync runs with --with-withdrawn', async () => {
+test('the admin page and the contributor guide say the nightly sync closes a withdrawn request\'s issue, and which ones still close by hand', async () => {
+  // Jason updated the routine to --plan --with-withdrawn on 2026-11-09.
   const { readFileSync } = await import('node:fs');
   const admin = readFileSync(new URL('../worker/admin.html', import.meta.url), 'utf8');
   const guide = readFileSync(new URL('../docs/fulfilling-requests.md', import.meta.url), 'utf8');
   const routine = readFileSync(new URL('../docs/request-sync-routine.md', import.meta.url), 'utf8');
   for (const text of [admin, guide]) {
-    assert.doesNotMatch(text, /closes its GitHub issue at the next sync|the next sync\s+closes its issue/);
-    assert.match(text, /Once the nightly sync runs with `?--with-withdrawn`?|once the nightly sync runs with `--with-withdrawn`/i);
+    assert.doesNotMatch(text, /once the nightly sync runs with|until (?:it does|the sync runs that way)/i, 'no longer conditional');
+    assert.match(text, /the nightly sync\s+(?:then\s+)?closes its\s+(?:GitHub\s+)?issue as not\s+planned/i);
+    assert.match(text, /more than 30\s+days\s+before\s+2026-11-09/);
+    assert.match(text, /by hand/);
   }
-  // The routine doc carries the exact replacement prompt and the merge step.
-  assert.match(routine, /## Merge step: update the routine \(Jason only\)/);
+  // The routine doc records the update as done and carries the stored prompt.
+  assert.match(routine, /## Merge step: update the routine \(Jason only\)\n\nDone on 2026-11-09/);
+  assert.doesNotMatch(routine, /is still the earlier one|must keep running plain `--plan`/);
   assert.match(routine, /sync-request-issues\.js --plan --with-withdrawn > \/tmp\/plan\.json/);
   assert.match(routine, /create_if_missing: false, do nothing \(never create it\)/);
+  assert.match(routine, /withdrawn more than 30\s+days before the update of 2026-11-09[\s\S]*close it by hand/);
 });
 
 test('an issue withdrawn long enough ago to leave the feed is done: no rewrite, and it does not count toward the refusal', async () => {

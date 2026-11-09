@@ -1,10 +1,33 @@
 name: Refresh Norfolk legislation index
+# Weekly: rebuild the legislation index. When it changed, rebuild the gap
+# files from it offline (docs/gaps.md §5.3 item 7; both builders rewrite the
+# gap inventory too), check them, and let scripts/gap-refresh.js decide:
+#   - only measured numbers moved, each within ±25%, and dates: the index and
+#     the gap files commit together to main;
+#   - anything else: the index and the gap rebuild go on one branch,
+#     bot/legislation-refresh-<date>, with a pull request, so main never
+#     carries a new index with a stale gap file.
+# If the gap rebuild itself fails, the index still commits alone, and the run
+# fails and says so in its summary: the gap files then trail the index until
+# someone reruns the two offline builds.
+#
+# Opening a pull request needs the repository setting "Allow GitHub Actions
+# to create and approve pull requests". A push made with the workflow's token
+# starts no other workflow; Workers Builds runs npm test before it deploys.
 on:
   schedule:
     - cron: '17 9 * * 1' # Mondays 09:17 UTC
   workflow_dispatch:
 permissions:
   contents: write
+  pull-requests: write
+concurrency:
+  group: norfolk-data-refresh # shared with refresh-gaps.yml
+  cancel-in-progress: false
+env:
+  # Every path a gap rebuild writes (node scripts/gap-refresh.js paths;
+  # test/workflows.test.js holds this to it).
+  GAP_PATHS: data/gaps docs/gaps-budget-proposed.md docs/gaps-inventory.md docs/gaps-norfolk.md
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,14 +36,90 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Snapshot the gap files
+        run: node scripts/gap-refresh.js snapshot "$RUNNER_TEMP/gaps-before"
       - run: node scripts/build-norfolk-legislation.js
         env:
           SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
-      - name: Commit if changed
+      - name: Rebuild the gap files from the new index
+        id: gaps
         run: |
-          if git diff --quiet -- data/; then echo "No changes"; exit 0; fi
+          if git diff --quiet -- data/norfolk-legislation.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes to the index."
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          set +e
+          {
+            node scripts/build-gaps.js --offline &&
+            node scripts/build-gaps-proposed.js --offline &&
+            npm run check:gaps &&
+            node scripts/build-gaps-proposed.js --check &&
+            node scripts/gap-refresh.js decide --before "$RUNNER_TEMP/gaps-before" \
+              --context "Offline rebuild after the weekly legislation index refresh (refresh-norfolk.yml, run $GITHUB_RUN_ID)." \
+              --summary "$RUNNER_TEMP/gap-refresh.md" --result "$RUNNER_TEMP/gap-refresh.json"
+          } 2>&1 | tee "$RUNNER_TEMP/gaps.log"
+          if [ "${PIPESTATUS[0]}" = 0 ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Commit to main, or open a pull request
+        if: steps.gaps.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GAPS_OK: ${{ steps.gaps.outputs.ok }}
+        run: |
+          day=$(date -u +%Y-%m-%d)
+          summary="$RUNNER_TEMP/gap-refresh.md"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/norfolk-legislation.json
-          git commit -m "Refresh Norfolk legislation index"
-          git push
+          if [ "$GAPS_OK" != true ]; then
+            # The gap rebuild failed: the index commits alone, loudly.
+            git checkout HEAD -- $GAP_PATHS
+            git add data/norfolk-legislation.json
+            git commit -q -m "Refresh Norfolk legislation index" -m "The gap rebuild failed (run $GITHUB_RUN_ID), so the gap files were not rebuilt from this index. Rerun node scripts/build-gaps.js --offline and node scripts/build-gaps-proposed.js --offline, and review the change."
+            git push
+            {
+              echo "## The gap rebuild failed"
+              echo
+              echo "The legislation index was committed to main alone. \`data/gaps\` and the gap pages were not rebuilt from it, so they trail the index (and the CI job check-gaps fails on the next push or pull request) until someone runs:"
+              echo
+              echo '```'
+              echo 'node scripts/build-gaps.js --offline'
+              echo 'node scripts/build-gaps-proposed.js --offline'
+              echo 'npm run check:gaps && node scripts/build-gaps-proposed.js --check'
+              echo '```'
+              echo
+              echo "and commits the result after review. The rebuild's output:"
+              echo
+              echo '```'
+              tail -n 60 "$RUNNER_TEMP/gaps.log"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Gap rebuild failed::The legislation index was committed alone; the gap files trail it. See the job summary."
+            exit 1
+          fi
+          decision=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).decision" "$RUNNER_TEMP/gap-refresh.json")
+          { echo "## Legislation index changed; gap refresh: $decision"; echo; cat "$summary"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$decision" = pr ]; then
+            branch="bot/legislation-refresh-$day"
+            git switch -c "$branch"
+            git add -- data/norfolk-legislation.json $GAP_PATHS
+            { echo "Refresh Norfolk legislation index and gap files, for review ($day)"; echo; cat "$summary"; } > "$RUNNER_TEMP/message.txt"
+            git commit -q -F "$RUNNER_TEMP/message.txt"
+            git push -u origin "$branch"
+            {
+              echo "The weekly legislation refresh changed the index, and the gap files rebuilt from it need review, so the index waits here with them: main never carries a new index with a stale gap file."
+              echo
+              cat "$summary"
+            } > "$RUNNER_TEMP/body.md"
+            if ! gh pr create --base main --head "$branch" --title "Legislation index and gap files need review ($day)" --body-file "$RUNNER_TEMP/body.md"; then
+              echo "::error title=No pull request::Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."
+              exit 1
+            fi
+          else
+            git add -- data/norfolk-legislation.json $GAP_PATHS
+            { echo "Refresh Norfolk legislation index and gap files"; echo; cat "$summary"; } > "$RUNNER_TEMP/message.txt"
+            git commit -q -F "$RUNNER_TEMP/message.txt"
+            git push
+          fi

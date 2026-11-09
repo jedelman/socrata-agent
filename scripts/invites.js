@@ -266,9 +266,9 @@ async function main() {
     // Steward decisions. Accepting puts a request on the public list and, at
     // the next sync, on GitHub; --note is shown publicly with it. Its notes
     // stay pending until each is approved with request-note. Declining a
-    // request that was public lists it as withdrawn in the feed; its issue is
-    // closed by a sync run with --with-withdrawn, or directly with a token
-    // (docs/request-sync-routine.md), and until then by hand.
+    // request that was public lists it as withdrawn in the feed; the nightly
+    // sync closes its issue (it runs with --with-withdrawn since 2026-11-09),
+    // as does a direct run with a token (docs/request-sync-routine.md).
     const status = { 'request-accept': 'accepted', 'request-decline': 'declined', 'request-fulfilled': 'fulfilled', 'request-reopen': 'accepted' }[cmd];
     const decided = status === 'declined' || status === 'fulfilled';
     // The config first, so a config that can't be read stops before any KV call.

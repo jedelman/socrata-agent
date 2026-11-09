@@ -31,14 +31,14 @@ I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren
 
 `norfolk.legislation.no-address` · Partial coverage (in the records I read) · state: open · measured 2026-11-09
 
-I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index (built 2026-11-02, meetings 2023-07-11 through 2026-10-22), so I can't match them to a block.
+I found no street address in the titles of 682 of 1,437 agenda items (47%) in Siren's agenda index (built 2026-11-09, meetings 2023-07-11 through 2026-10-22), so I can't match them to a block.
 
 **Where:** agenda items in public meetings; Siren's agenda index; citywide; meetings.date 2023-07-11 through 2026-10-22.
 
 **Questions these records can’t answer, or answer only in part**
 
 - Did the Council act on anything that affects my block? (only in part)  
-  With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-09, so I can't match them to a block.
+  With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-09, so I can't match them to a block.
 
 **What would close it**
 
