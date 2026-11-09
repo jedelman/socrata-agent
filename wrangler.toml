@@ -12,11 +12,12 @@ DAILY_BUDGET_USD = "2"
 MAX_STEPS = "6"
 MAX_TOKENS = "1200"
 # SUBREQUEST_BUDGET: outbound requests per answer, model calls and retries
-# included (default 45, range 10-10000). Workers Free allows 50 external
-# subrequests per invocation and every fetch past that throws; tool requests
-# stop short of the budget so the final answer can still be asked for. On
-# Workers Paid (10,000 by default) it can go much higher. See src/request-budget.js.
-# SUBREQUEST_BUDGET = "45"
+# included (default 120, range 10-10000): a guard against a runaway answer.
+# Siren's account is on Workers Paid (10,000 external subrequests per
+# invocation, since 2026-11-09); on Workers Free (50) set it to 45. Tool
+# requests stop short of the budget so the final answer can still be asked
+# for. See src/request-budget.js.
+# SUBREQUEST_BUDGET = "120"
 
 # Limits are counted here. Create it once and paste the id:
 #   npx wrangler kv namespace create LIMITS
@@ -74,8 +75,8 @@ PER_IP_DAILY = "20"
 DAILY_BUDGET_USD = "2"
 MAX_STEPS = "6"
 MAX_TOKENS = "1200"
-# SUBREQUEST_BUDGET defaults to 45: Siren's account is on Workers Free (50
-# external subrequests per invocation). Raise it only after moving to Paid.
+# SUBREQUEST_BUDGET defaults to 120: Siren's account is on Workers Paid
+# (2026-11-09). Set it to 45 if the account ever returns to Free (50 a request).
 INVITE_REQUIRED = "true"
 PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"

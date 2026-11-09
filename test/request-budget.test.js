@@ -369,12 +369,12 @@ test('the voice rewrite goes out only if it fits; otherwise the check fails hone
   assert.equal(out.requestBudget.used, 1);
 });
 
-test("the Worker's limits: SUBREQUEST_BUDGET defaults to 45, stays 10-10000, and reaches ask()", () => {
-  for (const [value, want] of [[undefined, 45], ['', 45], ['5', 45], ['abc', 45], ['4O', 45], ['99999', 10000], ['60', 60]]) {
+test("the Worker's limits: SUBREQUEST_BUDGET defaults to 120, stays 10-10000, and reaches ask()", () => {
+  for (const [value, want] of [[undefined, 120], ['', 120], ['5', 120], ['abc', 120], ['4O', 120], ['99999', 10000], ['60', 60]]) {
     assert.equal(askLimits({ SUBREQUEST_BUDGET: value }, 'openrouter').subrequestBudget, want, String(value));
   }
-  assert.deepEqual(askLimits({}, 'anthropic'), { maxSteps: 6, subrequestBudget: 45, maxTokens: 8000 });
-  assert.deepEqual(askLimits({}, 'openrouter'), { maxSteps: 6, subrequestBudget: 45, maxTokens: 1200 });
+  assert.deepEqual(askLimits({}, 'anthropic'), { maxSteps: 6, subrequestBudget: 120, maxTokens: 8000 });
+  assert.deepEqual(askLimits({}, 'openrouter'), { maxSteps: 6, subrequestBudget: 120, maxTokens: 1200 });
   // The Worker passes them to ask() (it can't be imported outside the Workers runtime).
   const worker = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
   const call = worker.slice(worker.indexOf('await ask({'), worker.indexOf('});', worker.indexOf('await ask({')));

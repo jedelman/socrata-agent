@@ -197,7 +197,7 @@ Limits, set in `wrangler.toml`:
 | `MODEL` | `openai/gpt-5.6-luna` | The model everyone shares. Ids starting `claude-` (such as `claude-haiku-5-5`) go straight to Anthropic's API with `ANTHROPIC_API_KEY`; anything else goes through OpenRouter |
 | `EFFORT` | model default | For Claude models: `low`, `medium`, `high`, `xhigh` or `max` |
 | `MAX_TOKENS_CLAUDE` | 8000 | Output allowance per call for Claude models (1000–16000). Thinking counts toward it; a call cut off at the limit is retried once at 16000 and its tool calls are never run |
-| `SUBREQUEST_BUDGET` | 45 | Outbound requests per answer (10–10000), counting every Socrata, meeting-portal and plugin request and every model call and retry. The answer stays within it: tool requests stop while enough is left for the final answer; the answer then says it stopped at the limit, and the trace marks the requests not sent as refused |
+| `SUBREQUEST_BUDGET` | 120 | Outbound requests per answer (10–10000), counting every Socrata, meeting-portal and plugin request and every model call and retry. The answer stays within it: tool requests stop while enough is left for the final answer; the answer then says it stopped at the limit, and the trace marks the requests not sent as refused |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
 
 Claude spend is priced from each response's token usage. The SDK retries a
@@ -215,11 +215,11 @@ model call (at its worst, retries included), one tool request and a reserve
 all fit; tool requests are refused once only the reserve is left. The reserve
 covers the final answer at its worst (a Claude call cut off at its token
 allowance is asked once more, and each try can be retried) and one voice
-rewrite call, which goes out only if it fits. The default 45 leaves 5 under
-the platform's 50 for the rest of the invocation: the Access key fetch (twice
-when a key has rotated) and any redirect hop, which Cloudflare counts but a
-fetch() call can't show (the answer-path tools made none when checked live on
-2026-11-07). On Workers Paid it can go much higher. For scale, measured live
+rewrite call, which goes out only if it fits. Siren runs on Workers Paid
+(since 2026-11-09), so the default 120 is a guard against a runaway answer,
+not the platform cap. On Workers Free set it to 45, which leaves 5 under the
+platform's 50 for the Access key fetch (twice when a key has rotated) and any
+redirect hop, which Cloudflare counts but a fetch() call can't show. For scale, measured live
 with `socrata-agent tool` on 2026-11-06: `block_report` makes 10 to 13
 requests, `trees_on_my_block` 13 to 16, `water_on_my_block` 17, `case_file` 0,
 and each model step 1 (2 with a Claude retry); the `tool` command prints the
