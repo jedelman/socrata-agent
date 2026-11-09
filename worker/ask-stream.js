@@ -8,7 +8,9 @@
 //   {"type":"notes_capped"}                       once, when MAX_NOTE_CHARS is reached
 //   {"type":"discard","step":0}                   the model declined that step: drop
 //                                                 its notes (the API says to discard
-//                                                 a declined partial)
+//                                                 a declined partial); with
+//                                                 "reason":"fallback", another model
+//                                                 continues the step
 //   {"type":"tool","step":0,"name":"block_report","label":"..."}
 //   {"type":"rewrite","step":2,"label":"..."}     the voice check's rewrite
 //   {"type":"final","body":{...}}                 exactly the body POST /api/ask
@@ -86,15 +88,19 @@ export function noteEvents(send, { known, maxChars = MAX_NOTE_CHARS } = {}) {
       send({ type: 'rewrite', step, label: REWRITE_LABEL });
     } else if (e.type === 'refusal') {
       send({ type: 'discard', step });
+    } else if (e.type === 'fallback') {
+      send({ type: 'discard', step, reason: 'fallback' });
     }
   };
 }
 
 /**
- * A streamed response. `work(send)` runs the answer and sends its lines; it
- * runs under ctx.waitUntil, so a reader who goes away doesn't stop it: the
- * turn is still saved and its spend recorded. `send` never waits on the
- * reader and never throws; once the reader is gone, lines are dropped.
+ * A streamed response. `work(send)` runs the answer and sends its lines. It
+ * runs under ctx.waitUntil, so a reader who goes away doesn't stop it at
+ * once, but Cloudflare extends it only about 30 seconds past their leaving:
+ * work that must survive (spend) is written as it happens, not at the end.
+ * `send` never waits on the reader and never throws; once the reader is gone,
+ * lines are dropped.
  */
 export function streamResponse(ctx, work) {
   const { readable, writable } = new TransformStream();

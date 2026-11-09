@@ -217,8 +217,10 @@ Claude spend is priced from each response's token usage. The SDK retries a
 failed call once (on rate limits, server errors and timeouts), only before a
 response arrives; an attempt the API billed but never answered isn't in that
 usage, so keep the workspace spend limit as the backstop. Calls are streamed,
-and a stream that fails partway is not retried: the input the API said it read
-is priced and the question gets an error.
+and a stream that fails partway, or runs past five minutes, is stopped and not
+retried: it is priced from what it had streamed (the input the API reported,
+output estimated from the characters that arrived) and the question gets an
+error. Spend is recorded per model call as each is priced, not once per answer.
 
 While an answer is worked out, the chat page shows **working notes** under
 the question: for Claude models, the model's own summary of its thinking as
@@ -229,9 +231,15 @@ answers, and folds them away when the answer arrives. The page asks for them
 with `Accept: application/x-ndjson`; `POST /api/ask` then sends one JSON
 object per line and ends with a `final` line carrying exactly the body it
 returns without streaming (`worker/ask-stream.js` lists the line types).
-Limits, spend and the conversation save are the same either way; the save
-happens before the final line, and the whole answer runs under `waitUntil`, so
-a reader who leaves doesn't lose the turn. The notes are live only: at most
+Limits, spend and the conversation save are the same either way. A reader
+who leaves mid-answer doesn't stop it at once: it runs under `waitUntil`,
+which Cloudflare extends about 30 seconds past the moment they leave. Every
+model call made by then is recorded in spend as it happens; the turn is saved
+as soon as the answer exists (before the final line), so it is saved only if
+the answer finishes within that grace period. If the connection drops, a
+signed-in reader's page waits up to a minute for that save, showing the answer
+if it arrives, before taking a new question in the same conversation (asking
+at once would pay twice and race the save). The notes are live only: at most
 20,000 characters of thinking per answer are sent, and none of it is saved,
 traced, voice-checked or sent back to the model as text. Clients that don't
 ask for the stream (the CLI, scripts) get the JSON answer as before.

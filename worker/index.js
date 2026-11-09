@@ -234,47 +234,41 @@ async function handleAsk(req, env, ctx) {
     return { save, body: { city: cityId, ...answer, ...(conversationId ? { conversation: conversationId } : {}) } };
   };
 
+  // Spend is recorded per paid call, as it happens (one KV key each, so
+  // concurrent writes can't overwrite each other), so a call already made is
+  // counted even if the rest of the answer never runs.
+  const spends = [];
+  const onCost = (usd) => {
+    if (kv && usd) spends.push(recordSpend(kv, day, usd).catch((err) => console.error('recording spend failed', err)));
+  };
+
   // Streamed (worker/ask-stream.js): the same answer, limits, spend and save,
-  // with the working notes sent as they come. All of it runs under
-  // ctx.waitUntil, so a reader who leaves doesn't lose the turn: it is saved
-  // before the final line, and its spend recorded once, after.
+  // with the working notes sent as they come. It runs under ctx.waitUntil, so
+  // a reader who leaves doesn't stop it at once; Cloudflare gives that about
+  // 30 seconds after they leave. Each call's spend is recorded as it happens;
+  // the turn is saved as soon as the answer exists, before the final line, so
+  // it is saved only if the answer finishes within that grace period.
   if (wantsStream(req) && workingNotesOn(env)) {
     return streamResponse(ctx, async (send) => {
-      let cost = 0;
       if (conversationId) send({ type: 'start', conversation: conversationId });
       try {
         const args = askArgs();
         // The tools this answer declares: a tool line names only one of these.
         const known = new Set(toolsFor(args.city, plugins, gapsOn ? { gaps: GAPS[cityId] } : {}).map((t) => t.function.name));
-        const { save, body } = finish(await ask({
-          ...args,
-          onCost: (usd) => {
-            cost += usd;
-          },
-          onEvent: noteEvents(send, { known }),
-          thinkingEvents: true,
-        }));
+        const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true }));
         if (save) await save;
         send({ type: 'final', body });
       } catch (err) {
         console.error(err);
         send({ type: 'error', status: 502, body: askErrorBody(err) });
       } finally {
-        if (kv && cost) await recordSpend(kv, day, cost).catch((err) => console.error('recording spend failed', err));
+        await Promise.all(spends);
       }
     });
   }
 
-  // Every paid call is counted as it happens, so spend is recorded even when a
-  // later step fails or the visitor leaves; the write runs after the response.
-  let cost = 0;
   try {
-    const { save, body } = finish(await ask({
-      ...askArgs(),
-      onCost: (usd) => {
-        cost += usd;
-      },
-    }));
+    const { save, body } = finish(await ask({ ...askArgs(), onCost }));
     if (save) {
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
@@ -284,8 +278,8 @@ async function handleAsk(req, env, ctx) {
     console.error(err);
     return json(askErrorBody(err), 502);
   } finally {
-    if (kv && cost) {
-      const write = recordSpend(kv, day, cost).catch((err) => console.error('recording spend failed', err));
+    if (spends.length) {
+      const write = Promise.all(spends);
       if (ctx?.waitUntil) ctx.waitUntil(write);
       else await write;
     }

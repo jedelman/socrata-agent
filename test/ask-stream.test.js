@@ -122,6 +122,12 @@ function ctxStub() {
   return { pending, waitUntil: (p) => pending.push(p), settle: () => Promise.all(pending) };
 }
 
+// Spend keys written, and their total in dollars (worker/limits.js recordSpend).
+const spendOf = (kv) => {
+  const keys = kv.puts.filter((k) => k.startsWith('spend:'));
+  return { keys: keys.length, usd: keys.reduce((sum, k) => sum + JSON.parse(kv.store.get(`${k}#meta`)).micros, 0) / 1e6 };
+};
+
 const lines = async (res) => (await res.text()).split('\n').filter(Boolean).map((l) => JSON.parse(l));
 // Timings differ run to run: in the trace (ms) and its markdown ("N ms").
 const noMs = (v) => JSON.parse(JSON.stringify(v).replace(/"ms":\d+/g, '"ms":0').replace(/ \d+ ms /g, ' 0 ms '));
@@ -164,7 +170,9 @@ test('streamed: start, thinking deltas by step, code-written tool lines, then th
     const saved = kv.store.get(convPuts[0]);
     assert.ok(!saved.includes('search the catalog first') && !saved.includes('came back empty'), 'the notes are live only');
     assert.equal(JSON.parse(saved).turns[0].answer, ANSWER);
-    assert.equal(kv.puts.filter((k) => k.startsWith('spend:')).length, 1, 'spend recorded once');
+    const spend = spendOf(kv);
+    assert.equal(spend.keys, 2, 'spend recorded once per model call');
+    assert.ok(Math.abs(spend.usd - final.cost) < 1e-9, `${spend.usd} vs ${final.cost}`);
     assert.equal(kv.puts.filter((k) => k.startsWith('user-day:')).length, 1, 'one question counted');
   });
 });
@@ -293,7 +301,7 @@ test('errors before the answer starts stay JSON, whatever the Accept header', { 
   });
 });
 
-test('a reader who leaves mid-stream: the answer still finishes, is saved once and spent once', { skip }, async () => {
+test('a reader who leaves mid-stream: the answer still finishes (within the grace period), is saved once and spent once per call', { skip }, async () => {
   const w = await loadWorker();
   const { env, kv, cookie } = await member();
   const ctx = ctxStub();
@@ -305,7 +313,7 @@ test('a reader who leaves mid-stream: the answer still finishes, is saved once a
     await ctx.settle();
     assert.equal(model.length, 2, 'both model calls ran');
     assert.equal(kv.puts.filter((k) => k.startsWith('conv:')).length, 1);
-    assert.equal(kv.puts.filter((k) => k.startsWith('spend:')).length, 1);
+    assert.equal(spendOf(kv).keys, 2);
     assert.equal(kv.puts.filter((k) => k.startsWith('user-day:')).length, 1);
   });
 });
@@ -321,6 +329,7 @@ test('noteEvents: tool lines only for declared tools, never arguments or model t
   on({ type: 'thinking', step: 2, text: 'ghijkl' });
   on({ type: 'thinking', step: 2, text: 'more' });
   on({ type: 'refusal', step: 2 });
+  on({ type: 'fallback', step: 4 });
   on({ type: 'thinking', step: 2, text: '' });
   on(null);
   assert.deepEqual(sent, [
@@ -331,6 +340,7 @@ test('noteEvents: tool lines only for declared tools, never arguments or model t
     { type: 'thinking', step: 2, text: 'ghij' },
     { type: 'notes_capped' },
     { type: 'discard', step: 2 },
+    { type: 'discard', step: 4, reason: 'fallback' },
   ]);
   assert.ok(!JSON.stringify(sent).includes('810 Union') && !JSON.stringify(sent).includes('permits'));
   assert.equal(wantsStream(new Request('https://x.org', { headers: { Accept: 'application/x-ndjson' } })), true);
@@ -345,4 +355,131 @@ test('every tool Siren declares has a label', async () => {
   const gaps = JSON.parse(readFileSync(new URL('../data/gaps/norfolk.json', import.meta.url), 'utf8'));
   const names = toolsFor(city, siren.plugins.map(definePlugin), { gaps }).map((t) => t.function.name);
   assert.deepEqual(names.filter((n) => !TOOL_LABELS[n]), []);
+});
+
+test('the JSON path records spend per model call too, adding up to the answer\'s cost', { skip }, async () => {
+  const w = await loadWorker();
+  const { env, kv, cookie } = await member();
+  const ctx = ctxStub();
+  await withNetwork({ replies: twoSteps() }, async () => {
+    const body = await (await w.fetch(askReq({ cookie }), env, ctx)).json();
+    await ctx.settle();
+    const spend = spendOf(kv);
+    assert.equal(spend.keys, 2);
+    assert.ok(Math.abs(spend.usd - body.cost) < 1e-9);
+  });
+});
+
+test('a reader leaves and the platform cancels the work at its deadline: each call already made is still in spend', { skip }, async () => {
+  const w = await loadWorker();
+  const { env, kv, cookie } = await member();
+  const pending = [];
+  const ctx = { waitUntil: (p) => pending.push(p) };
+  // The second model call is a long one: it hangs until released.
+  let release;
+  let hung;
+  const hanging = new Promise((r) => { hung = r; });
+  const real = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const u = String(url instanceof Request ? url.url : url);
+    if (!u.startsWith('https://api.anthropic.com/')) return new Response(JSON.stringify({ results: [], resultSetSize: 0 }), { headers: { 'content-type': 'application/json' } });
+    if (calls++ === 0) return claudeResponse(init, twoSteps()[0]);
+    hung();
+    return new Promise((resolve) => {
+      release = () => resolve(new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'gone' } }), { status: 400, headers: { 'content-type': 'application/json' } }));
+    });
+  };
+  try {
+    const res = await w.fetch(askReq({ cookie, stream: true }), env, ctx);
+    const reader = res.body.getReader();
+    await reader.read();
+    await reader.cancel(); // the reader leaves
+    await hanging; // the answer is now in its second, long model call
+    // The platform's grace period ends here: what the store holds now is all
+    // that survives a cancelled invocation.
+    await new Promise((r) => setTimeout(r, 100));
+    const survived = { puts: [...kv.puts], store: new Map(kv.store) };
+    const spendKeys = survived.puts.filter((k) => k.startsWith('spend:'));
+    assert.equal(spendKeys.length, 1, 'the first call is in spend');
+    const micros = JSON.parse(survived.store.get(`${spendKeys[0]}#meta`)).micros;
+    assert.equal(micros, (1000 * 2 + 200 * 10), 'priced at Sonnet 5.5 rates: $0.004');
+    assert.equal(survived.puts.filter((k) => k.startsWith('conv:')).length, 0, 'no answer, so no turn to save');
+  } finally {
+    release?.();
+    await Promise.allSettled(pending);
+    globalThis.fetch = real;
+  }
+});
+
+// The page's stream reader and its wait for a dropped answer, run as the
+// page runs them (the marked helpers block in worker/ui.html).
+const pageHelpers = () => {
+  const ui = readFileSync(new URL('../worker/ui.html', import.meta.url), 'utf8');
+  const start = ui.indexOf('// ---- helpers');
+  const end = ui.indexOf('// ---- end helpers');
+  assert.ok(start > 0 && end > start, 'the helpers block is marked');
+  return new Function(`${ui.slice(start, end)}\nreturn { readLines, savedTurn };`)();
+};
+
+test('page: reading stops at the final line, so a connection error after it cannot replace the answer', async () => {
+  const { readLines } = pageHelpers();
+  const encoder = new TextEncoder();
+  const chunks = ['{"type":"thinking","step":0,"text":"a"}\n', '{"type":"final","body":{"answer":"I found it."}}\n{"type":"thin'];
+  let n = 0;
+  let cancelled = false;
+  const body = new ReadableStream({
+    pull(c) {
+      if (n < chunks.length) c.enqueue(encoder.encode(chunks[n++]));
+      else c.error(new Error('connection reset'));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  }, { highWaterMark: 0 });
+  const seen = [];
+  await readLines(new Response(body), (ev) => {
+    seen.push(ev.type);
+    return ev.type === 'final' || ev.type === 'error';
+  });
+  assert.deepEqual(seen, ['thinking', 'final']);
+  assert.ok(cancelled, 'the rest of the stream is let go');
+});
+
+test('page: after a dropped stream, savedTurn polls the conversation until the answer is saved, or gives up at a minute', async () => {
+  const { savedTurn } = pageHelpers();
+  const since = Date.now();
+  const saved = { question: 'Any street tree data?', answer: ANSWER, at: new Date(since + 5000).toISOString(), record: {} };
+  const run = async (responses) => {
+    const waits = [];
+    const urls = [];
+    let i = 0;
+    const turn = await savedTurn('11111111-2222-3333-4444-555555555555', 'Any street tree data?', since, {
+      wait: async (ms) => { waits.push(ms); },
+      get: async (u) => {
+        urls.push(u);
+        const r = responses[Math.min(i++, responses.length - 1)];
+        if (r instanceof Error) throw r;
+        return r;
+      },
+    });
+    return { turn, waits, urls };
+  };
+  const ok = (turns) => new Response(JSON.stringify({ city: 'norfolk', turns }));
+  // Saved by the second poll.
+  let r = await run([ok([]), ok([saved])]);
+  assert.deepEqual(r.turn, saved);
+  assert.deepEqual(r.waits, [25000, 35000]);
+  assert.equal(r.urls[0], 'api/conversation?id=11111111-2222-3333-4444-555555555555');
+  // Saved by the first: no second poll.
+  r = await run([ok([saved])]);
+  assert.deepEqual(r.waits, [25000]);
+  // Never saved (a failed read, then an older turn with the same question): null, a minute in all.
+  const older = { ...saved, at: new Date(since - 10 * 60_000).toISOString() };
+  r = await run([new Error('offline'), ok([older])]);
+  assert.equal(r.turn, null);
+  assert.equal(r.waits.reduce((a, b) => a + b, 0), 60000);
+  // Not yet in the store at all (404 while the save is pending).
+  r = await run([new Response('{}', { status: 404 })]);
+  assert.equal(r.turn, null);
 });

@@ -267,6 +267,8 @@ let history = [];
 let cities = [];
 let conversationId = null;
 let session = {};
+// Set while a dropped answer may still be saved to this conversation (see savedTurn).
+let hold = null;
 
 async function loadCities() {
   try {
@@ -367,6 +369,8 @@ function showGate(on) {
   if (on) (signin ? $('#login-email') : $('#code')).focus();
 }
 function newConversation() {
+  // A new conversation can't race the old one's save.
+  if (hold) { hold = null; $('#go').disabled = false; }
   conversationId = null;
   history = [];
   $('#log').innerHTML = '';
@@ -540,13 +544,16 @@ function notesPanel(turn) {
       });
     },
     step(label) { add(() => { line('step', label); current = null; }); },
-    // The model declined this step: what it wrote there is withdrawn.
-    discard(step) {
+    // The model declined this step: what it wrote there is withdrawn. After
+    // a fallback, another model's notes for the same step follow.
+    discard(step, reason) {
       add(() => {
         for (const p of byStep.get(step) || []) p.remove();
         byStep.delete(step);
         current = null;
-        line('aside', 'The model declined here, so its notes from this step are withdrawn.');
+        line('aside', reason === 'fallback'
+          ? 'The model declined here and another model took over, so the first model\'s notes from this step are withdrawn.'
+          : 'The model declined here, so its notes from this step are withdrawn.');
       });
     },
     capped() { add(() => { line('aside', 'The notes stop here: the rest was not sent.'); current = null; }); },
@@ -557,10 +564,14 @@ function notesPanel(turn) {
     },
   };
 }
+// ---- helpers (test/ask-stream.test.js runs these directly) ----
+// Reads the stream's lines; stops, and lets the rest go, once onLine returns
+// true (the final or error line), so nothing after it can undo the answer.
 async function readLines(res, onLine) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';
+  const stop = () => reader.cancel().catch(() => {});
   for (;;) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -569,17 +580,40 @@ async function readLines(res, onLine) {
     while ((i = buf.indexOf('\n')) >= 0) {
       const text = buf.slice(0, i);
       buf = buf.slice(i + 1);
-      if (text.trim()) onLine(JSON.parse(text));
+      if (text.trim() && onLine(JSON.parse(text)) === true) return stop();
     }
   }
   buf += decoder.decode();
   if (buf.trim()) onLine(JSON.parse(buf));
 }
+// After a dropped stream, the Worker may still finish and save the answer.
+// Asking again in the same conversation before that save would race it (the
+// last save wins), so the page waits: this polls the saved conversation and
+// returns the turn once it is there, or null after `total` ms.
+async function savedTurn(id, question, since, { get = (u) => fetch(u, { cache: 'no-store' }), wait = (ms) => new Promise((r) => setTimeout(r, ms)), polls = [25000, 35000], total = 60000 } = {}) {
+  let waited = 0;
+  for (const ms of polls) {
+    await wait(ms);
+    waited += ms;
+    try {
+      const res = await get(`api/conversation?id=${encodeURIComponent(id)}`);
+      if (!res.ok) continue;
+      const t = ((await res.json()).turns || []).at(-1);
+      // Its question, saved since this one was asked (two minutes for clock skew).
+      if (t && t.question === question && Date.parse(t.at) >= since - 120000) return t;
+    } catch {}
+  }
+  if (total > waited) await wait(total - waited);
+  return null;
+}
+// ---- end helpers ----
 
 $('#f').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (hold) return;
   const question = $('#q').value.trim();
   if (!question) return;
+  const askedAt = Date.now();
   const city = $('#city').value;
   const turn = document.createElement('section');
   turn.className = 'turn';
@@ -603,12 +637,13 @@ $('#f').addEventListener('submit', async (e) => {
         if (ended) return;
         if (ev.type === 'thinking') notes.thinking(ev.step, String(ev.text ?? ''));
         else if (ev.type === 'tool' || ev.type === 'rewrite') notes.step(String(ev.label ?? ''));
-        else if (ev.type === 'discard') notes.discard(ev.step);
+        else if (ev.type === 'discard') notes.discard(ev.step, ev.reason);
         else if (ev.type === 'notes_capped') notes.capped();
         else if (ev.type === 'start') started = typeof ev.conversation === 'string' ? ev.conversation : null;
         else if (ev.type === 'final' || ev.type === 'error') {
           ended = true;
           showAnswer(turn, a, question, ev.type === 'final' ? 200 : Number(ev.status) || 502, ev.body || {});
+          return true;
         }
       });
       if (!ended) throw new Error('The stream ended before the answer.');
@@ -616,23 +651,41 @@ $('#f').addEventListener('submit', async (e) => {
       showAnswer(turn, a, question, res.status, await res.json());
     }
   } catch (err) {
-    if (notes && !ended) {
-      // The Worker had the question and keeps working on it, so asking again
-      // would count (and pay for) it twice. Say so instead of retrying.
-      if (started) {
-        conversationId = started;
-        $('#conv-forget').hidden = false;
-        setTimeout(loadRecent, 5000);
-      }
+    if (notes && !ended && started) {
+      // Signed in: the Worker had the question and may still save its answer
+      // to this conversation. Asking again now would pay for it twice and race
+      // that save, so new questions wait until it shows up or a minute passes.
+      const mine = { id: started };
+      hold = mine;
+      if (!conversationId) $('#conv-state').textContent = `Conversation: ${question.slice(0, 60)}`;
+      conversationId = started;
+      $('#conv-forget').hidden = false;
+      a.innerHTML = '<p class="notice">The connection dropped before the answer arrived. It may still finish: this page will show it here if it is saved. You can ask again in a minute.</p>';
+      savedTurn(started, question, askedAt).then((t) => {
+        if (hold !== mine) return;
+        hold = null;
+        $('#go').disabled = false;
+        loadRecent();
+        if (t) {
+          history.push({ role: 'user', content: question }, { role: 'assistant', content: t.answer });
+          a.innerHTML = renderAnswer(t.answer, t.record || {}, t.at);
+        } else {
+          $('#q').value = $('#q').value || question;
+          a.innerHTML = '<p class="notice">The connection dropped before the answer arrived, and it has not been saved. Asking again counts as a new question.</p>';
+        }
+      });
+    } else if (notes && !ended) {
+      // Nothing is saved for this reader, so nothing to race; asking again
+      // still counts as a new question, so say so instead of retrying.
       $('#q').value = question;
-      a.innerHTML = `<p class="notice">The connection dropped before the answer arrived.${started ? ' If it finished, it is saved in this conversation: look in your recent conversations in a minute.' : ''} Asking again counts as a new question.</p>`;
+      a.innerHTML = '<p class="notice">The connection dropped before the answer arrived. Asking again counts as a new question.</p>';
     } else {
       a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
     }
   } finally {
     notes?.done();
     turn.removeAttribute('aria-busy');
-    $('#go').disabled = false;
+    $('#go').disabled = Boolean(hold);
   }
 });
 loadCities();
