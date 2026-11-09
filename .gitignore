@@ -4,3 +4,6 @@ node_modules/
 # Waitlist exports hold people's email addresses.
 *waitlist*.csv
 dist/
+
+# Documents not yet cleared for the public repo (see data/documents/README.md).
+data/documents/private/

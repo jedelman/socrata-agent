@@ -26,7 +26,8 @@
     "deploy": "wrangler deploy",
     "build:norfolk": "node scripts/build-norfolk-legislation.js",
     "compare": "node scripts/compare-models.js",
-    "verify:cases": "node scripts/verify-cases.js"
+    "verify:cases": "node scripts/verify-cases.js",
+    "ingest": "node scripts/ingest-document.js"
   },
   "devDependencies": {
     "wrangler": "^4.147.0"
