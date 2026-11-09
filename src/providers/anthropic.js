@@ -10,6 +10,8 @@
 //   - every tool result goes back in one user message, as tool_result blocks
 //   - the system prompt and tool list are a stable prefix, cached with
 //     top-level cache_control
+//   - every call is streamed (the SDK's stream helper, read to its final
+//     message), so a caller can show the summarized thinking as it arrives
 // Spend is priced from the response's usage, per attempt, from the table
 // below. A model with no price on file is refused rather than run at an
 // unknown cost, so the Worker's daily budget can't be bypassed.
@@ -35,6 +37,7 @@ const CEILING = { input: 5, output: 25, cacheRead: 5, cacheWrite: 6.25 };
 
 // Sonnet 5.5 and Opus 5.5 support server-side fallbacks on refusal; Haiku 5.5 does not.
 const FALLBACK_MODELS = new Set(['claude-sonnet-5-5', 'claude-opus-5-5']);
+const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
 export const isClaudeModel = (model) => /^claude-/.test(String(model || ''));
 const API_BASE = 'https://api.anthropic.com';
@@ -42,8 +45,12 @@ const API_BASE = 'https://api.anthropic.com';
 export const CLAUDE_MAX_TOKENS = 8000;
 // The SDK retries a failed call at most this often. Each attempt is a fetch,
 // so it counts against the answer's request budget (src/request-budget.js).
+// A streamed call is still one fetch: the SDK retries only before a response
+// arrives (a refused connection, a 429, 5xx or timeout), never a stream that
+// fails partway (node_modules/@anthropic-ai/sdk/src/client.ts, makeRequest;
+// src/core/streaming.ts throws an SSE `error` event as an APIError).
 const MAX_RETRIES = 1;
-// Below the SDK's non-streaming limit (it refuses requests it estimates at over 10 minutes).
+// The output allowance for a call cut off at max_tokens, asked once more.
 const RETRY_MAX_TOKENS = 16000;
 
 // Only these request headers leave the Worker. The SDK also reads settings
@@ -94,16 +101,37 @@ export function toAnthropicTools(tools = []) {
 }
 
 /**
+ * With server-side fallbacks, a stream keeps what a declining model wrote
+ * before the switch, then a `fallback` block, then the fallback model's turn
+ * (a non-streaming response leaves that partial out). The API's rule for
+ * echoing such a turn: before the last `fallback` block, send back only text
+ * blocks (the fallback model continued from them) and the `fallback` blocks
+ * where they are; thinking, tool_use and anything else from the declined
+ * partial is omitted (shared/model-migration.md, "Echoing fallback turns
+ * back"). A tool_use from before the switch is never run.
+ */
+export function afterFallback(content) {
+  const cut = content.findLastIndex((b) => b.type === 'fallback');
+  if (cut < 0) return content;
+  return content.filter((b, i) => i >= cut || b.type === 'text' || b.type === 'fallback');
+}
+
+/**
  * A provider for src/agent.js. Holds the conversation in Messages API shape.
  * `complete()` returns { text, calls: [{ id, name, args }], cost, refusal }.
+ * `onThinking(text)`, when given, gets each summarized-thinking delta as it
+ * streams, and asks the API for display "summarized" (display changes what
+ * comes back, not what is billed). It sees thinking only: never the answer,
+ * the trace or the conversation, and the thinking blocks still go back to the
+ * API unchanged with the rest of the turn.
  */
-export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl }) {
+export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking }) {
   if (!PRICES[model]) throw new Error(`No price on file for ${model}. Add it to PRICES in src/providers/anthropic.js before using it.`);
   // The base URL is pinned: without it the SDK reads ANTHROPIC_BASE_URL from
   // the environment, and inside a Claude Code session (or behind someone
   // else's proxy) that would send this key somewhere other than Anthropic.
   // One retry at most: a retried attempt that the API billed would not show
-  // up in usage. The SDK's own non-streaming timeout (sized to max_tokens) applies.
+  // up in usage. Streaming calls get the SDK's default timeout (10 minutes).
   const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: MAX_RETRIES, fetch: guardedFetch(apiKey, fetchImpl) });
   // Thinking tokens count toward max_tokens on these models; the caller sets
   // the allowance (the Worker's MAX_TOKENS_CLAUDE), default CLAUDE_MAX_TOKENS.
@@ -171,18 +199,36 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
       // makes the model answer in text.
       ...(tools.length && !allowTools ? { tool_choice: { type: 'none' } } : {}),
       ...(effort ? { output_config: { effort } } : {}),
+      // Adaptive is these models' default; asking for the summary is what
+      // makes the thinking readable (its display is otherwise "omitted").
+      ...(onThinking ? { thinking: { type: 'adaptive', display: 'summarized' } } : {}),
     };
+    const stream = FALLBACK_MODELS.has(model)
+      ? client.beta.messages.stream({ ...params, betas: [FALLBACK_BETA], fallbacks: 'default' })
+      : client.messages.stream(params);
+    if (onThinking) {
+      stream.on('thinking', (delta) => {
+        // A listener that throws would end the stream; the notes are never worth that.
+        try {
+          if (delta) onThinking(delta);
+        } catch {}
+      });
+    }
     let res;
     try {
-      res = FALLBACK_MODELS.has(model)
-        ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
-        : await client.messages.create(params);
+      res = await stream.finalMessage();
     } catch (err) {
       // Report status and message only; never the request (it carries the key).
       const status = err instanceof Anthropic.APIError ? err.status : undefined;
-      throw new Error(`Anthropic ${status ?? 'error'}: ${String(err?.message || err).slice(0, 300)}`);
+      const failed = new Error(`Anthropic ${status ?? 'error'}: ${String(err?.message || err).slice(0, 300)}`);
+      // A stream that failed partway: the input the API said it read (its
+      // message_start usage) is priced, so a failed call still counts toward
+      // the daily budget. Nothing is retried here.
+      failed.cost = priceUsage(stream.currentMessage?.usage, model);
+      throw failed;
     }
     const cost = priceUsage(res.usage, model);
+    // A refusal can come mid-stream, after partial output: discard all of it.
     if (res.stop_reason === 'refusal') {
       last = null;
       return { text: '', calls: [], cost, refusal: res.stop_details?.category ?? 'unspecified' };
@@ -191,11 +237,12 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl 
       last = null;
       return { text: '', calls: [], cost, refusal: null, truncated: true };
     }
-    last = { role: 'assistant', content: res.content };
-    const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    const content = afterFallback(res.content);
+    last = { role: 'assistant', content };
+    const text = content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
     // Run tools only when the model stopped to call them.
     const calls = allowTools && res.stop_reason === 'tool_use'
-      ? res.content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} }))
+      ? content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} }))
       : [];
     return { text, calls, cost, refusal: null };
   }

@@ -81,6 +81,17 @@ export function budgetNote({ limit, refused }) {
  * `subrequestBudget` caps the outbound requests this answer may make, model
  * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
  * requests stop short of it, keeping enough for the final answer.
+ * `onEvent` hears the answer's progress, each event with `step`, the model
+ * call it belongs to (counted from 0; a step's tools follow its thinking):
+ *   { type: 'thinking', step, text }  a delta of the model's summarized
+ *       thinking, only with `thinkingEvents: true` and a Claude model. It goes
+ *       to onEvent and nowhere else: not the trace, the answer, the voice
+ *       check, toolResults or the history sent back to the model (the API's
+ *       own thinking blocks still go back unchanged, as it requires).
+ *   { type: 'tool', step, name, args }  a tool about to run
+ *   { type: 'rewrite', step, violations }  the voice rewrite call about to go
+ *   { type: 'refusal', step }  the model declined that step: its output,
+ *       thinking included, is discarded
  * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget },
  * plus { gaps, unanswered, fallback } when gaps are on.
  */
@@ -102,6 +113,7 @@ export async function ask({
   subrequestBudget,
   onEvent = () => {},
   onCost = () => {},
+  thinkingEvents = false,
   gaps = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
@@ -136,8 +148,12 @@ export async function ask({
   }
   // Tool results from this question, returned so a conversation can keep them.
   const toolResults = [];
+  // The model call in progress (onEvent's `step`), and the next one's number.
+  let step = -1;
+  let nextStep = 0;
+  const onThinking = thinkingEvents ? (text) => onEvent({ type: 'thinking', step, text }) : undefined;
   const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model })
+    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
   // Fetches one API call can take, and one complete() at worst (a cut-off
   // call's second try, each with its retry).
@@ -163,15 +179,27 @@ export async function ask({
     cost += usd;
     onCost(usd);
   };
+  // One model call. A call that fails partway may carry the cost of what the
+  // API reported reading before it failed; that is spent before the error goes up.
+  const complete = async (opts) => {
+    step = nextStep++;
+    try {
+      return await llm.complete(opts);
+    } catch (err) {
+      if (Number.isFinite(err?.cost) && err.cost > 0) spend(err.cost);
+      throw err;
+    }
+  };
 
   for (;;) {
     // Tools are offered only while this call, a tool request after it and the
     // reserve all fit. Otherwise the model answers now, with tools off.
     if (!budget.roomForTools(perComplete)) budgetStopped = true;
     const lastStep = steps >= maxSteps || budgetStopped;
-    const out = await llm.complete({ allowTools: !lastStep });
+    const out = await complete({ allowTools: !lastStep });
     spend(out.cost);
     if (out.refusal) {
+      onEvent({ type: 'refusal', step });
       refusal = out.refusal;
       fallback = true;
       answer = "I can't answer that one: the model declined it. The queries I ran before it stopped are in the trace below.";
@@ -206,7 +234,7 @@ export async function ask({
       }
       try {
         if (call.error) throw new Error(call.error);
-        onEvent({ type: 'tool', name: call.name, args: call.args });
+        onEvent({ type: 'tool', step, name: call.name, args: call.args });
         value = await runTool(ctx, call.name, call.args);
         // The tool returns what it has; code adds the note, whatever the tool,
         // ahead of the result so a long result cut to size still carries it.
@@ -254,11 +282,12 @@ export async function ask({
   let rewriteSkipped = false;
   if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
   else if (violations.length) {
-    onEvent({ type: 'rewrite', violations });
+    onEvent({ type: 'rewrite', step: nextStep, violations });
     llm.appendAssistant();
     llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
-    const out = await llm.complete({ allowTools: false, retryTruncated: false });
+    const out = await complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
+    if (out.refusal) onEvent({ type: 'refusal', step });
     if (out.text && !out.refusal && !out.truncated) {
       answer = out.text;
       rewritten = true;
