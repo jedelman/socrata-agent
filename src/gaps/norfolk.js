@@ -56,6 +56,106 @@ export const TOPICS = Object.freeze({
     ],
     checked_live: '2026-11-06',
   },
+  // Jason, 2026-11-09: "Budget should absolutely be a topic." The topic is
+  // structure, not entries: no approved entry names it yet, so the catalog's
+  // own build doesn't measure it (the builder reads only the topics its
+  // entries name) and data/gaps/norfolk.json is unchanged by it. The proposed
+  // budget entries (src/gaps/proposed/norfolk-budget.js) name it, so their
+  // build checks it live: every hit of the search is placed, every placement
+  // quotes its dataset (or the rule that keeps it from Siren), and a
+  // 'blocks: all' question needs columns_absent over every dataset below.
+  //
+  // In the topic: the City's own budget records, read on 2026-11-09 against
+  // data.norfolk.gov: Annual Expenditures, Annual Revenues, Performance
+  // Measures and every capital plan the catalog search finds, the FY2020
+  // proposed plan (fumf-ph9r) included, though no Siren tool reads it, so a
+  // topic-wide "no column" claim spans it too. The placements outside and the
+  // clearances are this change's, for Jason's review; he approved the topic,
+  // not yet these placements.
+  budget: {
+    name: 'budget',
+    datasets: ['mdwe-dquf', 'id3i-2az4', '7jsp-eyjg', '6tqj-4az3', 'dpv9-3yq2', '6njp-hen5', 'jbfz-2t3g', 'fumf-ph9r'],
+    search: 'budget',
+    not_in_topic: [
+      {
+        id: 'k8ry-iqjg',
+        quote: ['This dataset is a compiled list of existing public art recorded by Norfolk.'],
+        reason: 'Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.',
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      {
+        id: 'kekx-9mip',
+        quote: ['This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.'],
+        reason: 'It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.',
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      {
+        id: 'de5p-5xvj',
+        quote: ['This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.'],
+        reason: 'A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.',
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      {
+        id: 'ez9d-udp9',
+        quote: ['This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.'],
+        reason: 'A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.',
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      {
+        id: '8j55-9gjp',
+        quote: ['This dataset consists of summaries of the suggestions for each budget program.'],
+        reason: 'Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.',
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      {
+        id: 'f3mt-z6yp',
+        quote: ['To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.'],
+        reason: 'A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.',
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      // Restricted by the city profile: placed by the rule (file:line), with
+      // no request, since GENERIC access can't describe them.
+      {
+        id: '4fsk-z8s8',
+        policy: true,
+        reason: "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+      {
+        id: 'vv96-9m5c',
+        policy: true,
+        reason: "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+        placed: "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+      },
+    ],
+    // Columns in topic datasets that a topic-wide check's pattern matches
+    // but that hold something else. A check passes each clearance whose
+    // column its pattern matches (budgetCleared in the proposal module).
+    cleared: [
+      {
+        dataset: '7jsp-eyjg',
+        column: 'fy_2027_adopted',
+        reason: 'A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”',
+        by: "Gap inventory change, for Jason's review",
+        date: '2026-11-09',
+      },
+      {
+        dataset: '6njp-hen5',
+        column: 'adopted_amount_fy_25',
+        reason: 'A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.',
+        by: "Gap inventory change, for Jason's review",
+        date: '2026-11-09',
+      },
+      {
+        dataset: '6njp-hen5',
+        column: 'adopted_amount_fy_25_fy_29',
+        reason: 'A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.',
+        by: "Gap inventory change, for Jason's review",
+        date: '2026-11-09',
+      },
+    ],
+    checked_live: '2026-11-09',
+  },
 });
 const TREE_DATASETS = TOPICS.trees.datasets;
 

@@ -247,7 +247,7 @@ export class MeasureRunner {
     if (r.rows.length >= 200) throw new MeasureChange(`${dataset}.${field} has 200 or more values; the values_absent query reads at most 200.`);
     const values = r.rows.map((x) => x.v).filter((v) => v != null);
     const matched = values.filter((v) => pattern.test(v));
-    return { ...r, values, matched, pattern: String(pattern) };
+    return { ...r, field, values, matched, pattern: String(pattern) };
   }
 
   /**
