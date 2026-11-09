@@ -17,6 +17,7 @@
 import { lookupAddress } from './block.js';
 import { ACCESS } from './socrata.js';
 import { deepFreeze } from './cities/index.js';
+import { networkFetch } from './request-budget.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,48}$/;
 export const USER_AGENT = 'socrata-agent (+https://github.com/jedelman/socrata-agent)';
@@ -43,7 +44,8 @@ export function pluginToolDefs(plugins, city) {
 
 // Traced HTTP for plugins. Every call lands in the trace, success or failure.
 export function tracedHttp(trace, fetchImpl) {
-  const doFetch = fetchImpl || globalThis.fetch.bind(globalThis);
+  // On an answer this is the answer's counting fetch (src/request-budget.js).
+  const doFetch = fetchImpl || networkFetch;
   const get = async (url, info, parse) =>
     trace.record({ tool: info?.tool || 'plugin request', ...(info?.dataset ? { dataset: info.dataset } : {}), url }, async () => {
       if (!/^https:\/\//.test(url)) throw new Error('Plugins may only fetch https URLs.');

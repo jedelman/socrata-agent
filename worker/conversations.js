@@ -36,12 +36,12 @@ const clip = (v, n) => (v == null ? undefined : String(v).slice(0, n));
 const MAX_TRACE_STEPS = 60;
 
 /** The record shown under an answer, kept with its turn: bounded, and only the fields the page renders. */
-export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions } = {}) {
+export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget } = {}) {
   const r = resources || {};
   return {
     trace: (Array.isArray(trace) ? trace : []).slice(0, MAX_TRACE_STEPS).map((t) => ({
       n: t.n, tool: clip(t.tool, 200), dataset: clip(t.dataset, 40), url: clip(t.url, 2000), soql: clip(t.soql, 2000),
-      ok: Boolean(t.ok), rows: Number.isFinite(t.rows) ? t.rows : null, ms: Number.isFinite(t.ms) ? t.ms : null, error: clip(t.error, 300),
+      ok: Boolean(t.ok), rows: Number.isFinite(t.rows) ? t.rows : null, ms: Number.isFinite(t.ms) ? t.ms : null, error: clip(t.error, 300), ...(t.refused ? { refused: true } : {}),
     })),
     resources: {
       datasets: (r.datasets || []).slice(0, 20).map((d) => ({ id: clip(d.id, 20), name: clip(d.name, 200), page: clip(d.page, 500), docs: clip(d.docs, 500), csv: clip(d.csv, 500), department: clip(d.department, 200), queries: (d.queries || []).slice(0, 5).map((q) => clip(q, 2000)) })),
@@ -53,6 +53,9 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
     model: clip(model, 80),
     steps: Number.isFinite(steps) ? steps : undefined,
     cost: Number.isFinite(cost) ? Math.round(cost * 1e6) / 1e6 : undefined,
+    requestBudget: requestBudget && Number.isFinite(requestBudget.used)
+      ? { limit: Number.isFinite(requestBudget.limit) ? requestBudget.limit : null, used: requestBudget.used, refused: Number(requestBudget.refused) || 0, reached: Boolean(requestBudget.reached), note: clip(requestBudget.note, 400) }
+      : undefined,
     suggestions: (suggestions || []).slice(0, 2).map((x) => ({ need: clip(x.need, 300), source: clip(x.source, 200), why: clip(x.why, 300), url: clip(x.url, 500) })),
   };
 }
