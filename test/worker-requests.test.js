@@ -16,6 +16,10 @@ async function loadWorker() {
   if (worker) return worker;
   nodeModule.registerHooks({
     load(url, context, next) {
+      // esbuild's `with { type: 'text' }`: the file's text as the default export.
+      if (url.startsWith('file:') && context.importAttributes?.type === 'text') {
+        return { format: 'module', source: `export default ${JSON.stringify(readFileSync(fileURLToPath(url), 'utf8'))};`, shortCircuit: true };
+      }
       if (url.startsWith('file:') && url.endsWith('.html')) {
         return { format: 'module', source: `export default ${JSON.stringify(readFileSync(fileURLToPath(url), 'utf8'))};`, shortCircuit: true };
       }
@@ -209,32 +213,38 @@ test('the public feed is served from the cache, whatever the query string', { sk
 
 // --- Requests + Bluesky endorsements together ---
 
-// A D1 binding that fails the test if anything touches it.
-const untouchableDb = () => new Proxy({}, { get(_, prop) { throw new Error(`D1 touched with BLUESKY_LOGIN off (${String(prop)})`); } });
+// A fetch that fails the test if anything calls it.
+const noNetwork = async (url) => { throw new Error(`network called with BLUESKY_LOGIN off: ${url}`); };
 
-test('flag off: GET /api/requests is exactly the requests-only list, with no D1 call even when SIREN_DB is bound', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
+test('flag off: GET /api/requests is exactly the requests-only list, with no outbound call even with the endorse settings present', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
   const w = await loadWorker();
-  const e = { ...env(), SIREN_DB: untouchableDb() };
-  const steward = await cookieFor('steward@example.org');
-  await w.fetch(post('/api/requests', { source: 'Tree inventory', need: 'which trees', public: true }), e, {});
-  await w.fetch(post('/api/requests', { source: 'Unreviewed source', need: 'q', public: true }, { 'CF-Connecting-IP': '203.0.113.11' }), e, {});
-  const listed = (await (await w.fetch(new Request('https://x.org/api/admin/requests', { headers: steward }), e, {})).json()).requests;
-  const tree = listed.find((r) => r.source === 'Tree inventory');
-  assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'accepted' }, steward), e, {})).status, 200);
-  assert.equal((await w.fetch(post('/api/admin/requests/note', { id: tree.id, note: tree.needs[0].id, action: 'approve' }, steward), e, {})).status, 200);
-  assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'declined' }, steward), e, {})).status, 200, 'a decline needs no D1 with the flag off');
-  assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'accepted' }, steward), e, {})).status, 200);
-  const res = await w.fetch(new Request('https://x.org/api/requests'), e, {});
-  assert.equal(res.status, 200);
-  assert.equal(res.headers.get('Cache-Control'), 'public, max-age=300');
-  const body = await res.json();
-  assert.deepEqual(Object.keys(body).sort(), ['requests', 'withdrawn']);
-  assert.equal(body.requests.length, 1);
-  assert.deepEqual(Object.keys(body.requests[0]).sort(), ['count', 'first', 'id', 'last', 'notes', 'source', 'status']);
-  assert.deepEqual(body.requests[0].notes, ['which trees']);
-  assert.match(body.requests[0].first, /^\d{4}-\d{2}-\d{2}$/, 'days, not times');
-  const { publicRequests } = await import('../worker/requests.js');
-  assert.deepEqual(body, JSON.parse(JSON.stringify(await publicRequests(e.LIMITS))), 'the same list the requests module computes');
+  const e = { ...env(), PUBLIC_ORIGIN: 'https://x.org', CONSTELLATION_URL: 'https://constellation.fixture.dev', SIREN_DB: new Proxy({}, { get(_, prop) { throw new Error(`D1 touched (${String(prop)})`); } }) };
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = noNetwork;
+  try {
+    const steward = await cookieFor('steward@example.org');
+    await w.fetch(post('/api/requests', { source: 'Tree inventory', need: 'which trees', public: true }), e, {});
+    await w.fetch(post('/api/requests', { source: 'Unreviewed source', need: 'q', public: true }, { 'CF-Connecting-IP': '203.0.113.11' }), e, {});
+    const listed = (await (await w.fetch(new Request('https://x.org/api/admin/requests', { headers: steward }), e, {})).json()).requests;
+    const tree = listed.find((r) => r.source === 'Tree inventory');
+    assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'accepted' }, steward), e, {})).status, 200);
+    assert.equal((await w.fetch(post('/api/admin/requests/note', { id: tree.id, note: tree.needs[0].id, action: 'approve' }, steward), e, {})).status, 200);
+    assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'declined' }, steward), e, {})).status, 200, 'a decline needs no D1 with the flag off');
+    assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'accepted' }, steward), e, {})).status, 200);
+    const res = await w.fetch(new Request('https://x.org/api/requests'), e, {});
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Cache-Control'), 'public, max-age=300');
+    const body = await res.json();
+    assert.deepEqual(Object.keys(body).sort(), ['requests', 'withdrawn']);
+    assert.equal(body.requests.length, 1);
+    assert.deepEqual(Object.keys(body.requests[0]).sort(), ['count', 'first', 'id', 'last', 'notes', 'source', 'status']);
+    assert.deepEqual(body.requests[0].notes, ['which trees']);
+    assert.match(body.requests[0].first, /^\d{4}-\d{2}-\d{2}$/, 'days, not times');
+    const { publicRequests } = await import('../worker/requests.js');
+    assert.deepEqual(body, JSON.parse(JSON.stringify(await publicRequests(e.LIMITS))), 'the same list the requests module computes');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
 
 test('flag off: an unreadable request list is a JSON 503 with no count of anything, and is not cached', { skip: !canHook && 'node:module has no registerHooks' }, async () => {

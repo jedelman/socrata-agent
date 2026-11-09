@@ -2,7 +2,7 @@
 // GitHub mirror.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addRequest, requestKey, publicRequests, publicView, withStatus, publicId } from '../worker/requests.js';
+import { addRequest, requestKey, publicRequests, publicView, withStatus, publicId, currentId } from '../worker/requests.js';
 import { issueBody, issueTitle, mdText } from '../scripts/sync-request-issues.js';
 
 function fakeKV() {
@@ -36,7 +36,9 @@ test('nothing is public until the steward accepts it, and old notes stay private
   list = await publicRequests(kv, Date.parse('2026-11-06T13:00:00Z'));
   assert.equal(list.requests.length, 1);
   let r = list.requests[0];
-  assert.equal(r.id, publicId(key));
+  assert.equal(r.id, await currentId(kv, 'Norfolk City Code, Chapter 45'));
+  assert.match(r.id, /^[a-z2-7]{16}$/, 'a random id, not a hash of the source');
+  assert.notEqual(r.id, publicId(key));
   assert.equal(r.count, 2);
   assert.deepEqual(r.notes, [], 'accepting a request approves none of its notes');
   for (const n of (await allRequests(kv)).find((x) => x.id === r.id).needs) assert.ok((await reviewNote(kv, { id: r.id, note: n.id, action: 'approve' })).ok);
@@ -118,14 +120,40 @@ test('other keys never collide with request: keys (Bluesky data lives in D1, not
   assert.ok((await decide(kv, { id: r.id, status: 'accepted' })).ok);
 });
 
-test('freezeAtDecision: live on the way into a decision, the earlier value otherwise', () => {
-  const live = { n: 5, young: 1, unknown: 2 };
-  assert.deepEqual(freezeAtDecision({ status: 'accepted' }, 'fulfilled', live), live);
-  assert.deepEqual(freezeAtDecision({ status: 'new' }, 'declined', live), live);
-  assert.deepEqual(freezeAtDecision({ status: 'declined', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'fulfilled', live), { n: 1, young: 0, unknown: 0 });
-  assert.deepEqual(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'accepted', live), { n: 1, young: 0, unknown: 0 });
-  assert.equal(freezeAtDecision({ status: 'accepted' }, 'accepted', live), undefined);
-  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), undefined, 'nothing to freeze without a count');
+test('freezeAtDecision: the live count on the way into a decision, the earlier value otherwise', () => {
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', 5), 5);
+  assert.equal(freezeAtDecision({ status: 'new' }, 'declined', 0), 0, 'zero is a count');
+  assert.equal(freezeAtDecision({ status: 'declined', endorsements_at_decision: 1 }, 'fulfilled', 5), 1);
+  assert.equal(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: 1 }, 'accepted', 5), 1);
+  assert.deepEqual(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'accepted', 5), { n: 1, young: 0, unknown: 0 }, 'a legacy frozen value is kept as stored');
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'accepted', 5), undefined);
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), null, 'no count (Constellation down): clear, never keep an old one');
+  assert.equal(freezeAtDecision({ status: 'accepted', endorsements_at_decision: 5 }, 'fulfilled', undefined), null);
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', -1), null);
+});
+
+test('a frozen count is this decision\'s: fulfil at 5, reopen, fulfil at 0 shows 0; re-deciding with no count leaves none', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Frozen source' }, kv, visitor: 'v' });
+  const id = await currentId(kv, 'Frozen source');
+  const rec = async () => JSON.parse(kv.store.get(await requestKey('Frozen source')));
+  const by = 'https://github.com/o/r/pull/1';
+  assert.ok((await decide(kv, { id, status: 'accepted' })).ok);
+  const first = await decide(kv, { id, status: 'fulfilled', fulfilled_by: by }, Date.now(), { live: 5 });
+  assert.equal(first.endorsements_at_decision, 5);
+  assert.ok((await decide(kv, { id, status: 'accepted' })).ok);
+  assert.equal((await rec()).endorsements_at_decision, 5, 'reopened: the steward still sees the earlier count');
+  const again = await decide(kv, { id, status: 'fulfilled', fulfilled_by: by }, Date.now(), { live: 0 });
+  assert.equal(again.endorsements_at_decision, 0);
+  assert.equal((await rec()).endorsements_at_decision, 0, 'a frozen 0 is kept');
+  const [listed] = (await publicRequests(kv, Date.now(), { counts: new Map([[id, { endorsements: 2 }]]) })).requests;
+  assert.equal(listed.endorsements_at_decision, 0);
+  assert.ok((await decide(kv, { id, status: 'accepted' })).ok);
+  const down = await decide(kv, { id, status: 'declined' }, Date.now(), { live: undefined });
+  assert.equal(down.endorsements_at_decision, undefined);
+  assert.equal('endorsements_at_decision' in (await rec()), false, 'no stale count survives a decision made without one');
+  const decision = JSON.parse(kv.store.get((await requestKey('Frozen source')).replace(/^request:/, 'request-decision:')));
+  assert.equal('endorsements_at_decision' in decision, false, 'nor in the decision key');
 });
 
 // --- Inc 1: notes reviewed whatever the status, days not times, the count
@@ -531,7 +559,7 @@ test('the public feed never writes to KV, so a KV out of writes still serves it'
 
 test('the public page shows no count of requests awaiting review', async () => {
   const { readFileSync } = await import('node:fs');
-  const html = readFileSync(new URL('../worker/requests.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../worker/requests.html', import.meta.url), 'utf8') + readFileSync(new URL('../worker/requests-page.js', import.meta.url), 'utf8');
   assert.doesNotMatch(html, /awaiting_review/);
   assert.match(html, /Requests appear here after a steward reviews them\./);
 });
@@ -683,4 +711,59 @@ test('a year-like number before a street name lets the note through, flagged for
   await addRequest({ body: { source: 'Tree budget', need: 'How much was spent on pruning?', public: true }, kv, visitor: 'v', streets });
   const plain = [...kv.store.entries()].find(([k, v]) => k.startsWith('request:') && v.includes('pruning'));
   assert.ok(!JSON.parse(plain[1]).needs[0].flags);
+});
+
+// --- Random public ids (Jason, 2026-11-09) ---
+import { idKey, pidKey } from '../worker/requests.js';
+
+test('a new request gets a random id at creation; a stale raise never changes it', async () => {
+  const kv = fakeKV();
+  await addRequest({ body: { source: 'Tree permits' }, kv, visitor: 'a' });
+  const key = await requestKey('Tree permits');
+  const id = await currentId(kv, 'Tree permits');
+  assert.match(id, /^[a-z2-7]{16}$/);
+  assert.equal(await kv.get(pidKey(id)), key.slice('request:'.length));
+  // A raise that read the record (it exists) never mints again.
+  await addRequest({ body: { source: 'Tree permits' }, kv, visitor: 'b' });
+  assert.equal(await currentId(kv, 'Tree permits'), id);
+  const other = fakeKV();
+  await addRequest({ body: { source: 'Tree permits' }, kv: other, visitor: 'a' });
+  assert.notEqual(await currentId(other, 'Tree permits'), id, 'random, not derived from the source');
+  assert.equal((await requestByPublicId(kv, id)).key, key);
+  assert.equal(await requestByPublicId(kv, publicId(key)), null, 'the hash id never resolves for a request with a random id');
+});
+
+test('a legacy request answers to its hex id until migrated, then only to its random id; formerly reaches the feed only', async () => {
+  const kv = fakeKV();
+  const key = await requestKey('Old source');
+  await kv.put(key, JSON.stringify({ source: 'Old source', count: 1, status: 'accepted', needs: [] }));
+  assert.equal((await publicRequests(kv)).requests[0].id, publicId(key));
+  assert.ok(await requestByPublicId(kv, publicId(key)));
+  // What `request-ids --apply` writes.
+  await kv.put(pidKey('abcdefghijklmnop'), key.slice('request:'.length));
+  await kv.put(idKey(key), JSON.stringify({ id: 'abcdefghijklmnop', formerly: publicId(key) }));
+  const [item] = (await publicRequests(kv)).requests;
+  assert.equal(item.id, 'abcdefghijklmnop');
+  assert.equal(item.formerly, publicId(key));
+  assert.equal(await requestByPublicId(kv, publicId(key)), null);
+  assert.ok((await decide(kv, { id: 'abcdefghijklmnop', status: 'declined' })).ok);
+  assert.deepEqual((await publicRequests(kv)).withdrawn.map((w) => [w.id, w.formerly]), [['abcdefghijklmnop', publicId(key)]]);
+  // An index entry pointing at another request's hash doesn't resolve.
+  await kv.put(pidKey('zzzzzzzzzzzzzzzz'), key.slice('request:'.length));
+  assert.equal(await requestByPublicId(kv, 'zzzzzzzzzzzzzzzz'), null);
+});
+
+test('the mirror keeps a migrated request on its old issue marker, with the new id in the body', () => {
+  const r = { id: 'abcdefghijklmnop', formerly: 'aaaaaaaaaaaa', source: 'S', count: 1, status: 'accepted', notes: [] };
+  const [entry, gone] = plan([r], 'https://x/requests', 'o/r', [{ id: 'bbbbbbbbbbbbbbbb', formerly: 'cccccccccccc', day: '2026-11-09' }]);
+  assert.equal(entry.marker, '<!-- source-request:aaaaaaaaaaaa -->');
+  assert.match(entry.body, /id `abcdefghijklmnop`/);
+  assert.ok(!entry.body.includes('id `aaaaaaaaaaaa`'));
+  assert.equal(gone.marker, '<!-- source-request:cccccccccccc -->');
+  const existing = [{ number: 7, state: 'open', title: issueTitle(r), body: '<!-- source-request:aaaaaaaaaaaa -->\nold' }, { number: 8, state: 'open', title: 't', body: '<!-- source-request:cccccccccccc -->' }];
+  const ops = operations({ existing, requests: [r], withdrawn: [{ id: 'bbbbbbbbbbbbbbbb', formerly: 'cccccccccccc', day: '2026-11-09' }], pageUrl: 'https://x/requests', repo: 'o/r' });
+  assert.ok(!ops.some((o) => o.op === 'create'), 'no duplicate issue');
+  assert.deepEqual(ops.map((o) => o.number).sort(), [7, 8]);
+  // A new request (random id, never migrated) is marked with its own id.
+  assert.equal(plan([{ ...r, formerly: undefined }], '', 'o/r')[0].marker, '<!-- source-request:abcdefghijklmnop -->');
 });

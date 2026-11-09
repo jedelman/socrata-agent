@@ -2,6 +2,8 @@
 
 **Status.** Rev 2, 2026-11-06. It revises rev 1 after three reviews (privacy-abuse, truth-voice, engineering). Every blocking issue is applied, and so is each major one, some only in part; §21 and the issue lists name what was declined and why. This is read-only work: nothing has been built, edited, committed or pushed.
 
+**Note, 2026-11-09.** Bluesky endorsements have since moved into the endorsers' own atproto repos, counted through Constellation, with a public endorser list (docs/bluesky-endorsements.md). The endorse-spec details below (keyed hashes, D1 rows, sign-in cookies, per-item clears, established-only counts) describe the earlier design; where this plan relies on them (§11.5, §17), it needs revising before Inc 13.
+
 **Code base.**
 - Every `file:line` refers to `ccr-159a72f4-joafbc` at cb64aa2, read with `git show`. `worker/requests.js`, `worker/requests.html` and `scripts/sync-request-issues.js` are the same on `origin/main` (df54d00).
 - The **traces branch** (2ac9db9, checked out in `/home/user/socrata-agent`) adds `answerRecord` (`worker/conversations.js:39-58` there) and a `record` per saved turn (:69-80 there).

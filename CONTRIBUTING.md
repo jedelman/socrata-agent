@@ -32,7 +32,11 @@ comes back into the shared project, and what the shared web app runs.
 - **Anything that finds people.** No tools that search or profile individuals by
   name: no voter files, no warrant or arrest lookups, no "who lives here."
   Warrants and arrests stay excluded. This is the one line that doesn't move,
-  whatever a deployment's purpose.
+  whatever a deployment's purpose. The one list of people Siren shows is the
+  public endorser list on each source request's page: accounts that
+  published a public endorsement of that public request, on that request's
+  page only, with no search, sort or filter by person and no "what did this
+  account endorse" view (docs/bluesky-endorsements.md). Don't add one.
 - **Persuasion inside the answer.** The answer reports what the records show. A
   group's own framing belongs in its deployment notes or its own UI, labeled as
   its own, never mixed into the record.

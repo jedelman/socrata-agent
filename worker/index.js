@@ -24,15 +24,25 @@ import { skins } from './skins.js';
 import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest, raiseResponse, publicRequests } from './requests.js';
+import { addRequest, raiseResponse, publicRequests, PUBLIC_ID_RE } from './requests.js';
+import { publicOrigin } from './atproto-oauth.js';
 import { hmacHex } from './crypto.js';
-import { handleAdmin, scheduledPurge } from './admin.js';
+import { handleAdmin } from './admin.js';
 import { cachedPublicList } from './public-list.js';
-import {
-  blueskyReady, handleMetadata, handleLogin as handleBskyLogin, handleCallback, handleMe, handleLogout as handleBskyLogout,
-  handleEndorse, handleUnendorse, handleForget,
-} from './bluesky.js';
+import { blueskyReady, handleMetadata, handleResolve } from './bluesky.js';
+import { handleEndorsers } from './endorsers.js';
 import REQUESTS_PAGE from './requests.html';
+// The requests page's module and style, and the browser OAuth client with
+// the shared modules it imports, served as text (with { type: 'text' } is an
+// esbuild import attribute; the same files are imported as code elsewhere).
+import PAGE_JS from './requests-page.js' with { type: 'text' };
+import PAGE_CSS from './requests.css' with { type: 'text' };
+import CLIENT_JS from './endorse-client.js' with { type: 'text' };
+import STORE_JS from './endorse-store.js' with { type: 'text' };
+import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
+import OAUTH_JS from './atproto-oauth.js' with { type: 'text' };
+import CONFIG_JS from './endorse-config.js' with { type: 'text' };
+import CRYPTO_JS from './crypto.js' with { type: 'text' };
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
@@ -406,6 +416,77 @@ async function handleWaitlist(req, env) {
 
 const APP_NAME_OF = (env, config) => env.APP_NAME || config.name || 'socrata-agent';
 
+const JS = 'text/javascript; charset=utf-8';
+const ASSETS = {
+  'requests-page.js': [PAGE_JS, JS],
+  'requests.css': [PAGE_CSS, 'text/css; charset=utf-8'],
+  'endorse-client.js': [CLIENT_JS, JS],
+  'endorse-store.js': [STORE_JS, JS],
+  'atproto-identity.js': [IDENTITY_JS, JS],
+  'atproto-oauth.js': [OAUTH_JS, JS],
+  'endorse-config.js': [CONFIG_JS, JS],
+  'crypto.js': [CRYPTO_JS, JS],
+};
+// A content hash of every asset, computed once per isolate (FNV-1a, two
+// seeds; for cache-busting, not security), so the page's URLs change with
+// any deploy that changes them and each can be cached for a year.
+function fnv(s, h) {
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(16).padStart(8, '0');
+}
+const ALL_ASSETS = Object.entries(ASSETS).map(([k, [v]]) => `${k}\n${v}`).join('\n');
+const ASSET_HASH = fnv(ALL_ASSETS, 0x811c9dc5) + fnv(ALL_ASSETS, 0x01000193);
+
+function assetResponse(hash, name) {
+  const [body, type] = ASSETS[name];
+  // An old hash (a page cached across a deploy) still gets the current
+  // file, but never cached, so no URL ever holds the wrong content.
+  const cache = hash === ASSET_HASH ? 'public, max-age=31536000, immutable' : 'no-store';
+  return new Response(body, { headers: { 'Content-Type': type, 'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff' } });
+}
+
+/**
+ * The requests pages' policy: scripts and styles only from this origin (no
+ * inline script or style), fetches to any https server (the browser talks
+ * to each person's own Bluesky server), nothing framed, no base or form
+ * target elsewhere. Siren shares jason-edelman.org's origin, so 'self' also
+ * covers the root site (D4: stay on the shared origin, default, pending
+ * Jason; docs/bluesky-endorsements.md says what a subdomain would buy).
+ */
+const REQUESTS_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+
+async function requestsPage(req, env, ctx, base, focus) {
+  const { config } = getDeployment(env);
+  const on = blueskyReady(env);
+  if (focus) {
+    // A request's own page exists only with endorsements on, and only for a
+    // request on the public list.
+    if (!on || !PUBLIC_ID_RE.test(focus)) return new Response('Not found', { status: 404 });
+    const url = new URL(req.url);
+    const list = await cachedPublicList({ env, ctx, kv: env.LIMITS, origin: url.origin, base });
+    if (list.unavailable) return new Response("The request list can't be read just now. Try again in a minute.", { status: 503, headers: { 'Cache-Control': 'no-store' } });
+    if (!list.requests.some((r) => r.id === focus)) return new Response('Not found', { status: 404 });
+  }
+  const fill = {
+    APP_NAME: esc(APP_NAME_OF(env, config)),
+    REPO: esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent'),
+    BASE: esc(base),
+    ASSETS: esc(`${base}/assets/${ASSET_HASH}`),
+    ORIGIN: esc(on ? publicOrigin(env).origin : ''),
+    ENDORSE: on ? 'on' : 'off',
+    FOCUS: esc(focus),
+  };
+  return new Response(REQUESTS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m)), {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': on ? 'public, max-age=60' : 'public, max-age=300',
+      'Content-Security-Policy': REQUESTS_CSP,
+      'X-Frame-Options': 'DENY',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
+}
+
 // The page, with the deployment's name, copy and skin filled in. Config text
 // is escaped; skin markup comes from worker/skins.js, which is trusted code.
 const esc = (s) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -430,11 +511,6 @@ function page(env) {
 }
 
 export default {
-  // The daily cron: deletes endorsement rows past their expiry (admin.js
-  // scheduledPurge). Without BLUESKY_LOGIN and SIREN_DB it does nothing.
-  async scheduled(controller, env, ctx) {
-    scheduledPurge(env, ctx);
-  },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     // Served under a path on someone else's site (jason-edelman.org/ask-siren):
@@ -462,9 +538,9 @@ export default {
       // No `withdrawn` here: the mirror closes unlisted issues only when the
       // feed carries that list, so an unconfigured site closes nothing.
       if (!env.LIMITS) return json({ requests: [] });
-      // KV failing (or past the Free plan's daily list operations) is a JSON
-      // 503, never a thrown error, and never cached; with endorsements on,
-      // D1 isn't asked then. No `withdrawn` in it either.
+      // KV failing is a JSON 503, never a thrown error, and never cached;
+      // with endorsements on, nothing else is asked then. No `withdrawn` in
+      // it either.
       const unavailable = () => json({ error: "The request list can't be read just now. Try again in a minute.", code: 'unavailable', requests: [] }, 503, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
       if (!blueskyReady(env)) {
         // Flag off: the requests-only list, cached per location for 5 minutes.
@@ -483,14 +559,15 @@ export default {
       if (list.unavailable) return unavailable();
       return json(list, 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
     }
-    // Bluesky sign-in (bluesky.js). The client metadata is the OAuth client_id
-    // URL, served whenever PUBLIC_ORIGIN is set; the rest need BLUESKY_LOGIN.
-    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/oauth-client-metadata.json') {
+    // The browser client's OAuth client_id document, whenever PUBLIC_ORIGIN
+    // is set (so the rollout can check it with the flag off).
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/endorse-client-metadata.json') {
       const { config } = getDeployment(env);
       return handleMetadata(req, env, base, APP_NAME_OF(env, config));
     }
-    if (req.method === 'GET' && path === '/oauth/callback') return handleCallback(req, env, ctx, base);
-    if (req.method === 'GET' && path === '/api/bsky/me') return handleMe(req, env, ctx, base);
+    // Who endorsed one request on the public list (endorsers.js); 404 with the flag off.
+    const endorsersPath = req.method === 'GET' && /^\/api\/requests\/([^/]{1,64})\/endorsers$/.exec(path);
+    if (endorsersPath) return handleEndorsers(req, env, ctx, base, endorsersPath[1]);
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
       const casesBase = `${url.origin}${base}`;
@@ -510,15 +587,15 @@ export default {
       });
     }
     if (req.method === 'GET' && path === '/api/admin/requests') return handleAdmin(req, env, path, ctx);
-    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/requests') {
-      const { config } = getDeployment(env);
-      // The page can't be framed (with sign-in on, its buttons act for a signed-in account).
-      const frame = { 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' };
-      const extra = { ...frame, 'Cache-Control': blueskyReady(env) ? 'public, max-age=60' : 'public, max-age=300' };
-      return new Response(REQUESTS_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace(/\{\{REPO\}\}/g, esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent')), {
-        headers: { 'Content-Type': 'text/html; charset=utf-8', ...extra },
-      });
+    // The requests page, and with endorsements on a page per listed request
+    // (the URL endorsement records point at). Served under a strict CSP.
+    const permalink = /^\/requests\/([^/]{1,64})$/.exec(path);
+    if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/requests' || permalink)) {
+      return requestsPage(req, env, ctx, base, permalink ? permalink[1] : '');
     }
+    // The page's script, style and the browser client, as module text.
+    const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
+    if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]]) return assetResponse(asset[1], asset[2]);
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
@@ -526,12 +603,8 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note' || path === '/api/admin/requests/endorsements/clear')) return handleAdmin(req, env, path, ctx);
-    if (req.method === 'POST' && path === '/api/bsky/login') return handleBskyLogin(req, env, ctx, base);
-    if (req.method === 'POST' && path === '/api/bsky/logout') return handleBskyLogout(req, env, base);
-    if (req.method === 'POST' && path === '/api/bsky/forget') return handleForget(req, env, ctx, base);
-    if (req.method === 'POST' && path === '/api/bsky/endorse') return handleEndorse(req, env, ctx, base);
-    if (req.method === 'POST' && path === '/api/bsky/unendorse') return handleUnendorse(req, env, ctx, base);
+    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path, ctx);
+    if (req.method === 'POST' && path === '/api/bsky/resolve') return handleResolve(req, env);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);

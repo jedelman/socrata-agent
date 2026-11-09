@@ -33,7 +33,7 @@ prior knowledge, to check before building.
 | Representatives and districts from the address dataset | **Open Civic Data** division IDs (`ocd-division/country:us/state:va/place:norfolk`) [memory] | close for identifiers | adopt the IDs (cheap); skip the rest of OCD/Popolo for now |
 | Privacy policy: excluded, restricted, withheld columns, suppressed rows, query rewriting | statistical disclosure control (practice, not a wire standard); **Cedar** for who-may-do-what | partial: Cedar decides access, not query rewriting or cell suppression | keep ours |
 | Source requests and bounties | GitHub issues; **Open Collective** (chosen); **CommonGrants** for grant calls (chosen, SkyFund) | already standards | nothing new |
-| Email sign-in | atproto OAuth: built 2026-11 for Bluesky endorsements, identity only, behind `BLUESKY_LOGIN` (off until rollout) (`docs/bluesky-endorsements.md`); for sign-in later, with Cairn's PDS. Passkeys | — | keep magic links through beta |
+| Email sign-in | atproto OAuth: built 2026-11 for Bluesky endorsements, as a browser client with one narrow repo scope that writes endorsement records to the person's own repo, behind `BLUESKY_LOGIN` (off until rollout) (`docs/bluesky-endorsements.md`); for sign-in later, with Cairn's PDS. Passkeys | — | keep magic links through beta |
 | 311 and permits | **Open311 GeoReport v2**, **BLDS** [memory: both older, uneven adoption] | close in shape | watch; Norfolk's 311 is restricted anyway |
 
 ## Adopt soon, in this order

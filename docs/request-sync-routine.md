@@ -27,6 +27,19 @@ closes issues the feed no longer lists). The admin page and
 issue is closed "once the nightly sync runs with `--with-withdrawn`", and by
 hand until then.
 
+## Random request ids (2026-11-09)
+
+Request ids are random now (16 base32 characters), not the first 12 hex of a
+hash of the source text, which anyone could recompute from a guessed source.
+New requests get one when first raised; older ones get one when the steward
+runs `node scripts/invites.js request-ids --apply` (a dry run without
+`--apply`). The routine's prompt needs no change for this. A migrated request
+that had been public keeps its old id as `formerly` in the feed, and its plan
+entry's marker carries that old id, so the routine matches the issue it
+already has and updates its body to show the new id; it never opens a second
+issue. A request first raised after the change is marked with its random id.
+A never-public request's old id is dropped, so it never reaches GitHub.
+
 ## Merge step: update the routine (Jason only)
 
 Merging this change does not update the routine. Its prompt is stored in the

@@ -82,60 +82,51 @@ PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"
 CONVERSATION_DAYS = "7"
 LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jason, 2026-11-04)
-# Bluesky sign-in and endorsements (docs/bluesky-endorsements.md, which has
-# the rollout, the optional knobs and the reasons). Off until a PR adds
-# BLUESKY_LOGIN = "true" here, together with SIREN_DB and the daily cron below.
+# Bluesky endorsements (docs/bluesky-endorsements.md, which has the rollout,
+# the optional knobs and the reasons): records in each endorser's own repo,
+# written from the browser and counted through Constellation. Off until a PR
+# adds BLUESKY_LOGIN = "true" here, after the rollout's live probe.
+# CONSTELLATION_URL (default https://constellation.microcosm.blue) switches to
+# a self-hosted instance; APPVIEW_URL (default https://public.api.bsky.app)
+# to another AppView.
 PUBLIC_ORIGIN = "https://jason-edelman.org"
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"
 id = "d4dfe5ca9b814268a1a1abe052287959"
 
-# Bluesky endorsements: the SIREN_DB D1 database (docs/bluesky-endorsements.md,
-# "Setting up the database"). Created 2026-11-09 (ENAM); migrations 0001 and
-# 0002 applied the same day and recorded in its d1_migrations table. Bound,
-# but nothing touches it while BLUESKY_LOGIN is unset.
+# The SIREN_DB D1 database. Created 2026-11-09 (ENAM) for the first,
+# server-side endorsement design; migrations 0001 and 0002 applied the same
+# day. Endorsements now live in people's own repos and the Worker never
+# touches this database. Migration 0003 drops the old tables and is not
+# applied yet (rollout step 5 checks they're empty first). Kept bound for the
+# planned public board (D9, default, pending Jason).
 # Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
+# That command applies every pending migration, so the next one applied also
+# applies 0003 and drops the old tables: check they're empty first
+# (docs/bluesky-endorsements.md, Rollout, step 5).
 [[env.siren.d1_databases]]
 binding = "SIREN_DB"
 database_name = "siren"
 database_id = "34a56416-65cf-4fe3-949d-8d86469929bf"
 migrations_dir = "migrations"
-#
-# Deletes expired endorsement rows daily. Uncommented in the same PR as
-# BLUESKY_LOGIN: the retention promised on the requests page depends on it.
-# [env.siren.triggers]
-# crons = ["17 7 * * *"]
 
 # Bluesky burst limits and circuit breakers (docs/bluesky-endorsements.md,
 # "Configuration"). Bindings aren't inherited, so they live under env.siren.
+# Namespaces 2611063 and 2611065 (the old per-account and D1 limiters) are
+# free again.
 [[env.siren.ratelimits]]
-name = "BSKY_VISITOR_RL"      # per hashed visitor: login starts, callbacks, endorse/unendorse, me, forget
+name = "BSKY_VISITOR_RL"      # per hashed visitor: handle resolution, endorser lists
 namespace_id = "2611061"
 simple = { limit = 60, period = 60 }
 
 [[env.siren.ratelimits]]
-name = "BSKY_INPUT_RL"        # per account typed into the login form; per-server endorse bursts
+name = "BSKY_INPUT_RL"        # per account typed into the sign-in form (resolution fallback)
 namespace_id = "2611062"
 simple = { limit = 3, period = 60 }
 
 [[env.siren.ratelimits]]
-name = "BSKY_ACCOUNT_RL"      # per signed-in account: me, endorse, unendorse, forget
-namespace_id = "2611063"
-simple = { limit = 30, period = 60 }
-
-[[env.siren.ratelimits]]
-name = "BSKY_SITE_RL"         # site-wide circuit breakers: login, callback, endorse
+name = "BSKY_SITE_RL"         # site-wide breakers on outbound calls: resolution, Constellation, AppView
 namespace_id = "2611064"
 simple = { limit = 300, period = 60 }
-
-# Site-wide breaker in front of every D1 call a visitor can cause: 'list'
-# (computing the counts) and 'signed' (me, endorse, unendorse, forget). Its
-# limit is part of Siren's stated worst case on the account's D1, which it
-# shares with scout-harness; change both together (docs/bluesky-endorsements.md,
-# "Siren's worst case on the account's D1").
-[[env.siren.ratelimits]]
-name = "BSKY_D1_RL"
-namespace_id = "2611065"
-simple = { limit = 2, period = 60 }
