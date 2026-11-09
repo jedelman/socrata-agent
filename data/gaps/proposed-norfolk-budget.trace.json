@@ -2,11 +2,167 @@
   "proposed": true,
   "set": "norfolk-budget",
   "city": "norfolk",
-  "built": "2026-11-06",
-  "note": "PROPOSED gap entries from src/gaps/proposed/norfolk-budget.js, not in the catalog and never bundled or served. Built by scripts/build-gaps-proposed.js with the catalog's own builder: every request in order, each response as read, and the built records in the catalog's schema (file). --check replays these.",
+  "built": "2026-11-09",
+  "note": "PROPOSED gap entries from src/gaps/proposed/norfolk-budget.js, not in the catalog and never bundled or served. Built by scripts/build-gaps-proposed.js with the catalog's own builder: every request in order, each response as read, the built records in the catalog's schema (file), and each entry's title, kind, topic, questions and actions (entries), which the gap inventory reads, so it lists an entry whose measure failed too. --check replays these.",
+  "module": "src/gaps/proposed/norfolk-budget.js",
+  "doc": "docs/gaps-budget-proposed.md",
+  "entries": [
+    {
+      "id": "norfolk.budget.forestry-in-park-unit",
+      "title": "No unit or field for Forestry spending alone (Annual Expenditures)",
+      "kind": "missing_field",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "How much does the City spend on street-tree work each year?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-activity",
+        "a-budget-meeting-forestry"
+      ]
+    },
+    {
+      "id": "norfolk.budget.three-fiscal-years",
+      "title": "Fiscal years held in the open spending and revenue records",
+      "kind": "partial_coverage",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "How has Parks and Recreation spending changed over the last ten years?",
+          "blocks": "part"
+        },
+        {
+          "qid": "q2",
+          "text": "How has the City's revenue from fees and taxes changed over the last ten years?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-years",
+        "a-budget-meeting-years"
+      ]
+    },
+    {
+      "id": "norfolk.budget.contractual-no-link",
+      "title": "No field linking spending lines to a contract or work order (Annual Expenditures)",
+      "kind": "missing_field",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "Which contracts did the City pay from the Park and Forestry Operations contractual services line last year?",
+          "blocks": "all"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-contract-number",
+        "a-budget-meeting-contracts",
+        "a-budget-foia-contracts"
+      ]
+    },
+    {
+      "id": "norfolk.budget.no-pruning-measure",
+      "title": "Street-tree pruning in the performance measures checked",
+      "kind": "no_records",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "What share of street-tree pruning requests does the City fulfill each year?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-pruning-measure",
+        "a-budget-meeting-pruning-measure"
+      ]
+    },
+    {
+      "id": "norfolk.budget.trees-planted-no-yearly-values",
+      "title": "Trees-planted measure with empty year columns (Performance Measures)",
+      "kind": "missing_field",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "How many trees did the City plant in each of the last four fiscal years?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-planted-values",
+        "a-budget-meeting-planted-values"
+      ]
+    },
+    {
+      "id": "norfolk.budget.cip-no-ward",
+      "title": "Capital projects with no ward or coordinates (adopted capital plan)",
+      "kind": "missing_field",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "Which capital projects in the adopted plan are in my ward?",
+          "blocks": "part"
+        },
+        {
+          "qid": "q2",
+          "text": "Which planned capital projects are near me?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-cip-place",
+        "a-budget-meeting-cip-place"
+      ]
+    },
+    {
+      "id": "norfolk.budget.parks-revenue-units",
+      "title": "Parks and Recreation revenue units with no spending unit of the same name",
+      "kind": "partial_coverage",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "How much of a Parks and Recreation program's cost do its own fees and charges cover?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-crosswalk",
+        "a-budget-meeting-crosswalk"
+      ]
+    },
+    {
+      "id": "norfolk.budget.no-amendment-history",
+      "title": "No adopted amount or amendment date beside the current budget (Annual Expenditures)",
+      "kind": "missing_field",
+      "topic": "budget",
+      "questions": [
+        {
+          "qid": "q1",
+          "text": "What operating budget did the City Council adopt for a department, before any amendments this year?",
+          "blocks": "all"
+        },
+        {
+          "qid": "q2",
+          "text": "When during the year was a department's budget changed, and by how much?",
+          "blocks": "part"
+        }
+      ],
+      "actions": [
+        "a-budget-proposal-amendments",
+        "a-budget-meeting-amendments"
+      ]
+    }
+  ],
   "file": {
     "city": "norfolk",
-    "built": "2026-11-06",
+    "built": "2026-11-09",
     "note": "Built by scripts/build-gaps.js. Every number comes from a dated query, metadata or a bundled file; the requests are in the trace file beside this one.",
     "gaps": [
       {
@@ -26,12 +182,127 @@
           "scope": "projects in the adopted capital plan",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "part": 41,
           "whole": 93,
-          "read": "2026-11-07T04:09:53.334Z"
+          "read": "2026-11-09T18:45:24.617Z"
         },
         "evidence": [
           {
@@ -50,8 +321,8 @@
                 "no_coord_no_loc": "0"
               }
             ],
-            "read": "2026-11-07T04:09:53.334Z",
-            "trace_n": 30
+            "read": "2026-11-09T18:45:24.617Z",
+            "trace_n": 40
           },
           {
             "type": "metadata",
@@ -59,12 +330,12 @@
             "field": "location",
             "quote": "Specific address or location name, when available, for the project",
             "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
-            "read": "2026-11-07T04:09:53.408Z",
-            "trace_n": 31
+            "read": "2026-11-09T18:45:21.800Z",
+            "trace_n": 22
           }
         ],
-        "statement": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan projects (6tqj-4az3), as I read them on 2026-11-06. Of the same 93, I found 39 with no latitude or longitude, 39 of them with no ward either, as I read them on 2026-11-06. Of the same 93, I found 0 with the free-text location field empty, as I read them on 2026-11-06. Its description of location, in its words: “Specific address or location name, when available, for the project”.",
-        "short": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan data, measured 2026-11-06.",
+        "statement": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan projects (6tqj-4az3), as I read them on 2026-11-09. Of the same 93, I found 39 with no latitude or longitude, 39 of them with no ward either, as I read them on 2026-11-09. Of the same 93, I found 0 with the free-text location field empty, as I read them on 2026-11-09. Its description of location, in its words: “Specific address or location name, when available, for the project”.",
+        "short": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan data, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
@@ -81,7 +352,7 @@
                 "column": "location"
               }
             ],
-            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 41 of 93 projects (44%) with no ward, measured 2026-11-06, so a search by ward can't find them, and I found the free-text location field filled on 41 of those 41, which I can read but can't search by ward."
+            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 41 of 93 projects (44%) with no ward, measured 2026-11-09, so a search by ward can't find them, and I found the free-text location field filled on 41 of those 41, which I can read but can't search by ward."
           },
           {
             "qid": "q2",
@@ -102,7 +373,7 @@
                 "column": "location"
               }
             ],
-            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 39 of 93 projects (42%) with no latitude or longitude, measured 2026-11-06, so a search by distance can't find them, and I found the free-text location field filled on 39 of those 39, which I can read but can't search by distance."
+            "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 39 of 93 projects (42%) with no latitude or longitude, measured 2026-11-09, so a search by distance can't find them, and I found the free-text location field filled on 39 of those 39, which I can read but can't search by distance."
           }
         ],
         "actions": [
@@ -120,7 +391,7 @@
           "over": "whole"
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "6tqj-4az3",
@@ -151,24 +422,146 @@
           "scope": "spending lines",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "columns_absent": {
             "pattern": "/vendor|payee|supplier|contract|invoice|purchase|work_?order|(^|_)po(_|$)/i",
             "datasets": {
-              "mdwe-dquf": 8
+              "mdwe-dquf": 8,
+              "id3i-2az4": 8,
+              "7jsp-eyjg": 15,
+              "6tqj-4az3": 11,
+              "dpv9-3yq2": 11,
+              "6njp-hen5": 11,
+              "jbfz-2t3g": 11,
+              "fumf-ph9r": 13
             },
             "siblings_cleared": [],
             "siblings": [],
-            "read": "2026-11-07T04:09:50.225Z"
+            "read": "2026-11-09T18:45:22.235Z"
           },
           "catalog": [
             {
               "q": "checkbook",
               "result_set_size": 0,
               "open_to_siren": [],
-              "read": "2026-11-07T04:09:51.840Z"
+              "read": "2026-11-09T18:45:22.467Z"
             },
             {
               "q": "vendor",
@@ -179,7 +572,7 @@
                   "name": "Municipal Building Energy Use"
                 }
               ],
-              "read": "2026-11-07T04:09:51.937Z"
+              "read": "2026-11-09T18:45:22.561Z"
             },
             {
               "q": "contract",
@@ -206,7 +599,7 @@
                   "name": "Resident Survey 2022"
                 }
               ],
-              "read": "2026-11-07T04:09:52.037Z"
+              "read": "2026-11-09T18:45:22.696Z"
             },
             {
               "q": "purchase order",
@@ -221,7 +614,7 @@
                   "name": "Better Buildings Challenge Properties"
                 }
               ],
-              "read": "2026-11-07T04:09:52.121Z"
+              "read": "2026-11-09T18:45:22.788Z"
             }
           ]
         },
@@ -231,8 +624,64 @@
             "dataset": "mdwe-dquf",
             "columns": 8,
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
+          },
+          {
+            "type": "metadata",
+            "dataset": "id3i-2az4",
+            "columns": 8,
+            "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
+            "read": "2026-11-09T18:45:21.500Z",
+            "trace_n": 20
+          },
+          {
+            "type": "metadata",
+            "dataset": "7jsp-eyjg",
+            "columns": 15,
+            "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
+            "read": "2026-11-09T18:45:21.653Z",
+            "trace_n": 21
+          },
+          {
+            "type": "metadata",
+            "dataset": "6tqj-4az3",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
+            "read": "2026-11-09T18:45:21.800Z",
+            "trace_n": 22
+          },
+          {
+            "type": "metadata",
+            "dataset": "dpv9-3yq2",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/dpv9-3yq2.json",
+            "read": "2026-11-09T18:45:21.903Z",
+            "trace_n": 23
+          },
+          {
+            "type": "metadata",
+            "dataset": "6njp-hen5",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/6njp-hen5.json",
+            "read": "2026-11-09T18:45:22.019Z",
+            "trace_n": 24
+          },
+          {
+            "type": "metadata",
+            "dataset": "jbfz-2t3g",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/jbfz-2t3g.json",
+            "read": "2026-11-09T18:45:22.126Z",
+            "trace_n": 25
+          },
+          {
+            "type": "metadata",
+            "dataset": "fumf-ph9r",
+            "columns": 13,
+            "url": "https://data.norfolk.gov/api/views/fumf-ph9r.json",
+            "read": "2026-11-09T18:45:22.235Z",
+            "trace_n": 26
           },
           {
             "type": "query",
@@ -244,8 +693,8 @@
                 "whole": "1"
               }
             ],
-            "read": "2026-11-07T04:09:51.757Z",
-            "trace_n": 15
+            "read": "2026-11-09T18:45:22.360Z",
+            "trace_n": 27
           },
           {
             "type": "catalog_search",
@@ -254,8 +703,8 @@
             "excluded": 0,
             "open_to_siren": [],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=checkbook",
-            "read": "2026-11-07T04:09:51.840Z",
-            "trace_n": 16
+            "read": "2026-11-09T18:45:22.467Z",
+            "trace_n": 28
           },
           {
             "type": "catalog_search",
@@ -269,8 +718,8 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=vendor",
-            "read": "2026-11-07T04:09:51.937Z",
-            "trace_n": 17
+            "read": "2026-11-09T18:45:22.561Z",
+            "trace_n": 29
           },
           {
             "type": "catalog_search",
@@ -300,8 +749,8 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract",
-            "read": "2026-11-07T04:09:52.037Z",
-            "trace_n": 18
+            "read": "2026-11-09T18:45:22.696Z",
+            "trace_n": 30
           },
           {
             "type": "catalog_search",
@@ -319,19 +768,19 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order",
-            "read": "2026-11-07T04:09:52.121Z",
-            "trace_n": 19
+            "read": "2026-11-09T18:45:22.788Z",
+            "trace_n": 31
           }
         ],
-        "statement": "I found no column naming a vendor, contract, invoice, purchase order or work order among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. Under “Park and Forestry Operations”, I found 1 line named “Other Contractual Services” for FY2026, as I read them on 2026-11-06. I found 0 datasets in Norfolk's open data catalog for the search “checkbook”, 1 dataset for “vendor”, open to Siren: Municipal Building Energy Use, 7 datasets for “contract”, 5 open to Siren: Resident Survey 2024 - Summarized Comments, Resident Survey 2024, Resident Survey 2024 Demographics, Resident Survey 2022 Demographics, Resident Survey 2022, and 2 datasets for “purchase order”, all open to Siren: Work Orders, Better Buildings Challenge Properties (searched 2026-11-06).",
-        "short": "I found no column in the City's Annual Expenditures tying a spending line to a vendor, contract, purchase order or work order, measured 2026-11-06.",
+        "statement": "I found no column naming a vendor, contract, invoice, purchase order or work order in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), as I read them on 2026-11-09. Under “Park and Forestry Operations”, I found 1 line named “Other Contractual Services” for FY2026, as I read them on 2026-11-09. I found 0 datasets in Norfolk's open data catalog for the search “checkbook”, 1 dataset for “vendor”, open to Siren: Municipal Building Energy Use, 7 datasets for “contract”, 5 open to Siren: Resident Survey 2024 - Summarized Comments, Resident Survey 2024, Resident Survey 2024 Demographics, Resident Survey 2022 Demographics, Resident Survey 2022, and 2 datasets for “purchase order”, all open to Siren: Work Orders, Better Buildings Challenge Properties (searched 2026-11-09).",
+        "short": "I found no column tying a spending line to a vendor, contract, purchase order or work order in any of the 8 budget datasets I read, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
             "public_id": "ba0207884e4d",
             "text": "Which contracts did the City pay from the Park and Forestry Operations contractual services line last year?",
             "blocks": "all",
-            "consequence": "I found no column naming a vendor, contract, invoice, purchase order or work order among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06, so I can't answer this from them."
+            "consequence": "I found no column naming a vendor, contract, invoice, purchase order or work order in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), measured 2026-11-09, so I can't answer this from them."
           }
         ],
         "actions": [
@@ -353,7 +802,7 @@
           "null_share_at_most": 0.05
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "mdwe-dquf",
@@ -380,7 +829,122 @@
           "scope": "spending lines of units with Forestry in their name",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "values": {
@@ -388,7 +952,7 @@
             "field": "object_name",
             "count": 40,
             "matched": [],
-            "read": "2026-11-07T04:09:50.106Z"
+            "read": "2026-11-09T18:45:20.847Z"
           },
           "columns_absent": {
             "pattern": "/activit|service|task|forest|tree/i",
@@ -397,7 +961,7 @@
             },
             "siblings_cleared": [],
             "siblings": [],
-            "read": "2026-11-07T04:09:50.225Z"
+            "read": "2026-11-09T18:45:20.948Z"
           }
         },
         "evidence": [
@@ -413,8 +977,8 @@
               "Park and Forestry Operations"
             ],
             "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
-            "read": "2026-11-07T04:09:49.978Z",
-            "trace_n": 7
+            "read": "2026-11-09T18:45:20.606Z",
+            "trace_n": 14
           },
           {
             "type": "values",
@@ -465,20 +1029,20 @@
             "pattern": "/forest|\\btrees?\\b|prun|arbor/i",
             "matched": [],
             "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20object_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20object_name%20ORDER%20BY%20n%20DESC%2C%20object_name%20LIMIT%20200",
-            "read": "2026-11-07T04:09:50.106Z",
-            "trace_n": 8
+            "read": "2026-11-09T18:45:20.847Z",
+            "trace_n": 15
           },
           {
             "type": "metadata",
             "dataset": "mdwe-dquf",
             "columns": 8,
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
           }
         ],
-        "statement": "I found 1 unit with “Forestry” in its name in the City's Annual Expenditures records (mdwe-dquf), “Park and Forestry Operations”, as I read them on 2026-11-06. I found none of the 40 expense line names under it naming forestry, trees or pruning, as I read them on 2026-11-06. I found no column for an activity or service within a unit among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06.",
-        "short": "I found “Forestry” in one unit name in the City's Annual Expenditures, “Park and Forestry Operations”, and no expense line under it naming trees, measured 2026-11-06.",
+        "statement": "I found 1 unit with “Forestry” in its name in the City's Annual Expenditures records (mdwe-dquf), “Park and Forestry Operations”, as I read them on 2026-11-09. I found none of the 40 expense line names under it naming forestry, trees or pruning, as I read them on 2026-11-09. I found no column for an activity or service within a unit among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-09.",
+        "short": "I found “Forestry” in one unit name in the City's Annual Expenditures, “Park and Forestry Operations”, and no expense line under it naming trees, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
@@ -495,7 +1059,7 @@
                 "column": "total_cost"
               }
             ],
-            "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found “Forestry” in the name of one unit, “Park and Forestry Operations”, and none of its 40 expense line names mentions forestry, trees or pruning, measured 2026-11-06, so I can give that unit's spending but not the part spent on trees; Forestry work orders in the City's Work Orders records (qzfe-wj25) carry a total_cost column."
+            "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found “Forestry” in the name of one unit, “Park and Forestry Operations”, and none of its 40 expense line names mentions forestry, trees or pruning, measured 2026-11-09, so I can give that unit's spending but not the part spent on trees; Forestry work orders in the City's Work Orders records (qzfe-wj25) carry a total_cost column."
           }
         ],
         "actions": [
@@ -522,7 +1086,7 @@
           "null_share_at_most": 0.05
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "mdwe-dquf",
@@ -554,26 +1118,170 @@
           "scope": "spending lines",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "columns_absent": {
             "pattern": "/adopt|original|amend|transfer|revis|prior|(^|_)date|modif|effective/i",
             "datasets": {
-              "mdwe-dquf": 8
+              "mdwe-dquf": 8,
+              "id3i-2az4": 8,
+              "7jsp-eyjg": 15,
+              "6tqj-4az3": 11,
+              "dpv9-3yq2": 11,
+              "6njp-hen5": 11,
+              "jbfz-2t3g": 11,
+              "fumf-ph9r": 13
             },
-            "siblings_cleared": [],
+            "siblings_cleared": [
+              {
+                "dataset": "7jsp-eyjg",
+                "column": "fy_2027_adopted",
+                "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+                "by": "Gap inventory change, for Jason's review",
+                "date": "2026-11-09"
+              },
+              {
+                "dataset": "6njp-hen5",
+                "column": "adopted_amount_fy_25",
+                "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+                "by": "Gap inventory change, for Jason's review",
+                "date": "2026-11-09"
+              },
+              {
+                "dataset": "6njp-hen5",
+                "column": "adopted_amount_fy_25_fy_29",
+                "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+                "by": "Gap inventory change, for Jason's review",
+                "date": "2026-11-09"
+              }
+            ],
             "siblings": [],
-            "read": "2026-11-07T04:09:50.225Z"
+            "read": "2026-11-09T18:45:22.235Z"
           },
           "quote": {
             "dataset": "mdwe-dquf",
             "text": "The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.",
-            "read": "2026-11-07T04:09:50.225Z"
+            "read": "2026-11-09T18:45:20.948Z"
           },
           "published": {
-            "rows_updated": "2026-11-06T12:26:36.000Z",
-            "read": "2026-11-07T04:09:50.225Z"
+            "rows_updated": "2026-11-09T12:29:54.000Z",
+            "read": "2026-11-09T18:45:20.948Z"
           }
         },
         "evidence": [
@@ -582,8 +1290,8 @@
             "dataset": "mdwe-dquf",
             "quote": "The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.",
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
           },
           {
             "type": "metadata",
@@ -591,16 +1299,72 @@
             "field": "current_expense_budget",
             "quote": "Total annual budgeted expenditures for this department/fund/unit/object line",
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
           },
           {
             "type": "metadata",
             "dataset": "mdwe-dquf",
             "columns": 8,
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
+          },
+          {
+            "type": "metadata",
+            "dataset": "id3i-2az4",
+            "columns": 8,
+            "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
+            "read": "2026-11-09T18:45:21.500Z",
+            "trace_n": 20
+          },
+          {
+            "type": "metadata",
+            "dataset": "7jsp-eyjg",
+            "columns": 15,
+            "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
+            "read": "2026-11-09T18:45:21.653Z",
+            "trace_n": 21
+          },
+          {
+            "type": "metadata",
+            "dataset": "6tqj-4az3",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
+            "read": "2026-11-09T18:45:21.800Z",
+            "trace_n": 22
+          },
+          {
+            "type": "metadata",
+            "dataset": "dpv9-3yq2",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/dpv9-3yq2.json",
+            "read": "2026-11-09T18:45:21.903Z",
+            "trace_n": 23
+          },
+          {
+            "type": "metadata",
+            "dataset": "6njp-hen5",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/6njp-hen5.json",
+            "read": "2026-11-09T18:45:22.019Z",
+            "trace_n": 24
+          },
+          {
+            "type": "metadata",
+            "dataset": "jbfz-2t3g",
+            "columns": 11,
+            "url": "https://data.norfolk.gov/api/views/jbfz-2t3g.json",
+            "read": "2026-11-09T18:45:22.126Z",
+            "trace_n": 25
+          },
+          {
+            "type": "metadata",
+            "dataset": "fumf-ph9r",
+            "columns": 13,
+            "url": "https://data.norfolk.gov/api/views/fumf-ph9r.json",
+            "read": "2026-11-09T18:45:22.235Z",
+            "trace_n": 26
           },
           {
             "type": "index",
@@ -610,15 +1374,15 @@
             "of": 1437
           }
         ],
-        "statement": "The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-06, says: “The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.” Its description of current_expense_budget, in its words: “Total annual budgeted expenditures for this department/fund/unit/object line”. I found no column for an adopted amount, an amendment or transfer, or a date it took effect among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. I found 224 of 1,437 agenda items in Siren's agenda index (built 2026-11-02) with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, counted 2026-11-06.",
-        "short": "I found no column for an adopted amount or an amendment date among the 8 columns of the City's Annual Expenditures, measured 2026-11-06.",
+        "statement": "The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-09, says: “The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.” Its description of current_expense_budget, in its words: “Total annual budgeted expenditures for this department/fund/unit/object line”. I found no column for an adopted operating budget amount, an amendment or transfer, or a date it took effect in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), as I read them on 2026-11-09. I found 3 more columns matching it that a reviewer cleared as holding something else (7jsp-eyjg fy_2027_adopted, 6njp-hen5 adopted_amount_fy_25, 6njp-hen5 adopted_amount_fy_25_fy_29), each with its reason in the record, as I read them on 2026-11-09. I found 224 of 1,437 agenda items in Siren's agenda index (built 2026-11-02) with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, counted 2026-11-09.",
+        "short": "I found no column for an adopted operating budget amount or an amendment date in any of the 8 budget datasets I read, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
             "public_id": "4e209eef4349",
             "text": "What operating budget did the City Council adopt for a department, before any amendments this year?",
             "blocks": "all",
-            "consequence": "I found no column for an adopted amount, an amendment or transfer, or a date it took effect among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06, so I can't answer this from them."
+            "consequence": "I found no column for an adopted operating budget amount, an amendment or transfer, or a date it took effect in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), measured 2026-11-09, so I can't answer this from them."
           },
           {
             "qid": "q2",
@@ -631,7 +1395,7 @@
                 "field": "text"
               }
             ],
-            "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-02, measured 2026-11-06, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-06."
+            "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-02, measured 2026-11-09, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-09."
           }
         ],
         "actions": [
@@ -649,7 +1413,7 @@
           "null_share_at_most": 0.05
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "mdwe-dquf",
@@ -685,18 +1449,133 @@
           "scope": "performance measures",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "part": 0,
           "whole": 361,
-          "read": "2026-11-07T04:09:52.335Z",
+          "read": "2026-11-09T18:45:22.946Z",
           "values": {
             "dataset": "7jsp-eyjg",
             "field": "measure_description",
             "count": 2,
             "matched": [],
-            "read": "2026-11-07T04:09:52.451Z"
+            "read": "2026-11-09T18:45:23.156Z"
           },
           "catalog": [
             {
@@ -708,7 +1587,7 @@
                   "name": "Work Orders"
                 }
               ],
-              "read": "2026-11-07T04:09:52.518Z"
+              "read": "2026-11-09T18:45:23.251Z"
             },
             {
               "q": "performance",
@@ -743,7 +1622,7 @@
                   "name": "Better Buildings Challenge Properties"
                 }
               ],
-              "read": "2026-11-07T04:09:52.619Z"
+              "read": "2026-11-09T18:45:23.404Z"
             }
           ]
         },
@@ -760,8 +1639,8 @@
                 "trim": "0"
               }
             ],
-            "read": "2026-11-07T04:09:52.335Z",
-            "trace_n": 21
+            "read": "2026-11-09T18:45:22.946Z",
+            "trace_n": 32
           },
           {
             "type": "values",
@@ -774,8 +1653,8 @@
             "pattern": "/prun|trim/i",
             "matched": [],
             "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
-            "read": "2026-11-07T04:09:52.451Z",
-            "trace_n": 22
+            "read": "2026-11-09T18:45:23.156Z",
+            "trace_n": 33
           },
           {
             "type": "catalog_search",
@@ -789,8 +1668,8 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning",
-            "read": "2026-11-07T04:09:52.518Z",
-            "trace_n": 23
+            "read": "2026-11-09T18:45:23.251Z",
+            "trace_n": 34
           },
           {
             "type": "catalog_search",
@@ -828,8 +1707,8 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance",
-            "read": "2026-11-07T04:09:52.619Z",
-            "trace_n": 24
+            "read": "2026-11-09T18:45:23.404Z",
+            "trace_n": 35
           },
           {
             "type": "query",
@@ -840,12 +1719,12 @@
               {
                 "status_code": "2",
                 "status_description": "New Work Order",
-                "whole": "570"
+                "whole": "566"
               },
               {
                 "status_code": "4",
                 "status_description": "On-Going",
-                "whole": "14"
+                "whole": "13"
               },
               {
                 "status_code": "940",
@@ -875,11 +1754,11 @@
               {
                 "status_code": "999",
                 "status_description": "Complete",
-                "whole": "2668"
+                "whole": "2673"
               }
             ],
-            "read": "2026-11-07T04:09:52.886Z",
-            "trace_n": 26
+            "read": "2026-11-09T18:45:23.851Z",
+            "trace_n": 37
           },
           {
             "type": "finding",
@@ -897,8 +1776,8 @@
             "reverified": null
           }
         ],
-        "statement": "Of 361 measures in the City's Performance Measures records (7jsp-eyjg), I found none with a description naming pruning or trimming, as I read them on 2026-11-06. Under the program “Park and Forestry Operations” I found 2 measures, “Number of Park Ranger incident responses” and “Number of trees planted”, as I read them on 2026-11-06. I found 1 dataset in Norfolk's open data catalog for the search “pruning”, open to Siren: Work Orders, and 9 datasets for “performance”, 7 open to Siren: Performance Measures, Plan Reviews, Inspections, Permits - Right of Way, Work Orders, Storm Water Asset Inspections, Better Buildings Challenge Properties (searched 2026-11-06). The City's FY2024 adopted budget says: “Percent of street tree pruning requests fulfilled” (quote checked 2026-11-04). I found the task “Pruning” on 3,293 Forestry work orders in the City's Work Orders records (qzfe-wj25), 2,668 of them with status “Complete”, as I read them on 2026-11-06.",
-        "short": "Of 361 measures in the City's Performance Measures, I found none naming pruning or trimming, measured 2026-11-06.",
+        "statement": "Of 361 measures in the City's Performance Measures records (7jsp-eyjg), I found none with a description naming pruning or trimming, as I read them on 2026-11-09. Under the program “Park and Forestry Operations” I found 2 measures, “Number of Park Ranger incident responses” and “Number of trees planted”, as I read them on 2026-11-09. I found 1 dataset in Norfolk's open data catalog for the search “pruning”, open to Siren: Work Orders, and 9 datasets for “performance”, 7 open to Siren: Performance Measures, Plan Reviews, Inspections, Permits - Right of Way, Work Orders, Storm Water Asset Inspections, Better Buildings Challenge Properties (searched 2026-11-09). The City's FY2024 adopted budget says: “Percent of street tree pruning requests fulfilled” (quote checked 2026-11-04). I found the task “Pruning” on 3,293 Forestry work orders in the City's Work Orders records (qzfe-wj25), 2,673 of them with status “Complete”, as I read them on 2026-11-09.",
+        "short": "Of 361 measures in the City's Performance Measures, I found none naming pruning or trimming, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
@@ -915,7 +1794,7 @@
                 "column": "status_description"
               }
             ],
-            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Pruning” on 3,293 Forestry work orders, 2,668 of them with status “Complete”, measured 2026-11-06, which counts work orders and their status as the City records it, not requests, and I found no pruning measure in the Performance Measures records."
+            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Pruning” on 3,293 Forestry work orders, 2,673 of them with status “Complete”, measured 2026-11-09, which counts work orders and their status as the City records it, not requests, and I found no pruning measure in the Performance Measures records."
           }
         ],
         "actions": [
@@ -945,7 +1824,7 @@
           "finding": true
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "7jsp-eyjg",
@@ -983,12 +1862,127 @@
           "scope": "units under The Department of Parks & Recreation (P&R), by fiscal year",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "part": 1,
           "whole": 3,
-          "read": "2026-11-07T04:09:53.745Z",
+          "read": "2026-11-09T18:45:25.098Z",
           "series": [
             {
               "k": "2025",
@@ -1271,8 +2265,8 @@
                 "n": "1"
               }
             ],
-            "read": "2026-11-07T04:09:53.520Z",
-            "trace_n": 32
+            "read": "2026-11-09T18:45:24.740Z",
+            "trace_n": 41
           },
           {
             "type": "query",
@@ -1477,8 +2471,8 @@
                 "n": "1"
               }
             ],
-            "read": "2026-11-07T04:09:53.632Z",
-            "trace_n": 33
+            "read": "2026-11-09T18:45:24.905Z",
+            "trace_n": 42
           },
           {
             "type": "query",
@@ -1517,8 +2511,8 @@
                 "whole": "6"
               }
             ],
-            "read": "2026-11-07T04:09:53.745Z",
-            "trace_n": 34
+            "read": "2026-11-09T18:45:25.098Z",
+            "trace_n": 43
           },
           {
             "type": "query",
@@ -1652,12 +2646,12 @@
                 "whole": "21"
               }
             ],
-            "read": "2026-11-07T04:09:53.838Z",
-            "trace_n": 35
+            "read": "2026-11-09T18:45:25.226Z",
+            "trace_n": 44
           }
         ],
-        "statement": "I found all 49 department names in the City's Annual Revenues records (id3i-2az4) also in the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-06. For FY2025, under “The Department of Parks & Recreation (P&R)”, I found 1 revenue unit and 8 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06. For FY2026, under “The Department of Parks & Recreation (P&R)”, I found 2 revenue units and 9 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06. For FY2027, under “The Department of Parks & Recreation (P&R)”, I found 3 revenue units and 8 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-06.",
-        "short": "Under Parks and Recreation, for FY2027, I found 1 of 3 revenue units with no spending unit of the same name in the City's budget records, measured 2026-11-06.",
+        "statement": "I found all 49 department names in the City's Annual Revenues records (id3i-2az4) also in the City's Annual Expenditures records (mdwe-dquf), as I read them on 2026-11-09. For FY2025, under “The Department of Parks & Recreation (P&R)”, I found 1 revenue unit and 8 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-09. For FY2026, under “The Department of Parks & Recreation (P&R)”, I found 2 revenue units and 9 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-09. For FY2027, under “The Department of Parks & Recreation (P&R)”, I found 3 revenue units and 8 spending units, with 1 of the revenue units matching no spending unit of the same name, “Recreation Parks Open Space”, as I read them on 2026-11-09.",
+        "short": "Under Parks and Recreation, for FY2027, I found 1 of 3 revenue units with no spending unit of the same name in the City's budget records, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
@@ -1674,7 +2668,7 @@
                 "column": "unit_name"
               }
             ],
-            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: for FY2027, I found 1 of 3 Parks and Recreation revenue units, “Recreation Parks Open Space”, with no spending unit of the same name in Annual Expenditures, measured 2026-11-06, so I can't set that revenue against a cost."
+            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: for FY2027, I found 1 of 3 Parks and Recreation revenue units, “Recreation Parks Open Space”, with no spending unit of the same name in Annual Expenditures, measured 2026-11-09, so I can't set that revenue against a cost."
           }
         ],
         "actions": [
@@ -1695,7 +2689,7 @@
           "over": "whole"
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "id3i-2az4",
@@ -1737,12 +2731,127 @@
           "scope": "fiscal years in the open spending and revenue records",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "part": 7,
           "whole": 10,
-          "read": "2026-11-07T04:09:50.604Z",
+          "read": "2026-11-09T18:45:21.386Z",
           "values": {
             "dataset": "mdwe-dquf",
             "field": "fiscal_year",
@@ -1752,16 +2861,16 @@
               "2026",
               "2027"
             ],
-            "read": "2026-11-07T04:09:50.401Z"
+            "read": "2026-11-09T18:45:21.091Z"
           },
           "quote": {
             "dataset": "mdwe-dquf",
             "text": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.",
-            "read": "2026-11-07T04:09:50.225Z"
+            "read": "2026-11-09T18:45:20.948Z"
           },
           "published": {
-            "rows_updated": "2026-11-06T12:26:36.000Z",
-            "read": "2026-11-07T04:09:50.225Z"
+            "rows_updated": "2026-11-09T12:29:54.000Z",
+            "read": "2026-11-09T18:45:20.948Z"
           },
           "catalog": [
             {
@@ -1825,7 +2934,7 @@
                   "name": "Annual Expenditures"
                 }
               ],
-              "read": "2026-11-07T04:09:51.632Z"
+              "read": "2026-11-09T18:45:19.237Z"
             }
           ]
         },
@@ -1846,8 +2955,8 @@
               "2027"
             ],
             "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
-            "read": "2026-11-07T04:09:50.401Z",
-            "trace_n": 10
+            "read": "2026-11-09T18:45:21.091Z",
+            "trace_n": 17
           },
           {
             "type": "values",
@@ -1865,24 +2974,24 @@
               "2027"
             ],
             "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
-            "read": "2026-11-07T04:09:50.604Z",
-            "trace_n": 12
+            "read": "2026-11-09T18:45:21.386Z",
+            "trace_n": 19
           },
           {
             "type": "metadata",
             "dataset": "mdwe-dquf",
             "quote": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.",
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
           },
           {
             "type": "metadata",
             "dataset": "id3i-2az4",
             "quote": "The data set includes the current fiscal year and two previous fiscal years.",
             "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
-            "read": "2026-11-07T04:09:50.708Z",
-            "trace_n": 13
+            "read": "2026-11-09T18:45:21.500Z",
+            "trace_n": 20
           },
           {
             "type": "metadata",
@@ -1890,8 +2999,8 @@
             "field": "actual_expenses",
             "quote": "Sum of fiscal year-to-date expenditures for this department/fund/unit/object line",
             "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
-            "read": "2026-11-07T04:09:50.225Z",
-            "trace_n": 9
+            "read": "2026-11-09T18:45:20.948Z",
+            "trace_n": 16
           },
           {
             "type": "catalog_search",
@@ -1957,12 +3066,12 @@
               }
             ],
             "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget",
-            "read": "2026-11-07T04:09:51.632Z",
-            "trace_n": 14
+            "read": "2026-11-09T18:45:19.237Z",
+            "trace_n": 6
           }
         ],
-        "statement": "I found fiscal years FY2025, FY2026 and FY2027 in the City's Annual Expenditures records (mdwe-dquf), and the same years in the City's Annual Revenues records (id3i-2az4), as I read them on 2026-11-06. Of the 10 fiscal years FY2018 through FY2027, I found 3 in both datasets, as I read them on 2026-11-06. The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-06, says: “This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.” The Annual Revenues description (id3i-2az4), as I read it on 2026-11-06, says: “The data set includes the current fiscal year and two previous fiscal years.” The Annual Expenditures description of actual_expenses, in its words: “Sum of fiscal year-to-date expenditures for this department/fund/unit/object line”. I found 16 datasets in Norfolk's open data catalog for the search “budget”, and none besides these two named for expenditures, revenues or spending (searched 2026-11-06).",
-        "short": "I found fiscal years FY2025 through FY2027 in the City's Annual Expenditures, and FY2025 through FY2027 in its Annual Revenues, measured 2026-11-06.",
+        "statement": "I found fiscal years FY2025, FY2026 and FY2027 in the City's Annual Expenditures records (mdwe-dquf), and the same years in the City's Annual Revenues records (id3i-2az4), as I read them on 2026-11-09. Of the 10 fiscal years FY2018 through FY2027, I found 3 in both datasets, as I read them on 2026-11-09. The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-09, says: “This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years.” The Annual Revenues description (id3i-2az4), as I read it on 2026-11-09, says: “The data set includes the current fiscal year and two previous fiscal years.” The Annual Expenditures description of actual_expenses, in its words: “Sum of fiscal year-to-date expenditures for this department/fund/unit/object line”. I found 16 datasets in Norfolk's open data catalog for the search “budget”, and none besides these two named for expenditures, revenues or spending (searched 2026-11-09).",
+        "short": "I found fiscal years FY2025 through FY2027 in the City's Annual Expenditures, and FY2025 through FY2027 in its Annual Revenues, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
@@ -1975,7 +3084,7 @@
                 "column": "fiscal_year"
               }
             ],
-            "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-06, so I can show those years only, with FY2027 spending to date."
+            "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-09, so I can show those years only, with FY2027 spending to date."
           },
           {
             "qid": "q2",
@@ -1988,7 +3097,7 @@
                 "column": "fiscal_year"
               }
             ],
-            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-06, so I can show those years only, with FY2027 collections to date."
+            "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-09, so I can show those years only, with FY2027 collections to date."
           }
         ],
         "actions": [
@@ -2009,7 +3118,7 @@
           "over": "whole"
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "mdwe-dquf",
@@ -2047,12 +3156,127 @@
           "scope": "the measure “Number of trees planted” under the program “Park and Forestry Operations”",
           "area": "citywide"
         },
-        "topic": null,
+        "topic": {
+          "name": "budget",
+          "datasets": [
+            "mdwe-dquf",
+            "id3i-2az4",
+            "7jsp-eyjg",
+            "6tqj-4az3",
+            "dpv9-3yq2",
+            "6njp-hen5",
+            "jbfz-2t3g",
+            "fumf-ph9r"
+          ],
+          "search": "budget",
+          "not_in_topic": [
+            {
+              "id": "k8ry-iqjg",
+              "name": "Public Art",
+              "quote": "This dataset is a compiled list of existing public art recorded by Norfolk.",
+              "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.576Z",
+              "trace_n": 7
+            },
+            {
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+              "quote": "This dataset contains information on the status of City Council approved projects that were made possible by SLFRF.",
+              "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.732Z",
+              "trace_n": 8
+            },
+            {
+              "id": "de5p-5xvj",
+              "name": "Resident Survey 2024",
+              "quote": "This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:19.902Z",
+              "trace_n": 9
+            },
+            {
+              "id": "ez9d-udp9",
+              "name": "Resident Survey 2024 Demographics",
+              "quote": "This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.008Z",
+              "trace_n": 10
+            },
+            {
+              "id": "8j55-9gjp",
+              "name": "Resident Survey 2024 - Summarized Comments",
+              "quote": "This dataset consists of summaries of the suggestions for each budget program.",
+              "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.129Z",
+              "trace_n": 11
+            },
+            {
+              "id": "f3mt-z6yp",
+              "name": "Resident Survey 2022 Demographics",
+              "quote": "To provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents.",
+              "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review.",
+              "read": "2026-11-09T18:45:20.247Z",
+              "trace_n": 12
+            },
+            {
+              "id": "4fsk-z8s8",
+              "name": "Employee Salaries",
+              "policy": {
+                "reason": "Employee Salaries is not available to open-ended queries.",
+                "file": "src/cities/norfolk.js",
+                "line": 39
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            },
+            {
+              "id": "vv96-9m5c",
+              "name": "Employee Demographics",
+              "policy": {
+                "reason": "Employee Demographics is not available to open-ended queries: small groups can identify employees.",
+                "file": "src/cities/norfolk.js",
+                "line": 40
+              },
+              "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+              "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+            }
+          ],
+          "cleared": [
+            {
+              "dataset": "7jsp-eyjg",
+              "column": "fy_2027_adopted",
+              "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25",
+              "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            },
+            {
+              "dataset": "6njp-hen5",
+              "column": "adopted_amount_fy_25_fy_29",
+              "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+              "by": "Gap inventory change, for Jason's review",
+              "date": "2026-11-09"
+            }
+          ],
+          "checked_live": "2026-11-09"
+        },
         "checked_live": "2026-11-06",
         "how_much": {
           "part": 4,
           "whole": 4,
-          "read": "2026-11-07T04:09:53.000Z"
+          "read": "2026-11-09T18:45:24.046Z"
         },
         "evidence": [
           {
@@ -2068,8 +3292,8 @@
               "Number of trees planted"
             ],
             "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
-            "read": "2026-11-07T04:09:52.451Z",
-            "trace_n": 22
+            "read": "2026-11-09T18:45:23.156Z",
+            "trace_n": 33
           },
           {
             "type": "query",
@@ -2085,8 +3309,8 @@
                 "no_fy_2025": "1"
               }
             ],
-            "read": "2026-11-07T04:09:53.000Z",
-            "trace_n": 27
+            "read": "2026-11-09T18:45:24.046Z",
+            "trace_n": 38
           },
           {
             "type": "query",
@@ -2100,7 +3324,7 @@
               },
               {
                 "v": "Stump Grinding",
-                "n": "2995"
+                "n": "2998"
               },
               {
                 "v": "Removal",
@@ -2116,7 +3340,7 @@
               },
               {
                 "v": "Tree Maintenance",
-                "n": "357"
+                "n": "359"
               },
               {
                 "v": "Inspection",
@@ -2179,12 +3403,12 @@
                 "n": "1"
               }
             ],
-            "read": "2026-11-07T04:09:53.112Z",
-            "trace_n": 28
+            "read": "2026-11-09T18:45:24.367Z",
+            "trace_n": 39
           }
         ],
-        "statement": "Under the program “Park and Forestry Operations” in the City's Performance Measures records (7jsp-eyjg), I found the measure “Number of trees planted”, and of its 4 fiscal-year value columns, FY2022 through FY2025, I found all 4 empty, as I read them on 2026-11-06. I found the task “Plantings” on 560 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
-        "short": "I found 4 of 4 year columns empty on the trees-planted measure in the City's Performance Measures, measured 2026-11-06.",
+        "statement": "Under the program “Park and Forestry Operations” in the City's Performance Measures records (7jsp-eyjg), I found the measure “Number of trees planted”, and of its 4 fiscal-year value columns, FY2022 through FY2025, I found all 4 empty, as I read them on 2026-11-09. I found the task “Plantings” on 560 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-09.",
+        "short": "I found 4 of 4 year columns empty on the trees-planted measure in the City's Performance Measures, measured 2026-11-09.",
         "questions": [
           {
             "qid": "q1",
@@ -2197,7 +3421,7 @@
                 "column": "primary_task_description"
               }
             ],
-            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Plantings” on 560 Forestry work orders, measured 2026-11-06, which counts orders, not trees, and I found 4 of the 4 year columns for “Number of trees planted” empty in the Performance Measures records, measured 2026-11-06."
+            "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Plantings” on 560 Forestry work orders, measured 2026-11-09, which counts orders, not trees, and I found 4 of the 4 year columns for “Number of trees planted” empty in the Performance Measures records, measured 2026-11-09."
           }
         ],
         "actions": [
@@ -2225,7 +3449,7 @@
           "over": "whole"
         },
         "state": "open",
-        "measured": "2026-11-06",
+        "measured": "2026-11-09",
         "hand_off": [
           {
             "id": "7jsp-eyjg",
@@ -2449,7 +3673,7 @@
       }
     ],
     "meetings": {
-      "read": "2026-11-07T04:09:54.123Z",
+      "read": "2026-11-09T18:45:25.573Z",
       "listed": [
         {
           "when": "2026-11-09T16:00:00.000",
@@ -2578,7 +3802,7 @@
         }
       ],
       "calendar": "https://norfolkcityva.iqm2.com/Citizens/Calendar.aspx",
-      "note": "As listed on 2026-11-06; check the City's calendar."
+      "note": "As listed on 2026-11-09; check the City's calendar."
     }
   },
   "steps": [
@@ -2628,6 +3852,62 @@
     },
     {
       "n": 6,
+      "tool": "search datasets (raw counts)",
+      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget",
+      "soql": "q=budget",
+      "ok": true,
+      "rows": 16
+    },
+    {
+      "n": 7,
+      "tool": "describe dataset",
+      "dataset": "k8ry-iqjg",
+      "url": "https://data.norfolk.gov/api/views/k8ry-iqjg.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 8,
+      "tool": "describe dataset",
+      "dataset": "kekx-9mip",
+      "url": "https://data.norfolk.gov/api/views/kekx-9mip.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 9,
+      "tool": "describe dataset",
+      "dataset": "de5p-5xvj",
+      "url": "https://data.norfolk.gov/api/views/de5p-5xvj.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 10,
+      "tool": "describe dataset",
+      "dataset": "ez9d-udp9",
+      "url": "https://data.norfolk.gov/api/views/ez9d-udp9.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 11,
+      "tool": "describe dataset",
+      "dataset": "8j55-9gjp",
+      "url": "https://data.norfolk.gov/api/views/8j55-9gjp.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 12,
+      "tool": "describe dataset",
+      "dataset": "f3mt-z6yp",
+      "url": "https://data.norfolk.gov/api/views/f3mt-z6yp.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 13,
       "tool": "check dataset name",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
@@ -2635,7 +3915,7 @@
       "rows": null
     },
     {
-      "n": 7,
+      "n": 14,
       "tool": "proposed budget gaps: units with Forestry in their name",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
@@ -2644,7 +3924,7 @@
       "rows": 1
     },
     {
-      "n": 8,
+      "n": 15,
       "tool": "proposed budget gaps: expense lines under the Forestry unit",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20object_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20object_name%20ORDER%20BY%20n%20DESC%2C%20object_name%20LIMIT%20200",
@@ -2653,7 +3933,7 @@
       "rows": 40
     },
     {
-      "n": 9,
+      "n": 16,
       "tool": "describe dataset",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
@@ -2661,7 +3941,7 @@
       "rows": null
     },
     {
-      "n": 10,
+      "n": 17,
       "tool": "proposed budget gaps: fiscal years in Annual Expenditures",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
@@ -2670,7 +3950,7 @@
       "rows": 3
     },
     {
-      "n": 11,
+      "n": 18,
       "tool": "check dataset name",
       "dataset": "id3i-2az4",
       "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
@@ -2678,7 +3958,7 @@
       "rows": null
     },
     {
-      "n": 12,
+      "n": 19,
       "tool": "proposed budget gaps: fiscal years in Annual Revenues",
       "dataset": "id3i-2az4",
       "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
@@ -2687,7 +3967,7 @@
       "rows": 3
     },
     {
-      "n": 13,
+      "n": 20,
       "tool": "describe dataset",
       "dataset": "id3i-2az4",
       "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
@@ -2695,15 +3975,55 @@
       "rows": null
     },
     {
-      "n": 14,
-      "tool": "search datasets (raw counts)",
-      "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget",
-      "soql": "q=budget",
+      "n": 21,
+      "tool": "describe dataset",
+      "dataset": "7jsp-eyjg",
+      "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
       "ok": true,
-      "rows": 16
+      "rows": null
     },
     {
-      "n": 15,
+      "n": 22,
+      "tool": "describe dataset",
+      "dataset": "6tqj-4az3",
+      "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 23,
+      "tool": "describe dataset",
+      "dataset": "dpv9-3yq2",
+      "url": "https://data.norfolk.gov/api/views/dpv9-3yq2.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 24,
+      "tool": "describe dataset",
+      "dataset": "6njp-hen5",
+      "url": "https://data.norfolk.gov/api/views/6njp-hen5.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 25,
+      "tool": "describe dataset",
+      "dataset": "jbfz-2t3g",
+      "url": "https://data.norfolk.gov/api/views/jbfz-2t3g.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 26,
+      "tool": "describe dataset",
+      "dataset": "fumf-ph9r",
+      "url": "https://data.norfolk.gov/api/views/fumf-ph9r.json",
+      "ok": true,
+      "rows": null
+    },
+    {
+      "n": 27,
       "tool": "proposed budget gaps: Park and Forestry Operations: contractual services lines, FY2026",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20count(*)%20AS%20whole%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100",
@@ -2712,7 +4032,7 @@
       "rows": 1
     },
     {
-      "n": 16,
+      "n": 28,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=checkbook",
       "soql": "q=checkbook",
@@ -2720,7 +4040,7 @@
       "rows": 0
     },
     {
-      "n": 17,
+      "n": 29,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=vendor",
       "soql": "q=vendor",
@@ -2728,7 +4048,7 @@
       "rows": 1
     },
     {
-      "n": 18,
+      "n": 30,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract",
       "soql": "q=contract",
@@ -2736,7 +4056,7 @@
       "rows": 7
     },
     {
-      "n": 19,
+      "n": 31,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order",
       "soql": "q=purchase order",
@@ -2744,15 +4064,7 @@
       "rows": 2
     },
     {
-      "n": 20,
-      "tool": "check dataset name",
-      "dataset": "7jsp-eyjg",
-      "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
-      "ok": true,
-      "rows": null
-    },
-    {
-      "n": 21,
+      "n": 32,
       "tool": "proposed budget gaps: performance measures naming pruning or trimming",
       "dataset": "7jsp-eyjg",
       "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%2C%20sum(case(upper(measure_description)%20like%20'%25TRIM%25'%2C1%2Ctrue%2C0))%20AS%20trim%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100",
@@ -2761,7 +4073,7 @@
       "rows": 1
     },
     {
-      "n": 22,
+      "n": 33,
       "tool": "proposed budget gaps: measure_description values",
       "dataset": "7jsp-eyjg",
       "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
@@ -2770,7 +4082,7 @@
       "rows": 2
     },
     {
-      "n": 23,
+      "n": 34,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning",
       "soql": "q=pruning",
@@ -2778,7 +4090,7 @@
       "rows": 1
     },
     {
-      "n": 24,
+      "n": 35,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance",
       "soql": "q=performance",
@@ -2786,7 +4098,7 @@
       "rows": 9
     },
     {
-      "n": 25,
+      "n": 36,
       "tool": "check dataset name",
       "dataset": "qzfe-wj25",
       "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
@@ -2794,7 +4106,7 @@
       "rows": null
     },
     {
-      "n": 26,
+      "n": 37,
       "tool": "proposed budget gaps: Forestry pruning work orders by status",
       "dataset": "qzfe-wj25",
       "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Pruning'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
@@ -2803,7 +4115,7 @@
       "rows": 8
     },
     {
-      "n": 27,
+      "n": 38,
       "tool": "proposed budget gaps: trees planted: empty year columns",
       "dataset": "7jsp-eyjg",
       "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2022%2C%20sum(case(fy_2023%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2023%2C%20sum(case(fy_2024%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2024%2C%20sum(case(fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2025%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100",
@@ -2812,7 +4124,7 @@
       "rows": 1
     },
     {
-      "n": 28,
+      "n": 39,
       "tool": "proposed budget gaps: Forestry tasks",
       "dataset": "qzfe-wj25",
       "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20primary_task_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20primary_task_description%20ORDER%20BY%20n%20DESC%2C%20primary_task_description%20LIMIT%20200",
@@ -2821,15 +4133,7 @@
       "rows": 21
     },
     {
-      "n": 29,
-      "tool": "check dataset name",
-      "dataset": "6tqj-4az3",
-      "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
-      "ok": true,
-      "rows": null
-    },
-    {
-      "n": 30,
+      "n": 40,
       "tool": "proposed budget gaps: capital projects with no ward or coordinates",
       "dataset": "6tqj-4az3",
       "url": "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%2C%20sum(case(location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%2C%20sum(case(ward%20IS%20NULL%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward_no_loc%2C%20sum(case((latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord_no_loc%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100",
@@ -2838,15 +4142,7 @@
       "rows": 1
     },
     {
-      "n": 31,
-      "tool": "describe dataset",
-      "dataset": "6tqj-4az3",
-      "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
-      "ok": true,
-      "rows": null
-    },
-    {
-      "n": 32,
+      "n": 41,
       "tool": "proposed budget gaps: department names in Annual Expenditures",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
@@ -2855,7 +4151,7 @@
       "rows": 64
     },
     {
-      "n": 33,
+      "n": 42,
       "tool": "proposed budget gaps: department names in Annual Revenues",
       "dataset": "id3i-2az4",
       "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
@@ -2864,7 +4160,7 @@
       "rows": 49
     },
     {
-      "n": 34,
+      "n": 43,
       "tool": "proposed budget gaps: Parks and Recreation revenue units by fiscal year",
       "dataset": "id3i-2az4",
       "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
@@ -2873,7 +4169,7 @@
       "rows": 6
     },
     {
-      "n": 35,
+      "n": 44,
       "tool": "proposed budget gaps: Parks and Recreation spending units by fiscal year",
       "dataset": "mdwe-dquf",
       "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
@@ -2882,7 +4178,7 @@
       "rows": 25
     },
     {
-      "n": 36,
+      "n": 45,
       "tool": "check dataset name",
       "dataset": "dszu-h9cf",
       "url": "https://data.norfolk.gov/api/views/dszu-h9cf.json",
@@ -2890,44 +4186,26 @@
       "rows": null
     },
     {
-      "n": 37,
+      "n": 46,
       "tool": "proposed budget gaps: upcoming public meetings",
       "dataset": "dszu-h9cf",
-      "url": "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-06T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025",
-      "soql": "SELECT date_and_time, organization, type WHERE date_and_time >= '2026-11-06T00:00:00' ORDER BY date_and_time LIMIT 25",
+      "url": "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-09T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025",
+      "soql": "SELECT date_and_time, organization, type WHERE date_and_time >= '2026-11-09T00:00:00' ORDER BY date_and_time LIMIT 25",
       "ok": true,
       "rows": 25
     }
   ],
   "responses": {
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget": {
-      "read": "2026-11-07T04:09:51.632Z",
+      "read": "2026-11-09T18:45:19.237Z",
       "status": 200,
       "body": {
         "resultSetSize": 16,
         "results": [
           {
             "resource": {
-              "id": "mdwe-dquf",
-              "name": "Annual Expenditures"
-            }
-          },
-          {
-            "resource": {
               "id": "k8ry-iqjg",
               "name": "Public Art"
-            }
-          },
-          {
-            "resource": {
-              "id": "jbfz-2t3g",
-              "name": "Capital Improvement Plan (CIP) Projects - FY24"
-            }
-          },
-          {
-            "resource": {
-              "id": "kekx-9mip",
-              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status"
             }
           },
           {
@@ -2938,14 +4216,26 @@
           },
           {
             "resource": {
+              "id": "jbfz-2t3g",
+              "name": "Capital Improvement Plan (CIP) Projects - FY24"
+            }
+          },
+          {
+            "resource": {
+              "id": "mdwe-dquf",
+              "name": "Annual Expenditures"
+            }
+          },
+          {
+            "resource": {
               "id": "7jsp-eyjg",
               "name": "Performance Measures"
             }
           },
           {
             "resource": {
-              "id": "6njp-hen5",
-              "name": "Capital Improvement Plan (CIP) Projects - FY 2025"
+              "id": "kekx-9mip",
+              "name": "American Rescue Plan Act State and Local Recovery Funds Project Status"
             }
           },
           {
@@ -2958,6 +4248,12 @@
             "resource": {
               "id": "8j55-9gjp",
               "name": "Resident Survey 2024 - Summarized Comments"
+            }
+          },
+          {
+            "resource": {
+              "id": "6njp-hen5",
+              "name": "Capital Improvement Plan (CIP) Projects - FY 2025"
             }
           },
           {
@@ -3006,7 +4302,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=checkbook": {
-      "read": "2026-11-07T04:09:51.840Z",
+      "read": "2026-11-09T18:45:22.467Z",
       "status": 200,
       "body": {
         "resultSetSize": 0,
@@ -3014,7 +4310,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract": {
-      "read": "2026-11-07T04:09:52.037Z",
+      "read": "2026-11-09T18:45:22.696Z",
       "status": 200,
       "body": {
         "resultSetSize": 7,
@@ -3065,7 +4361,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance": {
-      "read": "2026-11-07T04:09:52.619Z",
+      "read": "2026-11-09T18:45:23.404Z",
       "status": 200,
       "body": {
         "resultSetSize": 9,
@@ -3096,14 +4392,14 @@
           },
           {
             "resource": {
-              "id": "qzfe-wj25",
-              "name": "Work Orders"
+              "id": "dhk3-hr4y",
+              "name": "Plan Reviews"
             }
           },
           {
             "resource": {
-              "id": "dhk3-hr4y",
-              "name": "Plan Reviews"
+              "id": "qzfe-wj25",
+              "name": "Work Orders"
             }
           },
           {
@@ -3128,7 +4424,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning": {
-      "read": "2026-11-07T04:09:52.518Z",
+      "read": "2026-11-09T18:45:23.251Z",
       "status": 200,
       "body": {
         "resultSetSize": 1,
@@ -3143,7 +4439,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order": {
-      "read": "2026-11-07T04:09:52.121Z",
+      "read": "2026-11-09T18:45:22.788Z",
       "status": 200,
       "body": {
         "resultSetSize": 2,
@@ -3164,7 +4460,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=vendor": {
-      "read": "2026-11-07T04:09:51.937Z",
+      "read": "2026-11-09T18:45:22.561Z",
       "status": 200,
       "body": {
         "resultSetSize": 1,
@@ -3178,8 +4474,78 @@
         ]
       }
     },
+    "https://data.norfolk.gov/api/views/6njp-hen5.json": {
+      "read": "2026-11-09T18:45:22.019Z",
+      "status": 200,
+      "body": {
+        "id": "6njp-hen5",
+        "name": "Capital Improvement Plan (CIP) Projects - FY 2025",
+        "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY 2025 Adopted CIP. Each capital project included in the CIP is either approved for funding in FY 2025 or included as a planned project in FY 2026 through FY 2029. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+        "attribution": "Department of Budget & Strategic Planning",
+        "rowsUpdatedAt": 1737494868,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "project_id",
+            "dataTypeName": "number",
+            "description": "Unique project identifier"
+          },
+          {
+            "fieldName": "department",
+            "dataTypeName": "text",
+            "description": "The department that is responsible for the project"
+          },
+          {
+            "fieldName": "project_name",
+            "dataTypeName": "text",
+            "description": "Name of the project"
+          },
+          {
+            "fieldName": "description",
+            "dataTypeName": "text",
+            "description": "Detailed description of the work the project will entail"
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text",
+            "description": "Specific address or location name, when available, for the project"
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number",
+            "description": "The Ward in which the project is located"
+          },
+          {
+            "fieldName": "adopted_amount_fy_25",
+            "dataTypeName": "number",
+            "description": "Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025"
+          },
+          {
+            "fieldName": "adopted_amount_fy_25_fy_29",
+            "dataTypeName": "number",
+            "description": "The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan"
+          },
+          {
+            "fieldName": "fund",
+            "dataTypeName": "number",
+            "description": "The City fund that aligns to the funding of the project"
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number",
+            "description": "The latitude coordinate for the project's location"
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number",
+            "description": "The longitude coordinate for the project's location"
+          }
+        ]
+      }
+    },
     "https://data.norfolk.gov/api/views/6tqj-4az3.json": {
-      "read": "2026-11-07T04:09:53.408Z",
+      "read": "2026-11-09T18:45:21.800Z",
       "status": 200,
       "body": {
         "id": "6tqj-4az3",
@@ -3256,7 +4622,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/7jsp-eyjg.json": {
-      "read": "2026-11-07T04:09:52.216Z",
+      "read": "2026-11-09T18:45:21.653Z",
       "status": 200,
       "body": {
         "id": "7jsp-eyjg",
@@ -3345,15 +4711,172 @@
         ]
       }
     },
+    "https://data.norfolk.gov/api/views/8j55-9gjp.json": {
+      "read": "2026-11-09T18:45:20.129Z",
+      "status": 200,
+      "body": {
+        "id": "8j55-9gjp",
+        "name": "Resident Survey 2024 - Summarized Comments",
+        "description": "The City of Norfolk is committed to using data to help inform decisions and allocate resources. One important source of data is input from residents about their priorities and satisfaction with the services we provide. Norfolk last conducted a citywide survey of residents in 2022.\n\nTo provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents. This survey was conducted in May and June 2024; surveys were sent via the U.S. Postal Service and respondents were given the choice of responding by mail or online. This survey represents a random and statistically valid sample of residents from across the city. ETC Institute monitored responses and followed up to ensure all sections of the city were represented. An opportunity was also provided for residents not included in the random sample to take the survey and express their views.\n\nOver 900 residents are represented in the survey’s random sample, and more than five hundred comments were received in response to the question “Is there anything else Norfolk should be doing, or anything not addressed in this survey you would like city leaders to know?”. Many of these comments contained multiple suggestions for city leadership. Each suggestion was assigned to a department and budget program whose mission most closely aligned with it. This dataset consists of summaries of the suggestions for each budget program. These are summarized for brevity and to protect the anonymity of the respondent. The full original comments were shared with city leadership. This dataset will be updated every two years.",
+        "attribution": "ETC Institude",
+        "rowsUpdatedAt": 1732645799,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "department",
+            "dataTypeName": "text",
+            "description": "The department most relevant to the resident comments."
+          },
+          {
+            "fieldName": "budget_program",
+            "dataTypeName": "text",
+            "description": "The name of the budget program within the department that addresses the issues or feedback provided in the relevant resident comments."
+          },
+          {
+            "fieldName": "number_of_comments",
+            "dataTypeName": "number",
+            "description": "The count of resident comments relevant to the budget program, as reported in the 2024 Resident Survey."
+          },
+          {
+            "fieldName": "comment_summary",
+            "dataTypeName": "text",
+            "description": "A summary of the key points and themes from the resident comments related to the budget program. This summary provides the main feedback and concerns expressed by respondents."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/de5p-5xvj.json": {
+      "read": "2026-11-09T18:45:19.902Z",
+      "status": 200,
+      "body": {
+        "id": "de5p-5xvj",
+        "name": "Resident Survey 2024",
+        "description": "The City of Norfolk is committed to using data to inform decisions and allocate resources. An important source of data is input from residents about their priorities and satisfaction with the services we provide. Norfolk last conducted a citywide survey of residents in 2022.\n\nTo provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC Institute to conduct a survey of residents. This survey was conducted in May and June 2024; surveys were sent via the U.S. Postal Service, and respondents were given the choice of responding by mail or online. This survey represents a random and statistically valid sample of residents from across the city, including each Ward. ETC Institute monitored responses and followed up to ensure all sections of the city were represented. Additionally, an opportunity was provided for residents not included in the random sample to take the survey and express their views. This dataset includes all random sample survey data, excluding demographic information and free-form comments to protect privacy. It is grouped by Question Category, Question, Response, Ward, and Superward. This dataset will be updated every two years.",
+        "attribution": "ETC Institute",
+        "rowsUpdatedAt": 1725985328,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "question_category",
+            "dataTypeName": "text",
+            "description": "The category or theme under which the survey question is classified."
+          },
+          {
+            "fieldName": "question",
+            "dataTypeName": "text",
+            "description": "The survey question that was asked."
+          },
+          {
+            "fieldName": "response",
+            "dataTypeName": "text",
+            "description": "The answer given by the respondent to the survey question."
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number",
+            "description": "The Ward that the survey respondent indicated they reside."
+          },
+          {
+            "fieldName": "superward",
+            "dataTypeName": "number",
+            "description": "The Superward that the survey respondent indicated they reside."
+          },
+          {
+            "fieldName": "number_of_responses",
+            "dataTypeName": "number",
+            "description": "The total count of survey responses, grouped by combinations of Question Category, Question, Response, Ward, and Superward."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/dpv9-3yq2.json": {
+      "read": "2026-11-09T18:45:21.903Z",
+      "status": 200,
+      "body": {
+        "id": "dpv9-3yq2",
+        "name": "Capital Improvement Plan (CIP) Projects - FY 2026",
+        "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY 2026 Adopted CIP. Each capital project included in the CIP is either approved for funding in FY 2026 or included as a planned project in FY 2026 through FY 2030. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+        "attribution": "Department of Budget & Strategic Planning",
+        "rowsUpdatedAt": 1790966978,
+        "modifyingViewUid": null,
+        "metadata": {
+          "custom_fields": {
+            "Updates": {
+              "Update Frequency": "Yearly",
+              "Update Workflow": "Manual"
+            }
+          }
+        },
+        "columns": [
+          {
+            "fieldName": "project_id",
+            "dataTypeName": "text",
+            "description": "Unique project identifier"
+          },
+          {
+            "fieldName": "department",
+            "dataTypeName": "text",
+            "description": "The department that is responsible for the project."
+          },
+          {
+            "fieldName": "project_name",
+            "dataTypeName": "text",
+            "description": "Name of the project"
+          },
+          {
+            "fieldName": "description",
+            "dataTypeName": "text",
+            "description": "Detailed description of the work the project will entail"
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text",
+            "description": "Specific address or location name, when available, for the project"
+          },
+          {
+            "fieldName": "fund",
+            "dataTypeName": "number",
+            "description": "The City fund that aligns to the funding of the project"
+          },
+          {
+            "fieldName": "amount",
+            "dataTypeName": "number",
+            "description": "The adopted funding amount included in the FY 2026 to FY 2030 Capital Improvement Plan"
+          },
+          {
+            "fieldName": "amount_fy_26",
+            "dataTypeName": "number",
+            "description": "Adopted Amount FY 26 – The adopted funding amount included in the FY 2026"
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number",
+            "description": "The Ward in which the project is located"
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number",
+            "description": "The latitude coordinate for the project's location"
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number",
+            "description": "The longitude coordinate for the project's location"
+          }
+        ]
+      }
+    },
     "https://data.norfolk.gov/api/views/dszu-h9cf.json": {
-      "read": "2026-11-07T04:09:53.978Z",
+      "read": "2026-11-09T18:45:25.358Z",
       "status": 200,
       "body": {
         "id": "dszu-h9cf",
         "name": "Public Meeting Notices",
         "description": "The public meeting notices dataset includes a listing of public meetings conducted by the City of Norfolk. The date, time, location, address, and links to the meeting video, agenda, and minutes are included. The meetings listed in this dataset include, but are not limited to, City Council Work Session and Formal Session, Planning Commission, Board of Zoning Appeals, and Architectural Review Board meetings. This dataset will be updated twice-daily on weekdays.",
         "attribution": "City Clerk",
-        "rowsUpdatedAt": 1793986327,
+        "rowsUpdatedAt": 1794245521,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -3423,14 +4946,14 @@
       }
     },
     "https://data.norfolk.gov/api/views/ere7-kake.json": {
-      "read": "2026-11-07T04:09:49.242Z",
+      "read": "2026-11-09T18:44:58.542Z",
       "status": 200,
       "body": {
         "id": "ere7-kake",
         "name": "Address Information",
         "description": "The Address Information Resource is a compilation of information related to active and pending addresses in the City of Norfolk.  It provides a consolidated source to allow for quick and easy access to information about an address including details related to school districts, municipal services, planning, public safety, and civic leadership.  It is one of the main data resources that provides content for the Norfolk AIR website (https://air.norfolk.gov/#/).",
         "attribution": "City of Norfolk's Information Technology Department",
-        "rowsUpdatedAt": 1793967768,
+        "rowsUpdatedAt": 1794227397,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -3879,15 +5402,182 @@
         ]
       }
     },
+    "https://data.norfolk.gov/api/views/ez9d-udp9.json": {
+      "read": "2026-11-09T18:45:20.008Z",
+      "status": 200,
+      "body": {
+        "id": "ez9d-udp9",
+        "name": "Resident Survey 2024 Demographics",
+        "description": "The City of Norfolk is committed to using data to inform decisions and allocate resources. An important source of data is input from residents about their priorities and satisfaction with the services we provide. Norfolk last conducted a citywide survey of residents in 2022.\n\nTo provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC Institute to conduct a survey of residents. This survey was conducted in May and June 2024; surveys were sent via the U.S. Postal Service, and respondents were given the choice of responding by mail or online. This survey represents a random and statistically valid sample of residents from across the city, including each Ward. ETC Institute monitored responses and followed up to ensure all sections of the city were represented. Additionally, an opportunity was provided for residents not included in the random sample to take the survey and express their views. This dataset includes all random sample survey data including demographic information; it excludes free-form comments to protect privacy. It is grouped by Question Category, Question, Response, Demographic Question, and Demographic Question Response. This dataset will be updated every two years.",
+        "attribution": "ETC Institute",
+        "rowsUpdatedAt": 1727210214,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "question_category",
+            "dataTypeName": "text",
+            "description": "The category or theme under which the survey question is classified."
+          },
+          {
+            "fieldName": "question",
+            "dataTypeName": "text",
+            "description": "The survey question that was asked."
+          },
+          {
+            "fieldName": "question_response",
+            "dataTypeName": "text",
+            "description": "The answer given by the respondent to the survey question."
+          },
+          {
+            "fieldName": "demographic_question",
+            "dataTypeName": "text",
+            "description": "The demographic question that was asked."
+          },
+          {
+            "fieldName": "demographic_question_response",
+            "dataTypeName": "text",
+            "description": "The answer given by the respondent to the demographic question."
+          },
+          {
+            "fieldName": "number_of_responses",
+            "dataTypeName": "number",
+            "description": "The total count of survey responses, grouped by combinations of Question Category, Question, Response, Demographic Question, and Demographic Question Response."
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/f3mt-z6yp.json": {
+      "read": "2026-11-09T18:45:20.247Z",
+      "status": 200,
+      "body": {
+        "id": "f3mt-z6yp",
+        "name": "Resident Survey 2022 Demographics",
+        "description": "The City of Norfolk is committed to using data to help inform decisions and allocate resources. One important source of data is input from residents about their priorities and satisfaction with the services we provide. Norfolk last conducted a citywide survey of residents in 2014.\n\nTo provide up-to-date information regarding resident priorities and satisfaction, Norfolk contracted with ETC institute to conduct a survey of residents. This survey was conducted in the fall of 2022; surveys were sent via the U.S. Postal Service and respondents were given the choice of responding by mail, online, or by telephone. This survey represents a random and statistically valid sample of residents from across the city. ETC Institute monitored responses and followed up to ensure all sections of the city were represented. An opportunity was also provided for residents not included in the random sample to take the survey and express their views.\n\nThis dataset includes all survey data (including demographics questions and responses), with the exception of free form comments and the Ward and Superward that the respondent lived in at the time of the survey. This dataset will be updated every two years.",
+        "attribution": "Department of Budget and Strategic Planning, CivicLab",
+        "rowsUpdatedAt": 1690826780,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "response_method_mail_or_web",
+            "dataTypeName": "text",
+            "description": "Indicates if the survey respondent responded via mail or web"
+          },
+          {
+            "fieldName": "random_sample_survey",
+            "dataTypeName": "checkbox",
+            "description": "Indicates whether the survey response was part of the random sample of Norfolk households or rather the response was from the general public survey link. (Yes = responses are part of the random sample of city households; No = responses are not part of the random sample of city households)"
+          },
+          {
+            "fieldName": "demographic_question",
+            "dataTypeName": "text",
+            "description": "The question asked to the survey respondent regarding their demographic information"
+          },
+          {
+            "fieldName": "demographic_response",
+            "dataTypeName": "text",
+            "description": "The response provided by the survey respondent regarding their demographic information"
+          },
+          {
+            "fieldName": "question_category",
+            "dataTypeName": "text",
+            "description": "The overall category that the survey question falls under"
+          },
+          {
+            "fieldName": "question",
+            "dataTypeName": "text",
+            "description": "The survey question"
+          },
+          {
+            "fieldName": "question_response",
+            "dataTypeName": "text",
+            "description": "The response that the resident provided to the survey question"
+          },
+          {
+            "fieldName": "number_of_responses",
+            "dataTypeName": "number",
+            "description": "The number of responses, grouped by Response Method, Random Sample Survey, Demographic Question, Demographic Response, Question Category, Question, and Response"
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/fumf-ph9r.json": {
+      "read": "2026-11-09T18:45:22.235Z",
+      "status": 200,
+      "body": {
+        "id": "fumf-ph9r",
+        "name": "Capital Improvement Projects (CIP) - FY20",
+        "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure.  The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses.\n\n*Disclaimer: Projects are based on Proposed FY 2020 - FY 2024 Capital Improvement Plan and are subject to change.",
+        "attribution": "Office of Budget and Strategic Planning",
+        "rowsUpdatedAt": 1557249647,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "project_id",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "master_project_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "department",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "status",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "subproject_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "amount",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "superward",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "description",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "fy2020_proposed_amount",
+            "dataTypeName": "number"
+          }
+        ]
+      }
+    },
     "https://data.norfolk.gov/api/views/id3i-2az4.json": {
-      "read": "2026-11-07T04:09:50.708Z",
+      "read": "2026-11-09T18:45:21.500Z",
       "status": 200,
       "body": {
         "id": "id3i-2az4",
         "name": "Annual Revenues",
         "description": "This dataset summarizes the city’s various revenue sources.  The revenue dataset reflects money coming into the city; some examples include real estate tax payments, state aid and parking fine collections. The city’s financial system, where revenue collections are recorded daily, is the source for this data. \n\nThis data also contains current budget information based on the revenue budget adopted by City Council ahead of each fiscal year.  This budget allows city staff to monitor and track revenue collections during the year.   The data set includes the current fiscal year and two previous fiscal years.  \n\n*Disclaimer: Revenues will reflect the previous fiscal year’s activity until final entries have been made and the accounting period has been closed.\n\nThis data is updated daily on weekdays.",
         "attribution": "Department of Budget and Strategic Planning",
-        "rowsUpdatedAt": 1793968012,
+        "rowsUpdatedAt": 1794227403,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -3941,15 +5631,302 @@
         ]
       }
     },
+    "https://data.norfolk.gov/api/views/jbfz-2t3g.json": {
+      "read": "2026-11-09T18:45:22.126Z",
+      "status": 200,
+      "body": {
+        "id": "jbfz-2t3g",
+        "name": "Capital Improvement Plan (CIP) Projects - FY24",
+        "description": "The Capital Improvement Plan (CIP) is a multi-year plan for capital expenditures to replace, maintain, and expand the city’s infrastructure. The city uses the CIP to develop infrastructure and maintain the quality of life offered to residents and businesses. The capital budget supports non-recurring expenditures, such as the construction of buildings, acquisition of property, repairs, and improvements to roadways, building maintenance, and the efficient operation of the water, sewage, and storm water systems. Capital funding is limited to the cost of the project and may be expended over several fiscal years until the project is completed.\n\nThis dataset shows the projects that were approved to be included in the FY2024 adopted CIP. Each capital project included in the CIP is either approved for funding in FY2024 or included as a planned project in FY2025 through FY2028. The inclusion of a project beyond the current budget does not guarantee it will be funded in the future. This dataset will not be updated, however, a new dataset will be created each fiscal year for the new CIP.",
+        "attribution": "Office of Budget and Strategic Planning",
+        "rowsUpdatedAt": 1698869630,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "project_id",
+            "dataTypeName": "number",
+            "description": "Unique project identifier"
+          },
+          {
+            "fieldName": "department",
+            "dataTypeName": "text",
+            "description": "The department that is responsible for the project"
+          },
+          {
+            "fieldName": "master_project_name",
+            "dataTypeName": "text",
+            "description": "Name of the project, or name of the master project if there are subprojects"
+          },
+          {
+            "fieldName": "subproject_name",
+            "dataTypeName": "text",
+            "description": "Name of the subproject that falls under a master project"
+          },
+          {
+            "fieldName": "description",
+            "dataTypeName": "text",
+            "description": "Detailed description of the work the project will entail"
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text",
+            "description": "Specific address or location name, when available, for the project"
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number",
+            "description": "The latitude coordinate for the project's location"
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number",
+            "description": "The longitude coordinate for the project's location"
+          },
+          {
+            "fieldName": "fund",
+            "dataTypeName": "number",
+            "description": "The City fund that aligns to the funding of the project"
+          },
+          {
+            "fieldName": "amount",
+            "dataTypeName": "number",
+            "description": "The adopted funding amount included in the FY2024 to FY2028 Capital Improvement Plan"
+          },
+          {
+            "fieldName": "ward",
+            "dataTypeName": "number",
+            "description": "The Ward in which the project is located"
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/k8ry-iqjg.json": {
+      "read": "2026-11-09T18:45:19.576Z",
+      "status": 200,
+      "body": {
+        "id": "k8ry-iqjg",
+        "name": "Public Art",
+        "description": "Public art is artwork in public locations where everyone can see and enjoy it.\nNorfolk is among the great cities that use public art to inspire, educate, beautify and give character to public places. The Public Arts Commission together with city staff, developed policies for the development of artwork that creates a unique image and sense of place for Norfolk. This dataset is a compiled list of existing public art recorded by Norfolk. This data is updated annually.\n*Please note this dataset does not include the Mermaid Statues.",
+        "attribution": "Marketing and Communications – Norfolk Arts",
+        "rowsUpdatedAt": 1664480694,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "artwork_name",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "street_address",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "artist",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "hometown",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "media",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "category",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "credit",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "y_coordinate",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "x_coordinate",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": "weblink",
+            "dataTypeName": "url"
+          },
+          {
+            "fieldName": "installation_date",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "budget",
+            "dataTypeName": "text"
+          },
+          {
+            "fieldName": "geocoded_column",
+            "dataTypeName": "point"
+          },
+          {
+            "fieldName": ":@computed_region_x6fk_ihs5",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_b3ci_nw94",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_38t5_wna6",
+            "dataTypeName": "number"
+          },
+          {
+            "fieldName": ":@computed_region_25t2_rbz7",
+            "dataTypeName": "number"
+          }
+        ]
+      }
+    },
+    "https://data.norfolk.gov/api/views/kekx-9mip.json": {
+      "read": "2026-11-09T18:45:19.732Z",
+      "status": 200,
+      "body": {
+        "id": "kekx-9mip",
+        "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+        "description": "The city, through the American Rescue Plan Act (ARPA), is the direct recipient of $154,141,050 in State and Local Fiscal Recovery Funds (SLFRF). This dataset contains information on the status of City Council approved projects that were made possible by SLFRF. The data comes from the city’s financial system AFMS and city staff. The financial data will be updated daily based on activity in the city’s financial system, AFMS. The remaining data will be updated monthly.",
+        "attribution": "Department of Housing and Community Development",
+        "rowsUpdatedAt": 1754335373,
+        "modifyingViewUid": null,
+        "metadata": {},
+        "columns": [
+          {
+            "fieldName": "norfolk_category",
+            "dataTypeName": "text",
+            "description": "A broad expenditure category describing the purpose and use of funds. Each category is made up of one or more projects."
+          },
+          {
+            "fieldName": "project_title",
+            "dataTypeName": "text",
+            "description": "Title of each project."
+          },
+          {
+            "fieldName": "description",
+            "dataTypeName": "text",
+            "description": "Detailed description of each project."
+          },
+          {
+            "fieldName": "budget",
+            "dataTypeName": "number",
+            "description": "Budget for each project."
+          },
+          {
+            "fieldName": "expenses",
+            "dataTypeName": "number",
+            "description": "Expenses incurred for each project to date."
+          },
+          {
+            "fieldName": "remaining_unspent",
+            "dataTypeName": "number",
+            "description": "Remaining/unspent portion of the budget after expenses."
+          },
+          {
+            "fieldName": "planning",
+            "dataTypeName": "text",
+            "description": "Planning phase of the project; this field indicates if this phase is current/in process."
+          },
+          {
+            "fieldName": "design",
+            "dataTypeName": "text",
+            "description": "Design phase of the project; this field indicates if this phase is current/in process."
+          },
+          {
+            "fieldName": "bid_award",
+            "dataTypeName": "text",
+            "description": "Bid/Award phase of the project; this field indicates if this phase is current/in process."
+          },
+          {
+            "fieldName": "construction",
+            "dataTypeName": "text",
+            "description": "Construction phase of the project; this field indicates if this phase is current/in process."
+          },
+          {
+            "fieldName": "complete",
+            "dataTypeName": "text",
+            "description": "Indicates if all phases of the project are complete."
+          },
+          {
+            "fieldName": "location",
+            "dataTypeName": "text",
+            "description": "Location of the project. Projects that are citywide or not site specific are identified at City Hall, 810 Union St. Norfolk, VA 23510."
+          },
+          {
+            "fieldName": "latitude",
+            "dataTypeName": "number",
+            "description": "Latitude associated with the location of the project."
+          },
+          {
+            "fieldName": "longitude",
+            "dataTypeName": "number",
+            "description": "Longitude associated with the location of the project."
+          },
+          {
+            "fieldName": "department",
+            "dataTypeName": "text",
+            "description": "Department within the City’s financial system, AFMS."
+          },
+          {
+            "fieldName": "unit",
+            "dataTypeName": "number",
+            "description": "Unit number/identifier within AFMS."
+          },
+          {
+            "fieldName": "activity",
+            "dataTypeName": "text",
+            "description": "Activity number/identifier within AFMS."
+          },
+          {
+            "fieldName": "location_point",
+            "dataTypeName": "point",
+            "description": "Geographic point showing the location of the project."
+          },
+          {
+            "fieldName": "organization_name",
+            "dataTypeName": "text",
+            "description": "The name of the awarded organization for nonprofit assistance awarded grants."
+          },
+          {
+            "fieldName": "award_amount",
+            "dataTypeName": "number",
+            "description": "The total grant amount awarded."
+          },
+          {
+            "fieldName": "note",
+            "dataTypeName": "text",
+            "description": "Provides additional details related to the grant award."
+          },
+          {
+            "fieldName": ":@computed_region_25t2_rbz7",
+            "dataTypeName": "number",
+            "description": "This column was automatically created in order to record in what polygon from the dataset 'US Counties' (25t2-rbz7) the point in column 'location_point' is located.  This enables the creation of region maps (choropleths) in the visualization canvas and data lens."
+          },
+          {
+            "fieldName": ":@computed_region_x6fk_ihs5",
+            "dataTypeName": "number",
+            "description": "This column was automatically created in order to record in what polygon from the dataset 'Civic Leagues' (x6fk-ihs5) the point in column 'location_point' is located.  This enables the creation of region maps (choropleths) in the visualization canvas and data lens."
+          }
+        ]
+      }
+    },
     "https://data.norfolk.gov/api/views/mdwe-dquf.json": {
-      "read": "2026-11-07T04:09:50.225Z",
+      "read": "2026-11-09T18:45:20.948Z",
       "status": 200,
       "body": {
         "id": "mdwe-dquf",
         "name": "Annual Expenditures",
         "description": "This dataset summarizes the city’s cash outlays and accruals for the cost of goods received or services rendered, by department, department unit/division, and expenditure type, for three years; the current fiscal year and two previous fiscal years. The city's fiscal year runs July 1 to June 30.  The city’s financial system, where transactions are recorded daily, is the source for this data. The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.  The data is refreshed daily on weekdays, and the expenditure amounts are current as of the date it was last refreshed.  \n\n*Disclaimer: Expenditures will reflect the previous fiscal year’s activity until final entries have been made and the accounting period has been closed.\n\nThis data is updated daily on weekdays.",
         "attribution": "Department of Budget and Strategic Planning",
-        "rowsUpdatedAt": 1793967996,
+        "rowsUpdatedAt": 1794227394,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -4004,14 +5981,14 @@
       }
     },
     "https://data.norfolk.gov/api/views/qzfe-wj25.json": {
-      "read": "2026-11-07T04:09:52.716Z",
+      "read": "2026-11-09T18:45:23.524Z",
       "status": 200,
       "body": {
         "id": "qzfe-wj25",
         "name": "Work Orders",
         "description": "This dataset contains data on Work Orders performed by field crews from the Department of Parks & Recreation, the Department of Transportation, and the Environmental Storm Water Management and Streets & Bridges Divisions of the Department of Public Works. The data comes from the city’s implementation of CentralSquare’s Enterprise Asset Management platform, also known as Lucity. This dataset is updated daily on weekdays.",
         "attribution": "Departments of Parks and Recreation, Public Works, and Transportation",
-        "rowsUpdatedAt": 1793967921,
+        "rowsUpdatedAt": 1794227329,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -4186,7 +6163,7 @@
       }
     },
     "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%2C%20sum(case(location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%2C%20sum(case(ward%20IS%20NULL%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward_no_loc%2C%20sum(case((latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord_no_loc%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:53.334Z",
+      "read": "2026-11-09T18:45:24.617Z",
       "status": 200,
       "body": [
         {
@@ -4201,7 +6178,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2022%2C%20sum(case(fy_2023%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2023%2C%20sum(case(fy_2024%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2024%2C%20sum(case(fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2025%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:53.000Z",
+      "read": "2026-11-09T18:45:24.046Z",
       "status": 200,
       "body": [
         {
@@ -4214,7 +6191,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%2C%20sum(case(upper(measure_description)%20like%20'%25TRIM%25'%2C1%2Ctrue%2C0))%20AS%20trim%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:52.335Z",
+      "read": "2026-11-09T18:45:22.946Z",
       "status": 200,
       "body": [
         {
@@ -4225,7 +6202,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:52.451Z",
+      "read": "2026-11-09T18:45:23.156Z",
       "status": 200,
       "body": [
         {
@@ -4238,8 +6215,8 @@
         }
       ]
     },
-    "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-06T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025": {
-      "read": "2026-11-07T04:09:54.123Z",
+    "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-09T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025": {
+      "read": "2026-11-09T18:45:25.573Z",
       "status": 200,
       "body": [
         {
@@ -4370,7 +6347,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%200": {
-      "read": "2026-11-07T04:09:49.372Z",
+      "read": "2026-11-09T18:44:59.143Z",
       "status": 200,
       "body": [
         {
@@ -5876,7 +7853,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201000": {
-      "read": "2026-11-07T04:09:49.657Z",
+      "read": "2026-11-09T18:44:59.492Z",
       "status": 200,
       "body": [
         {
@@ -7382,7 +9359,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201500": {
-      "read": "2026-11-07T04:09:49.779Z",
+      "read": "2026-11-09T18:44:59.654Z",
       "status": 200,
       "body": [
         {
@@ -8738,7 +10715,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%20500": {
-      "read": "2026-11-07T04:09:49.505Z",
+      "read": "2026-11-09T18:44:59.311Z",
       "status": 200,
       "body": [
         {
@@ -10244,7 +12221,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:53.632Z",
+      "read": "2026-11-09T18:45:24.905Z",
       "status": 200,
       "body": [
         {
@@ -10446,7 +12423,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:50.604Z",
+      "read": "2026-11-09T18:45:21.386Z",
       "status": 200,
       "body": [
         {
@@ -10464,7 +12441,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:53.745Z",
+      "read": "2026-11-09T18:45:25.098Z",
       "status": 200,
       "body": [
         {
@@ -10500,7 +12477,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20count(*)%20AS%20whole%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:51.757Z",
+      "read": "2026-11-09T18:45:22.360Z",
       "status": 200,
       "body": [
         {
@@ -10509,7 +12486,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:53.520Z",
+      "read": "2026-11-09T18:45:24.740Z",
       "status": 200,
       "body": [
         {
@@ -10771,7 +12748,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:50.401Z",
+      "read": "2026-11-09T18:45:21.091Z",
       "status": 200,
       "body": [
         {
@@ -10789,7 +12766,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:53.838Z",
+      "read": "2026-11-09T18:45:25.226Z",
       "status": 200,
       "body": [
         {
@@ -10920,7 +12897,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20object_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20object_name%20ORDER%20BY%20n%20DESC%2C%20object_name%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:50.106Z",
+      "read": "2026-11-09T18:45:20.847Z",
       "status": 200,
       "body": [
         {
@@ -11086,7 +13063,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:49.978Z",
+      "read": "2026-11-09T18:45:20.606Z",
       "status": 200,
       "body": [
         {
@@ -11096,7 +13073,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20primary_task_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20primary_task_description%20ORDER%20BY%20n%20DESC%2C%20primary_task_description%20LIMIT%20200": {
-      "read": "2026-11-07T04:09:53.112Z",
+      "read": "2026-11-09T18:45:24.367Z",
       "status": 200,
       "body": [
         {
@@ -11105,7 +13082,7 @@
         },
         {
           "v": "Stump Grinding",
-          "n": "2995"
+          "n": "2998"
         },
         {
           "v": "Removal",
@@ -11121,7 +13098,7 @@
         },
         {
           "v": "Tree Maintenance",
-          "n": "357"
+          "n": "359"
         },
         {
           "v": "Inspection",
@@ -11186,18 +13163,18 @@
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Pruning'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100": {
-      "read": "2026-11-07T04:09:52.886Z",
+      "read": "2026-11-09T18:45:23.851Z",
       "status": 200,
       "body": [
         {
           "status_code": "2",
           "status_description": "New Work Order",
-          "whole": "570"
+          "whole": "566"
         },
         {
           "status_code": "4",
           "status_description": "On-Going",
-          "whole": "14"
+          "whole": "13"
         },
         {
           "status_code": "940",
@@ -11227,7 +13204,7 @@
         {
           "status_code": "999",
           "status_description": "Complete",
-          "whole": "2668"
+          "whole": "2673"
         }
       ]
     }

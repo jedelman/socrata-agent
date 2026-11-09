@@ -7,8 +7,9 @@
 // `context`, `related` and `sources` (REVIEW_KEYS below; the builder's page
 // says the same), and copy with it the source constants (EXP, REV, PM, CIP,
 // WO, INDEX) and helpers it calls (distinct, valuesEv, descriptionSays,
-// fieldSays, catalogLine, metadataEv, quoted, plural, fy and the where-clause
-// constants), which norfolk.js doesn't have. Its actions move into
+// fieldSays, catalogLine, metadataEv, quoted, plural, fy, budgetCleared and
+// the where-clause constants), which norfolk.js doesn't have; the budget
+// topic itself is already there. Its actions move into
 // src/gaps/actions-norfolk.js. Nothing under src/ or worker/ imports this
 // file, and scripts/build-gaps.js never reads it
 // (test/gaps-proposed.test.js holds both). It is measured only by
@@ -38,12 +39,18 @@
 
 import { fmt, pct, sourceName, T } from '../kinds.js';
 import { soql, num, MeasureChange } from '../measures.js';
+import { TOPICS as APPROVED_TOPICS } from '../norfolk.js';
 
 export const PROPOSED = true;
 export const CITY = 'norfolk';
 export const CATALOG_NAME = 'proposed budget gaps';
 export const SET = 'norfolk-budget';
-export const TOPICS = Object.freeze({});
+// The budget topic is the approved catalog's (src/gaps/norfolk.js; Jason,
+// 2026-11-09), so an entry approved into the catalog keeps the topic it was
+// measured under. Every entry here names it: the builder checks the topic's
+// catalog hits and placements live, and a 'blocks: all' question needs
+// columns_absent over every one of its datasets.
+export const TOPICS = Object.freeze({ budget: APPROVED_TOPICS.budget });
 export const RETIRED = Object.freeze([]);
 export const NOT_A_GAP = Object.freeze([]);
 /** Keys only a proposal carries; dropped when an entry moves into the catalog. */
@@ -114,6 +121,9 @@ function catalogLine(searches, read) {
   };
   return `I found ${searches.map(part).join('')} (searched ${read}).`;
 }
+const BUDGET = APPROVED_TOPICS.budget;
+/** The topic's clearances a topic-wide check with this pattern passes: those whose column it matches. */
+const budgetCleared = (pattern) => (BUDGET.cleared || []).filter((c) => pattern.test(c.column)).map((c) => ({ ...c }));
 function metadataEv(h, ids) {
   return ids.map((id) => {
     const d = h.run.describes.get(id);
@@ -130,7 +140,7 @@ export const GAPS = [
     kind: 'missing_field',
     title: 'No unit or field for Forestry spending alone (Annual Expenditures)',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [EXP], scope: 'spending lines of units with Forestry in their name', area: 'citywide' },
     questions: [
       {
@@ -201,7 +211,7 @@ export const GAPS = [
     kind: 'partial_coverage',
     title: 'Fiscal years held in the open spending and revenue records',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [EXP, REV, { type: 'catalog', id: 'data.norfolk.gov' }], scope: 'fiscal years in the open spending and revenue records', area: 'citywide' },
     questions: [
       { qid: 'q1', text: 'How has Parks and Recreation spending changed over the last ten years?', blocks: 'part', answered_in_part_by: [{ dataset: EXP.id, column: 'fiscal_year' }] },
@@ -297,7 +307,7 @@ export const GAPS = [
     kind: 'missing_field',
     title: 'No field linking spending lines to a contract or work order (Annual Expenditures)',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     related: ['norfolk.work-orders.no-contract-link'],
     where: { sources: [EXP, { type: 'catalog', id: 'data.norfolk.gov' }], scope: 'spending lines', area: 'citywide' },
     // Which tree work the line paid for is the work-order side, half-answered
@@ -307,7 +317,8 @@ export const GAPS = [
     touches: [{ dataset: EXP.id, where_includes: [PFO] }],
     bites_when: [],
     closed_when: { column_present: '/vendor|payee|supplier|contract|invoice|purchase|work_?order|(^|_)po(_|$)/', null_share_at_most: 0.05 },
-    concepts: { link: { pattern: /vendor|payee|supplier|contract|invoice|purchase|work_?order|(^|_)po(_|$)/i, datasets: [EXP.id] } },
+    // Checked over every budget dataset: the question can't be answered from any of them.
+    concepts: { link: { pattern: /vendor|payee|supplier|contract|invoice|purchase|work_?order|(^|_)po(_|$)/i, datasets: BUDGET.datasets } },
     // The line the question names, for the last whole fiscal year.
     year: 2026,
     searches: ['checkbook', 'vendor', 'contract', 'purchase order'],
@@ -315,9 +326,9 @@ export const GAPS = [
     linkNames: /vendor|payment|contract|checkbook|purchas|invoice|spend/i,
     why: [
       'The line “Other Contractual Services” records an amount and a budget for a unit and a year.',
-      'I found no column in Annual Expenditures that ties a line to a contract, a purchase order or a work order, so the work an amount paid for stays out of these records.',
+      'I found no column in Annual Expenditures, or in any other dataset of the budget topic, that ties a line to a contract, a purchase order or a work order, so the work an amount paid for stays out of these records.',
       'The entry describes that missing link, and claims nothing about whether any payment was right.',
-      'The work-order side, with its contractor cost, is an approved catalog entry, linked from this one, and this entry measures only Annual Expenditures and the catalog.',
+      'The work-order side, with its contractor cost, is an approved catalog entry, linked from this one, and this entry measures only the budget topic’s datasets and the catalog.',
     ].join(' '),
     context: [
       'The request gave this line’s actual expenses and budget for FY2026, and the statement leaves both out.',
@@ -326,7 +337,7 @@ export const GAPS = [
     ].join(' '),
     async measure(h) {
       const k = this.concepts.link;
-      const cols = await h.run.columnsAbsent({ datasets: k.datasets, pattern: k.pattern });
+      const cols = await h.run.columnsAbsent({ datasets: k.datasets, pattern: k.pattern, cleared: budgetCleared(k.pattern) });
       const where = `unit_name = '${PFO}' AND ${CONTRACTUAL} AND fiscal_year = ${this.year}`;
       const one = await h.run.query(EXP.id, soql.share(where, {}), `${PFO}: contractual services lines, FY${this.year}`);
       const lines = num(one.rows[0], 'whole');
@@ -338,7 +349,6 @@ export const GAPS = [
       const read = h.dateOf(cols.read);
       const lread = h.dateOf(one.read);
       const sread = h.dateOf(searches[0].read);
-      const n = cols.datasets[EXP.id];
       const concept = 'naming a vendor, contract, invoice, purchase order or work order';
       return {
         how_much: {
@@ -347,12 +357,12 @@ export const GAPS = [
         },
         evidence: [...metadataEv(h, k.datasets), h.ev.query(one), ...searches.map(h.ev.catalog)],
         statement: [
-          T.columnsAbsent({ concept, count: n, source: EXP, read }),
+          T.columnsAbsentTopic({ concept, datasets: k.datasets, topic: 'budget', read }),
           `Under “${PFO}”, I found ${plural(lines, 'line', 'lines')} named “Other Contractual Services” for ${fy(this.year)}, as I read them on ${lread}.`,
           catalogLine(searches, sread),
         ].join(' '),
-        short: `I found no column in the City's Annual Expenditures tying a spending line to a vendor, contract, purchase order or work order, measured ${read}.`,
-        consequences: { q1: `I found no column ${concept} among the ${fmt(n)} columns of ${sourceName(EXP)}, measured ${read}, so I can't answer this from them.` },
+        short: `I found no column tying a spending line to a vendor, contract, purchase order or work order in any of the ${fmt(k.datasets.length)} budget datasets I read, measured ${read}.`,
+        consequences: { q1: T.consequenceAll({ concept, datasets: k.datasets, topic: 'budget', measured: read }) },
       };
     },
   },
@@ -363,7 +373,7 @@ export const GAPS = [
     kind: 'no_records',
     title: 'Street-tree pruning in the performance measures checked',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [PM, WO, { type: 'catalog', id: 'data.norfolk.gov' }], scope: 'performance measures', area: 'citywide' },
     questions: [
       { qid: 'q1', text: 'What share of street-tree pruning requests does the City fulfill each year?', blocks: 'part', answered_in_part_by: [{ dataset: WO.id, column: 'primary_task_description' }, { dataset: WO.id, column: 'status_description' }] },
@@ -446,7 +456,7 @@ export const GAPS = [
     kind: 'missing_field',
     title: 'Trees-planted measure with empty year columns (Performance Measures)',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [PM, WO], scope: `the measure “${PLANTED}” under the program “${PFO}”`, area: 'citywide' },
     questions: [
       { qid: 'q1', text: 'How many trees did the City plant in each of the last four fiscal years?', blocks: 'part', answered_in_part_by: [{ dataset: WO.id, column: 'primary_task_description' }] },
@@ -506,7 +516,7 @@ export const GAPS = [
     kind: 'missing_field',
     title: 'Capital projects with no ward or coordinates (adopted capital plan)',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [CIP], scope: 'projects in the adopted capital plan', area: 'citywide' },
     questions: [
       { qid: 'q1', text: 'Which capital projects in the adopted plan are in my ward?', blocks: 'part', answered_in_part_by: [{ dataset: CIP.id, column: 'ward' }, { dataset: CIP.id, column: 'location' }] },
@@ -575,7 +585,7 @@ export const GAPS = [
     kind: 'partial_coverage',
     title: 'Parks and Recreation revenue units with no spending unit of the same name',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [REV, EXP], scope: `units under ${PARKS_DEPT}, by fiscal year`, area: 'citywide' },
     questions: [
       {
@@ -659,7 +669,7 @@ export const GAPS = [
     kind: 'missing_field',
     title: 'No adopted amount or amendment date beside the current budget (Annual Expenditures)',
     checked_live: '2026-11-06',
-    topic: null,
+    topic: 'budget',
     where: { sources: [EXP, { type: 'index', id: INDEX.id, name: INDEX.name }], scope: 'spending lines', area: 'citywide' },
     questions: [
       { qid: 'q1', text: "What operating budget did the City Council adopt for a department, before any amendments this year?", blocks: 'all', concept: 'amend' },
@@ -670,7 +680,9 @@ export const GAPS = [
     touches: [{ dataset: EXP.id }],
     bites_when: [],
     closed_when: { column_present: '/adopt|original|amend|transfer|revis|prior|(^|_)date|modif|effective/', null_share_at_most: 0.05 },
-    concepts: { amend: { pattern: /adopt|original|amend|transfer|revis|prior|(^|_)date|modif|effective/i, datasets: [EXP.id] } },
+    // Checked over every budget dataset; the topic's clearances set aside the
+    // capital plans' adopted amounts and a projected measure value.
+    concepts: { amend: { pattern: /adopt|original|amend|transfer|revis|prior|(^|_)date|modif|effective/i, datasets: BUDGET.datasets } },
     quote: [
       'The data also contains current budget information.',
       'Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.',
@@ -678,7 +690,7 @@ export const GAPS = [
     amendTitle: AMEND_TITLE,
     why: [
       'The dataset’s own description says its budget figure reflects transfers and amendments made since adoption.',
-      'I found one budget column and no column for the adopted amount, an amendment or its date, so how a budget changed during the year stays out of these records.',
+      'I found one budget column and no column for the adopted amount, an amendment or its date, and none in the other datasets of the budget topic apart from columns a reviewer cleared as capital plan amounts or a projected measure value, so how an operating budget changed during the year stays out of these records.',
       'Siren’s agenda index holds the titles of the Council ordinances that amend the annual appropriations, by meeting date, so the question of when a budget changed is answered there in part, ordinance by ordinance, and not line by line.',
       'The entry reports the columns and the titles, and claims nothing about whether or how often an amendment happened outside them.',
     ].join(' '),
@@ -691,7 +703,7 @@ export const GAPS = [
       const q = await h.run.descriptionQuote(EXP.id, this.quote);
       const fd = await h.run.fieldDescription(EXP.id, 'current_expense_budget');
       const k = this.concepts.amend;
-      const cols = await h.run.columnsAbsent({ datasets: k.datasets, pattern: k.pattern });
+      const cols = await h.run.columnsAbsent({ datasets: k.datasets, pattern: k.pattern, cleared: budgetCleared(k.pattern) });
       const idx = h.index(INDEX.id);
       const items = idx.items || [];
       const amending = items.filter((i) => this.amendTitle.test(String(i.text || '')));
@@ -700,7 +712,11 @@ export const GAPS = [
       const built = String(idx.built).slice(0, 10);
       const read = h.dateOf(cols.read);
       const n = cols.datasets[EXP.id];
-      const concept = 'for an adopted amount, an amendment or transfer, or a date it took effect';
+      const concept = 'for an adopted operating budget amount, an amendment or transfer, or a date it took effect';
+      const cl = cols.siblings_cleared;
+      const clearedLine = cl.length
+        ? `I found ${plural(cl.length, 'more column', 'more columns')} matching it that a reviewer cleared as holding something else (${cl.map((c) => `${c.dataset} ${c.column}`).join(', ')}), each with its reason in the record, as I read them on ${read}.`
+        : '';
       const indexLine = `I found ${fmt(amending.length)} of ${fmt(items.length)} agenda items in ${INDEX.phrase} (built ${built}) with titles amending an annual appropriations ordinance or annual budget, at meetings ${dates[0]} through ${dates.at(-1)}, counted ${h.repoToday}.`;
       return {
         how_much: { columns_absent: cols, quote: { dataset: EXP.id, text: q.quote, read: q.read }, published: { rows_updated: q.updated, read: q.read } },
@@ -708,12 +724,15 @@ export const GAPS = [
         statement: [
           descriptionSays({ name: 'Annual Expenditures', id: EXP.id, read: h.dateOf(q.read), quote: q.quote }),
           fieldSays({ field: 'current_expense_budget', quote: fd.quote }),
-          T.columnsAbsent({ concept, count: n, source: EXP, read }),
+          T.columnsAbsentTopic({ concept, datasets: k.datasets, topic: 'budget', read }),
+          clearedLine,
           indexLine,
-        ].join(' '),
-        short: `I found no column for an adopted amount or an amendment date among the ${fmt(n)} columns of the City's Annual Expenditures, measured ${read}.`,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        short: `I found no column for an adopted operating budget amount or an amendment date in any of the ${fmt(k.datasets.length)} budget datasets I read, measured ${read}.`,
         consequences: {
-          q1: `I found no column ${concept} among the ${fmt(n)} columns of ${sourceName(EXP)}, measured ${read}, so I can't answer this from them.`,
+          q1: T.consequenceAll({ concept, datasets: k.datasets, topic: 'budget', measured: read }),
           q2: T.consequencePart({
             source: INDEX,
             finding: `I found ${fmt(amending.length)} agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings ${dates[0]} through ${dates.at(-1)}, in the index built ${built}`,

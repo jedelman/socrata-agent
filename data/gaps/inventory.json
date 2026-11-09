@@ -1,0 +1,1760 @@
+{
+  "note": "The running inventory of gaps: every gap Siren knows of and its state, built by scripts/gaps-inventory.js from the committed gap files. Generated: edit a catalog or proposal and rebuild, never this file. Approved entries are in the catalog; proposed entries are drafts awaiting Jason’s approval, never on the board.",
+  "as_of": "2026-11-09",
+  "inputs": [
+    {
+      "file": "data/gaps/norfolk.json",
+      "built": "2026-11-06",
+      "rebuilt": "2026-11-09"
+    },
+    {
+      "file": "data/gaps/proposed-norfolk-budget.trace.json",
+      "built": "2026-11-09"
+    }
+  ],
+  "stays_current": "Built by code from the committed gap files, never edited by hand. scripts/build-gaps.js and scripts/build-gaps-proposed.js rewrite it after every live or offline build, and their --check fails when it differs from what those files build. Until Jason decides on automation, run node scripts/build-gaps.js --offline and node scripts/build-gaps-proposed.js --offline by hand after the agenda index or a case file changes, and a live build after a catalog or proposal change. Proposed automation, not added: a step after the weekly legislation refresh and the monthly case-file archive job that runs both --offline builds and opens a pull request when a state changes.",
+  "counts": {
+    "approved": {
+      "total": 13,
+      "by_state": {
+        "open": 13
+      },
+      "by_topic": {
+        "none": 2,
+        "trees": 11
+      }
+    },
+    "proposed": {
+      "total": 8,
+      "by_state": {
+        "proposed (if approved: open)": 8
+      },
+      "by_topic": {
+        "budget": 8
+      }
+    },
+    "retired": 7,
+    "not_a_gap": 3,
+    "all": {
+      "not_a_gap": 3,
+      "open": 13,
+      "proposed": 8,
+      "retired": 7
+    }
+  },
+  "changes": {
+    "since": null,
+    "note": "The first inventory: no earlier build to compare.",
+    "opened": [],
+    "closed": [],
+    "dropped_off": [],
+    "newly_proposed": [],
+    "left_proposals": [],
+    "retired": [],
+    "other": []
+  },
+  "previous": null,
+  "topics": [
+    {
+      "name": "budget",
+      "datasets": [
+        "mdwe-dquf",
+        "id3i-2az4",
+        "7jsp-eyjg",
+        "6tqj-4az3",
+        "dpv9-3yq2",
+        "6njp-hen5",
+        "jbfz-2t3g",
+        "fumf-ph9r"
+      ],
+      "search": "budget",
+      "checked_live": "2026-11-09",
+      "measured_in": "data/gaps/proposed-norfolk-budget.trace.json",
+      "placements": [
+        {
+          "id": "k8ry-iqjg",
+          "name": "Public Art",
+          "by": "description",
+          "reason": "Public Art lists artworks, with a budget column among their fields. It is a list of artworks, not one of the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "kekx-9mip",
+          "name": "American Rescue Plan Act State and Local Recovery Funds Project Status",
+          "by": "description",
+          "reason": "It tracks the status of the projects one federal recovery grant paid for, project by project. The topic holds the City’s own annual spending, revenue, performance-measure and capital plan records, so the topic-wide column checks leave it out.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "de5p-5xvj",
+          "name": "Resident Survey 2024",
+          "by": "description",
+          "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "ez9d-udp9",
+          "name": "Resident Survey 2024 Demographics",
+          "by": "description",
+          "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "8j55-9gjp",
+          "name": "Resident Survey 2024 - Summarized Comments",
+          "by": "description",
+          "reason": "Summaries of residents’ survey suggestions, grouped by budget program, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "f3mt-z6yp",
+          "name": "Resident Survey 2022 Demographics",
+          "by": "description",
+          "reason": "A resident survey’s responses, not the City’s spending, revenue, performance-measure or capital plan records, so the topic-wide column checks leave it out.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "4fsk-z8s8",
+          "name": "Employee Salaries",
+          "by": "rule",
+          "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        },
+        {
+          "id": "vv96-9m5c",
+          "name": "Employee Demographics",
+          "by": "rule",
+          "reason": "Out of Siren's reach for open-ended queries by Siren's rule, so the topic-wide column checks can't read it.",
+          "placed": "Placed outside the budget topic in the gap inventory change of 2026-11-09, for Jason's review."
+        }
+      ],
+      "cleared": [
+        {
+          "dataset": "7jsp-eyjg",
+          "column": "fy_2027_adopted",
+          "reason": "A performance measure’s projected value, not a budget amount. Its description, in its words: “The proposed measure for FY 2027. This number represents what the department projects the measure will be for the fiscal year.”",
+          "by": "Gap inventory change, for Jason's review",
+          "date": "2026-11-09"
+        },
+        {
+          "dataset": "6njp-hen5",
+          "column": "adopted_amount_fy_25",
+          "reason": "A capital project’s adopted funding in the FY2025 capital plan, not an operating budget amount. Its description, in its words: “Adopted Amount FY 25 – The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan for planned spending in FY 2025”.",
+          "by": "Gap inventory change, for Jason's review",
+          "date": "2026-11-09"
+        },
+        {
+          "dataset": "6njp-hen5",
+          "column": "adopted_amount_fy_25_fy_29",
+          "reason": "A capital project’s adopted funding over the FY2025 capital plan’s five years, not an operating budget amount. Its description, in its words: “The adopted funding amount included in the FY 2025 to FY 2029 Capital Improvement Plan”.",
+          "by": "Gap inventory change, for Jason's review",
+          "date": "2026-11-09"
+        }
+      ],
+      "entries": {
+        "approved": 0,
+        "proposed": 8
+      }
+    },
+    {
+      "name": "trees",
+      "datasets": [
+        "cmvv-agyb",
+        "qzfe-wj25",
+        "jz6u-9g3c",
+        "u85v-sad9"
+      ],
+      "search": "tree",
+      "checked_live": "2026-11-06",
+      "measured_in": "data/gaps/norfolk.json",
+      "placements": [
+        {
+          "id": "mrv3-rcpc",
+          "name": "STORM | System to Track, Organize, Record, and Map",
+          "by": "description",
+          "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
+          "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16)."
+        }
+      ],
+      "cleared": [],
+      "entries": {
+        "approved": 11,
+        "proposed": 0
+      }
+    }
+  ],
+  "approved": [
+    {
+      "city": "norfolk",
+      "file": "data/gaps/norfolk.json",
+      "doc": "docs/gaps-norfolk.md",
+      "built": "2026-11-06",
+      "rebuilt": "2026-11-09",
+      "entries": [
+        {
+          "id": "norfolk.311.restricted",
+          "public_id": "533992520d82",
+          "title": "MyNorfolk 311 requests: out of Siren’s reach by rule",
+          "kind": "restricted",
+          "label": "Out of Siren's reach by rule",
+          "topic": null,
+          "state": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "policy": {
+              "dataset": "nbyu-xjez",
+              "file": "src/cities/norfolk.js",
+              "line": 38
+            }
+          },
+          "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09.",
+          "evidence": [
+            {
+              "type": "policy",
+              "file": "src/cities/norfolk.js",
+              "line": 38
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How many tree requests reached MyNorfolk 311 in my ward last year?",
+              "blocks": "all",
+              "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-source-311",
+              "kind": "source_request",
+              "text": "A reviewed plugin that counts MyNorfolk 311 tree requests citywide and by ward, from an exact list of request types, showing “fewer than 5” for small counts as docs/gaps.md I17 requires."
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#mynorfolk-311-requests-out-of-sirens-reach-by-rule",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.legislation.no-address",
+          "public_id": "8481519b4348",
+          "title": "Agenda items with no street address in their titles",
+          "kind": "partial_coverage",
+          "label": "Partial coverage (in the records I read)",
+          "topic": null,
+          "state": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "part": 681,
+            "whole": 1437,
+            "share_pct": 47,
+            "read": "2026-11-02T19:30:12.391Z"
+          },
+          "short": "I found no street address in the titles of 681 of 1,437 agenda items (47%) in Siren's agenda index, built 2026-11-02.",
+          "evidence": [
+            {
+              "type": "index",
+              "file": "data/norfolk-legislation.json",
+              "read": "2026-11-02T19:30:12.391Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Did the Council act on anything that affects my block?",
+              "blocks": "part",
+              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 681 of 1,437 agenda items (47%) in the index built 2026-11-02, measured 2026-11-09, so I can't match them to a block."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-source-legislation",
+              "kind": "source_request",
+              "text": "List citywide agenda items beside block matches, so agenda items with no street address in their titles still show."
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#agenda-items-with-no-street-address-in-their-titles",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.tree-inventory.no-condition",
+          "public_id": "cd4de22456f1",
+          "title": "No field for tree condition (City Tree Inventory)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/(^|_)(condition|health|risk|hazard|defect)\\w*/i",
+              "datasets": {
+                "cmvv-agyb": 13,
+                "qzfe-wj25": 32,
+                "jz6u-9g3c": 13,
+                "u85v-sad9": 12
+              },
+              "cleared": 0
+            }
+          },
+          "short": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+              "read": "2026-11-07T01:01:58.284Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+              "read": "2026-11-07T01:01:58.378Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200",
+              "read": "2026-11-07T01:01:58.974Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "What condition are the street trees on my block in?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders, measured 2026-11-06, and I found no column for condition in the City Tree Inventory (cmvv-agyb)."
+            },
+            {
+              "qid": "q2",
+              "text": "Which street trees are at risk of failing?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders, measured 2026-11-06, and I found no column for condition in the City Tree Inventory (cmvv-agyb)."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-proposal-condition",
+              "kind": "dataset_proposal",
+              "text": "Add tree condition to the City Tree Inventory."
+            },
+            {
+              "id": "a-meeting-condition",
+              "kind": "meeting_question",
+              "text": "Does the City record the condition of its street trees, and where can residents read it?"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#no-field-for-tree-condition-city-tree-inventory",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.tree-inventory.no-usable-size",
+          "public_id": "fda72837f46e",
+          "title": "City trees with no usable trunk size",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "part": 6918,
+            "whole": 93997,
+            "share_pct": 7,
+            "read": "2026-11-07T01:01:59.269Z"
+          },
+          "short": "I found 6,918 of 93,997 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero in the City Tree Inventory, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/cmvv-agyb.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_range%2C%20sum(case(trunk_diameter%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_dia%2C%20sum(case((trunk_diameter%20IS%20NULL%20OR%20trunk_diameter%20%3C%3D%200)%20AND%20trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_usable%20WHERE%20(common_name%20IS%20NULL%20OR%20common_name%20!%3D%20'PRIVATE%20TREES')%20LIMIT%20100",
+              "read": "2026-11-07T01:01:59.269Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+              "read": "2026-11-07T01:01:58.284Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+              "read": "2026-11-07T01:01:58.378Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How big are the trees on my block?",
+              "blocks": "part",
+              "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found 6,918 of 93,997 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero, measured 2026-11-06, so I can't give their size."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-proposal-size",
+              "kind": "dataset_proposal",
+              "text": "Fill the trunk size on every city tree record."
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#city-trees-with-no-usable-trunk-size",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.tree-inventory.survey-date",
+          "public_id": "c5f7ae92ee1e",
+          "title": "Survey date stated by the City Tree Inventory",
+          "kind": "stale",
+          "label": "Survey date stated by the source",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/(^|_)(date|survey\\w*|updated|modified|inspect\\w*|year)(_|$)/i",
+              "datasets": {
+                "cmvv-agyb": 13
+              },
+              "cleared": 0
+            }
+          },
+          "short": "The City Tree Inventory's own description says its original inventory was conducted in the “late 1990s/early 2000s”, as I read it on 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "finding",
+              "url": "https://gicinc.org/wp-content/uploads/Norfolk_VA_TSW_Report.pdf",
+              "read": "2026-11-04"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How many street trees does Norfolk have now?",
+              "blocks": "part",
+              "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found no column dating when each tree's record was surveyed or updated among its 13 data columns, measured 2026-11-06, so I can count its records but not date them."
+            },
+            {
+              "qid": "q2",
+              "text": "How current is the City's record of the trees on my block?",
+              "blocks": "part",
+              "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found no column dating when each tree's record was surveyed or updated among its 13 data columns, measured 2026-11-06, so I can count its records but not date them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-reinventory",
+              "kind": "meeting_question",
+              "text": "Does the City plan a re-inventory of its street trees?"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#survey-date-stated-by-the-city-tree-inventory",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.utility.line-clearance",
+          "public_id": "9c14616f705c",
+          "title": "Utility line clearance in the sources checked",
+          "kind": "no_records",
+          "label": "I found no records (sources checked)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/(^|_)(utilit\\w*|power_?lines?|clearance|dominion)(_|$)/i",
+              "datasets": {
+                "cmvv-agyb": 13,
+                "qzfe-wj25": 32,
+                "jz6u-9g3c": 13,
+                "u85v-sad9": 12
+              },
+              "cleared": 0
+            },
+            "values": {
+              "dataset": "qzfe-wj25",
+              "field": "problem_description",
+              "count": 18,
+              "matched": 0
+            },
+            "catalog": [
+              {
+                "q": "line clearance",
+                "result_set_size": 0
+              },
+              {
+                "q": "Dominion",
+                "result_set_size": 4
+              }
+            ]
+          },
+          "short": "I found no dataset in Norfolk's catalog for the search “line clearance” and no Forestry problem code naming utility lines, searched 2026-11-06.",
+          "evidence": [
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=line+clearance",
+              "read": "2026-11-07T01:01:59.371Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=Dominion",
+              "read": "2026-11-07T01:01:59.432Z"
+            },
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200",
+              "read": "2026-11-07T01:01:58.974Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+              "read": "2026-11-07T01:01:58.284Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+              "read": "2026-11-07T01:01:58.378Z"
+            },
+            {
+              "type": "finding",
+              "url": "https://www.dominionenergy.com/safety/electric-safety/tree-trimming-and-powerlines/va-tree-trimming-and-powerlines",
+              "read": "2026-11-06"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Which tree work near me was utility line clearance?",
+              "blocks": "all",
+              "consequence": "I found no column for utility line clearance in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-line",
+              "kind": "meeting_question",
+              "text": "Does the City keep a record of utility line-clearance tree work on City streets, and where can residents read it?"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#utility-line-clearance-in-the-sources-checked",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.created-on-or-after-end",
+          "public_id": "863c53e4b748",
+          "title": "Removal orders created on or after their end date",
+          "kind": "created_on_or_after_end",
+          "label": "Created on or after its end date",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "part": 115,
+            "whole": 360,
+            "share_pct": 32,
+            "read": "2026-11-07T01:01:57.861Z"
+          },
+          "short": "I found 115 of 360 Forestry removal work orders with status “Complete” ending 2025-11-06 through 2026-11-05 (32%) created on or after their end date, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-06T00%3A00%3A00'%20LIMIT%20100",
+              "read": "2026-11-07T01:01:57.861Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20IS%20NOT%20NULL%20LIMIT%20100",
+              "read": "2026-11-07T01:01:57.982Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Can I find out before a street tree near me is removed?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 115 of 360 Forestry removal work orders with status “Complete” and an end date from 2025-11-06 through 2026-11-05 (32%) created on or after the day of their end date, measured 2026-11-06, so a search of these records made before their end date finds no order for them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-notice",
+              "kind": "meeting_question",
+              "text": "Does the City give residents notice before it removes a street tree, and where is that notice recorded?"
+            },
+            {
+              "id": "a-watch-street",
+              "kind": "watch",
+              "text": "A private watch on your own street, once Siren offers watches.",
+              "available": false
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#removal-orders-created-on-or-after-their-end-date",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.no-approver",
+          "public_id": "884db7c6f11d",
+          "title": "No field naming a requester or approver (Work Orders)",
+          "kind": "no_decision_record",
+          "label": "No field naming who decided (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/(^|_)(request\\w*|approv\\w*|authori\\w*|decid\\w*|decision)(_|$)/i",
+              "datasets": {
+                "qzfe-wj25": 32
+              },
+              "cleared": 0
+            }
+          },
+          "short": "I found no column naming a requester or approver of a work order among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Which City office approves street-tree removals, and on what criteria?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found no column naming a requester or approver of a work order among its 32 columns, measured 2026-11-06, so I can name only the department, priority and problem code the records hold."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-approver",
+              "kind": "meeting_question",
+              "text": "Which City office approves street-tree removals, and on what criteria?"
+            },
+            {
+              "id": "a-foia-approver",
+              "kind": "foia_draft",
+              "needs": "a records_to_request entry for removal policy, criteria, the approving position and counts by request source with names left out, added to data/cases/norfolk-trees.json by case-file PR"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#no-field-naming-a-requester-or-approver-work-orders",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.no-contract-link",
+          "public_id": "28312fab4337",
+          "title": "No field linking a work order to a contract",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "part": 563,
+            "whole": 2378,
+            "share_pct": 24,
+            "read": "2026-11-07T01:01:56.871Z",
+            "columns_absent": {
+              "pattern": "/contract|invoice/i",
+              "datasets": {
+                "cmvv-agyb": 13,
+                "qzfe-wj25": 32,
+                "jz6u-9g3c": 13,
+                "u85v-sad9": 12
+              },
+              "cleared": 1
+            }
+          },
+          "short": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+              "read": "2026-11-07T01:01:58.284Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+              "read": "2026-11-07T01:01:58.378Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_street%2C%20sum(case(contractor_cost%20%3E%200%2C1%2Ctrue%2C0))%20AS%20cc%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20has_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
+              "read": "2026-11-07T01:01:56.871Z"
+            },
+            {
+              "type": "finding",
+              "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets",
+              "read": "2026-11-06"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Does every contracted tree removal have a work order in these records?",
+              "blocks": "all",
+              "consequence": "I found no column linking a work order to a contract or invoice in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+            },
+            {
+              "qid": "q2",
+              "text": "How many trees did City contractors remove last year?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found a contractor cost above zero on 563 of 2,378 Forestry removal work orders with status “Complete” (24%), measured 2026-11-06, which counts orders, not trees."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-foia-contracts",
+              "kind": "foia_draft"
+            },
+            {
+              "id": "a-proposal-crew",
+              "kind": "dataset_proposal",
+              "text": "Mark on each work order whether a City crew or a contractor did the work."
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#no-field-linking-a-work-order-to-a-contract",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.no-notice-field",
+          "public_id": "dc33181b6b80",
+          "title": "No field for notice to residents",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/notice|notif|post|hanger/i",
+              "datasets": {
+                "cmvv-agyb": 13,
+                "qzfe-wj25": 32,
+                "jz6u-9g3c": 13,
+                "u85v-sad9": 12
+              },
+              "cleared": 0
+            }
+          },
+          "short": "I found no column for notice to residents in any of the 4 tree datasets I read, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+              "read": "2026-11-07T01:01:58.284Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+              "read": "2026-11-07T01:01:58.378Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How much notice does the City give before removing a street tree?",
+              "blocks": "all",
+              "consequence": "I found no column for notice to residents in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-notice",
+              "kind": "meeting_question",
+              "text": "Does the City give residents notice before it removes a street tree, and where is that notice recorded?"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#no-field-for-notice-to-residents",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.no-planned-date",
+          "public_id": "eea57615576b",
+          "title": "No field for a planned date (Work Orders)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/plan|sched|due|target|projected/i",
+              "datasets": {
+                "cmvv-agyb": 13,
+                "qzfe-wj25": 32,
+                "jz6u-9g3c": 13,
+                "u85v-sad9": 12
+              },
+              "cleared": 1
+            }
+          },
+          "short": "I found no column for a planned or scheduled date in any of the 4 tree datasets I read, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
+              "read": "2026-11-07T01:01:58.110Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
+              "read": "2026-11-07T01:01:58.284Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
+              "read": "2026-11-07T01:01:58.378Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20with_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20LIMIT%20100",
+              "read": "2026-11-07T01:01:58.527Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20176",
+              "read": "2026-11-07T01:01:58.649Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "When is a logged tree removal on my street planned to happen?",
+              "blocks": "all",
+              "consequence": "I found no column for a planned or scheduled date in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-planned",
+              "kind": "meeting_question",
+              "text": "Does the City keep a planned date for each street-tree removal, and can residents see it?"
+            },
+            {
+              "id": "a-foia-planned",
+              "kind": "foia_draft",
+              "needs": "a records_to_request entry for planned removal dates, added to data/cases/norfolk-trees.json by case-file PR"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#no-field-for-a-planned-date-work-orders",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.no-trees-per-order",
+          "public_id": "c3c33dcb58a0",
+          "title": "No field for trees per work order",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/(^|_)(trees?|count|qty|quantity)(_|$)/i",
+              "datasets": {
+                "qzfe-wj25": 32
+              },
+              "cleared": 0
+            }
+          },
+          "short": "I found no column for the number of trees on a work order among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
+              "read": "2026-11-07T01:01:58.199Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How many street trees did the City remove last year?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found no column for the number of trees on a work order among its 32 columns, measured 2026-11-06, so I can count removal orders, not trees."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-foia-trees-per-order",
+              "kind": "foia_draft"
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#no-field-for-trees-per-work-order",
+          "trace": "data/gaps/norfolk.trace.json"
+        },
+        {
+          "id": "norfolk.work-orders.removal-no-street",
+          "public_id": "8ecb45cd5b74",
+          "title": "Forestry removals with no street (Work Orders)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "trees",
+          "state": "open",
+          "measured": "2026-11-06",
+          "shape": {
+            "part": 582,
+            "whole": 2378,
+            "share_pct": 24,
+            "read": "2026-11-07T01:01:56.871Z",
+            "series": {
+              "from": "2020",
+              "through": "2026",
+              "points": 7
+            }
+          },
+          "short": "I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06.",
+          "evidence": [
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_street%2C%20sum(case(contractor_cost%20%3E%200%2C1%2Ctrue%2C0))%20AS%20cc%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20has_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
+              "read": "2026-11-07T01:01:56.871Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20min(created_datetime)%20AS%20min_created_datetime%2C%20max(created_datetime)%20AS%20max_created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20LIMIT%20100",
+              "read": "2026-11-07T01:01:57.425Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20date_extract_y(created_datetime)%20AS%20y%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20GROUP%20BY%20y%20ORDER%20BY%20y%20LIMIT%20100",
+              "read": "2026-11-07T01:01:57.592Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20LIMIT%20100",
+              "read": "2026-11-07T01:01:57.709Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Was a city tree removed on my street?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06, so a street search can't find them."
+            },
+            {
+              "qid": "q2",
+              "text": "Is a tree removal logged for my street?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06, so a street search can't find them."
+            },
+            {
+              "qid": "q3",
+              "text": "Which streets had city tree removals last year?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06, so a street search can't find them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-meeting-street",
+              "kind": "meeting_question",
+              "text": "Does the City plan to record a street on every Forestry work order?"
+            },
+            {
+              "id": "a-proposal-street",
+              "kind": "dataset_proposal",
+              "text": "Record a street on every Forestry work order."
+            },
+            {
+              "id": "a-watch-street",
+              "kind": "watch",
+              "text": "A private watch on your own street, once Siren offers watches.",
+              "available": false
+            }
+          ],
+          "doc": "docs/gaps-norfolk.md#forestry-removals-with-no-street-work-orders",
+          "trace": "data/gaps/norfolk.trace.json"
+        }
+      ]
+    }
+  ],
+  "proposed": [
+    {
+      "set": "norfolk-budget",
+      "city": "norfolk",
+      "file": "data/gaps/proposed-norfolk-budget.trace.json",
+      "module": "src/gaps/proposed/norfolk-budget.js",
+      "doc": "docs/gaps-budget-proposed.md",
+      "built": "2026-11-09",
+      "entries": [
+        {
+          "id": "norfolk.budget.cip-no-ward",
+          "public_id": "7a56fd6fd6c3",
+          "title": "Capital projects with no ward or coordinates (adopted capital plan)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "part": 41,
+            "whole": 93,
+            "share_pct": 44,
+            "read": "2026-11-09T18:45:24.617Z"
+          },
+          "short": "I found 41 of 93 projects (44%) with no ward in the City's adopted Capital Improvement Plan data, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/6tqj-4az3.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(ward%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward%2C%20sum(case(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord%2C%20sum(case(ward%20IS%20NULL%20AND%20(latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%2C1%2Ctrue%2C0))%20AS%20neither%2C%20sum(case(location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%2C%20sum(case(ward%20IS%20NULL%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_ward_no_loc%2C%20sum(case((latitude%20IS%20NULL%20OR%20longitude%20IS%20NULL)%20AND%20location%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_coord_no_loc%20WHERE%20project_id%20IS%20NOT%20NULL%20LIMIT%20100",
+              "read": "2026-11-09T18:45:24.617Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
+              "read": "2026-11-09T18:45:21.800Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Which capital projects in the adopted plan are in my ward?",
+              "blocks": "part",
+              "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 41 of 93 projects (44%) with no ward, measured 2026-11-09, so a search by ward can't find them, and I found the free-text location field filled on 41 of those 41, which I can read but can't search by ward."
+            },
+            {
+              "qid": "q2",
+              "text": "Which planned capital projects are near me?",
+              "blocks": "part",
+              "consequence": "With the City's adopted Capital Improvement Plan projects (6tqj-4az3) I can answer this only in part: I found 39 of 93 projects (42%) with no latitude or longitude, measured 2026-11-09, so a search by distance can't find them, and I found the free-text location field filled on 39 of those 39, which I can read but can't search by distance."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-cip-place",
+              "kind": "dataset_proposal",
+              "text": "Give every project in the Capital Improvement Plan data a ward, or a citywide value in the ward field, and coordinates where it has a site."
+            },
+            {
+              "id": "a-budget-meeting-cip-place",
+              "kind": "meeting_question",
+              "text": "How can residents find which capital projects with no ward in the plan data affect their part of the city?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#capital-projects-with-no-ward-or-coordinates-adopted-capital-plan",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.contractual-no-link",
+          "public_id": "ff44032b8762",
+          "title": "No field linking spending lines to a contract or work order (Annual Expenditures)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/vendor|payee|supplier|contract|invoice|purchase|work_?order|(^|_)po(_|$)/i",
+              "datasets": {
+                "mdwe-dquf": 8,
+                "id3i-2az4": 8,
+                "7jsp-eyjg": 15,
+                "6tqj-4az3": 11,
+                "dpv9-3yq2": 11,
+                "6njp-hen5": 11,
+                "jbfz-2t3g": 11,
+                "fumf-ph9r": 13
+              },
+              "cleared": 0
+            },
+            "catalog": [
+              {
+                "q": "checkbook",
+                "result_set_size": 0
+              },
+              {
+                "q": "vendor",
+                "result_set_size": 1
+              },
+              {
+                "q": "contract",
+                "result_set_size": 7
+              },
+              {
+                "q": "purchase order",
+                "result_set_size": 2
+              }
+            ]
+          },
+          "short": "I found no column tying a spending line to a vendor, contract, purchase order or work order in any of the 8 budget datasets I read, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
+              "read": "2026-11-09T18:45:20.948Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
+              "read": "2026-11-09T18:45:21.500Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
+              "read": "2026-11-09T18:45:21.653Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
+              "read": "2026-11-09T18:45:21.800Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/dpv9-3yq2.json",
+              "read": "2026-11-09T18:45:21.903Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/6njp-hen5.json",
+              "read": "2026-11-09T18:45:22.019Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jbfz-2t3g.json",
+              "read": "2026-11-09T18:45:22.126Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/fumf-ph9r.json",
+              "read": "2026-11-09T18:45:22.235Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20count(*)%20AS%20whole%20WHERE%20unit_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20object_name%20%3D%20'Other%20Contractual%20Services'%20AND%20fiscal_year%20%3D%202026%20LIMIT%20100",
+              "read": "2026-11-09T18:45:22.360Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=checkbook",
+              "read": "2026-11-09T18:45:22.467Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=vendor",
+              "read": "2026-11-09T18:45:22.561Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=contract",
+              "read": "2026-11-09T18:45:22.696Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=purchase+order",
+              "read": "2026-11-09T18:45:22.788Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "Which contracts did the City pay from the Park and Forestry Operations contractual services line last year?",
+              "blocks": "all",
+              "consequence": "I found no column naming a vendor, contract, invoice, purchase order or work order in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), measured 2026-11-09, so I can't answer this from them."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-contract-number",
+              "kind": "dataset_proposal",
+              "text": "Publish a contract or purchase order number on each Annual Expenditures line, so contractual spending can be tied to the work it paid for."
+            },
+            {
+              "id": "a-budget-meeting-contracts",
+              "kind": "meeting_question",
+              "text": "Which contracts does the Park and Forestry Operations line for other contractual services pay for, and where are they recorded?"
+            },
+            {
+              "id": "a-budget-foia-contracts",
+              "kind": "foia_draft",
+              "needs": "a records_to_request entry for the contracts paid from the Park and Forestry Operations contractual services line, added to a case file by case-file PR"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#no-field-linking-spending-lines-to-a-contract-or-work-order-annual-expenditures",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.forestry-in-park-unit",
+          "public_id": "42aa4172a2f2",
+          "title": "No unit or field for Forestry spending alone (Annual Expenditures)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/activit|service|task|forest|tree/i",
+              "datasets": {
+                "mdwe-dquf": 8
+              },
+              "cleared": 0
+            },
+            "values": {
+              "dataset": "mdwe-dquf",
+              "field": "object_name",
+              "count": 40,
+              "matched": 0
+            }
+          },
+          "short": "I found “Forestry” in one unit name in the City's Annual Expenditures, “Park and Forestry Operations”, and no expense line under it naming trees, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20unit_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20unit_name%20ORDER%20BY%20n%20DESC%2C%20unit_name%20LIMIT%20200",
+              "read": "2026-11-09T18:45:20.606Z"
+            },
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20object_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20upper(unit_name)%20like%20'%25FOREST%25'%20GROUP%20BY%20object_name%20ORDER%20BY%20n%20DESC%2C%20object_name%20LIMIT%20200",
+              "read": "2026-11-09T18:45:20.847Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
+              "read": "2026-11-09T18:45:20.948Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How much does the City spend on street-tree work each year?",
+              "blocks": "part",
+              "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found “Forestry” in the name of one unit, “Park and Forestry Operations”, and none of its 40 expense line names mentions forestry, trees or pruning, measured 2026-11-09, so I can give that unit's spending but not the part spent on trees; Forestry work orders in the City's Work Orders records (qzfe-wj25) carry a total_cost column."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-activity",
+              "kind": "dataset_proposal",
+              "text": "Publish an activity or service field below the unit in Annual Expenditures, so spending on street trees can be read apart from the rest of its unit."
+            },
+            {
+              "id": "a-budget-meeting-forestry",
+              "kind": "meeting_question",
+              "text": "How much of the Park and Forestry Operations budget goes to street-tree work each year, and where is that recorded?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#no-unit-or-field-for-forestry-spending-alone-annual-expenditures",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.no-amendment-history",
+          "public_id": "ac6e86971206",
+          "title": "No adopted amount or amendment date beside the current budget (Annual Expenditures)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "columns_absent": {
+              "pattern": "/adopt|original|amend|transfer|revis|prior|(^|_)date|modif|effective/i",
+              "datasets": {
+                "mdwe-dquf": 8,
+                "id3i-2az4": 8,
+                "7jsp-eyjg": 15,
+                "6tqj-4az3": 11,
+                "dpv9-3yq2": 11,
+                "6njp-hen5": 11,
+                "jbfz-2t3g": 11,
+                "fumf-ph9r": 13
+              },
+              "cleared": 3
+            }
+          },
+          "short": "I found no column for an adopted operating budget amount or an amendment date in any of the 8 budget datasets I read, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
+              "read": "2026-11-09T18:45:20.948Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
+              "read": "2026-11-09T18:45:21.500Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/7jsp-eyjg.json",
+              "read": "2026-11-09T18:45:21.653Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/6tqj-4az3.json",
+              "read": "2026-11-09T18:45:21.800Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/dpv9-3yq2.json",
+              "read": "2026-11-09T18:45:21.903Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/6njp-hen5.json",
+              "read": "2026-11-09T18:45:22.019Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/jbfz-2t3g.json",
+              "read": "2026-11-09T18:45:22.126Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/fumf-ph9r.json",
+              "read": "2026-11-09T18:45:22.235Z"
+            },
+            {
+              "type": "index",
+              "file": "data/norfolk-legislation.json",
+              "read": "2026-11-02T19:30:12.391Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "What operating budget did the City Council adopt for a department, before any amendments this year?",
+              "blocks": "all",
+              "consequence": "I found no column for an adopted operating budget amount, an amendment or transfer, or a date it took effect in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), measured 2026-11-09, so I can't answer this from them."
+            },
+            {
+              "qid": "q2",
+              "text": "When during the year was a department's budget changed, and by how much?",
+              "blocks": "part",
+              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-02, measured 2026-11-09, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-09."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-amendments",
+              "kind": "dataset_proposal",
+              "text": "Publish the adopted amount beside the current budget on each Annual Expenditures line, and a dated list of budget transfers and amendments."
+            },
+            {
+              "id": "a-budget-meeting-amendments",
+              "kind": "meeting_question",
+              "text": "Where can residents read each budget transfer and amendment the City makes during the fiscal year, with its date?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#no-adopted-amount-or-amendment-date-beside-the-current-budget-annual-expenditures",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.no-pruning-measure",
+          "public_id": "23d9992ad2d6",
+          "title": "Street-tree pruning in the performance measures checked",
+          "kind": "no_records",
+          "label": "I found no records (sources checked)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "part": 0,
+            "whole": 361,
+            "share_pct": 0,
+            "read": "2026-11-09T18:45:22.946Z",
+            "values": {
+              "dataset": "7jsp-eyjg",
+              "field": "measure_description",
+              "count": 2,
+              "matched": 0
+            },
+            "catalog": [
+              {
+                "q": "pruning",
+                "result_set_size": 1
+              },
+              {
+                "q": "performance",
+                "result_set_size": 9
+              }
+            ]
+          },
+          "short": "Of 361 measures in the City's Performance Measures, I found none naming pruning or trimming, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(upper(measure_description)%20like%20'%25PRUN%25'%2C1%2Ctrue%2C0))%20AS%20prune%2C%20sum(case(upper(measure_description)%20like%20'%25TRIM%25'%2C1%2Ctrue%2C0))%20AS%20trim%20WHERE%20measure_id%20IS%20NOT%20NULL%20LIMIT%20100",
+              "read": "2026-11-09T18:45:22.946Z"
+            },
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
+              "read": "2026-11-09T18:45:23.156Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=pruning",
+              "read": "2026-11-09T18:45:23.251Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=performance",
+              "read": "2026-11-09T18:45:23.404Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Pruning'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100",
+              "read": "2026-11-09T18:45:23.851Z"
+            },
+            {
+              "type": "finding",
+              "url": "https://www.norfolk.gov/DocumentCenter/View/78214/10-Department-Budgets",
+              "read": "2026-11-04"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "What share of street-tree pruning requests does the City fulfill each year?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Pruning” on 3,293 Forestry work orders, 2,673 of them with status “Complete”, measured 2026-11-09, which counts work orders and their status as the City records it, not requests, and I found no pruning measure in the Performance Measures records."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-pruning-measure",
+              "kind": "dataset_proposal",
+              "text": "Add street-tree pruning requests received and fulfilled to the Performance Measures dataset, with a value for each year."
+            },
+            {
+              "id": "a-budget-meeting-pruning-measure",
+              "kind": "meeting_question",
+              "text": "Does the City track the share of street-tree pruning requests it fulfills each year, and where can residents read it?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#street-tree-pruning-in-the-performance-measures-checked",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.parks-revenue-units",
+          "public_id": "3e14edb252f9",
+          "title": "Parks and Recreation revenue units with no spending unit of the same name",
+          "kind": "partial_coverage",
+          "label": "Partial coverage (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "part": 1,
+            "whole": 3,
+            "share_pct": 33,
+            "read": "2026-11-09T18:45:25.098Z",
+            "series": {
+              "from": "2025",
+              "through": "2027",
+              "points": 3
+            }
+          },
+          "short": "Under Parks and Recreation, for FY2027, I found 1 of 3 revenue units with no spending unit of the same name in the City's budget records, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
+              "read": "2026-11-09T18:45:24.740Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20department_name%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20department_name%20IS%20NOT%20NULL%20GROUP%20BY%20department_name%20ORDER%20BY%20n%20DESC%2C%20department_name%20LIMIT%20200",
+              "read": "2026-11-09T18:45:24.905Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
+              "read": "2026-11-09T18:45:25.098Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%2C%20unit_name%2C%20count(*)%20AS%20whole%20WHERE%20department_name%20%3D%20'The%20Department%20of%20Parks%20%26%20Recreation%20(P%26R)'%20GROUP%20BY%20fiscal_year%2C%20unit_name%20ORDER%20BY%20fiscal_year%2C%20unit_name%20LIMIT%20100",
+              "read": "2026-11-09T18:45:25.226Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How much of a Parks and Recreation program's cost do its own fees and charges cover?",
+              "blocks": "part",
+              "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: for FY2027, I found 1 of 3 Parks and Recreation revenue units, “Recreation Parks Open Space”, with no spending unit of the same name in Annual Expenditures, measured 2026-11-09, so I can't set that revenue against a cost."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-crosswalk",
+              "kind": "dataset_proposal",
+              "text": "Use the same unit names for a program in Annual Revenues and Annual Expenditures, or publish a crosswalk between them."
+            },
+            {
+              "id": "a-budget-meeting-crosswalk",
+              "kind": "meeting_question",
+              "text": "Which Parks and Recreation spending units do its revenue units support, where their names differ?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#parks-and-recreation-revenue-units-with-no-spending-unit-of-the-same-name",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.three-fiscal-years",
+          "public_id": "74b53df11ba4",
+          "title": "Fiscal years held in the open spending and revenue records",
+          "kind": "partial_coverage",
+          "label": "Partial coverage (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "part": 7,
+            "whole": 10,
+            "share_pct": 70,
+            "read": "2026-11-09T18:45:21.386Z",
+            "values": {
+              "dataset": "mdwe-dquf",
+              "field": "fiscal_year",
+              "count": 3,
+              "matched": 3
+            },
+            "catalog": [
+              {
+                "q": "budget",
+                "result_set_size": 16
+              }
+            ]
+          },
+          "short": "I found fiscal years FY2025 through FY2027 in the City's Annual Expenditures, and FY2025 through FY2027 in its Annual Revenues, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/mdwe-dquf.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
+              "read": "2026-11-09T18:45:21.091Z"
+            },
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/id3i-2az4.json?$query=SELECT%20fiscal_year%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20fiscal_year%20IS%20NOT%20NULL%20GROUP%20BY%20fiscal_year%20ORDER%20BY%20n%20DESC%2C%20fiscal_year%20LIMIT%20200",
+              "read": "2026-11-09T18:45:21.386Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/mdwe-dquf.json",
+              "read": "2026-11-09T18:45:20.948Z"
+            },
+            {
+              "type": "metadata",
+              "url": "https://data.norfolk.gov/api/views/id3i-2az4.json",
+              "read": "2026-11-09T18:45:21.500Z"
+            },
+            {
+              "type": "catalog_search",
+              "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=budget",
+              "read": "2026-11-09T18:45:19.237Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How has Parks and Recreation spending changed over the last ten years?",
+              "blocks": "part",
+              "consequence": "With the City's Annual Expenditures records (mdwe-dquf) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-09, so I can show those years only, with FY2027 spending to date."
+            },
+            {
+              "qid": "q2",
+              "text": "How has the City's revenue from fees and taxes changed over the last ten years?",
+              "blocks": "part",
+              "consequence": "With the City's Annual Revenues records (id3i-2az4) I can answer this only in part: I found 3 fiscal years in them, FY2025 through FY2027, measured 2026-11-09, so I can show those years only, with FY2027 collections to date."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-years",
+              "kind": "dataset_proposal",
+              "text": "Publish earlier fiscal years of Annual Expenditures and Annual Revenues beside the current three."
+            },
+            {
+              "id": "a-budget-meeting-years",
+              "kind": "meeting_question",
+              "text": "Does the City plan to publish earlier fiscal years of its spending and revenue data, and where can residents read them now?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#fiscal-years-held-in-the-open-spending-and-revenue-records",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        },
+        {
+          "id": "norfolk.budget.trees-planted-no-yearly-values",
+          "public_id": "a3311dab533f",
+          "title": "Trees-planted measure with empty year columns (Performance Measures)",
+          "kind": "missing_field",
+          "label": "Absent or empty field (in the records I read)",
+          "topic": "budget",
+          "state": "proposed",
+          "awaiting": "Jason’s approval of the entry",
+          "if_approved": "open",
+          "measured": "2026-11-09",
+          "shape": {
+            "part": 4,
+            "whole": 4,
+            "share_pct": 100,
+            "read": "2026-11-09T18:45:24.046Z"
+          },
+          "short": "I found 4 of 4 year columns empty on the trees-planted measure in the City's Performance Measures, measured 2026-11-09.",
+          "evidence": [
+            {
+              "type": "values",
+              "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20measure_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20GROUP%20BY%20measure_description%20ORDER%20BY%20n%20DESC%2C%20measure_description%20LIMIT%20200",
+              "read": "2026-11-09T18:45:23.156Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/7jsp-eyjg.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(fy_2022%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2022%2C%20sum(case(fy_2023%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2023%2C%20sum(case(fy_2024%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2024%2C%20sum(case(fy_2025%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_fy_2025%20WHERE%20program_name%20%3D%20'Park%20and%20Forestry%20Operations'%20AND%20measure_description%20%3D%20'Number%20of%20trees%20planted'%20LIMIT%20100",
+              "read": "2026-11-09T18:45:24.046Z"
+            },
+            {
+              "type": "query",
+              "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20primary_task_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20primary_task_description%20ORDER%20BY%20n%20DESC%2C%20primary_task_description%20LIMIT%20200",
+              "read": "2026-11-09T18:45:24.367Z"
+            }
+          ],
+          "questions": [
+            {
+              "qid": "q1",
+              "text": "How many trees did the City plant in each of the last four fiscal years?",
+              "blocks": "part",
+              "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found the task “Plantings” on 560 Forestry work orders, measured 2026-11-09, which counts orders, not trees, and I found 4 of the 4 year columns for “Number of trees planted” empty in the Performance Measures records, measured 2026-11-09."
+            }
+          ],
+          "actions": [
+            {
+              "id": "a-budget-proposal-planted-values",
+              "kind": "dataset_proposal",
+              "text": "Fill the yearly values of the trees-planted measure in the Performance Measures dataset."
+            },
+            {
+              "id": "a-budget-meeting-planted-values",
+              "kind": "meeting_question",
+              "text": "How many trees did the City plant in each fiscal year, and where can residents read the yearly counts?"
+            }
+          ],
+          "doc": "docs/gaps-budget-proposed.md#trees-planted-measure-with-empty-year-columns-performance-measures",
+          "trace": "data/gaps/proposed-norfolk-budget.trace.json"
+        }
+      ]
+    }
+  ],
+  "retired": [
+    {
+      "id": "norfolk.tree-inventory.no-trunk-size",
+      "city": "norfolk"
+    },
+    {
+      "id": "norfolk.tree-inventory.survey-age",
+      "city": "norfolk"
+    },
+    {
+      "id": "norfolk.work-orders.contract-work",
+      "city": "norfolk"
+    },
+    {
+      "id": "norfolk.work-orders.removal-no-approver",
+      "city": "norfolk"
+    },
+    {
+      "id": "norfolk.work-orders.removal-no-future-date",
+      "city": "norfolk"
+    },
+    {
+      "id": "norfolk.work-orders.removal-recorded-late",
+      "city": "norfolk"
+    },
+    {
+      "id": "norfolk.work-orders.trees-per-order",
+      "city": "norfolk"
+    }
+  ],
+  "not_a_gap": [
+    {
+      "id": "trunk-size",
+      "city": "norfolk",
+      "note": "A limit of trees_on_my_block, which read only trunk_diameter_range, not of the records: Siren's own code to fix (Inc 5)."
+    },
+    {
+      "id": "siren-config-survey-claim",
+      "city": "norfolk",
+      "note": "deployments/siren.config.js stated a survey date as fact: Siren's own text to fix (J25), not a gap in the records."
+    },
+    {
+      "id": "trees-plugin-contract-hypothesis",
+      "city": "norfolk",
+      "note": "trees_on_my_block stated a hypothesis about contract work: Siren's own text to fix (J25), not a gap in the records."
+    }
+  ],
+  "candidates": {
+    "recorded": false,
+    "note": "scripts/find-gaps.js writes its candidates to a gitignored file and records no count in a committed file, so the inventory carries no candidate count."
+  }
+}

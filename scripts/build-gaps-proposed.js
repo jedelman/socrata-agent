@@ -25,6 +25,11 @@
 //                                                  built records in the catalog's schema
 //                                                  (`file`). Not bundled, not served.
 //   docs/gaps-budget-proposed.md                   the proposals as a page
+//   data/gaps/inventory.json, docs/gaps-inventory.md
+//                                                  the running inventory, rebuilt from the
+//                                                  committed gap files after the write
+//                                                  (scripts/gaps-inventory.js); --check
+//                                                  checks it too
 //
 // It runs the catalog's own builder (scripts/build-gaps.js buildGaps) on the
 // proposed module, so every measure goes through the fixed menu at GENERIC
@@ -38,7 +43,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import siren from '../deployments/siren.config.js';
-import { buildGaps, Recorder, dateOf } from './build-gaps.js';
+import { buildGaps, Recorder, dateOf, CATALOGS } from './build-gaps.js';
+import { writeInventory, checkInventory, inventorySummary } from './gaps-inventory.js';
 import { buildDate } from '../src/gaps/measures.js';
 import { gapCheck, fmt, KINDS } from '../src/gaps/kinds.js';
 import { publicTextViolations, compileStreets } from '../src/public-text.js';
@@ -142,7 +148,17 @@ export async function buildProposed({ set = 'norfolk-budget', recorder, today, r
     city: p.city,
     built: out.trace.built,
     ...(out.trace.rebuilt ? { rebuilt: out.trace.rebuilt } : {}),
-    note: `PROPOSED gap entries from ${p.module_path}, not in the catalog and never bundled or served. Built by scripts/build-gaps-proposed.js with the catalog's own builder: every request in order, each response as read, and the built records in the catalog's schema (file). --check replays these.`,
+    note: `PROPOSED gap entries from ${p.module_path}, not in the catalog and never bundled or served. Built by scripts/build-gaps-proposed.js with the catalog's own builder: every request in order, each response as read, the built records in the catalog's schema (file), and each entry's title, kind, topic, questions and actions (entries), which the gap inventory reads, so it lists an entry whose measure failed too. --check replays these.`,
+    module: p.module_path,
+    doc: p.doc,
+    entries: p.module.GAPS.map((g) => ({
+      id: g.id,
+      title: g.title,
+      kind: g.kind,
+      topic: g.topic || null,
+      questions: g.questions.map((q) => ({ qid: q.qid, text: q.text, blocks: q.blocks })),
+      actions: [...g.actions],
+    })),
     file: out.file,
     steps: out.trace.steps,
     responses: out.trace.responses,
@@ -204,6 +220,18 @@ export function renderProposalDoc(p, file) {
     ...m.REVIEW.map((r) => `| ${r.candidate} | ${r.outcome} | ${r.reason} |`),
     '',
   ];
+  // The topics the entries name, as this build checked them (the topics
+  // themselves are the approved catalog's).
+  const topics = new Map(file.gaps.filter((g) => g.topic).map((g) => [g.topic.name, g.topic]));
+  for (const t of topics.values()) {
+    L.push(`## The ${t.name} topic`, '', `The topic is the approved catalog’s (\`src/gaps/norfolk.js\`), checked live ${t.checked_live}. Topic-wide checks read ${t.datasets.join(', ')}, and a “can’t answer” question needs columns_absent over every one of them. This build checked the catalog search “${t.search}” for datasets placed neither in nor out.`, '');
+    for (const x of t.not_in_topic) {
+      if (x.policy) L.push(`- Outside the topic: ${x.name} (${x.id}), by Siren's rule (${x.policy.file}:${x.policy.line}): ${x.policy.reason} ${x.reason} ${x.placed}`);
+      else L.push(`- Outside the topic: ${x.name} (${x.id}). Its description, as read ${dateOf(x.read)}, in its words: “${x.quote}” ${x.reason} ${x.placed}`);
+    }
+    for (const c of t.cleared || []) L.push(`- Cleared for topic-wide checks: ${c.dataset}.${c.column}. ${c.reason} (${c.by}, ${c.date})`);
+    L.push('');
+  }
   for (const entry of m.GAPS) {
     const g = file.gaps.find((x) => x.id === entry.id);
     L.push(`## ${entry.title}`, '');
@@ -212,7 +240,7 @@ export function renderProposalDoc(p, file) {
       L.push(`\`${entry.id}\` · proposed · not measured today${off ? ` (${off.state}): ${off.reason}` : ''}`, '');
       continue;
     }
-    L.push(`\`${g.id}\` · proposed · kind \`${g.kind}\` (${KINDS[g.kind]}) · state if approved: ${g.state} · measured ${g.measured}`, '');
+    L.push(`\`${g.id}\` · proposed · kind \`${g.kind}\` (${KINDS[g.kind]}) · topic: ${g.topic ? g.topic.name : 'none'} · state if approved: ${g.state} · measured ${g.measured}`, '');
     L.push('**Statement**', '', g.statement, '');
     L.push(`**Short:** ${g.short}`, '');
     L.push('**Shape**', '');
@@ -259,6 +287,7 @@ export async function checkProposed({ set = 'norfolk-budget', root = ROOT, repo 
   if (recorder.missing.length) diffs.push(`Requests not in the stored trace (a query changed): ${recorder.missing.join(', ')}`);
   if (read(p.doc) !== out.doc) diffs.push(`${p.doc} differs from what the stored responses build. Run node scripts/build-gaps-proposed.js and review the change.`);
   if (stringify(stored) !== stringify(out.trace)) diffs.push(`${p.trace} differs from what the replay writes.`);
+  diffs.push(...checkInventory({ root, catalogs: CATALOGS }));
   return diffs;
 }
 
@@ -297,6 +326,7 @@ async function main() {
   writeFileSync(join(ROOT, p.doc), out.doc);
   console.log(`${out.file.gaps.length} proposed gaps measured, ${out.file.off_board.length} not measured, ${out.trace.steps.length} requests. Wrote ${p.trace}, ${p.doc}.`);
   for (const o of out.file.off_board) console.log(`  not measured: ${o.id} (${o.state}): ${o.reason}`);
+  console.log(inventorySummary(writeInventory({ root: ROOT, catalogs: CATALOGS })));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

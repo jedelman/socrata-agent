@@ -84,6 +84,28 @@ node scripts/build-gaps.js --same-states /tmp/gaps-before.json
 A live build (`node scripts/build-gaps.js`, read-only against the portal) is
 also by hand, and so are the spec's weekly re-measure and its PR rules.
 
+### The gap inventory
+
+`data/gaps/inventory.json` (schema-checked) and `docs/gaps-inventory.md` list
+every gap Siren knows of and its state: the approved catalog's entries (open,
+closing, closed, on the board with a last measurement, or off it with the
+reason), the proposed entries awaiting Jason's approval (kept apart, never on
+the board), retired ids and what is not a gap, with counts by state and topic
+and what changed since the build before the last state change. Code builds it
+from the committed gap files (`scripts/gaps-inventory.js`); never edit it by
+hand. Both `build-gaps.js` and `build-gaps-proposed.js` rewrite it after a
+live or offline build, and both fail `--check` when it trails those files. So
+after the inputs above change, run both offline builds:
+
+```bash
+node scripts/build-gaps.js --offline
+node scripts/build-gaps-proposed.js --offline
+node scripts/build-gaps.js --check && node scripts/build-gaps-proposed.js --check
+```
+
+`scripts/find-gaps.js` records no committed candidate count, so the inventory
+carries none.
+
 **Proposed automation, for Jason to decide** (drafted on the gaps branch and
 taken out of it, since the brief allowed only read-only weekly steps):
 
@@ -91,12 +113,14 @@ taken out of it, since the brief allowed only read-only weekly steps):
    `npm run check:gaps` on every push and PR. It fails when the committed gap
    file trails its inputs, without stopping the Workers Builds deploy.
 2. In `refresh-norfolk.yml`, after the index build and only when the index
-   changed: `build-gaps --offline`, then `--same-states` against the file
+   changed: `build-gaps --offline` and `build-gaps-proposed --offline` (which
+   also rebuild the gap inventory), then `--same-states` against the file
    before it. With no state change, the gap file commits with the index.
    Otherwise the rebuild is set aside and opened as a PR (the workflow would
    need `pull-requests: write`). A failed rebuild never stops the index commit.
 3. In `archive-case-sources.yml`, when case files changed: `build-gaps
-   --offline`, with `data/gaps` and `docs/gaps-norfolk.md` added to the
-   archive PR, so the gap file's finding evidence changes beside its sources.
+   --offline` and `build-gaps-proposed --offline`, with `data/gaps`,
+   `docs/gaps-norfolk.md`, `docs/gaps-budget-proposed.md` and
+   `docs/gaps-inventory.md` added to the archive PR, so the gap file's finding evidence changes beside its sources.
 4. The spec's weekly live re-measure (`refresh-gaps.yml`, `docs/gaps.md`
    §5.4): numbers within ±25% to main, anything else to a PR. Not drafted.
