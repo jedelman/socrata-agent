@@ -68,9 +68,33 @@ generic mode.
   `node scripts/invites.js requests`). The list is public behind a steward
   gate: `request-accept`/`-decline`/`-fulfilled` set status, only accepted
   and fulfilled requests appear at `<base>/requests` and `/api/requests`, and
-  only notes written under the "requests are public" notice are shown.
+  only notes written under the "requests are public" notice and approved by
+  the steward are shown. Every note is reviewed whatever the request's
+  status: new notes are stored `review: 'pending'`, and the steward approves
+  or deletes each one at `<base>/admin` or with `request-note`. Legacy notes
+  (no `review`) count as reviewed only when written no later than `decided`,
+  that decision made the request public, and they were among the last five
+  public notes (what the old list showed). Steward state lives in keys raises
+  never write, laid over the record on every read: `request-decision:<hash>`
+  (status, decided, was_public, steward_note, fulfilled_by) and
+  `request-deleted:<hash>` (deleted note ids), so a stale raise can't undo a
+  decision or bring a deleted note back. Stored and public dates are days,
+  never finer. `POST /api/requests` returns a count only for a request that
+  is already public. `GET /api/requests` says nothing about requests or
+  notes awaiting review, not even how many, never writes to KV (Free plan:
+  1,000 writes a day, shared with every question), and is cached per
+  location for five minutes.
+  A request accepted once carries `was_public`; if it leaves the list,
+  `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
-  `source-request` issues, run nightly by a Claude Code routine (`--plan`).
+  `source-request` issues, run nightly by a Claude Code routine (`--plan`;
+  its prompt is copied in `docs/request-sync-routine.md`). Withdrawn entries
+  (`create_if_missing: false`, `state_reason: not_planned`) appear only with
+  `--plan --with-withdrawn`, which the routine may pass only once its prompt
+  honors both fields. When applying directly it also closes any marked
+  issue in neither list (only if the feed carries `withdrawn`; closing all of
+  them, or more than three, needs `--close-unlisted`). GitHub keeps old titles
+  and bodies; only deleting an issue by hand removes them.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
   guide. `plugins/case-file.js` serves a case file for questions with no
   address. No payments: bounties are tabled until after beta (Jason).
