@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { ask, providerOf, keyNameFor } from '../src/agent.js';
 import { priceUsage, toAnthropicTools } from '../src/providers/anthropic.js';
 import { getCity } from '../src/cities/index.js';
+import { claudeResponse } from './fake-claude.js';
 
 const KEY = 'sk-ant-test-secret-key-do-not-leak';
 const usage = (o = {}) => ({ input_tokens: 1000, output_tokens: 200, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, ...o });
@@ -17,7 +18,8 @@ function mockApi(responses, { status = 200 } = {}) {
       const headers = new Headers(init.headers);
       requests.push({ body: JSON.parse(init.body), headers });
       const next = responses[Math.min(requests.length - 1, responses.length - 1)];
-      return new Response(JSON.stringify(status === 200 ? next : { type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }), {
+      if (status === 200) return claudeResponse(init, next);
+      return new Response(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }), {
         status,
         headers: { 'content-type': 'application/json', 'request-id': 'req_test' },
       });
@@ -123,9 +125,9 @@ test("the key only ever goes to api.anthropic.com, whatever ANTHROPIC_BASE_URL s
   const saved = process.env.ANTHROPIC_BASE_URL;
   process.env.ANTHROPIC_BASE_URL = 'https://someone-elses-proxy.example';
   const seen = [];
-  const fetchImpl = async (url) => {
+  const fetchImpl = async (url, init) => {
     seen.push(String(url));
-    return new Response(JSON.stringify(msg([{ type: 'text', text: 'I found it.' }], 'end_turn')), { headers: { 'content-type': 'application/json' } });
+    return claudeResponse(init, msg([{ type: 'text', text: 'I found it.' }], 'end_turn'));
   };
   try {
     await ask({ question: 'q', city: getCity('norfolk'), apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl });

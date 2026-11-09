@@ -13,6 +13,7 @@ import { applyConfig, definePlugin } from '../src/plugins.js';
 import siren from '../deployments/siren.config.js';
 import { askLimits } from '../worker/limits.js';
 import norfolkLegislation from '../data/norfolk-legislation.json' with { type: 'json' };
+import { claudeResponse } from './fake-claude.js';
 
 const norfolk = getCity('norfolk');
 const ADDRESS_ROW = {
@@ -142,7 +143,7 @@ test('the count includes provider calls and their retries (Anthropic SDK)', asyn
     id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-haiku-5-5', content, stop_reason, stop_details: null,
     usage: { input_tokens: 10, output_tokens: 5 },
   });
-  const fetchImpl = async (url) => {
+  const fetchImpl = async (url, init) => {
     const u = String(url);
     if (u.startsWith('https://api.anthropic.com/')) {
       n++;
@@ -151,7 +152,7 @@ test('the count includes provider calls and their retries (Anthropic SDK)', asyn
       const body = n === 2
         ? msg([{ type: 'tool_use', id: 'toolu_1', name: 'search_datasets', input: { query: 'trees' } }], 'tool_use')
         : msg([{ type: 'text', text: 'I found no tree datasets.' }], 'end_turn');
-      return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
+      return claudeResponse(init, body);
     }
     return new Response(JSON.stringify({ results: [] }));
   };
@@ -298,9 +299,9 @@ function fakeClaude({ replies, overloadEvery = false, truncateFirst = false }) {
     if (overloadEvery && attempt % 2 === 1) return json({ type: 'error', error: { type: 'overloaded_error', message: 'busy' } }, 529);
     const body = JSON.parse(init.body);
     bodies.push(body);
-    if (truncateFirst && body.max_tokens < 16000) return json(msg([{ type: 'text', text: 'I found' }], 'max_tokens'));
+    if (truncateFirst && body.max_tokens < 16000) return claudeResponse(init, msg([{ type: 'text', text: 'I found' }], 'max_tokens'));
     const r = replies[Math.min(reply++, replies.length - 1)];
-    return json(r.calls
+    return claudeResponse(init, r.calls
       ? msg(r.calls.map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${reply}_${i}`, name, input })), 'tool_use')
       : msg([{ type: 'text', text: r.text }], 'end_turn'));
   };
@@ -375,11 +376,21 @@ test("the Worker's limits: SUBREQUEST_BUDGET defaults to 120, stays 10-10000, an
   }
   assert.deepEqual(askLimits({}, 'anthropic'), { maxSteps: 6, subrequestBudget: 120, maxTokens: 8000 });
   assert.deepEqual(askLimits({}, 'openrouter'), { maxSteps: 6, subrequestBudget: 120, maxTokens: 1200 });
-  // The Worker passes them to ask() (it can't be imported outside the Workers runtime).
+  // The Worker passes them to ask() (it can't be imported outside the Workers
+  // runtime): its one argument builder spreads them, and both of its ask()
+  // calls (streamed and JSON) start from that builder and override none.
   const worker = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
-  const call = worker.slice(worker.indexOf('await ask({'), worker.indexOf('});', worker.indexOf('await ask({')));
-  assert.match(call, /\.\.\.askLimits\(env, providerOf\(model\)\),/);
-  assert.doesNotMatch(call, /subrequestBudget|maxSteps|maxTokens/, 'nothing after the spread overrides it');
+  const start = worker.indexOf('const askArgs = () => ({');
+  assert.ok(start > 0);
+  const args = worker.slice(start, worker.indexOf('});', start));
+  assert.match(args, /\.\.\.askLimits\(env, providerOf\(model\)\),/);
+  assert.doesNotMatch(args.slice(args.indexOf('...askLimits')), /subrequestBudget|maxSteps|maxTokens/, 'nothing after the spread overrides it');
+  const calls = [...worker.matchAll(/await ask\(\{([\s\S]*?)\}\)\)/g)].map((m) => m[1]);
+  assert.equal(calls.length, 2);
+  for (const call of calls) {
+    assert.match(call, /^\s*\.\.\.(args|askArgs\(\)),/);
+    assert.doesNotMatch(call, /subrequestBudget|maxSteps|maxTokens/);
+  }
 });
 
 test('the CLI refuses a SUBREQUEST_BUDGET that is not a whole number of at least 10', () => {

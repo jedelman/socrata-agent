@@ -47,6 +47,8 @@ import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
+import { toolsFor } from '../src/tools.js';
+import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
 
 // Street names per city, used only to refuse addresses in text that could go
 // public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
@@ -204,49 +206,90 @@ async function handleAsk(req, env, ctx) {
     ({ history, carried } = historyFrom(conversation));
   }
 
-  // Every paid call is counted as it happens, so spend is recorded even when a
-  // later step fails or the visitor leaves; the write runs after the response.
-  let cost = 0;
-  try {
-    const out = await ask({
-      question,
-      history,
-      carried,
-      city: applyConfig(getCity(cityId), deployment),
-      plugins,
-      indexes: INDEXES,
-      apiKey,
-      appToken: env.SOCRATA_APP_TOKEN,
-      model,
-      effort: env.EFFORT || undefined,
-      // Steps, outbound requests and tokens per answer (worker/limits.js).
-      ...askLimits(env, providerOf(model)),
-      referer: new URL(req.url).origin,
-      onCost: (usd) => {
-        cost += usd;
-      },
-      ...(deployment.gaps?.enabled === true && GAPS[cityId] ? { gaps: { data: GAPS[cityId], streets: STREETS[cityId], absenceLines: deployment.gaps.absenceLines === true } } : {}),
-    });
+  const gapsOn = deployment.gaps?.enabled === true && GAPS[cityId];
+  // Built inside each path's try, as before, so a failure here is an error body.
+  const askArgs = () => ({
+    question,
+    history,
+    carried,
+    city: applyConfig(getCity(cityId), deployment),
+    plugins,
+    indexes: INDEXES,
+    apiKey,
+    appToken: env.SOCRATA_APP_TOKEN,
+    model,
+    effort: env.EFFORT || undefined,
+    // Steps, outbound requests and tokens per answer (worker/limits.js).
+    ...askLimits(env, providerOf(model)),
+    referer: new URL(req.url).origin,
+    ...(gapsOn ? { gaps: { data: GAPS[cityId], streets: STREETS[cityId], absenceLines: deployment.gaps.absenceLines === true } } : {}),
+  });
+  // The response body, and the conversation save (started, not awaited).
+  const finish = (out) => {
     const { toolResults, ...answer } = out;
-    if (conversationId) {
-      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
-        .catch((err) => console.error('saving the conversation failed', err));
+    const save = conversationId
+      ? saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
+        .catch((err) => console.error('saving the conversation failed', err))
+      : null;
+    return { save, body: { city: cityId, ...answer, ...(conversationId ? { conversation: conversationId } : {}) } };
+  };
+
+  // Spend is recorded per paid call, as it happens (one KV key each, so
+  // concurrent writes can't overwrite each other), so a call already made is
+  // counted even if the rest of the answer never runs.
+  const spends = [];
+  const onCost = (usd) => {
+    if (kv && usd) spends.push(recordSpend(kv, day, usd).catch((err) => console.error('recording spend failed', err)));
+  };
+
+  // Streamed (worker/ask-stream.js): the same answer, limits, spend and save,
+  // with the working notes sent as they come. It runs under ctx.waitUntil, so
+  // a reader who leaves doesn't stop it at once; Cloudflare gives that about
+  // 30 seconds after they leave. Each call's spend is recorded as it happens;
+  // the turn is saved as soon as the answer exists, before the final line, so
+  // it is saved only if the answer finishes within that grace period.
+  if (wantsStream(req) && workingNotesOn(env)) {
+    return streamResponse(ctx, async (send) => {
+      if (conversationId) send({ type: 'start', conversation: conversationId });
+      try {
+        const args = askArgs();
+        // The tools this answer declares: a tool line names only one of these.
+        const known = new Set(toolsFor(args.city, plugins, gapsOn ? { gaps: GAPS[cityId] } : {}).map((t) => t.function.name));
+        const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true }));
+        if (save) await save;
+        send({ type: 'final', body });
+      } catch (err) {
+        console.error(err);
+        send({ type: 'error', status: 502, body: askErrorBody(err) });
+      } finally {
+        await Promise.all(spends);
+      }
+    });
+  }
+
+  try {
+    const { save, body } = finish(await ask({ ...askArgs(), onCost }));
+    if (save) {
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
     }
-    return json({ city: cityId, ...answer, ...(conversationId ? { conversation: conversationId } : {}) });
+    return json(body);
   } catch (err) {
     console.error(err);
-    // The full upstream error goes to the operator's log only; visitors get the gist.
-    const status = String(err?.message || '').match(/^(Anthropic|OpenRouter) (\d{3}|error)/);
-    return json({ error: 'Something went wrong answering that. Try again, or rephrase.', ...(status ? { detail: `${status[1]} ${status[2]}` } : {}) }, 502);
+    return json(askErrorBody(err), 502);
   } finally {
-    if (kv && cost) {
-      const write = recordSpend(kv, day, cost).catch((err) => console.error('recording spend failed', err));
+    if (spends.length) {
+      const write = Promise.all(spends);
       if (ctx?.waitUntil) ctx.waitUntil(write);
       else await write;
     }
   }
+}
+
+// The full upstream error goes to the operator's log only; visitors get the gist.
+function askErrorBody(err) {
+  const status = String(err?.message || '').match(/^(Anthropic|OpenRouter) (\d{3}|error)/);
+  return { error: 'Something went wrong answering that. Try again, or rephrase.', ...(status ? { detail: `${status[1]} ${status[2]}` } : {}) };
 }
 
 // What the page needs to decide whether to show the invite gate.

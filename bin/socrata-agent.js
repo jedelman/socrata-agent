@@ -36,6 +36,8 @@ Options
   --gaps               with ask: say what the records couldn't answer, from the built
                        gap catalog (data/gaps/<city>.json); also on with config gaps.enabled
   --absence-lines      with --gaps: add absence lines (trees_on_my_block only)
+  --thinking           with ask and a claude-* model: print the model's summarized thinking
+                       to stderr as it comes (working notes, not the answer; never saved)
 
 Examples
   socrata-agent ask "What's going on at 111 Pennsylvania Ave?"
@@ -74,6 +76,7 @@ const { values, positionals } = parseArgs({
     json: { type: 'boolean', default: false },
     gaps: { type: 'boolean', default: false },
     'absence-lines': { type: 'boolean', default: false },
+    thinking: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
 });
@@ -132,6 +135,12 @@ try {
     const { city, plugins, model: configModel, gaps: gapsConfig } = await loadDeployment();
     const gaps = await loadGaps(city, gapsConfig);
     const model = values.model || configModel || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL;
+    // --thinking: the summarized thinking goes to stderr, a block per step.
+    let thinkingStep = null;
+    const endThinking = () => {
+      if (thinkingStep !== null) process.stderr.write('\n');
+      thinkingStep = null;
+    };
     const out = await ask({
       question,
       city,
@@ -144,12 +153,26 @@ try {
       ...(gaps ? { gaps } : {}),
       // Unset: no cap (the count still runs and is reported).
       subrequestBudget: cliSubrequestBudget(process.env.SUBREQUEST_BUDGET),
+      thinkingEvents: values.thinking && !values.json,
       onEvent: (e) => {
         if (values.json) return;
+        if (e.type === 'thinking') {
+          if (thinkingStep !== e.step) {
+            endThinking();
+            process.stderr.write(`  · thinking (step ${e.step + 1}, summarized): `);
+            thinkingStep = e.step;
+          }
+          process.stderr.write(e.text);
+          return;
+        }
+        endThinking();
         if (e.type === 'tool') console.error(`  → ${e.name} ${JSON.stringify(e.args)}`);
         if (e.type === 'rewrite') console.error(`  → voice check: rewriting (${e.violations.length} "there is")`);
+        if (e.type === 'refusal' && values.thinking) console.error('  → the model declined; disregard its notes from that step');
+        if (e.type === 'fallback') console.error('  → the model declined partway and another model continues; disregard the notes above from this step');
       },
     });
+    endThinking();
     if (values.json) {
       console.log(JSON.stringify(out, null, 2));
     } else {

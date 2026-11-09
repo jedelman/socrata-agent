@@ -39,10 +39,10 @@ export function visitorId(ip) {
   return `${groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, '')).join(':')}::/64`;
 }
 
-// Spend is written as one KV key per request (spend:<day>:<id>, cost in the
-// key's metadata) and summed by listing. Unlike a single read-modify-write
-// counter, concurrent requests can't overwrite each other's spend; a listing
-// may lag a few seconds behind the newest writes.
+// Spend is written as one KV key per paid model call (spend:<day>:<id>, cost
+// in the key's metadata), as each call is priced, and summed by listing.
+// Unlike a single read-modify-write counter, concurrent calls can't overwrite
+// each other's spend; a listing may lag a few seconds behind the newest writes.
 export async function spentToday(kv, day) {
   let micros = 0;
   let cursor;
