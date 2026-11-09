@@ -283,7 +283,7 @@ const BLOCKS = [
   }],
   ['coordinates', (t) => /-?\b\d{1,3}\.\d{2,}\s*,\s*-?\d{1,3}\.\d{2,}/.test(t)],
   ['parcel_grain', (t) => /\b(?:my|your|their|his|her|this|that)\s+(?:house|home|parcel|property|lot|yard|driveway|address|apartment)\b/i.test(t)],
-  ['person_pointing', (t) => /\bwho\s+(?:lives|lived|owns|owned|called|complained|reported|filed|asked|applied|requested|put in)\b|\bwhose\b|\bwhich\s+(?:neighbou?r|resident|household|family)/i.test(t)],
+  ['person_pointing', (t) => /\bwho\s+(?:lives|lived|owns|owned|called|complained|reported|filed|asked|applied|requested|put in)\b|\bwhose\b|\bwhich\s+(?:neighbou?rs?|residents?|households?|famil(?:y|ies))\b/i.test(t)],
   ['named_person', (t) => /\b(?:Mr|Mrs|Ms|Mx|Dr|Miss)\.?\s+[A-Z][a-z]/.test(t)],
   ['role_blame', (t) => ROLE_BLAME.test(t)],
 ];
