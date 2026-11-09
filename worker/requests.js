@@ -55,7 +55,7 @@
 // `request-deleted:`, which a `request:` prefix list doesn't match.
 
 import { sha256hex } from './invites.js';
-import { publicTextViolations, publicTextMessage } from '../src/public-text.js';
+import { noteTextReview, publicTextMessage } from '../src/public-text.js';
 
 const NOTE_CHARS = 300;
 const KEEP_NOTES = 20;
@@ -174,7 +174,7 @@ export function normalizeRecord(r) {
   const shown = new Set((r.needs || []).filter((n) => typeof n.review !== 'string' && n.public === true).slice(-5));
   const needs = (r.needs || []).map((n) => {
     let out;
-    if (typeof n.review === 'string') out = { id: String(n.id || ''), text: n.text, day: asDay(n.day ?? n.at), public: n.public === true, review: n.review === 'ok' ? 'ok' : 'pending' };
+    if (typeof n.review === 'string') out = { id: String(n.id || ''), text: n.text, day: asDay(n.day ?? n.at), public: n.public === true, review: n.review === 'ok' ? 'ok' : 'pending', ...(Array.isArray(n.flags) && n.flags.includes('maybe_year') ? { flags: ['maybe_year'] } : {}) };
     else out = { id: legacyNoteId(n), text: n.text, day: asDay(n.at ?? n.day), public: n.public === true, review: legacyReview(n, r, shown) };
     if (!out.id || seen.has(out.id)) {
       let i = 2;
@@ -195,7 +195,10 @@ export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.no
   // A note can go public once the steward approves it, so it's checked before
   // anything is written (docs/gaps.md §16 item 5). The refusal says what to
   // change and never repeats the text.
-  const bad = need ? publicTextViolations(need, { streets }) : [];
+  // A number from 1800 to 2100 before a street name may be a year ("the 2024
+  // Colley Ave plan"): the note goes through, flagged for the steward, who
+  // reviews every note before it's public.
+  const { codes: bad, maybeYear } = need ? noteTextReview(need, { streets }) : { codes: [], maybeYear: false };
   if (bad.length) return { ok: false, status: 400, error: `Please edit the note: ${publicTextMessage(bad)}`, codes: bad };
   const day = dayOf(now);
   const rateKey = `request-rate:${day}:${visitor}`;
@@ -204,7 +207,7 @@ export async function addRequest({ body, kv, visitor, perDay = 20, now = Date.no
   await kv.put(rateKey, String(used + 1), { expirationTtl: 90000 });
   const key = await requestKey(source);
   const cur = (await readRequest(kv, key)).cur || normalizeRecord({ source, url: '', count: 0, first: day, needs: [], status: 'new' });
-  const note = { id: `n${randomHex(4)}`, text: need, day, public: body?.public === true, review: 'pending' };
+  const note = { id: `n${randomHex(4)}`, text: need, day, public: body?.public === true, review: 'pending', ...(maybeYear ? { flags: ['maybe_year'] } : {}) };
   const next = {
     ...cur,
     url: cur.url || (/^https:\/\//i.test(url) ? url : ''),
@@ -353,7 +356,7 @@ export function withNoteReview(r, noteId, action) {
 /** One request as the steward sees it: all statuses, every note with its id, day, public and review. */
 export function adminView(key, r) {
   const n = normalizeRecord(r);
-  return { id: publicId(key), ...n, status: n.status || 'new', needs: n.needs.map(({ id, text, day, public: pub, review }) => ({ id, text, day, public: pub, review })) };
+  return { id: publicId(key), ...n, status: n.status || 'new', needs: n.needs.map(({ id, text, day, public: pub, review, flags }) => ({ id, text, day, public: pub, review, ...(flags?.length ? { flags } : {}) })) };
 }
 
 /**

@@ -664,3 +664,23 @@ test('an issue withdrawn long enough ago to leave the feed is done: no rewrite, 
   const ops = operations({ existing: [{ ...done[0], body: `${done[0].body}\nedited` }, liveIssue], requests: [live], withdrawn: [], pageUrl: 'u', repo: 'o/r' });
   assert.deepEqual(ops, [{ op: 'update', number: 1, patch: { body: withdrawnBody(ids[0]) } }]);
 });
+
+test('a year-like number before a street name lets the note through, flagged for the steward', async () => {
+  const kv = fakeKV();
+  const streets = ['COLLEY', 'GRANBY', 'HAMPTON'];
+  for (const need of ['the 2024 Colley Ave streetscape plan', 'Planned in 2022 Hampton Blvd widening', 'Since 2019 Granby has flooded']) {
+    const out = await addRequest({ body: { source: `Plan ${need}`, need, public: true }, kv, visitor: 'v', streets });
+    assert.equal(out.ok, true, need);
+  }
+  const rec = [...kv.store.entries()].filter(([k]) => k.startsWith('request:')).map(([, v]) => JSON.parse(v));
+  assert.ok(rec.every((r) => r.needs.every((n) => n.flags?.includes('maybe_year'))), 'each flagged');
+  // A real house number is still refused, with or without a year beside it.
+  for (const need of ['the oak at 710 Colley Ave', 'in 2024 the oak at 710 Colley Ave came down', '1500 Granby St']) {
+    const out = await addRequest({ body: { source: 'Trees', need, public: true }, kv, visitor: 'v', streets });
+    assert.equal(out.ok, false, need);
+  }
+  // A plain note carries no flag.
+  await addRequest({ body: { source: 'Tree budget', need: 'How much was spent on pruning?', public: true }, kv, visitor: 'v', streets });
+  const plain = [...kv.store.entries()].find(([k, v]) => k.startsWith('request:') && v.includes('pruning'));
+  assert.ok(!JSON.parse(plain[1]).needs[0].flags);
+});
