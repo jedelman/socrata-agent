@@ -20,3 +20,19 @@ jobs:
       # Bundle the Worker without deploying, so an import that only breaks
       # under wrangler fails here and not in production.
       - run: npx wrangler deploy --dry-run --env siren --outdir dist
+  # The committed gap files against their inputs (docs/gaps.md §5.3 item 8),
+  # outside npm test: npm test gates the Workers Builds deploy, and a gap file
+  # a step behind its inputs is no reason to stop one, so here it fails on
+  # its own instead. Fix it with node scripts/build-gaps.js --offline and
+  # node scripts/build-gaps-proposed.js --offline (CONTRIBUTING.md).
+  check-gaps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check:gaps
+      - run: node scripts/build-gaps-proposed.js --check

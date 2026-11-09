@@ -1,0 +1,101 @@
+name: Refresh gaps
+# The weekly live re-measure of the gap catalog and the proposed budget gaps
+# (docs/gaps.md §5.4; Jason, 2026-11-09: "yes, we should automate the gap
+# refresh"). Read-only against the portal. scripts/gap-refresh.js then
+# compares the gap files before and after:
+#   - only measured numbers moved, each within ±25%, and dates: commit to
+#     main, as the legislation refresh does;
+#   - anything else (a state change, a gap moving on or off the board, an id
+#     added or removed, a jump beyond ±25%, a failed measure, evidence turning
+#     unverified, other changes in a gap): push bot/gap-refresh-<date> and open
+#     a pull request whose body is the summary;
+#   - nothing changed: no commit.
+#
+# Opening the pull request needs the repository setting "Allow GitHub Actions
+# to create and approve pull requests"; without it the branch is still pushed
+# and the run fails, naming it. A push or pull request made with the workflow's
+# token starts no other workflow (CI included), so this job runs npm test and
+# both gap checks itself before it commits anything; Workers Builds still runs
+# npm test before it deploys a commit to main.
+on:
+  schedule:
+    - cron: '23 10 * * 2' # Tuesdays 10:23 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: norfolk-data-refresh # shared with refresh-norfolk.yml
+  cancel-in-progress: false
+env:
+  # Every path a gap rebuild writes (node scripts/gap-refresh.js paths;
+  # test/workflows.test.js holds this to it).
+  GAP_PATHS: data/gaps docs/gaps-budget-proposed.md docs/gaps-inventory.md docs/gaps-norfolk.md
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: npm ci
+      - name: Snapshot the gap files
+        run: node scripts/gap-refresh.js snapshot "$RUNNER_TEMP/gaps-before"
+      - name: Verify case files (read-only, a signal only)
+        # §5.4 step 1. The build has no input for this result (it reads each
+        # finding's verification from the case files), so a failure is
+        # reported in the summary and never stops or reroutes the refresh.
+        run: |
+          set +e
+          node scripts/verify-cases.js > "$RUNNER_TEMP/verify.log" 2>&1
+          echo "VERIFY_EXIT=$?" >> "$GITHUB_ENV"
+          cat "$RUNNER_TEMP/verify.log"
+      - name: Measure the catalog live
+        env:
+          SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
+        run: node scripts/build-gaps.js
+      - name: Measure the proposed gaps live
+        env:
+          SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
+        run: node scripts/build-gaps-proposed.js
+      - run: npm test
+      - run: npm run check:gaps
+      - run: node scripts/build-gaps-proposed.js --check
+      - name: Decide where the refresh goes
+        run: >-
+          node scripts/gap-refresh.js decide
+          --before "$RUNNER_TEMP/gaps-before"
+          --verify-exit "$VERIFY_EXIT" --verify-log "$RUNNER_TEMP/verify.log"
+          --context "Weekly live re-measure (refresh-gaps.yml, run $GITHUB_RUN_ID)."
+          --summary "$RUNNER_TEMP/gap-refresh.md" --result "$RUNNER_TEMP/gap-refresh.json"
+      - name: Commit to main, or open a pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          summary="$RUNNER_TEMP/gap-refresh.md"
+          decision=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).decision" "$RUNNER_TEMP/gap-refresh.json")
+          day=$(date -u +%Y-%m-%d)
+          { echo "## Gap refresh: $decision"; echo; cat "$summary"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$(git status --porcelain -- $GAP_PATHS)" ]; then echo "No changes to the gap files."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$decision" = pr ]; then
+            branch="bot/gap-refresh-$day"
+            git switch -c "$branch"
+            git add -- $GAP_PATHS
+            { echo "Gap refresh for review, $day"; echo; cat "$summary"; } > "$RUNNER_TEMP/message.txt"
+            git commit -q -F "$RUNNER_TEMP/message.txt"
+            git push -u origin "$branch"
+            if ! gh pr create --base main --head "$branch" --title "Gap refresh needs review ($day)" --body-file "$summary"; then
+              echo "::error title=No pull request::Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."
+              exit 1
+            fi
+          else
+            git add -- $GAP_PATHS
+            { echo "Refresh gaps: numbers within ±25% and dates, $day"; echo; cat "$summary"; } > "$RUNNER_TEMP/message.txt"
+            git commit -q -F "$RUNNER_TEMP/message.txt"
+            git push
+          fi
