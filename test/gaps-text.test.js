@@ -320,3 +320,8 @@ test('the street checks with the real list: species and ordinary words pass, add
   for (const [t, code] of Object.entries(blocked)) assert.ok(publicTextViolations(t, { streets }).includes(code), `${t} -> ${code}`);
 });
 
+test('"which neighbor" points at a person; "which neighborhood" does not', () => {
+  assert.ok(publicTextViolations('which neighbor called it in?').includes('person_pointing'));
+  assert.ok(publicTextViolations('Which residents asked?').includes('person_pointing'));
+  for (const t of ['Which neighborhood gets trees first?', 'which residential zones allow cafes?']) assert.ok(!publicTextViolations(t).includes('person_pointing'), t);
+});

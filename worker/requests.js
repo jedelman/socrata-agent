@@ -22,10 +22,10 @@
 // read, which can be up to a minute stale elsewhere. So the steward's state
 // lives in two more keys that raises never write, and every read lays them
 // over the record: `request-decision:<hash>` holds the decision (status,
-// decided, was_public, steward_note, fulfilled_by), so a stale raise can't
-// undo a decline; `request-deleted:<hash>` holds deleted note ids, so a stale
-// raise can't bring a deleted note back. Windows that remain until requests
-// move to D1: a stale raise can set an approved note back to pending (it
+// decided, was_public, steward_note, fulfilled_by, endorsements_at_decision),
+// so a stale raise can't undo a decline or drop a frozen count;
+// `request-deleted:<hash>` holds deleted note ids, so a stale raise can't
+// bring a deleted note back. Windows that remain until requests move to D1: a stale raise can set an approved note back to pending (it
 // hides, never shows), and two steward actions on one request inside the
 // propagation window can race on those keys (the admin page sends the notes
 // it deleted this session, so its own deletes always add up; the CLI's don't).
@@ -38,6 +38,21 @@
 // withdrawn ones included while they are listed. A random id stored at
 // acceptance would fix that; issue markers depend on the current scheme, so
 // it is left for a later change.
+//
+// Endorsements (endorsements.js) are the one place a person's identity
+// touches requests. They live in D1 (SIREN_DB), not in KV with the requests:
+// to count a Bluesky account once per request, D1 keeps HMAC(INVITE_SECRET,
+// request + account), never the DID, the handle, the issuer or any token, and
+// one account's endorsements on different requests have nothing in common.
+// Counts are public, for public requests only; endorsers are pseudonymous to
+// anyone without the key. When a request is decided, its count is frozen into
+// the decision (endorsements_at_decision, a steward-owned field kept in
+// `request-decision:` like the rest) and the per-account rows are deleted;
+// any written around the decision are swept within minutes. This module
+// never imports endorsements.js: callers count and pass the counts in.
+// Nothing else may be keyed under `request:` (the list and steward tools
+// parse every such key); the side keys use `request-decision:` and
+// `request-deleted:`, which a `request:` prefix list doesn't match.
 
 import { sha256hex } from './invites.js';
 import { publicTextViolations, publicTextMessage } from '../src/public-text.js';
@@ -103,7 +118,7 @@ async function readDeleted(kv, key) {
 
 /** Where a request's steward decision is kept. Raises never write it. */
 export const decisionKey = (key) => key.replace(/^request:/, 'request-decision:');
-const DECISION_FIELDS = ['status', 'decided', 'was_public', 'steward_note', 'fulfilled_by'];
+const DECISION_FIELDS = ['status', 'decided', 'was_public', 'steward_note', 'fulfilled_by', 'endorsements_at_decision'];
 
 /** The steward-owned fields of a record. Pure. */
 export function decisionOf(r) {
@@ -214,10 +229,28 @@ export const raiseResponse = (out) => (out.public ? { ok: true, count: out.count
 /** The short public id of a request: the first 12 hex of its key. */
 export const publicId = (key) => key.replace(/^request:/, '').slice(0, 12);
 
-/** What the public list shows of one request. Dates are days; notes only if public and approved. */
-export function publicView(key, r) {
+const ZERO = Object.freeze({ n: 0, young: 0, unknown: 0 });
+const DECIDED = new Set(['declined', 'fulfilled']);
+
+/**
+ * The public number for a count { n, young, unknown }: every endorsement
+ * under policy 'all', established accounts only under 'established'.
+ */
+export function publicNumber(c, policy = 'established') {
+  if (!c) return 0;
+  const n = Number(c.n) || 0;
+  return policy === 'all' ? n : Math.max(0, n - (Number(c.young) || 0) - (Number(c.unknown) || 0));
+}
+
+/**
+ * What the public list shows of one request. Dates are days; notes only if
+ * public and approved. With `live` counts (the Bluesky feature is on), it
+ * adds `endorsements`: the live public number for an accepted request, the
+ * number frozen at decision for a fulfilled one.
+ */
+export function publicView(key, r, live, policy = 'established') {
   const n = normalizeRecord(r);
-  return {
+  const out = {
     id: publicId(key),
     source: n.source,
     ...(n.url ? { url: n.url } : {}),
@@ -229,9 +262,19 @@ export function publicView(key, r) {
     ...(n.steward_note ? { steward_note: n.steward_note } : {}),
     notes: n.needs.filter((x) => x.public && x.review === 'ok').slice(-5).map((x) => x.text),
   };
+  if (live !== undefined) {
+    out.endorsements = n.status === 'accepted' ? publicNumber(live || ZERO, policy)
+      : n.status === 'fulfilled' ? publicNumber(n.endorsements_at_decision, policy) : 0;
+  }
+  return out;
 }
 
-async function listRequests(kv) {
+/**
+ * Every request record as readers see it (side keys laid over, deleted notes
+ * dropped): [key, record] pairs, from one or more KV list pages. Throws if KV
+ * fails.
+ */
+export async function requestRows(kv) {
   const keys = [];
   let cursor;
   do {
@@ -244,19 +287,29 @@ async function listRequests(kv) {
 }
 
 /**
- * The public list: accepted and fulfilled requests, most wanted first, and
+ * The public list: accepted and fulfilled requests, accepted first, most
+ * asked first (endorsements, when counted, only break ties), and
  * the requests that were public and no longer are, withdrawn in the last
  * WITHDRAWN_DAYS (id and the day of that decision only), so the mirror can
  * close them. Nothing about requests or notes the steward hasn't reviewed,
  * not even how many there are: a count would let anyone test whether
  * someone else asked for a source, by raising it and watching the number.
  * Reads only, so the public read can't fail on KV's write limits.
+ *
+ * Without `counts` (the Bluesky feature off), items carry no `endorsements`
+ * field and the list is exactly the requests-only list. `statuses`, when
+ * given, is a Map filled with every request's status by public id (the
+ * orphan sweep needs them, and they're read here anyway). `rows`, when given,
+ * are requestRows(kv) already read (the counted list reads KV before D1).
  */
-export async function publicRequests(kv, now = Date.now()) {
-  const rows = await listRequests(kv);
+export async function publicRequests(kv, now = Date.now(), { counts, policy = 'established', statuses, rows: given } = {}) {
+  const rows = given || await requestRows(kv);
+  if (statuses) for (const [k, r] of rows) statuses.set(publicId(k), r.status || 'new');
   const since = dayOf(now - WITHDRAWN_DAYS * 86400000);
-  const shown = rows.filter(([, r]) => PUBLIC.has(r.status || 'new')).map(([k, r]) => publicView(k, r));
-  shown.sort((a, b) => (a.status === b.status ? b.count - a.count : a.status === 'accepted' ? -1 : 1));
+  const shown = rows
+    .filter(([, r]) => PUBLIC.has(r.status || 'new'))
+    .map(([k, r]) => publicView(k, r, counts ? counts.get(publicId(k)) || ZERO : undefined, policy));
+  shown.sort((a, b) => (a.status !== b.status ? (a.status === 'accepted' ? -1 : 1) : b.count - a.count || (b.endorsements || 0) - (a.endorsements || 0)));
   const withdrawn = rows
     .filter(([, r]) => r.was_public === true && !PUBLIC.has(r.status || 'new'))
     .map(([k, r]) => ({ id: publicId(k), day: asDay(r.decided) || null }))
@@ -303,9 +356,26 @@ export function adminView(key, r) {
   return { id: publicId(key), ...n, status: n.status || 'new', needs: n.needs.map(({ id, text, day, public: pub, review }) => ({ id, text, day, public: pub, review })) };
 }
 
-/** Every request, for the steward: all statuses, private and pending notes marked. */
-export async function allRequests(kv) {
-  return (await listRequests(kv)).map(([k, r]) => adminView(k, r)).sort((a, b) => b.count - a.count);
+/**
+ * The count to freeze into a request moving to `status`: the live count on a
+ * move into a decided status from an undecided one; the earlier frozen value
+ * on a move between decided statuses, or back to accepted (the steward still
+ * sees "N at decision"). undefined when there's nothing to store.
+ */
+export function freezeAtDecision(cur, status, live) {
+  const prev = cur?.endorsements_at_decision;
+  const from = cur?.status || 'new';
+  if (DECIDED.has(status) && !DECIDED.has(from) && live) {
+    return { n: Number(live.n) || 0, young: Number(live.young) || 0, unknown: Number(live.unknown) || 0 };
+  }
+  return prev || undefined;
+}
+
+/** Every request, for the steward: all statuses, private and pending notes marked, live endorsement counts. */
+export async function allRequests(kv, counts = new Map()) {
+  return (await requestRows(kv))
+    .map(([k, r]) => ({ ...adminView(k, r), endorsements: { ...(counts.get(publicId(k)) || ZERO) } }))
+    .sort((a, b) => b.count - a.count);
 }
 
 async function findRequest(kv, id) {
@@ -318,8 +388,19 @@ async function findRequest(kv, id) {
   return { key, cur, deleted };
 }
 
-/** Apply a steward decision by public id. Returns { ok, request } or { ok: false, status, error }. */
-export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.now()) {
+/** The one request whose key starts `request:<id>`, as readers see it: { key, cur } or null. */
+export async function requestByPublicId(kv, id) {
+  const found = await findRequest(kv, id);
+  return found.error ? null : { key: found.key, cur: found.cur };
+}
+
+/**
+ * Apply a steward decision by public id. Returns { ok, request, previous } or
+ * { ok: false, status, error }. `live`, when given, is the request's live
+ * endorsement count, frozen into the decision on a move to a decided status.
+ * Each key is written once (KV refuses a second write to a key within a second).
+ */
+export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.now(), { live } = {}) {
   const found = await findRequest(kv, id);
   if (found.error) return found.error;
   const { key, cur } = found;
@@ -332,11 +413,13 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
   if (status === 'fulfilled' && !next.fulfilled_by) return { ok: false, status: 400, error: 'Give the link to the merged PR or commit.' };
   // A cleared note clears the public note.
   if (note === '') delete next.steward_note;
+  const frozen = freezeAtDecision(cur, status, live);
+  if (frozen) next.endorsements_at_decision = frozen;
   // The decision first: if the record write is lost to a stale raise, reads
   // still see this decision.
   await kv.put(decisionKey(key), JSON.stringify(decisionOf(next)));
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, request: publicView(key, next) };
+  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, live) };
 }
 
 const NOTE_ID = /^[0-9a-z-]{1,24}$/;

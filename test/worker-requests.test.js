@@ -206,3 +206,54 @@ test('the public feed is served from the cache, whatever the query string', { sk
     else delete globalThis.caches;
   }
 });
+
+// --- Requests + Bluesky endorsements together ---
+
+// A D1 binding that fails the test if anything touches it.
+const untouchableDb = () => new Proxy({}, { get(_, prop) { throw new Error(`D1 touched with BLUESKY_LOGIN off (${String(prop)})`); } });
+
+test('flag off: GET /api/requests is exactly the requests-only list, with no D1 call even when SIREN_DB is bound', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
+  const w = await loadWorker();
+  const e = { ...env(), SIREN_DB: untouchableDb() };
+  const steward = await cookieFor('steward@example.org');
+  await w.fetch(post('/api/requests', { source: 'Tree inventory', need: 'which trees', public: true }), e, {});
+  await w.fetch(post('/api/requests', { source: 'Unreviewed source', need: 'q', public: true }, { 'CF-Connecting-IP': '203.0.113.11' }), e, {});
+  const listed = (await (await w.fetch(new Request('https://x.org/api/admin/requests', { headers: steward }), e, {})).json()).requests;
+  const tree = listed.find((r) => r.source === 'Tree inventory');
+  assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'accepted' }, steward), e, {})).status, 200);
+  assert.equal((await w.fetch(post('/api/admin/requests/note', { id: tree.id, note: tree.needs[0].id, action: 'approve' }, steward), e, {})).status, 200);
+  assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'declined' }, steward), e, {})).status, 200, 'a decline needs no D1 with the flag off');
+  assert.equal((await w.fetch(post('/api/admin/requests/decide', { id: tree.id, status: 'accepted' }, steward), e, {})).status, 200);
+  const res = await w.fetch(new Request('https://x.org/api/requests'), e, {});
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('Cache-Control'), 'public, max-age=300');
+  const body = await res.json();
+  assert.deepEqual(Object.keys(body).sort(), ['requests', 'withdrawn']);
+  assert.equal(body.requests.length, 1);
+  assert.deepEqual(Object.keys(body.requests[0]).sort(), ['count', 'first', 'id', 'last', 'notes', 'source', 'status']);
+  assert.deepEqual(body.requests[0].notes, ['which trees']);
+  assert.match(body.requests[0].first, /^\d{4}-\d{2}-\d{2}$/, 'days, not times');
+  const { publicRequests } = await import('../worker/requests.js');
+  assert.deepEqual(body, JSON.parse(JSON.stringify(await publicRequests(e.LIMITS))), 'the same list the requests module computes');
+});
+
+test('flag off: an unreadable request list is a JSON 503 with no count of anything, and is not cached', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
+  const w = await loadWorker();
+  const e = env();
+  e.LIMITS = { ...e.LIMITS, async list() { throw new Error('KV list limit'); } };
+  const store = new Map();
+  const had = Object.getOwnPropertyDescriptor(globalThis, 'caches');
+  globalThis.caches = { default: { async match(req) { return store.get(req.url)?.clone(); }, async put(req, res) { store.set(req.url, res); } } };
+  const quiet = console.error;
+  console.error = () => {};
+  try {
+    const res = await w.fetch(new Request('https://x.org/api/requests'), e, {});
+    assert.equal(res.status, 503);
+    assert.deepEqual(Object.keys(await res.json()).sort(), ['code', 'error', 'requests']);
+    assert.equal(store.size, 0);
+  } finally {
+    console.error = quiet;
+    if (had) Object.defineProperty(globalThis, 'caches', had);
+    else delete globalThis.caches;
+  }
+});

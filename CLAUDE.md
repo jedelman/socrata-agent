@@ -79,14 +79,17 @@ generic mode.
   that decision made the request public, and they were among the last five
   public notes (what the old list showed). Steward state lives in keys raises
   never write, laid over the record on every read: `request-decision:<hash>`
-  (status, decided, was_public, steward_note, fulfilled_by) and
+  (status, decided, was_public, steward_note, fulfilled_by, and with
+  endorsements the count frozen at decision, endorsements_at_decision) and
   `request-deleted:<hash>` (deleted note ids), so a stale raise can't undo a
   decision or bring a deleted note back. Stored and public dates are days,
   never finer. `POST /api/requests` returns a count only for a request that
   is already public. `GET /api/requests` says nothing about requests or
-  notes awaiting review, not even how many, never writes to KV (Free plan:
-  1,000 writes a day, shared with every question), and is cached per
-  location for five minutes.
+  notes awaiting review, not even how many, never writes to KV (designed under
+  Workers Free's 1,000 writes a day; the account is on Paid since 2026-11-09), and is cached per
+  location for five minutes (with `BLUESKY_LOGIN` on, it goes through
+  `public-list.js` instead: 60 seconds, with endorsement counts on listed
+  requests only; with the flag off its body is exactly the requests-only list).
   A request accepted once carries `was_public`; if it leaves the list,
   `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
@@ -98,9 +101,43 @@ generic mode.
   issue in neither list (only if the feed carries `withdrawn`; closing all of
   them, or more than three, needs `--close-unlisted`). GitHub keeps old titles
   and bodies; only deleting an issue by hand removes them.
-  The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret). `docs/fulfilling-requests.md` is the contributor
-  guide. `plugins/case-file.js` serves a case file for questions with no
-  address. No payments: bounties are tabled until after beta (Jason).
+  The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
+  `docs/fulfilling-requests.md` is the contributor guide.
+  Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
+  `BLUESKY_LOGIN`): `bluesky.js` (routes, sealed cookies), `atproto-identity.js`
+  (resolution and the hardened fetch), `atproto-oauth.js` (the client),
+  `endorsements.js` and `public-list.js` (counts through the Cache API),
+  `admin.js` (the steward API and the cron's purge, testable in Node).
+  Endorsements, their rate counters and the sign-in markers live in D1
+  (`SIREN_DB`, schema in `migrations/`, applied with `wrangler d1 migrations
+  apply`), not KV: designed when Jason's account was on Workers Free (KV's 1,000
+  writes and lists a day shared with every question; Cloudflare docs, checked
+  2026-11-06). The account moved to Workers Paid on 2026-11-09, so D1 is
+  billed monthly rather than capped daily; the per-day budget pots stay as
+  abuse and cost guards ( the D1 limits and their sources are in
+  `docs/bluesky-endorsements.md`, "Why D1 and not KV"; keep platform numbers
+  there, dated, not in `wrangler.toml`). Every D1 call in the Worker goes
+  through `endorseDb(env)`, so with `BLUESKY_LOGIN` unset none happens, and
+  with it on and no binding the routes fail closed (503, reason logged). The
+  steward CLI follows the same rule from the env's wrangler config. Prepared
+  statements only; several writes in one `batch`. Retention rests on the
+  daily cron, turned on with the flag; with the flag off, on the steward's
+  `node scripts/invites.js endorsements-purge`. D1's Free daily rows are the
+  whole account's (scout-harness's kill switch and journal included), so no
+  path before a finished sign-in may touch D1.
+  Invariants: identity only, scope `atproto`, a public client on WebCrypto
+  and fetch with no npm dependency; tokens revoked and discarded at the
+  callback, never stored or logged; the flow sealed in a cookie scoped to
+  `/oauth/`, the session in a browser-session cookie scoped to `/api/bsky/`;
+  only accepted requests can be endorsed, and `unendorse` never looks a
+  request up; D1 keeps only per-request keyed hashes (no reusable per-person
+  id, no DID, handle, issuer or token) and counters in their own HMAC domains
+  with bucketed expiries, never a request id or endorsement id in a counter,
+  every table WITHOUT ROWID; nothing Bluesky goes in KV; Siren only POSTs to an AS's own origin; never
+  record an invite, email account or uid together with an eid; no
+  per-account steward tools without a separate conversation with Jason;
+  never key anything new under `request:`. `plugins/case-file.js` serves a
+  case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each

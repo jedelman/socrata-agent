@@ -17,7 +17,7 @@ function fakeKV() {
       return type === 'json' ? JSON.parse(v) : v;
     },
     async put(key, value, opts = {}) {
-      store.set(key, { value: String(value), ttl: opts.expirationTtl });
+      store.set(key, { value: String(value), ttl: opts.expirationTtl, expiration: opts.expiration });
     },
     async delete(key) {
       store.delete(key);
@@ -231,4 +231,19 @@ test('suggest_data_source is offered everywhere and returned with the answer', a
   assert.equal(ctx.suggestions[0].url, undefined, 'only https links are kept');
   await runTool(ctx, 'suggest_data_source', { need: 'n', source: 's2', why: 'w' });
   assert.equal((await runTool(ctx, 'suggest_data_source', { need: 'n', source: 's3', why: 'w' })).noted, false, 'at most two per question');
+});
+
+test('login-rate keys expire on an hour boundary two hours out, keyed by the visitor the caller passed', async () => {
+  const kv = fakeKV();
+  const now = Date.parse('2026-11-04T12:34:56Z');
+  await startLogin({ body: { email: 'n@example.org' }, env, kv, visitor: 'login-visitor-hash', link: LINK, send: mailbox().send, now });
+  const rate = [...kv.store.entries()].filter(([k]) => k.startsWith('login-rate:'));
+  assert.equal(rate.length, 2);
+  for (const [, e] of rate) {
+    assert.equal(e.ttl, undefined);
+    assert.equal(e.expiration, Date.parse('2026-11-04T14:00:00Z') / 1000);
+  }
+  assert.ok(rate.some(([k]) => k === 'login-rate:2026-11-04T12:v:login-visitor-hash'));
+  const uid = await userId(SECRET, 'n@example.org');
+  assert.ok(rate.every(([k]) => !k.includes(uid.slice(0, 16))), 'the address part is not a slice of the uid');
 });
