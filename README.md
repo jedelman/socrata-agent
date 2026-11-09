@@ -46,7 +46,8 @@ npx -y github:jedelman/socrata-agent ask "How many pothole complaints did Chicag
 
 Or clone it and run `node bin/socrata-agent.js ask "..."`. Add `--json` for
 machine-readable output, or `--model anthropic/claude-sonnet-5.5` for a stronger
-model.
+model. With a `claude-*` model, `--thinking` prints the model's summarized
+thinking to stderr as it comes.
 
 `tool` runs a single tool with no model and no key, and prints the result, the
 trace and the resources as JSON:
@@ -210,11 +211,30 @@ Limits, set in `wrangler.toml`:
 | `MAX_TOKENS_CLAUDE` | 8000 | Output allowance per call for Claude models (1000–16000). Thinking counts toward it; a call cut off at the limit is retried once at 16000 and its tool calls are never run |
 | `SUBREQUEST_BUDGET` | 120 | Outbound requests per answer (10–10000), counting every Socrata, meeting-portal and plugin request and every model call and retry. The answer stays within it: tool requests stop while enough is left for the final answer; the answer then says it stopped at the limit, and the trace marks the requests not sent as refused |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
+| `WORKING_NOTES` | on | The live working notes on the chat page (see below). `"off"` sends the plain answer only |
 
 Claude spend is priced from each response's token usage. The SDK retries a
-failed call once (on rate limits, server errors and timeouts); an attempt the
-API billed but never answered isn't in that usage, so keep the workspace spend
-limit as the backstop.
+failed call once (on rate limits, server errors and timeouts), only before a
+response arrives; an attempt the API billed but never answered isn't in that
+usage, so keep the workspace spend limit as the backstop. Calls are streamed,
+and a stream that fails partway is not retried: the input the API said it read
+is priced and the question gets an error.
+
+While an answer is worked out, the chat page shows **working notes** under
+the question: for Claude models, the model's own summary of its thinking as
+it streams (thinking display "summarized"), and a code-written line for each
+tool as it runs (a fixed label, never the model's arguments). The page labels
+them as the model's summarized notes, not the answer and not checked like
+answers, and folds them away when the answer arrives. The page asks for them
+with `Accept: application/x-ndjson`; `POST /api/ask` then sends one JSON
+object per line and ends with a `final` line carrying exactly the body it
+returns without streaming (`worker/ask-stream.js` lists the line types).
+Limits, spend and the conversation save are the same either way; the save
+happens before the final line, and the whole answer runs under `waitUntil`, so
+a reader who leaves doesn't lose the turn. The notes are live only: at most
+20,000 characters of thinking per answer are sent, and none of it is saved,
+traced, voice-checked or sent back to the model as text. Clients that don't
+ask for the stream (the CLI, scripts) get the JSON answer as before.
 
 An answer runs its whole tool loop in one Worker invocation, and Cloudflare
 caps the external subrequests one invocation may make: 50 on Workers Free,

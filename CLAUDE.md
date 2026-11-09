@@ -65,6 +65,7 @@ generic mode.
   steps, cost, suggestions; bounded by `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are
   private to their account and never feed the case files.
+  `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
   can request it (no asker identity kept; export with
