@@ -26,12 +26,9 @@ import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from 
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, raiseResponse, publicRequests } from './requests.js';
 import { hmacHex } from './crypto.js';
-import { handleAdmin, scheduledPurge } from './admin.js';
+import { handleAdmin } from './admin.js';
 import { cachedPublicList } from './public-list.js';
-import {
-  blueskyReady, handleMetadata, handleLogin as handleBskyLogin, handleCallback, handleMe, handleLogout as handleBskyLogout,
-  handleEndorse, handleUnendorse, handleForget,
-} from './bluesky.js';
+import { blueskyReady } from './bluesky.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
@@ -430,11 +427,6 @@ function page(env) {
 }
 
 export default {
-  // The daily cron: deletes endorsement rows past their expiry (admin.js
-  // scheduledPurge). Without BLUESKY_LOGIN and SIREN_DB it does nothing.
-  async scheduled(controller, env, ctx) {
-    scheduledPurge(env, ctx);
-  },
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     // Served under a path on someone else's site (jason-edelman.org/ask-siren):
@@ -462,9 +454,9 @@ export default {
       // No `withdrawn` here: the mirror closes unlisted issues only when the
       // feed carries that list, so an unconfigured site closes nothing.
       if (!env.LIMITS) return json({ requests: [] });
-      // KV failing (or past the Free plan's daily list operations) is a JSON
-      // 503, never a thrown error, and never cached; with endorsements on,
-      // D1 isn't asked then. No `withdrawn` in it either.
+      // KV failing is a JSON 503, never a thrown error, and never cached;
+      // with endorsements on, nothing else is asked then. No `withdrawn` in
+      // it either.
       const unavailable = () => json({ error: "The request list can't be read just now. Try again in a minute.", code: 'unavailable', requests: [] }, 503, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
       if (!blueskyReady(env)) {
         // Flag off: the requests-only list, cached per location for 5 minutes.
@@ -483,14 +475,6 @@ export default {
       if (list.unavailable) return unavailable();
       return json(list, 200, { 'Cache-Control': 'public, max-age=60', 'Access-Control-Allow-Origin': '*' });
     }
-    // Bluesky sign-in (bluesky.js). The client metadata is the OAuth client_id
-    // URL, served whenever PUBLIC_ORIGIN is set; the rest need BLUESKY_LOGIN.
-    if ((req.method === 'GET' || req.method === 'HEAD') && path === '/oauth-client-metadata.json') {
-      const { config } = getDeployment(env);
-      return handleMetadata(req, env, base, APP_NAME_OF(env, config));
-    }
-    if (req.method === 'GET' && path === '/oauth/callback') return handleCallback(req, env, ctx, base);
-    if (req.method === 'GET' && path === '/api/bsky/me') return handleMe(req, env, ctx, base);
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
       const casesBase = `${url.origin}${base}`;
@@ -526,12 +510,7 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note' || path === '/api/admin/requests/endorsements/clear')) return handleAdmin(req, env, path, ctx);
-    if (req.method === 'POST' && path === '/api/bsky/login') return handleBskyLogin(req, env, ctx, base);
-    if (req.method === 'POST' && path === '/api/bsky/logout') return handleBskyLogout(req, env, base);
-    if (req.method === 'POST' && path === '/api/bsky/forget') return handleForget(req, env, ctx, base);
-    if (req.method === 'POST' && path === '/api/bsky/endorse') return handleEndorse(req, env, ctx, base);
-    if (req.method === 'POST' && path === '/api/bsky/unendorse') return handleUnendorse(req, env, ctx, base);
+    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path, ctx);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);

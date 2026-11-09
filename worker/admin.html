@@ -40,7 +40,7 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
 .actions button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .actions button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .msg { font-size: .9rem; color: var(--muted); }
-.actions button.clear, button.clear { font: inherit; font-size: .85rem; border-radius: 8px; padding: 3px 10px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--warn); margin-left: 6px; }
+button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; font: inherit; font-size: .85rem; }
 .gate { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
 </style>
 </head>
@@ -59,8 +59,7 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
       <button type="button" data-s="all" aria-pressed="false">All</button>
     </div>
     <p class="meta" id="meta"></p>
-    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are counted per account, not per person. Young accounts (under <span id="young-days">30</span> days) and accounts of unknown age (did:web) are left out of the public number by default, and shown here split out. This page can't show which accounts endorsed; whoever holds INVITE_SECRET could compute it. A decision freezes the count into the request and deletes the per-account rows.</p>
-    <p class="meta" id="bsky-error" role="status" hidden></p>
+    <p class="meta" id="bsky-note" hidden>Bluesky endorsements are records in each endorser's own account, counted per account through Constellation. The list of who endorsed is public on each request's page, with flags (bot label, Bluesky moderation labels, accounts under 30 days); flagged accounts still count. Endorsements are theirs: nobody here can remove one. A decision freezes the live count into the request; if the count can't be read then, the decision goes through without one.</p>
     <ol id="list"></ol>
   </div>
 </div>
@@ -75,13 +74,16 @@ let filter = 'new';
 const deletedHere = {};
 
 function endorsementLine(r) {
-  const e = r.endorsements || { n: 0, young: 0, unknown: 0 };
+  const parts = [];
+  if (r.endorsements === null) parts.push('endorsement count unavailable right now');
+  else if (Number.isFinite(r.endorsements)) parts.push(`${r.endorsements} endorsement${r.endorsements === 1 ? '' : 's'} now${r.endorsements_as_of ? ` (as of ${r.endorsements_as_of.slice(11, 16)} UTC)` : ''}`);
   const f = r.endorsements_at_decision;
-  if (!e.n && !f) return '';
-  const live = e.n ? `${e.n} endorsement${e.n === 1 ? '' : 's'} (${e.young} young, ${e.unknown} unknown age)` : '';
-  const frozen = f ? `${f.n} at decision` : '';
-  const clear = e.n ? ` <button type="button" class="clear" data-clear="${esc(r.id)}">Clear endorsements</button>` : '';
-  return `<p class="small endorse-line">${[live, frozen].filter(Boolean).map(esc).join(' · ')}${clear}<span class="msg clear-msg" role="status"></span></p>`;
+  const frozen = typeof f === 'number' ? f : f && typeof f.n === 'number' ? f.n : null;
+  if (frozen !== null) parts.push(`${frozen} at decision`);
+  if (!parts.length) return '';
+  const listed = r.status === 'accepted' || r.status === 'fulfilled';
+  const who = listed && r.endorsements ? ` · <a href="requests/${esc(r.id)}">who endorsed</a> · <button type="button" class="link" data-flags="${esc(r.id)}">flag breakdown</button>` : '';
+  return `<p class="small endorse-line">${parts.map(esc).join(' · ')}${who}<span class="msg flags-msg" role="status"></span></p>`;
 }
 
 // Only public notes need a decision: a private note is never shown, approved or not.
@@ -131,10 +133,7 @@ async function load() {
     return;
   }
   all = data.requests || [];
-  if (Number.isFinite(data.young_days)) $('#young-days').textContent = String(data.young_days);
-  $('#bsky-error').textContent = data.bluesky_error || '';
-  $('#bsky-error').hidden = !data.bluesky_error;
-  $('#bsky-note').hidden = !(data.bluesky || all.some((r) => (r.endorsements && r.endorsements.n) || r.endorsements_at_decision));
+  $('#bsky-note').hidden = !(data.bluesky || all.some((r) => r.endorsements !== undefined || r.endorsements_at_decision !== undefined));
   $('#app').hidden = false;
   render();
 }
@@ -179,23 +178,28 @@ $('#list').addEventListener('submit', async (e) => {
     if (!res.ok) { msg.textContent = data.error || 'That did not save.'; return; }
     const r = all.find((x) => x.id === li.dataset.id);
     Object.assign(r, { status: data.request.status, steward_note: data.request.steward_note, fulfilled_by: data.request.fulfilled_by });
-    // A decision freezes the count and clears the rows; reload for the new numbers.
+    // A decision freezes the count; reload for the new numbers.
     if (status === 'declined' || status === 'fulfilled') { await load(); return; }
     render();
   } catch { msg.textContent = "Couldn't reach the server."; }
 });
 
+// The flag breakdown of the first page of endorsers, from the public list
+// (the same one anyone sees). A flag is shown, never used to exclude.
 $('#list').addEventListener('click', async (e) => {
-  const b = e.target.closest('button[data-clear]');
+  const b = e.target.closest('button[data-flags]');
   if (!b) return;
-  if (!confirm('Delete every endorsement on this request? This is for brigading; it cannot be undone.')) return;
-  const msg = b.parentElement.querySelector('.clear-msg');
-  msg.textContent = ' Clearing…';
+  const msg = b.parentElement.querySelector('.flags-msg');
+  msg.textContent = ' Loading…';
   try {
-    const res = await fetch('api/admin/requests/endorsements/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.dataset.clear }) });
+    const res = await fetch(`api/requests/${encodeURIComponent(b.dataset.flags)}/endorsers`, { cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { msg.textContent = ` ${data.error || 'That did not work.'}`; return; }
-    await load();
+    const kinds = {};
+    for (const en of data.endorsers || []) for (const f of en.flags || []) kinds[f.kind] = (kinds[f.kind] || 0) + 1;
+    const shown = (data.endorsers || []).length;
+    const parts = Object.entries(kinds).map(([k, n]) => `${n} ${k}`);
+    msg.textContent = ` First ${shown} of ${data.total}: ${parts.length ? parts.join(', ') : 'none flagged'}${data.dropped ? `; ${data.dropped} not found on their own server (index out of date)` : ''}.`;
   } catch { msg.textContent = " Couldn't reach the server."; }
 });
 

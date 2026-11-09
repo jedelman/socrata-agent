@@ -120,14 +120,15 @@ test('other keys never collide with request: keys (Bluesky data lives in D1, not
   assert.ok((await decide(kv, { id: r.id, status: 'accepted' })).ok);
 });
 
-test('freezeAtDecision: live on the way into a decision, the earlier value otherwise', () => {
-  const live = { n: 5, young: 1, unknown: 2 };
-  assert.deepEqual(freezeAtDecision({ status: 'accepted' }, 'fulfilled', live), live);
-  assert.deepEqual(freezeAtDecision({ status: 'new' }, 'declined', live), live);
-  assert.deepEqual(freezeAtDecision({ status: 'declined', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'fulfilled', live), { n: 1, young: 0, unknown: 0 });
-  assert.deepEqual(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'accepted', live), { n: 1, young: 0, unknown: 0 });
-  assert.equal(freezeAtDecision({ status: 'accepted' }, 'accepted', live), undefined);
-  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), undefined, 'nothing to freeze without a count');
+test('freezeAtDecision: the live count on the way into a decision, the earlier value otherwise', () => {
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', 5), 5);
+  assert.equal(freezeAtDecision({ status: 'new' }, 'declined', 0), 0, 'zero is a count');
+  assert.equal(freezeAtDecision({ status: 'declined', endorsements_at_decision: 1 }, 'fulfilled', 5), 1);
+  assert.equal(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: 1 }, 'accepted', 5), 1);
+  assert.deepEqual(freezeAtDecision({ status: 'fulfilled', endorsements_at_decision: { n: 1, young: 0, unknown: 0 } }, 'accepted', 5), { n: 1, young: 0, unknown: 0 }, 'a legacy frozen value is kept as stored');
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'accepted', 5), undefined);
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', undefined), undefined, 'nothing to freeze without a count (Constellation down)');
+  assert.equal(freezeAtDecision({ status: 'accepted' }, 'fulfilled', -1), undefined);
 });
 
 // --- Inc 1: notes reviewed whatever the status, days not times, the count

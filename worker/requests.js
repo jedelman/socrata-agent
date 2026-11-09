@@ -296,26 +296,28 @@ export const raiseResponse = (out) => (out.public ? { ok: true, count: out.count
  */
 export const publicId = (key) => key.replace(/^request:/, '').slice(0, 12);
 
-const ZERO = Object.freeze({ n: 0, young: 0, unknown: 0 });
 const DECIDED = new Set(['declined', 'fulfilled']);
 
 /**
- * The public number for a count { n, young, unknown }: every endorsement
- * under policy 'all', established accounts only under 'established'.
+ * The count frozen at a decision, as a number, or null. Frozen counts were
+ * {n, young, unknown} before endorsements moved to people's own repos; every
+ * account counts now (D6), so n.
  */
-export function publicNumber(c, policy = 'established') {
-  if (!c) return 0;
-  const n = Number(c.n) || 0;
-  return policy === 'all' ? n : Math.max(0, n - (Number(c.young) || 0) - (Number(c.unknown) || 0));
+export function frozenCount(v) {
+  if (Number.isSafeInteger(v) && v >= 0) return v;
+  if (v && typeof v === 'object' && Number.isSafeInteger(v.n) && v.n >= 0) return v.n;
+  return null;
 }
 
 /**
  * What the public list shows of one request. Dates are days; notes only if
- * public and approved. With `live` counts (the Bluesky feature is on), it
- * adds `endorsements`: the live public number for an accepted request, the
- * number frozen at decision for a fulfilled one.
+ * public and approved. `live`, when given (the Bluesky feature is on and the
+ * request has a random id), is its live count from public-list.js:
+ * { endorsements: n, as_of? } or { endorsements: null, unavailable: true };
+ * never a 0 standing in for a count that couldn't be read. A fulfilled
+ * request also shows the count frozen at its decision.
  */
-export function publicView(key, r, live, policy = 'established', ids = idsOf(key, null)) {
+export function publicView(key, r, live, ids = idsOf(key, null)) {
   const n = normalizeRecord(r);
   const out = {
     id: ids.id,
@@ -332,9 +334,12 @@ export function publicView(key, r, live, policy = 'established', ids = idsOf(key
     ...(n.steward_note ? { steward_note: n.steward_note } : {}),
     notes: n.needs.filter((x) => x.public && x.review === 'ok').slice(-5).map((x) => x.text),
   };
-  if (live !== undefined) {
-    out.endorsements = n.status === 'accepted' ? publicNumber(live || ZERO, policy)
-      : n.status === 'fulfilled' ? publicNumber(n.endorsements_at_decision, policy) : 0;
+  if (live && PUBLIC.has(n.status)) {
+    out.endorsements = Number.isSafeInteger(live.endorsements) ? live.endorsements : null;
+    if (out.endorsements === null) out.endorsements_unavailable = true;
+    else if (typeof live.as_of === 'string') out.endorsements_as_of = live.as_of;
+    const frozen = n.status === 'fulfilled' ? frozenCount(n.endorsements_at_decision) : null;
+    if (frozen !== null) out.endorsements_at_decision = frozen;
   }
   return out;
 }
@@ -369,20 +374,20 @@ export async function requestRows(kv) {
  * someone else asked for a source, by raising it and watching the number.
  * Reads only, so the public read can't fail on KV's write limits.
  *
- * Without `counts` (the Bluesky feature off), items carry no `endorsements`
- * field and the list is exactly the requests-only list. `statuses`, when
- * given, is a Map filled with every request's status by public id (the
- * orphan sweep needs them, and they're read here anyway). `rows`, when given,
- * are requestRows(kv) already read (the counted list reads KV before D1).
+ * Without `counts` (the Bluesky feature off), items carry no endorsement
+ * fields and the list is exactly the requests-only list. `counts` is a Map
+ * from public id to a live count (publicView). `rows`, when given, are
+ * requestRows(kv) already read.
  */
-export async function publicRequests(kv, now = Date.now(), { counts, policy = 'established', statuses, rows: given } = {}) {
+export async function publicRequests(kv, now = Date.now(), { counts, rows: given } = {}) {
   const rows = given || await requestRows(kv);
-  if (statuses) for (const [k, r, ids] of rows) statuses.set((ids || idsOf(k, null)).id, r.status || 'new');
   const since = dayOf(now - WITHDRAWN_DAYS * 86400000);
   const shown = rows
     .filter(([, r]) => PUBLIC.has(r.status || 'new'))
-    .map(([k, r, ids = idsOf(k, null)]) => publicView(k, r, counts ? counts.get(ids.id) || ZERO : undefined, policy, ids));
-  shown.sort((a, b) => (a.status !== b.status ? (a.status === 'accepted' ? -1 : 1) : b.count - a.count || (b.endorsements || 0) - (a.endorsements || 0)));
+    .map(([k, r, ids = idsOf(k, null)]) => publicView(k, r, counts ? counts.get(ids.id) : undefined, ids));
+  // Endorsements only break ties, and a count that couldn't be read ties.
+  const ends = (a, b) => (Number.isSafeInteger(a.endorsements) && Number.isSafeInteger(b.endorsements) ? b.endorsements - a.endorsements : 0);
+  shown.sort((a, b) => (a.status !== b.status ? (a.status === 'accepted' ? -1 : 1) : b.count - a.count || ends(a, b)));
   const withdrawn = rows
     .filter(([, r]) => r.was_public === true && !PUBLIC.has(r.status || 'new'))
     .map(([k, r, ids = idsOf(k, null)]) => ({ id: ids.id, day: asDay(r.decided) || null, ...(ids.formerly ? { formerly: ids.formerly } : {}) }))
@@ -438,16 +443,21 @@ export function adminView(key, r, ids = idsOf(key, null)) {
 export function freezeAtDecision(cur, status, live) {
   const prev = cur?.endorsements_at_decision;
   const from = cur?.status || 'new';
-  if (DECIDED.has(status) && !DECIDED.has(from) && live) {
-    return { n: Number(live.n) || 0, young: Number(live.young) || 0, unknown: Number(live.unknown) || 0 };
-  }
-  return prev || undefined;
+  if (DECIDED.has(status) && !DECIDED.has(from) && Number.isSafeInteger(live) && live >= 0) return live;
+  return prev ?? undefined;
 }
 
-/** Every request, for the steward: all statuses, private and pending notes marked, live endorsement counts. */
-export async function allRequests(kv, counts = new Map()) {
+/**
+ * Every request, for the steward: all statuses, private and pending notes
+ * marked; with `counts` (a Map like publicRequests takes), each listed
+ * request's live count too.
+ */
+export async function allRequests(kv, counts) {
   return (await requestRows(kv))
-    .map(([k, r, ids]) => ({ ...adminView(k, r, ids), endorsements: { ...(counts.get(ids.id) || ZERO) } }))
+    .map(([k, r, ids]) => {
+      const c = counts?.get(ids.id);
+      return { ...adminView(k, r, ids), ...(c ? { endorsements: c.endorsements ?? null, ...(c.as_of ? { endorsements_as_of: c.as_of } : {}) } : {}) };
+    })
     .sort((a, b) => b.count - a.count);
 }
 
@@ -505,7 +515,7 @@ export async function decide(kv, { id, status, note, fulfilled_by }, now = Date.
   // still see this decision.
   await kv.put(decisionKey(key), JSON.stringify(decisionOf(next)));
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, live, undefined, ids) };
+  return { ok: true, previous: cur.status || 'new', request: publicView(key, next, undefined, ids), ...(frozen !== undefined ? { endorsements_at_decision: frozenCount(frozen) } : {}) };
 }
 
 const NOTE_ID = /^[0-9a-z-]{1,24}$/;
@@ -534,5 +544,5 @@ export async function reviewNote(kv, { id, note, action, deleted: sent }) {
     await kv.put(deletedKey(key), JSON.stringify(withDeleted([...new Set([...deleted, ...known])], note)));
   }
   await kv.put(key, JSON.stringify(next));
-  return { ok: true, request: publicView(key, next, undefined, undefined, ids), needs: adminView(key, next, ids).needs };
+  return { ok: true, request: publicView(key, next, undefined, ids), needs: adminView(key, next, ids).needs };
 }
