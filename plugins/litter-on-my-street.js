@@ -172,7 +172,7 @@ export default definePlugin({
       about_the_data: [
         "The litter items come from one survey: Keep Norfolk Beautiful's 2022 Litterati City Fingerprint Project, which walked 244 chosen locations from April to September 2022. It is a baseline, not a census: places it didn't walk have no data.",
         'Brands were almost never recorded, so brand counts are not meaningful.',
-        'Cleanup work orders are what city crews logged; cleanups by volunteers or contractors may not appear.',
+        'Cleanup work orders are what City crews logged.',
       ],
     };
   },

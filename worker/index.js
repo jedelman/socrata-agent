@@ -4,7 +4,8 @@
 //   - or, behind Cloudflare Access, per person (verified email) per day
 //                                          PER_USER_DAILY     default 40
 //   - for everyone per day, in dollars     DAILY_BUDGET_USD   default 2
-//   - per question: length, history, tool steps, output tokens
+//   - per question: length, history, tool steps, output tokens, and
+//     outbound requests (SUBREQUEST_BUDGET, default 45)
 // Limits are counted in KV (binding LIMITS). KV is eventually consistent, so a
 // burst can overshoot by a few requests; set an OpenRouter key limit as the
 // hard ceiling.
@@ -17,15 +18,15 @@ import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
-import { setting, visitorId, spentToday, recordSpend } from './limits.js';
+import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest, publicRequests, allRequests, decide } from './requests.js';
+import { addRequest, raiseResponse, publicRequests, allRequests, decide, reviewNote } from './requests.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
-import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
+import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -183,12 +184,8 @@ async function handleAsk(req, env, ctx) {
       appToken: env.SOCRATA_APP_TOKEN,
       model,
       effort: env.EFFORT || undefined,
-      maxSteps: setting(env.MAX_STEPS, 6, { min: 1, max: 12 }),
-      // Claude models think before answering, and thinking counts toward the
-      // allowance, so they get their own: MAX_TOKENS_CLAUDE.
-      maxTokens: providerOf(model) === 'anthropic'
-        ? setting(env.MAX_TOKENS_CLAUDE, 8000, { min: 1000, max: 16000 })
-        : setting(env.MAX_TOKENS, 1200, { min: 100, max: 4000 }),
+      // Steps, outbound requests and tokens per answer (worker/limits.js).
+      ...askLimits(env, providerOf(model)),
       referer: new URL(req.url).origin,
       onCost: (usd) => {
         cost += usd;
@@ -196,7 +193,7 @@ async function handleAsk(req, env, ctx) {
     });
     const { toolResults, ...answer } = out;
     if (conversationId) {
-      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults }, { days: env.CONVERSATION_DAYS })
+      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
         .catch((err) => console.error('saving the conversation failed', err));
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
@@ -274,6 +271,24 @@ async function handleRedeem(req, env) {
   return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
 }
 
+// The public request feed costs a KV list and three reads per request, from
+// the account's daily quota that every question also draws on. So it is kept
+// in this location's cache for its max-age (five minutes), keyed without the
+// query string so a cache-busting query can't spend the quota. Where the
+// Cache API is missing (Node tests, workers.dev), it is built every time.
+async function cachedFeed(url, ctx, build) {
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const key = new Request(`${url.origin}${url.pathname}`);
+  const hit = cache ? await cache.match(key).catch(() => null) : null;
+  if (hit) return hit;
+  const res = await build();
+  if (cache && res.ok) {
+    const put = cache.put(key, res.clone()).catch(() => {});
+    if (ctx?.waitUntil) ctx.waitUntil(put);
+  }
+  return res;
+}
+
 async function readJson(req) {
   try {
     return await req.json();
@@ -322,7 +337,7 @@ async function handleRequest(req, env) {
   }
   const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env) });
   if (!out.ok) return json({ error: out.error }, out.status);
-  return json({ ok: true, count: out.count }, 200, { 'Cache-Control': 'no-store' });
+  return json(raiseResponse(out), 200, { 'Cache-Control': 'no-store' });
 }
 
 // The steward's review page and its API. Every call checks that the signed-in
@@ -338,6 +353,10 @@ async function handleAdmin(req, env, path) {
     const out = await decide(env.LIMITS, (await readJson(req)) || {});
     return out.ok ? json(out, 200, headers) : json({ error: out.error }, out.status, headers);
   }
+  if (req.method === 'POST' && path === '/api/admin/requests/note') {
+    const out = await reviewNote(env.LIMITS, (await readJson(req)) || {});
+    return out.ok ? json(out, 200, headers) : json({ error: out.error }, out.status, headers);
+  }
   return json({ error: 'Not found' }, 404, headers);
 }
 
@@ -350,7 +369,7 @@ async function handleConversations(req, env, path) {
   if (req.method === 'GET' && path === '/api/conversation') {
     const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
     if (!conv) return json({ error: 'That conversation is gone (they expire) or was never yours.' }, 404, headers);
-    return json({ city: conv.city, turns: conv.turns.map((t) => ({ question: t.question, answer: t.answer, at: t.at })) }, 200, headers);
+    return json({ city: conv.city, turns: conv.turns.map(turnView) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/conversations/delete') {
     const body = await readJson(req);
@@ -428,8 +447,10 @@ export default {
     if (req.method === 'GET' && path === '/api/session') return handleSession(req, env);
     // The public source-request list: open to everyone, invited or not.
     if (req.method === 'GET' && path === '/api/requests') {
-      if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
-      return json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+      // No `withdrawn` here: the mirror closes unlisted issues only when the
+      // feed carries that list, so an unconfigured site closes nothing.
+      if (!env.LIMITS) return json({ requests: [] });
+      return cachedFeed(url, ctx, async () => json(await publicRequests(env.LIMITS), 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' }));
     }
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
@@ -462,7 +483,7 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    if (req.method === 'POST' && path === '/api/admin/requests/decide') return handleAdmin(req, env, path);
+    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
