@@ -12,7 +12,11 @@ export const ENDORSE_NSID = 'org.jason-edelman.siren.endorsement';
 
 /** The one repo permission Siren asks for: create and delete these records, nothing else. */
 export const ENDORSE_SCOPE = `repo:${ENDORSE_NSID}?action=create&action=delete`;
-/** The OAuth scope requested and declared in the client metadata. Never transition:generic without Jason. */
+/**
+ * The OAuth scope requested and declared in the client metadata. No
+ * transition:generic fallback for servers that won't grant the repo scope
+ * (D3, default, pending Jason): they get a clear message instead.
+ */
 export const OAUTH_SCOPE = `atproto ${ENDORSE_SCOPE}`;
 /** Constellation's source for these links: the collection and the JSON path of the subject URL. */
 export const ENDORSE_SOURCE = `${ENDORSE_NSID}:subject.uri`;
@@ -23,8 +27,8 @@ export const ENDORSE_ID_RE = /^[a-z2-7]{16}$/;
 /** Bluesky's moderation labeler (app.bsky.labeler.getServices, checked 2026-11-09). */
 export const BLUESKY_MODERATION_DID = 'did:plc:ar7c4by46qjdydhdevvrndac';
 /**
- * The moderation label values that flag an endorser. Default, pending Jason
- * (D13): spam, inauthentic, engagement-farming, impersonation, scam.
+ * The moderation label values that flag an endorser (D13, default, pending
+ * Jason): spam, inauthentic, engagement-farming, impersonation, scam.
  */
 export const MODERATION_FLAGS = Object.freeze(['spam', 'inauthentic', 'engagement-farming', 'impersonation', 'scam']);
 

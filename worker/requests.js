@@ -301,7 +301,7 @@ const DECIDED = new Set(['declined', 'fulfilled']);
 /**
  * The count frozen at a decision, as a number, or null. Frozen counts were
  * {n, young, unknown} before endorsements moved to people's own repos; every
- * account counts now (D6), so n.
+ * account counts now (D6, default, pending Jason), so n.
  */
 export function frozenCount(v) {
   if (Number.isSafeInteger(v) && v >= 0) return v;
@@ -315,7 +315,8 @@ export function frozenCount(v) {
  * request has a random id), is its live count from public-list.js:
  * { endorsements: n, as_of? } or { endorsements: null, unavailable: true };
  * never a 0 standing in for a count that couldn't be read. A fulfilled
- * request also shows the count frozen at its decision.
+ * request also shows the count frozen at its decision, next to the live one
+ * (D7, default, pending Jason).
  */
 export function publicView(key, r, live, ids = idsOf(key, null)) {
   const n = normalizeRecord(r);

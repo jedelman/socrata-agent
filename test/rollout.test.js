@@ -1,0 +1,53 @@
+// The rollout's preconditions, checked against the files the rollout uses:
+// the flag ships off, the retired bindings and cron are gone, migration 0003
+// drops every table the old design made, and the doc's checklist names the
+// commands that exist.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+
+test('wrangler.toml: the flag off, three limiters, no cron, SIREN_DB still bound (D9)', () => {
+  const toml = read('wrangler.toml');
+  assert.ok(!/^\s*BLUESKY_LOGIN\s*=/m.test(toml), 'the flag flips in its own PR, after the live probe');
+  for (const gone of ['BSKY_ACCOUNT_RL', 'BSKY_D1_RL', 'crons', '[env.siren.triggers]']) assert.ok(!toml.includes(gone), gone);
+  for (const kept of ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_SITE_RL']) assert.match(toml, new RegExp(`name = "${kept}"`));
+  assert.match(toml, /binding = "SIREN_DB"/);
+  assert.match(read('worker/index.js'), /export default \{\n  async fetch/, 'no scheduled handler');
+});
+
+test('migration 0003 drops every table and trigger 0001 and 0002 made', () => {
+  const dir = new URL('../migrations/', import.meta.url);
+  const files = readdirSync(dir).sort();
+  assert.deepEqual(files, ['0001_bluesky_endorsements.sql', '0002_d1_budget.sql', '0003_endorsements_move_to_repos.sql']);
+  const made = files.slice(0, 2).map((f) => read(`migrations/${f}`)).join('\n');
+  const drops = read('migrations/0003_endorsements_move_to_repos.sql');
+  for (const [, kind, name] of made.matchAll(/CREATE (TABLE|TRIGGER) (\w+)/g)) {
+    const dropped = new RegExp(`DROP ${kind} IF EXISTS ${name};`).test(drops) || new RegExp(`DROP ${kind} IF EXISTS ${name};`).test(made);
+    assert.ok(dropped, `${kind} ${name}`);
+  }
+});
+
+test('the doc\'s rollout names commands that exist, in order', () => {
+  const doc = read('docs/bluesky-endorsements.md');
+  const rollout = doc.slice(doc.indexOf('## Rollout'), doc.indexOf('## Local development'));
+  const steps = ['request-ids --apply', 'bsky-probe.js', '_lexicon', 'live probe', '0003', 'BLUESKY_LOGIN = "true"'].map((s) => rollout.indexOf(s));
+  assert.ok(steps.every((i) => i >= 0), JSON.stringify(steps));
+  assert.match(read('scripts/invites.js'), /cmd === 'request-ids'/);
+  assert.match(read('scripts/invites.js'), /cmd === 'endorsements'/);
+  const probe = spawnSync(process.execPath, ['--check', fileURLToPath(new URL('../scripts/bsky-probe.js', import.meta.url))], { encoding: 'utf8' });
+  assert.equal(probe.status, 0, probe.stderr);
+  assert.match(read('scripts/bsky-probe.js'), /legacy ids/);
+  assert.match(doc, /did=did:plc:zz4wcje4a2nbbtc7pdoth3f2/);
+  assert.match(doc, /_lexicon\.siren\.jason-edelman\.org/);
+});
+
+test('every decision built as a default is marked pending Jason, in the doc and in code', () => {
+  const doc = read('docs/bluesky-endorsements.md');
+  for (const d of ['D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D13']) assert.match(doc, new RegExp(`\\*\\*${d}\\*\\*`), d);
+  const code = ['worker/endorse-client.js', 'worker/atproto-oauth.js', 'worker/index.js', 'worker/constellation.js', 'worker/endorse-config.js', 'worker/admin.js', 'worker/requests.js', 'worker/bluesky.js', 'worker/public-list.js', 'worker/endorsers.js', 'wrangler.toml'].map(read).join('\n');
+  for (const d of ['D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D13']) assert.match(code, new RegExp(`\\(${d}[,:][^)]*?default,[\\s*#/-]*pending[\\s*#/-]*Jason`), d);
+});

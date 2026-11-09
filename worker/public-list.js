@@ -11,7 +11,8 @@
 // per location whatever the traffic. A count that can't be read is never
 // shown as 0: the last good one (kept up to 24 hours in the Cache API, with
 // its time) is served with `endorsements_as_of`, and without one the item
-// says `endorsements_unavailable`.
+// says `endorsements_unavailable`. Every account counts, flagged or not (D6,
+// default, pending Jason).
 
 import { publicRequests, requestRows, idsOf, PUBLIC_ID_RE } from './requests.js';
 import { constellationOrigin, countEndorsers, userAgent } from './constellation.js';

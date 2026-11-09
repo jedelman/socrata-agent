@@ -9,6 +9,9 @@
 // GRANTS the repo scope shows only in a real sign-in's token response: that
 // is step 3's browser check (the page refuses a token without it).
 //
+// Step 1's check comes first: it reports any listed request still on a
+// legacy id.
+//
 //   node scripts/bsky-probe.js --account alice.bsky.social
 //   node scripts/bsky-probe.js --account did:plc:... --origin https://jason-edelman.org --base /ask-siren
 //
@@ -45,6 +48,18 @@ async function main() {
     if (doc.client_id !== ids.clientId) throw new Error(`The metadata's client_id is ${doc.client_id}, not the URL it was served from.`);
     if (doc.scope !== SCOPE) throw new Error(`The metadata declares scope "${doc.scope}", not "${SCOPE}".`);
     console.log(`scope         ${doc.scope}`);
+  }
+  if (!ids.loopback) {
+    // Endorsements point at random request ids: none of the listed requests
+    // should still carry a legacy hex id (run `invites.js request-ids --apply`).
+    const feed = await safeFetch(`${env.PUBLIC_ORIGIN}${base}/api/requests`, { fetchImpl: fetch, maxBytes: 4 * 1024 * 1024 });
+    let legacy = '?';
+    try {
+      legacy = String((JSON.parse(feed.text).requests || []).filter((r) => /^[0-9a-f]{12}$/.test(String(r.id))).length);
+    } catch {
+      legacy = '? (the list could not be read)';
+    }
+    console.log(`legacy ids    ${legacy}${legacy === '0' ? '' : ' on the public list: run `node scripts/invites.js request-ids --apply` before the flag'}`);
   }
   const account = await resolveAccount(input, opts);
   console.log(`did           ${account.did}`);

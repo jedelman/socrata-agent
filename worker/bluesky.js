@@ -16,7 +16,10 @@ import { visitorId } from './limits.js';
 
 const RL_BINDINGS = ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_SITE_RL'];
 
-/** The flag, request storage, the salt for visitor keys, the three limiters and a valid origin. */
+/**
+ * The flag, BLUESKY_LOGIN (D8, default, pending Jason: the old name kept), request
+ * storage, the salt for visitor keys, the three limiters and a valid origin.
+ */
 export function blueskyReady(env) {
   return env?.BLUESKY_LOGIN === 'true'
     && Boolean(env.LIMITS && env.IP_SALT)
