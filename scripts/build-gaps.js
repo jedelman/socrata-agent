@@ -24,6 +24,9 @@
 //                                  house numbers), used only by the public-text checks
 //                                  to refuse addresses; never rendered
 //   docs/gaps-<city>.md            the gaps as a page
+//   data/gaps/inventory.json       the running inventory of every gap Siren knows of,
+//   docs/gaps-inventory.md         rebuilt from the committed gap files after the write
+//                                  (scripts/gaps-inventory.js); --check checks it too
 //
 // Every query runs at GENERIC access through the traced Socrata client, under
 // the positional identifier rule (src/gaps/measures.js). A gap whose measure
@@ -47,6 +50,7 @@ import { STALE_DAYS } from './verify-cases.js';
 import siren from '../deployments/siren.config.js';
 import * as norfolkCatalog from '../src/gaps/norfolk.js';
 import { ACTIONS as NORFOLK_ACTIONS, FOIA_LINES, strike, ROW_LEVEL } from '../src/gaps/actions-norfolk.js';
+import { writeInventory, checkInventory, inventorySummary } from './gaps-inventory.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const CATALOGS = { norfolk: { catalog: norfolkCatalog, actions: NORFOLK_ACTIONS, config: siren } };
@@ -195,7 +199,7 @@ export async function buildGaps({ cityId = 'norfolk', recorder, today, repoToday
     field: (fd) => ({ type: 'metadata', dataset: fd.dataset, field: fd.field, quote: fd.quote, url: fd.url, read: fd.read, trace_n: fd.trace_n }),
     finding: (f) => ({ type: 'finding', case: f.case, id: f.id, url: f.source.url, quote: f.quote, ...(f.selector ? { selector: f.selector } : {}), checked: f.checked, reverified: null }),
     catalog: (s) => ({ type: 'catalog_search', q: s.q, result_set_size: s.result_set_size, excluded: s.excluded, open_to_siren: s.results.filter((r) => r.open_to_siren).map((r) => ({ id: r.id, name: r.name })), url: s.url, read: s.read, trace_n: s.trace_n }),
-    values: (v) => ({ type: 'values', dataset: v.dataset, field: 'problem_description', values: v.values, pattern: v.pattern, matched: v.matched, url: v.url, read: v.read, trace_n: v.trace_n }),
+    values: (v) => ({ type: 'values', dataset: v.dataset, field: v.field, values: v.values, pattern: v.pattern, matched: v.matched, url: v.url, read: v.read, trace_n: v.trace_n }),
   };
   const helpers = {
     run,
@@ -247,10 +251,14 @@ export async function buildGaps({ cityId = 'norfolk', recorder, today, repoToday
   const streetPatterns = compileStreets(streetList);
 
   // Topics: every catalog hit for a topic's search is in the topic or placed
-  // outside it by a reviewer.
+  // outside it by a reviewer. Only the topics this catalog's entries name are
+  // checked: a topic no entry names yet is structure, measured by the build
+  // whose entries name it, and adds no request here.
   const topicErrors = {};
   const renderedTopics = {};
-  for (const [name, topic] of Object.entries(catalog.TOPICS)) {
+  const usedTopics = new Set(catalog.GAPS.map((g) => g.topic).filter(Boolean));
+  for (const name of usedTopics) if (!catalog.TOPICS[name]) throw new Error(`An entry names topic ${name}, which isn't defined.`);
+  for (const [name, topic] of Object.entries(catalog.TOPICS).filter(([n]) => usedTopics.has(n))) {
     let s;
     try {
       s = await run.catalogSearch(topic.search);
@@ -264,10 +272,19 @@ export async function buildGaps({ cityId = 'norfolk', recorder, today, repoToday
     if (stray.length) topicErrors[name] = `Catalog hits for “${topic.search}” not placed in or out of the topic: ${stray.map((r) => r.id).join(', ')}.`;
     // A placement outside the topic quotes the dataset's own description,
     // read in this build: the whole of what the reviewer weighed, so the
-    // reason can't stand on half of it.
+    // reason can't stand on half of it. A dataset Siren's rule keeps from
+    // open-ended use can't be described at GENERIC access: it is placed by
+    // the rule itself (file:line, read from the repo), and if the rule goes,
+    // the topic's gaps wait for a reviewer.
     const placed = [];
     for (const x of topic.not_in_topic) {
       try {
+        if (x.policy) {
+          const p = helpers.policy(x.id);
+          const hit = s.results.find((r) => r.id === x.id);
+          placed.push({ id: x.id, name: hit?.name || x.id, policy: p, reason: x.reason, placed: x.placed });
+          continue;
+        }
         const q = await run.descriptionQuote(x.id, x.quote);
         placed.push({ id: x.id, name: run.describes.get(x.id).name, quote: q.quote, reason: x.reason, placed: x.placed, read: q.read, trace_n: q.trace_n });
       } catch (err) {
@@ -275,7 +292,7 @@ export async function buildGaps({ cityId = 'norfolk', recorder, today, repoToday
         topicErrors[name] = err.message;
       }
     }
-    renderedTopics[name] = { ...topic, not_in_topic: placed };
+    renderedTopics[name] = { ...topic, not_in_topic: placed, ...(topic.cleared ? { cleared: topic.cleared.map((c) => ({ ...c })) } : {}) };
   }
 
   const prevById = new Map((previous?.gaps || []).map((g) => [g.id, g]));
@@ -474,7 +491,11 @@ export function renderDoc(file) {
   const topics = new Map(file.gaps.filter((g) => g.topic).map((g) => [g.topic.name, g.topic]));
   for (const t of topics.values()) {
     lines.push(`## The ${t.name} topic`, '', `Topic-wide checks read ${t.datasets.join(', ')}. The catalog search “${t.search}” is checked for datasets placed neither in nor out.`, '');
-    for (const x of t.not_in_topic) lines.push(`- Outside the topic: ${x.name} (${x.id}). Its description, as read ${dateOf(x.read)}, in its words: “${x.quote}” ${x.reason} ${x.placed}`);
+    for (const x of t.not_in_topic) {
+      if (x.policy) lines.push(`- Outside the topic: ${x.name} (${x.id}), by Siren's rule (${x.policy.file}:${x.policy.line}): ${x.policy.reason} ${x.reason} ${x.placed}`);
+      else lines.push(`- Outside the topic: ${x.name} (${x.id}). Its description, as read ${dateOf(x.read)}, in its words: “${x.quote}” ${x.reason} ${x.placed}`);
+    }
+    for (const c of t.cleared || []) lines.push(`- Cleared for topic-wide checks: ${c.dataset}.${c.column}. ${c.reason} (${c.by}, ${c.date})`);
     lines.push('');
   }
   for (const g of file.gaps) {
@@ -536,6 +557,7 @@ export async function checkGaps({ cityId = 'norfolk', root = ROOT } = {}) {
   for (const [f, want] of pairs) if (read(f) !== want) diffs.push(`${f} differs from what the stored responses and current repo files build. Run node scripts/build-gaps.js --offline (or a live build) and review the change.`);
   if (stringify(stored) !== stringify(out.trace)) diffs.push(`${p.trace} differs from what the replay writes. Run node scripts/build-gaps.js --offline and review the change.`);
   if (JSON.stringify(stored.steps) !== JSON.stringify(out.trace.steps)) diffs.push(`${p.trace}: the replayed requests differ from the stored steps.`);
+  diffs.push(...checkInventory({ root, catalogs: CATALOGS }));
   return diffs;
 }
 
@@ -606,6 +628,7 @@ async function main() {
   writeFileSync(join(ROOT, p.doc), out.doc);
   console.log(`${out.file.gaps.length} gaps on the board, ${out.file.off_board.length} off it, ${out.trace.steps.length} requests. Wrote ${Object.values(p).join(', ')}.`);
   for (const o of out.file.off_board) console.log(`  off the board: ${o.id} (${o.state}): ${o.reason}`);
+  console.log(inventorySummary(writeInventory({ root: ROOT, catalogs: CATALOGS })));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

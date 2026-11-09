@@ -193,7 +193,12 @@ generic mode.
   `npm test`; until Jason decides on automation, `--offline` is run by hand
   after the legislation index or case files change, see CONTRIBUTING.md).
   `scripts/find-gaps.js` writes gitignored candidates, never committed or
-  shipped. Gaps stay off unless a deployment sets `gaps.enabled`, which waits
+  shipped. `scripts/gaps-inventory.js` builds the running inventory
+  (`data/gaps/inventory.json`, `docs/gaps-inventory.md`) from the committed
+  gap files; both gap builders rewrite it and check it, and it lists
+  proposals apart from the catalog without importing them. Topics: `trees`
+  and `budget` (`TOPICS` in `norfolk.js`); the builder checks only the
+  topics its entries name. Gaps stay off unless a deployment sets `gaps.enabled`, which waits
   on the trees branch's config fix (J25).
 
 ## Checks before pushing
