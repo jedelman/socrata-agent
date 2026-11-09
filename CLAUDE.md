@@ -57,7 +57,10 @@ generic mode.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
   sign-in by magic link (Resend), which binds an invite to an account;
   `conversations.js` holds each account's conversations (KV, 7 days), whose
-  earlier tool results come back as data for follow-ups. Conversations are
+  earlier tool results come back as data for follow-ups. Each turn also keeps
+  the record shown under its answer (trace, hand-off, voice check, model,
+  steps, cost, suggestions; bounded by `answerRecord`), so a reopened
+  conversation shows how each answer was found; the model never sees it. Conversations are
   private to their account and never feed the case files.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
@@ -65,9 +68,36 @@ generic mode.
   `node scripts/invites.js requests`). The list is public behind a steward
   gate: `request-accept`/`-decline`/`-fulfilled` set status, only accepted
   and fulfilled requests appear at `<base>/requests` and `/api/requests`, and
-  only notes written under the "requests are public" notice are shown.
+  only notes written under the "requests are public" notice and approved by
+  the steward are shown. Every note is reviewed whatever the request's
+  status: new notes are stored `review: 'pending'`, and the steward approves
+  or deletes each one at `<base>/admin` or with `request-note`. Legacy notes
+  (no `review`) count as reviewed only when written no later than `decided`,
+  that decision made the request public, and they were among the last five
+  public notes (what the old list showed). Steward state lives in keys raises
+  never write, laid over the record on every read: `request-decision:<hash>`
+  (status, decided, was_public, steward_note, fulfilled_by, and with
+  endorsements the count frozen at decision, endorsements_at_decision) and
+  `request-deleted:<hash>` (deleted note ids), so a stale raise can't undo a
+  decision or bring a deleted note back. Stored and public dates are days,
+  never finer. `POST /api/requests` returns a count only for a request that
+  is already public. `GET /api/requests` says nothing about requests or
+  notes awaiting review, not even how many, never writes to KV (Free plan:
+  1,000 writes a day, shared with every question), and is cached per
+  location for five minutes (with `BLUESKY_LOGIN` on, it goes through
+  `public-list.js` instead: 60 seconds, with endorsement counts on listed
+  requests only; with the flag off its body is exactly the requests-only list).
+  A request accepted once carries `was_public`; if it leaves the list,
+  `/api/requests` lists it under `withdrawn: [{id, day}]` for 30 days.
   `scripts/sync-request-issues.js` mirrors the public list to
-  `source-request` issues, run nightly by a Claude Code routine (`--plan`).
+  `source-request` issues, run nightly by a Claude Code routine (`--plan`;
+  its prompt is copied in `docs/request-sync-routine.md`). Withdrawn entries
+  (`create_if_missing: false`, `state_reason: not_planned`) appear only with
+  `--plan --with-withdrawn`, which the routine may pass only once its prompt
+  honors both fields. When applying directly it also closes any marked
+  issue in neither list (only if the feed carries `withdrawn`; closing all of
+  them, or more than three, needs `--close-unlisted`). GitHub keeps old titles
+  and bodies; only deleting an issue by hand removes them.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
   `docs/fulfilling-requests.md` is the contributor guide.
   Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
@@ -118,6 +148,10 @@ generic mode.
   and opens a PR (cloud sessions can't reach web.archive.org).
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
+- **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
+  in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
+  with a prompt line saying when to use it. `test/plugins.test.js` fails if
+  either is left out (Jason, 2026-11-07).
 - `data/norfolk-sponge-screen.json` and `docs/sponge-screen-norfolk.md` are
   built by `scripts/build-sponge-screen.js`; the JSON keeps the full trace.
   It only ever carries public owners' names (city, NRHA, EDA).

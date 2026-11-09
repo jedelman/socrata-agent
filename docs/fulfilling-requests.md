@@ -5,6 +5,17 @@ the source that would, and people can ask for it. A steward reviews each
 request; accepted ones appear on the public list (`/ask-siren/requests` for
 Siren) and, after the nightly sync, as GitHub issues labeled
 [`source-request`](https://github.com/jedelman/socrata-agent/issues?q=label%3Asource-request).
+The notes people write about what they wanted to know are reviewed too, one
+by one: a note appears on the list and in the issue only after the steward
+approves it. If the steward takes a request off the list, its issue is
+closed only once the nightly sync runs with `--with-withdrawn` (see
+[request-sync-routine.md](request-sync-routine.md)): that sync closes the
+issue and replaces its text with a line saying it was removed, leaving
+comments as they are. Until the sync runs that way, the steward closes the
+issue by hand. Either way, that doesn't erase the
+request's words from GitHub: the old title stays in the issue's timeline and
+earlier text in its edit history, a note the steward later deleted included.
+For text that names a person or a home, the steward deletes the issue by hand.
 
 To fulfill one is to teach the agent that source, in a pull request that
 anyone can check.
@@ -37,7 +48,18 @@ assigns it.
 the person who ran it: "Claude agent run by @handle". Credit follows the
 finding wherever it goes.
 
-## 3. Run the checks
+## 3. Wire it into Siren
+
+Merged is not served. In the same pull request:
+
+- a new case file goes in `CASES` in `plugins/case-file.js` (and in a
+  plugin's `the_record`, if one covers the topic);
+- a new plugin goes in `plugins` in `deployments/siren.config.js`, with a line
+  in its `prompt` saying when to use it.
+
+`npm test` fails if a case file or a plugin is left out.
+
+## 4. Run the checks
 
 ```bash
 npm test
@@ -48,7 +70,7 @@ node bin/socrata-agent.js tool block_report '{"address":"810 Union St"}' > /dev/
 In the pull request, say how you checked the source (opened it, on what date)
 and paste the verifier's output for your findings.
 
-## 4. Review
+## 5. Review
 
 Three layers, and all three must pass:
 

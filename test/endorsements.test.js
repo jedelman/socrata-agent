@@ -799,3 +799,43 @@ test('/api/requests answers a JSON 503 when the request records can\'t be read, 
   assert.match(route, /if \(list\.unavailable\) return unavailable\(\);/, 'flag on: cachedPublicList reports it');
   assert.match(route, /json\(\{ error: [^}]*code: 'unavailable'[^}]*\}, 503/);
 });
+
+// --- Requests + Bluesky endorsements together ---
+
+dbTest('flag on: counts only on public requests, layered on the reviewed, day-granular list; nothing about requests awaiting review', async () => {
+  const w = await world();
+  for (const id of [w.ids.open1, w.ids.open2]) await go(w, id, await session(1));
+  // A pending note on an accepted request stays hidden; a withdrawal shows id and day only.
+  await addRequest({ body: { source: 'Source open1', need: 'not reviewed yet', public: true }, kv: w.kv, visitor: 'note', now: NOW });
+  await decide(w.kv, { id: w.ids.open2, status: 'declined' }, NOW, { live: await countFor(w.db, w.ids.open2, { now: NOW }) });
+  const list = await computePublicList(w.env, w.kv, { now: NOW });
+  assert.deepEqual(Object.keys(list).sort(), ['requests', 'withdrawn']);
+  assert.ok(!('awaiting_review' in list));
+  assert.deepEqual(list.requests.map((r) => r.id).sort(), [w.ids.open1, w.ids.done].sort(), 'new and declined requests are not listed, so carry no count');
+  for (const r of list.requests) {
+    assert.equal(typeof r.endorsements, 'number');
+    assert.match(r.first, /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(r.last, /^\d{4}-\d{2}-\d{2}$/);
+  }
+  assert.equal(list.requests.find((r) => r.id === w.ids.open1).endorsements, 1);
+  assert.deepEqual(list.requests.find((r) => r.id === w.ids.open1).notes, []);
+  assert.ok(!JSON.stringify(list).includes('not reviewed yet'));
+  assert.deepEqual(list.withdrawn, [{ id: w.ids.open2, day: '2026-11-06' }]);
+  // Without counts, the same list minus the endorsements field.
+  const plain = await publicRequests(w.kv, NOW);
+  assert.deepEqual(plain, { ...list, requests: list.requests.map(({ endorsements, ...r }) => r) });
+});
+
+dbTest('a stale raise after a fulfil cannot drop the frozen count: it lives in the decision key too', async () => {
+  const w = await world();
+  for (let n = 1; n <= 2; n++) await go(w, w.ids.open1, await session(n), `v${n}`);
+  const key = await requestKey('Source open1');
+  const stale = await w.kv.get(key, 'json');
+  await decide(w.kv, { id: w.ids.open1, status: 'fulfilled', fulfilled_by: 'https://github.com/o/r/pull/3' }, NOW, { live: await countFor(w.db, w.ids.open1, { now: NOW }) });
+  await clearRequestEndorsements(w.db, w.env, w.ids.open1);
+  // A raise elsewhere that read the record before the decision rewrites it whole.
+  await w.kv.put(key, JSON.stringify({ ...stale, count: stale.count + 1 }));
+  const r = (await computePublicList(w.env, w.kv, { now: NOW })).requests.find((x) => x.id === w.ids.open1);
+  assert.equal(r.status, 'fulfilled');
+  assert.equal(r.endorsements, 2);
+});

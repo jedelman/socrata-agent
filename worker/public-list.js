@@ -37,7 +37,7 @@ export const UNAVAILABLE_SECONDS = SECONDS;
 const FAILED_SECONDS = 30;
 
 /** What /api/requests and the Bluesky routes get when the request records can't be read. */
-export const LIST_UNAVAILABLE = Object.freeze({ requests: Object.freeze([]), awaiting_review: 0, unavailable: true });
+export const LIST_UNAVAILABLE = Object.freeze({ requests: Object.freeze([]), unavailable: true });
 
 const defaultCache = () => (typeof caches !== 'undefined' && caches?.default ? caches.default : null);
 const cacheKey = (origin, base) => new Request(`${origin}${base}/__cache/public-requests-v1`);
@@ -78,7 +78,7 @@ export async function computePublicList(env, kv, { defer, sweep = true, now = Da
     }
   }
   const statuses = new Map();
-  const list = await publicRequests(kv, counts, { policy: publicPolicy(env), statuses, rows });
+  const list = await publicRequests(kv, now, { counts, policy: publicPolicy(env), statuses, rows });
   if (!counts) return { ...list, endorsements_unavailable: true };
   if (sweep && orphanedIds(counts, statuses).length) {
     const pending = sweepOrphans(db, env, counts, statuses, { now });
@@ -89,7 +89,7 @@ export async function computePublicList(env, kv, { defer, sweep = true, now = Da
 }
 
 /**
- * -> { requests, awaiting_review } or LIST_UNAVAILABLE. Never throws: a
+ * -> { requests, withdrawn } or LIST_UNAVAILABLE. Never throws: a
  * failure to read the request records is logged, remembered for 30 seconds
  * under its own key, and answered as LIST_UNAVAILABLE.
  */

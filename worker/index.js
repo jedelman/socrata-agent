@@ -20,7 +20,7 @@ import { skins } from './skins.js';
 import { setting, visitorId, spentToday, recordSpend } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest, publicRequests } from './requests.js';
+import { addRequest, raiseResponse, publicRequests } from './requests.js';
 import { hmacHex } from './crypto.js';
 import { handleAdmin, scheduledPurge } from './admin.js';
 import { cachedPublicList } from './public-list.js';
@@ -32,7 +32,7 @@ import REQUESTS_PAGE from './requests.html';
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
-import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId } from './conversations.js';
+import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
 // loudly rather than quietly serving the default.
@@ -210,7 +210,7 @@ async function handleAsk(req, env, ctx) {
     });
     const { toolResults, ...answer } = out;
     if (conversationId) {
-      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults }, { days: env.CONVERSATION_DAYS })
+      const save = saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
         .catch((err) => console.error('saving the conversation failed', err));
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
@@ -288,6 +288,24 @@ async function handleRedeem(req, env) {
   return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(out.cookie, `${basePath(env)}/`), 'Cache-Control': 'no-store' });
 }
 
+// The public request feed costs a KV list and three reads per request, from
+// the account's daily quota that every question also draws on. So it is kept
+// in this location's cache for its max-age (five minutes), keyed without the
+// query string so a cache-busting query can't spend the quota. Where the
+// Cache API is missing (Node tests, workers.dev), it is built every time.
+async function cachedFeed(url, ctx, build) {
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const key = new Request(`${url.origin}${url.pathname}`);
+  const hit = cache ? await cache.match(key).catch(() => null) : null;
+  if (hit) return hit;
+  const res = await build();
+  if (cache && res.ok) {
+    const put = cache.put(key, res.clone()).catch(() => {});
+    if (ctx?.waitUntil) ctx.waitUntil(put);
+  }
+  return res;
+}
+
 async function readJson(req) {
   try {
     return await req.json();
@@ -336,7 +354,7 @@ async function handleRequest(req, env) {
   }
   const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env) });
   if (!out.ok) return json({ error: out.error }, out.status);
-  return json({ ok: true, count: out.count }, 200, { 'Cache-Control': 'no-store' });
+  return json(raiseResponse(out), 200, { 'Cache-Control': 'no-store' });
 }
 
 async function handleConversations(req, env, path) {
@@ -348,7 +366,7 @@ async function handleConversations(req, env, path) {
   if (req.method === 'GET' && path === '/api/conversation') {
     const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
     if (!conv) return json({ error: 'That conversation is gone (they expire) or was never yours.' }, 404, headers);
-    return json({ city: conv.city, turns: conv.turns.map((t) => ({ question: t.question, answer: t.answer, at: t.at })) }, 200, headers);
+    return json({ city: conv.city, turns: conv.turns.map(turnView) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/conversations/delete') {
     const body = await readJson(req);
@@ -432,19 +450,25 @@ export default {
     // The public source-request list: open to everyone, invited or not. With
     // Bluesky endorsements on, it carries counts and goes through the Cache API.
     if (req.method === 'GET' && path === '/api/requests') {
-      if (!env.LIMITS) return json({ requests: [], awaiting_review: 0 });
+      // No `withdrawn` here: the mirror closes unlisted issues only when the
+      // feed carries that list, so an unconfigured site closes nothing.
+      if (!env.LIMITS) return json({ requests: [] });
       // KV failing (or past the Free plan's daily list operations) is a JSON
-      // 503, never a thrown error; with endorsements on, D1 isn't asked then.
-      const unavailable = () => json({ error: "The request list can't be read just now. Try again in a minute.", code: 'unavailable', requests: [], awaiting_review: 0 }, 503, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+      // 503, never a thrown error, and never cached; with endorsements on,
+      // D1 isn't asked then. No `withdrawn` in it either.
+      const unavailable = () => json({ error: "The request list can't be read just now. Try again in a minute.", code: 'unavailable', requests: [] }, 503, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
       if (!blueskyReady(env)) {
-        let list;
-        try {
-          list = await publicRequests(env.LIMITS);
-        } catch (err) {
-          console.error('public list: request records unreadable', String(err?.message || 'unknown').slice(0, 300));
-          return unavailable();
-        }
-        return json(list, 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+        // Flag off: the requests-only list, cached per location for 5 minutes.
+        return cachedFeed(url, ctx, async () => {
+          let list;
+          try {
+            list = await publicRequests(env.LIMITS);
+          } catch (err) {
+            console.error('public list: request records unreadable', String(err?.message || 'unknown').slice(0, 300));
+            return unavailable();
+          }
+          return json(list, 200, { 'Cache-Control': 'public, max-age=300', 'Access-Control-Allow-Origin': '*' });
+        });
       }
       const list = await cachedPublicList({ env, ctx, kv: env.LIMITS, origin: url.origin, base });
       if (list.unavailable) return unavailable();
@@ -493,7 +517,7 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/endorsements/clear')) return handleAdmin(req, env, path, ctx);
+    if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note' || path === '/api/admin/requests/endorsements/clear')) return handleAdmin(req, env, path, ctx);
     if (req.method === 'POST' && path === '/api/bsky/login') return handleBskyLogin(req, env, ctx, base);
     if (req.method === 'POST' && path === '/api/bsky/logout') return handleBskyLogout(req, env, base);
     if (req.method === 'POST' && path === '/api/bsky/forget') return handleForget(req, env, ctx, base);

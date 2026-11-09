@@ -29,6 +29,10 @@ ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
 .notes { margin: 8px 0; padding-left: 18px; font-size: .94rem; }
 .notes .private { color: var(--muted); }
 .notes .tag { font-size: .75rem; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
+.notes .tag.pending { color: var(--warn); }
+.notes li { margin-bottom: 4px; }
+.note-actions { display: inline-flex; gap: 6px; margin-left: 6px; vertical-align: baseline; }
+.note-actions button { font: inherit; font-size: .8rem; border-radius: 6px; padding: 1px 8px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .small { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
 form { display: grid; gap: 8px; margin-top: 10px; }
 input { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
@@ -43,11 +47,12 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
 <body>
 <div class="wrap">
   <h1>Steward review: source requests</h1>
-  <p class="lede">Accepting a request puts it on the <a href="requests">public list</a> and, at the next sync, on GitHub. A note you add is shown publicly. Private notes (sent before requests were public) are shown here only.</p>
+  <p class="lede">Accepting a request puts it on the <a href="requests">public list</a> and, at the next sync, on GitHub. People's notes are reviewed one by one, whatever the request's status: a pending note is shown publicly only after you approve it, and only once its request is accepted. Delete a note that names a person or a home. Private notes (sent before requests were public) are shown here only and need no review. Declining an accepted request takes it off the list. Once the nightly sync runs with --with-withdrawn, it closes the request's GitHub issue; until it does, close the issue by hand. Once a request or note has been synced, declining or deleting it doesn't erase it from GitHub: the old title stays in the issue's timeline and old text in its edit history. For text that names a person or a home, delete the GitHub issue by hand. A note you write in the box below is shown publicly.</p>
   <div id="gate" class="gate" hidden></div>
   <div id="app" hidden>
     <div class="tabs" role="group" aria-label="Filter by status">
       <button type="button" data-s="new" aria-pressed="true">New</button>
+      <button type="button" data-s="notes" aria-pressed="false">Notes to review</button>
       <button type="button" data-s="accepted" aria-pressed="false">Accepted</button>
       <button type="button" data-s="fulfilled" aria-pressed="false">Fulfilled</button>
       <button type="button" data-s="declined" aria-pressed="false">Declined</button>
@@ -65,6 +70,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const link = (u) => (/^https:\/\//i.test(String(u || '')) ? esc(u) : '#');
 let all = [];
 let filter = 'new';
+// Notes deleted from this page, by request id, sent with each delete so a
+// stale read of the stored list can't bring an earlier one back.
+const deletedHere = {};
 
 function endorsementLine(r) {
   const e = r.endorsements || { n: 0, young: 0, unknown: 0 };
@@ -76,10 +84,15 @@ function endorsementLine(r) {
   return `<p class="small endorse-line">${[live, frozen].filter(Boolean).map(esc).join(' · ')}${clear}<span class="msg clear-msg" role="status"></span></p>`;
 }
 
+// Only public notes need a decision: a private note is never shown, approved or not.
+const pending = (r) => r.needs.filter((n) => n.public && n.review !== 'ok');
+function noteItem(n) {
+  const tags = `<span class="tag">${n.public ? 'public' : 'private'}</span>${n.public ? `<span class="tag ${n.review === 'ok' ? '' : 'pending'}">${n.review === 'ok' ? 'approved' : 'pending'}</span>` : ''}`;
+  const buttons = `<span class="note-actions">${n.review !== 'ok' && n.public ? `<button type="button" data-note="${esc(n.id)}" data-action="approve">Approve</button>` : ''}<button type="button" data-note="${esc(n.id)}" data-action="delete">Delete</button></span>`;
+  return `<li class="${n.public ? '' : 'private'}">${tags}${esc(n.text)} <span class="small">${esc(n.day || '')}</span>${buttons}</li>`;
+}
 function card(r) {
-  const notes = r.needs.length
-    ? `<ul class="notes">${r.needs.slice(-8).map((n) => `<li class="${n.public ? '' : 'private'}"><span class="tag">${n.public ? 'public' : 'private'}</span>${esc(n.text)}</li>`).join('')}</ul>`
-    : '';
+  const notes = r.needs.length ? `<ul class="notes">${r.needs.map(noteItem).join('')}</ul>` : '';
   const actions = {
     new: [['accepted', 'Accept', true], ['declined', 'Decline']],
     accepted: [['fulfilled', 'Mark fulfilled', true], ['declined', 'Decline']],
@@ -100,9 +113,10 @@ function card(r) {
 }
 
 function render() {
-  const shown = filter === 'all' ? all : all.filter((r) => r.status === filter);
+  const shown = filter === 'all' ? all : filter === 'notes' ? all.filter((r) => pending(r).length) : all.filter((r) => r.status === filter);
   const counts = all.reduce((m, r) => ((m[r.status] = (m[r.status] || 0) + 1), m), {});
-  $('#meta').textContent = `${all.length} request${all.length === 1 ? '' : 's'}: ${['new', 'accepted', 'fulfilled', 'declined'].map((s) => `${counts[s] || 0} ${s}`).join(', ')}.`;
+  const waiting = all.reduce((n, r) => n + pending(r).length, 0);
+  $('#meta').textContent = `${all.length} request${all.length === 1 ? '' : 's'}: ${['new', 'accepted', 'fulfilled', 'declined'].map((s) => `${counts[s] || 0} ${s}`).join(', ')}. ${waiting} note${waiting === 1 ? '' : 's'} to review.`;
   $('#list').innerHTML = shown.length ? shown.map(card).join('') : '<li class="card small">Nothing here.</li>';
 }
 
@@ -131,6 +145,24 @@ $('.tabs').addEventListener('click', (e) => {
   filter = b.dataset.s;
   for (const x of document.querySelectorAll('.tabs button')) x.setAttribute('aria-pressed', String(x === b));
   render();
+});
+
+$('#list').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-note]');
+  if (!b) return;
+  const li = b.closest('li.card');
+  const msg = li.querySelector('.actions .msg');
+  if (b.dataset.action === 'delete' && !confirm('Delete this note for good?')) return;
+  msg.textContent = 'Saving…';
+  try {
+    const res = await fetch('api/admin/requests/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: li.dataset.id, note: b.dataset.note, action: b.dataset.action, deleted: deletedHere[li.dataset.id] || [] }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { msg.textContent = data.error || 'That did not save.'; return; }
+    if (b.dataset.action === 'delete') (deletedHere[li.dataset.id] ||= []).push(b.dataset.note);
+    const r = all.find((x) => x.id === li.dataset.id);
+    r.needs = data.needs;
+    render();
+  } catch { msg.textContent = "Couldn't reach the server."; }
 });
 
 $('#list').addEventListener('submit', async (e) => {

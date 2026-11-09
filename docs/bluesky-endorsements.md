@@ -100,7 +100,9 @@ deleted entries are recoverable, and the history can show the network and
 server an endorsement came from.
 
 When a request is decided (fulfilled or declined), its count is frozen into
-the request record and the per-account rows are deleted. Rows that slip past
+the request's decision (`endorsements_at_decision`, kept in the
+`request-decision:` key that raises never write, and in the record) and the
+per-account rows are deleted. Rows that slip past
 that delete (written by a location still serving the old list) are swept the
 next time the public list (`/api/requests`) or the admin page is computed:
 one statement per sweep (one D1 query, however many requests are orphaned),

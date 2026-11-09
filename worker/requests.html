@@ -268,9 +268,10 @@ $('bsky-forget').addEventListener('click', async () => {
   renderPanel();
   if (me.bluesky?.busy) say(me.error || 'Lots of activity right now. Try again in a minute.');
   if (listResult.status === 'fulfilled') {
-    const { requests: rs = [], awaiting_review = 0 } = listResult.value || {};
+    const { requests: rs = [] } = listResult.value || {};
     requests = rs;
-    $('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}${awaiting_review ? `; ${awaiting_review} awaiting review` : ''}.`;
+    // No count of requests awaiting review: it would tell anyone whether someone else asked already.
+    $('meta').textContent = `${requests.length} reviewed request${requests.length === 1 ? '' : 's'}. Requests appear here after a steward reviews them.`;
     renderList();
   } else {
     $('meta').textContent = "Couldn't load the list. Try again.";

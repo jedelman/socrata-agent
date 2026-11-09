@@ -10,7 +10,7 @@
 // charged to the day's upkeep budget first (endorsements.js chargeD1).
 
 import { isAdmin, currentUser } from './accounts.js';
-import { allRequests, decide, requestByPublicId } from './requests.js';
+import { allRequests, decide, reviewNote, requestByPublicId } from './requests.js';
 import { endorsementCounts, countFor, clearRequestEndorsements, orphanedIds, sweepOrphans, purgeAll, endorseDb, dbSetupError } from './endorsements.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { purgePublicList } from './public-list.js';
@@ -33,8 +33,8 @@ async function readJson(req) {
 const DECIDED = new Set(['declined', 'fulfilled']);
 
 /**
- * The steward's API: GET /api/admin/requests, POST .../decide and
- * .../endorsements/clear. Every call checks that the signed-in account is an
+ * The steward's API: GET /api/admin/requests, POST .../decide, .../note
+ * (approve or delete one note; no D1) and .../endorsements/clear. Every call checks that the signed-in account is an
  * admin (ADMIN_EMAILS secret); nothing here is cached. `ctx.waitUntil` runs
  * the background clears and purges.
  */
@@ -99,6 +99,12 @@ export async function handleAdmin(req, env, path, ctx) {
         .then((c) => { if (c.deferred) console.error("clearing endorsements deferred: today's upkeep budget is spent; the orphan sweep will clear them"); })
         .catch((err) => console.error('clearing endorsements failed', storeMsg(err))));
     }
+    purge();
+    return json(out, 200, headers);
+  }
+  if (req.method === 'POST' && path === '/api/admin/requests/note') {
+    const out = await reviewNote(kv, (await readJson(req)) || {});
+    if (!out.ok) return json({ error: out.error }, out.status, headers);
     purge();
     return json(out, 200, headers);
   }

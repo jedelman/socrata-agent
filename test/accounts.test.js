@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newCode, inviteKey, signSession } from '../worker/invites.js';
 import { userId, signUser, verifyUser, verifyUserInfo, userCookie, currentUser, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured } from '../worker/accounts.js';
-import { saveTurn, loadConversation, historyFrom, listConversations, deleteConversation, newConversationId, MAX_TURNS } from '../worker/conversations.js';
+import { saveTurn, loadConversation, historyFrom, listConversations, deleteConversation, newConversationId, MAX_TURNS, answerRecord, turnView } from '../worker/conversations.js';
 import { ask } from '../src/agent.js';
 import { getCity } from '../src/cities/index.js';
 
@@ -135,6 +135,39 @@ test('conversations belong to one account, keep trimmed tool results, and expire
   assert.deepEqual(await listConversations(kv, b), []);
   assert.ok(await deleteConversation(kv, a, id));
   assert.equal(await loadConversation(kv, a, id), null);
+});
+
+test('a turn keeps what was shown under its answer, bounded, and reopens with it', async () => {
+  const kv = fakeKV();
+  const a = await userId(SECRET, 'a@b.org');
+  const id = newConversationId();
+  const trace = Array.from({ length: 70 }, (_, i) => ({ n: i + 1, tool: 'query dataset', dataset: 'qzfe-wj25', url: `https://data.norfolk.gov/resource/qzfe-wj25.json?q=${i}`, soql: 'S'.repeat(3000), ok: true, rows: 3, ms: 120 }));
+  const shown = {
+    answer: 'I found 3 removals.', trace,
+    resources: { datasets: [{ id: 'qzfe-wj25', name: 'Work Orders', page: 'https://data.norfolk.gov/d/qzfe-wj25', docs: 'https://dev.socrata.com', queries: ['https://data.norfolk.gov/resource/qzfe-wj25.csv?x=1'] }], records: [], contacts: [{ role: 'Council', name: 'Ward 2' }], links: [] },
+    voice: { ok: false, rewritten: true, violations: ['there are'] }, model: 'claude-sonnet-5-5', steps: 4, cost: 0.0123456789,
+    suggestions: [{ need: 'contract removals', source: 'Forestry contract records', why: 'not in work orders' }],
+    markdown: { trace: 'not kept' }, refusal: undefined,
+  };
+  const conv = await saveTurn(kv, a, id, null, { city: 'norfolk', question: 'Removals on Raleigh?', answer: shown.answer, tools: [{ name: 'trees_on_my_block', args: {}, content: '{}' }], record: shown }, { days: 7 });
+  const r = conv.turns[0].record;
+  assert.equal(r.trace.length, 60, 'at most 60 trace steps');
+  assert.equal(r.trace[0].soql.length, 2000);
+  assert.equal(r.trace[0].dataset, 'qzfe-wj25');
+  assert.equal(r.cost, 0.012346);
+  assert.deepEqual(r.voice, { ok: false, rewritten: true, violations: ['there are'] });
+  assert.equal(r.resources.datasets[0].queries.length, 1);
+  assert.equal(r.markdown, undefined, 'only the fields the page renders are kept');
+  const view = turnView((await loadConversation(kv, a, id)).turns[0]);
+  assert.deepEqual(Object.keys(view).sort(), ['answer', 'at', 'question', 'record']);
+  assert.equal(view.tools, undefined, 'raw tool results never go back to the page');
+  assert.equal(view.record.model, 'claude-sonnet-5-5');
+  // A turn saved before records were kept reopens as the answer alone.
+  assert.deepEqual(turnView({ question: 'q', answer: 'a', at: 't', tools: [] }), { question: 'q', answer: 'a', at: 't' });
+  // The model still sees only questions, answers and tool results.
+  const { history } = historyFrom(conv);
+  assert.ok(!history.some((m) => m.content.includes('query dataset')), 'the trace is not replayed to the model');
+  assert.deepEqual(answerRecord().trace, []);
 });
 
 test('history carries the data behind earlier answers, newest first within a budget', () => {

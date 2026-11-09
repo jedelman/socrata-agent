@@ -226,7 +226,7 @@ html[data-skin="siren"] {
   <footer>
     <p class="footer-note">{{FOOTER_NOTE}}</p>
     <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
-    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept for 7 days so you can ask follow-ups and pick them up on another device. Only your account can open them, you can forget one at any time, and nothing from them goes into {{APP_NAME}}'s shared findings. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" style="font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline">Sign out</button></p>
+    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept for 7 days, with the queries behind each answer, so you can ask follow-ups and pick them up on another device. Only your account can open them, you can forget one at any time, and nothing from them goes into {{APP_NAME}}'s shared findings. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" style="font:inherit;color:var(--accent);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline">Sign out</button></p>
     <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
     <p>Sources people have asked {{APP_NAME}} to learn: <a href="requests">the source request list</a>. Anyone can help fulfill one.</p>
     <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
@@ -303,10 +303,20 @@ $('#log').addEventListener('submit', async (e) => {
     const { res, data } = await postJson('api/requests', { source: f.source.value, url: f.url.value, need: f.need.value, public: true });
     if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; return; }
     msg.className = 'msg ok';
-    msg.textContent = data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : 'Requested. Thank you: requests decide what {{APP_NAME}} learns next.';
+    // The server gives a count only for a request already on the public list.
+    msg.textContent = typeof data.count === 'number' && data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : 'Requested. Thank you: requests decide what {{APP_NAME}} learns next.';
     f.querySelector('button').disabled = true;
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
+// One answer with what was found behind it: the voice notice, suggested
+// sources, the hand-off, the trace and the model line. The same for a live
+// answer and for one reopened from a saved conversation (`at` set); turns
+// saved before records were kept show the answer alone.
+function renderAnswer(answer, r, at) {
+  const when = at ? `${esc(String(at).slice(0, 16).replace('T', ' '))} UTC` : '';
+  const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}` : '';
+  return `<div class="answer">${md(answer)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
+}
 function renderTrace(t) {
   if (!t?.length) return '';
   return `<details><summary>How I found this <small>(${t.length} queries)</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code style="display:inline">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
@@ -392,7 +402,7 @@ $('#conv-list').addEventListener('click', async (e) => {
     for (const t of data.turns) {
       const turn = document.createElement('section');
       turn.className = 'turn';
-      turn.innerHTML = `<div class="q">${esc(t.question)}</div><div class="a"><div class="answer">${md(t.answer)}</div><p class="meta">${esc(String(t.at).slice(0, 16).replace('T', ' '))} UTC</p></div>`;
+      turn.innerHTML = `<div class="q">${esc(t.question)}</div><div class="a">${renderAnswer(t.answer, t.record || {}, t.at)}</div>`;
       $('#log').append(turn);
     }
     $('#conv-state').textContent = `Continuing: ${data.turns[0]?.question.slice(0, 60) || ''}`;
@@ -468,7 +478,7 @@ $('#f').addEventListener('submit', async (e) => {
       conversationId = data.conversation;
       $('#conv-forget').hidden = false;
     }
-    a.innerHTML = `<div class="answer">${md(data.answer)}</div>${data.voice && !data.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${renderSuggestions(data.suggestions)}${renderResources(data.resources || {})}${renderTrace(data.trace)}<p class="meta">${esc(data.model)} · ${data.steps} step${data.steps === 1 ? '' : 's'}</p>`;
+    a.innerHTML = renderAnswer(data.answer, data);
   } catch (err) {
     a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;
   } finally {

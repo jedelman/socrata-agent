@@ -64,7 +64,7 @@ test('a KV and D1 dump after sign-in, endorsing and an email sign-in holds no id
   // KV: the Bluesky side wrote nothing there. Only what requests, invites
   // and email sign-in already keep.
   const kvKeys = [...kv.store.keys()];
-  for (const k of kvKeys) assert.match(k, /^(request|request-rate|redeem-failures|login-rate|login):/, `${k} is not a Bluesky key`);
+  for (const k of kvKeys) assert.match(k, /^(request|request-decision|request-deleted|request-rate|redeem-failures|login-rate|login):/, `${k} is not a Bluesky key`);
   assert.ok(kvKeys.some((k) => k.startsWith('login-rate:')));
 
   // D1: every row of every table.
