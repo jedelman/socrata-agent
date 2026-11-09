@@ -15,6 +15,10 @@ import { D1_SKIP, migrations } from './fake-d1.js';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'scripts', 'invites.js');
 const REAL_TOML = readFileSync(join(ROOT, 'wrangler.toml'), 'utf8');
+// The shipped config binds SIREN_DB (created 2026-11-09) with BLUESKY_LOGIN
+// unset. Tests build each case from it with the D1 block taken out, then add
+// back the binding or the flag they need.
+const BASE_TOML = REAL_TOML.replace(/^\[\[env\.siren\.d1_databases\]\]\n(?:[a-z_]+ = .*\n)+/m, '');
 
 let wranglerApi = null;
 try {
@@ -115,9 +119,10 @@ async function setup(t, toml, extraEnv = {}, { devVars } = {}) {
 
 const d1Calls = (calls) => calls.filter((c) => c[1] === 'd1');
 
-test('request-decline still writes the decision with no SIREN_DB and no flag (the shipped config)', { skip: SKIP }, async (t) => {
-  assert.ok(!/^\[\[env\.siren\.d1_databases\]\]/m.test(REAL_TOML) && !/^BLUESKY_LOGIN\s*=/m.test(REAL_TOML), 'the test assumes wrangler.toml ships without the binding and the flag');
-  const s = await setup(t, REAL_TOML, { STUB_D1: 'missing' });
+test('request-decline still writes the decision with no SIREN_DB and no flag', { skip: SKIP }, async (t) => {
+  assert.ok(!/^BLUESKY_LOGIN\s*=/m.test(REAL_TOML), 'wrangler.toml ships with BLUESKY_LOGIN unset');
+  assert.ok(!/^\[\[env\.siren\.d1_databases\]\]/m.test(BASE_TOML), 'BASE_TOML has no binding');
+  const s = await setup(t, BASE_TOML, { STUB_D1: 'missing' });
   const out = s.run('request-decline', s.id);
   assert.equal(out.code, 0, out.out);
   assert.equal(s.record().status, 'declined');
@@ -127,7 +132,7 @@ test('request-decline still writes the decision with no SIREN_DB and no flag (th
 });
 
 test('a binding without the flag: decisions skip D1, as the Worker does', { skip: SKIP }, async (t) => {
-  const s = await setup(t, withDb(REAL_TOML), { STUB_D1: 'missing' });
+  const s = await setup(t, withDb(BASE_TOML), { STUB_D1: 'missing' });
   const out = s.run('request-fulfilled', s.id, '--by', 'https://github.com/o/r/pull/9');
   assert.equal(out.code, 0, out.out);
   assert.equal(s.record().status, 'fulfilled');
@@ -137,7 +142,7 @@ test('a binding without the flag: decisions skip D1, as the Worker does', { skip
 test('the flag and the binding: a decision freezes the count, then clears the rows', { skip: SKIP }, async (t) => {
   const id = publicId(await requestKey('Test source'));
   const tally = JSON.stringify([{ request_id: id, n: 3, young: 1, unknown: 0 }]);
-  const s2 = await setup(t, withDb(flagOn(REAL_TOML)), { STUB_D1_TALLY: tally });
+  const s2 = await setup(t, withDb(flagOn(BASE_TOML)), { STUB_D1_TALLY: tally });
   const out2 = s2.run('request-decline', s2.id);
   assert.equal(out2.code, 0, out2.out);
   assert.equal(s2.record().status, 'declined');
@@ -150,7 +155,7 @@ test('the flag and the binding: a decision freezes the count, then clears the ro
 });
 
 test('the flag on and D1 failing: the decision is refused before anything is written', { skip: SKIP }, async (t) => {
-  const s = await setup(t, withDb(flagOn(REAL_TOML)), { STUB_D1: 'missing' });
+  const s = await setup(t, withDb(flagOn(BASE_TOML)), { STUB_D1: 'missing' });
   const out = s.run('request-decline', s.id);
   assert.notEqual(out.code, 0);
   assert.equal(s.record().status, 'accepted', 'nothing decided');
@@ -158,15 +163,15 @@ test('the flag on and D1 failing: the decision is refused before anything is wri
 });
 
 test('--endorsements and --no-endorsements override the flag; the read commands need the binding', { skip: SKIP }, async (t) => {
-  const s = await setup(t, withDb(REAL_TOML), { STUB_D1_TALLY: '[]' });
+  const s = await setup(t, withDb(BASE_TOML), { STUB_D1_TALLY: '[]' });
   assert.equal(s.run('request-decline', s.id, '--endorsements').code, 0);
   assert.equal(d1Calls(s.calls()).length, 1, 'forced: the tally is read (nothing to clear)');
-  const bare = await setup(t, REAL_TOML);
+  const bare = await setup(t, BASE_TOML);
   const forced = bare.run('request-decline', bare.id, '--endorsements');
   assert.notEqual(forced.code, 0);
   assert.match(forced.out, /binds no SIREN_DB/);
   assert.equal(bare.record().status, 'accepted');
-  const on = await setup(t, withDb(flagOn(REAL_TOML)), { STUB_D1: 'missing' });
+  const on = await setup(t, withDb(flagOn(BASE_TOML)), { STUB_D1: 'missing' });
   assert.equal(on.run('request-decline', on.id, '--no-endorsements').code, 0);
   assert.equal(on.record().status, 'declined');
   assert.deepEqual(d1Calls(on.calls()), []);
@@ -192,7 +197,7 @@ const NOW_S = Math.floor(Date.now() / 1000);
 const FAR = NOW_S + 400 * 86400;
 
 test("a decision's SQL, run for real: the tally is frozen into the request, then the rows are deleted", { skip: SQL_SKIP }, async (t) => {
-  const s = await setup(t, withDb(flagOn(REAL_TOML)));
+  const s = await setup(t, withDb(flagOn(BASE_TOML)));
   const db = await realDb(t, s);
   for (const [i, y] of [[1, 1], [2, 0], [3, null]]) db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], [await endorsementId('k', s.id, `e${i}`), s.id, y, FAR]);
   db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['0'.repeat(32), s.id, 0, NOW_S - 5]);
@@ -207,7 +212,7 @@ test("a decision's SQL, run for real: the tally is frozen into the request, then
 });
 
 test('endorsements-purge, flag off: deletes expired rows of every kind and keeps live ones', { skip: SQL_SKIP }, async (t) => {
-  const s = await setup(t, withDb(REAL_TOML));
+  const s = await setup(t, withDb(BASE_TOML));
   const db = await realDb(t, s);
   db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['a'.repeat(32), s.id, 0, NOW_S - 5]);
   db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), s.id, 0, FAR]);
@@ -226,7 +231,7 @@ test('endorsements-purge, flag off: deletes expired rows of every kind and keeps
 });
 
 test('endorsements-purge --all: refused while the flag is on; with it off, every Bluesky row goes', { skip: SQL_SKIP }, async (t) => {
-  const on = await setup(t, withDb(flagOn(REAL_TOML)));
+  const on = await setup(t, withDb(flagOn(BASE_TOML)));
   const dbOn = await realDb(t, on);
   dbOn.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), on.id, 0, FAR]);
   process.env.STUB_DB = dbOn.file;
@@ -236,7 +241,7 @@ test('endorsements-purge --all: refused while the flag is on; with it off, every
   assert.match(refused.out, /still sets BLUESKY_LOGIN/);
   assert.equal(dbOn.rows('endorsements').length, 1, 'nothing deleted');
 
-  const off = await setup(t, withDb(REAL_TOML));
+  const off = await setup(t, withDb(BASE_TOML));
   const db = await realDb(t, off);
   db.put('endorsements', ['eh', 'request_id', 'y', 'exp'], ['b'.repeat(32), off.id, 1, FAR]);
   db.put('bsky_rate_counts', ['k', 'n', 'exp'], ['ed:new:x', 1, FAR]);
@@ -250,7 +255,7 @@ test('endorsements-purge --all: refused while the flag is on; with it off, every
 
 test('--local reads .dev.vars: BLUESKY_LOGIN=true there turns on the freeze, as wrangler dev would', { skip: SKIP }, async (t) => {
   const tally = JSON.stringify([{ request_id: publicId(await requestKey('Test source')), n: 2, young: 0, unknown: 0 }]);
-  const s = await setup(t, withDb(REAL_TOML), { STUB_D1_TALLY: tally }, { devVars: 'BLUESKY_LOGIN=true\nINVITE_SECRET=x\n' });
+  const s = await setup(t, withDb(BASE_TOML), { STUB_D1_TALLY: tally }, { devVars: 'BLUESKY_LOGIN=true\nINVITE_SECRET=x\n' });
   const out = s.run('request-decline', s.id, '--local');
   assert.equal(out.code, 0, out.out);
   assert.equal(s.record().endorsements_at_decision?.n, 2);
@@ -258,7 +263,7 @@ test('--local reads .dev.vars: BLUESKY_LOGIN=true there turns on the freeze, as 
   assert.equal(d1.length, 2);
   assert.ok(d1.every((c) => c.includes('--local') && !c.includes('--remote')));
   // Without --local, .dev.vars doesn't count: the deployed config has no flag.
-  const remote = await setup(t, withDb(REAL_TOML), { STUB_D1: 'missing' }, { devVars: 'BLUESKY_LOGIN=true\n' });
+  const remote = await setup(t, withDb(BASE_TOML), { STUB_D1: 'missing' }, { devVars: 'BLUESKY_LOGIN=true\n' });
   assert.equal(remote.run('request-decline', remote.id).code, 0);
   assert.deepEqual(d1Calls(remote.calls()), []);
 });

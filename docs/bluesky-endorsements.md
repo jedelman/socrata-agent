@@ -282,8 +282,10 @@ database_id = "<the id `wrangler d1 create siren` printed>"
 migrations_dir = "migrations"
 ```
 
-`wrangler.toml` carries this commented out: a block with a placeholder id
-would fail the Workers Builds deploy. Workers Builds doesn't apply
+Done 2026-11-09: the database `siren` (id 34a56416-65cf-4fe3-949d-8d86469929bf,
+ENAM) was created and migrations 0001 and 0002 applied and recorded in its
+`d1_migrations` table; `wrangler.toml` binds it. With `BLUESKY_LOGIN` unset
+nothing touches it. Workers Builds doesn't apply
 migrations, so apply any new one before merging the change that needs it.
 The daily cron (`[env.siren.triggers] crons = ["17 7 * * *"]`, also
 commented out there) is turned on with the flag in rollout step 5.

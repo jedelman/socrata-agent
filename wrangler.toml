@@ -92,17 +92,16 @@ binding = "LIMITS"
 id = "d4dfe5ca9b814268a1a1abe052287959"
 
 # Bluesky endorsements: the SIREN_DB D1 database (docs/bluesky-endorsements.md,
-# "Setting up the database"). Not bound yet: a placeholder id would fail the
-# deploy. Once, from a laptop logged in to the account:
-#   npx wrangler d1 create siren --env siren
-#   (paste the printed database_id below and uncomment the block)
+# "Setting up the database"). Created 2026-11-09 (ENAM); migrations 0001 and
+# 0002 applied the same day and recorded in its d1_migrations table. Bound,
+# but nothing touches it while BLUESKY_LOGIN is unset.
+# Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
-# Workers Builds doesn't apply migrations: apply each new one before merging.
-# [[env.siren.d1_databases]]
-# binding = "SIREN_DB"
-# database_name = "siren"
-# database_id = "<the id `wrangler d1 create siren` printed>"
-# migrations_dir = "migrations"
+[[env.siren.d1_databases]]
+binding = "SIREN_DB"
+database_name = "siren"
+database_id = "34a56416-65cf-4fe3-949d-8d86469929bf"
+migrations_dir = "migrations"
 #
 # Deletes expired endorsement rows daily. Uncommented in the same PR as
 # BLUESKY_LOGIN: the retention promised on the requests page depends on it.
