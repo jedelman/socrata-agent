@@ -56,7 +56,15 @@ generic mode.
 - `worker/access.js` verifies Cloudflare Access JWTs for per-person limits.
   Never trust the plain email header.
 - `bin/socrata-agent.js` is the CLI (`ask` with your own key; `tool` with no key).
-- `worker/` is the Cloudflare chat app (`index.js` plus `ui.html`).
+- `worker/` is the Cloudflare chat app (`index.js` plus `ui.html`, whose
+  script and style are `chat-page.js` and `chat.css`, served under
+  `<base>/assets/<hash>/` so the page carries a strict CSP: no inline script,
+  style attribute or handler, and nothing that needs one). Siren is at
+  `https://ask-siren.jason-edelman.org`, its own origin (a Workers Custom
+  Domain, `BASE_PATH` empty, since 2026-11-10); `moved.js` answers its old
+  address, `jason-edelman.org/ask-siren` (`MOVED_FROM`), with redirects only.
+  Links the Worker sends out (sign-in emails, annotation ids, endorsement
+  subjects, the client_id) come from `PUBLIC_ORIGIN`, never the Host header.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
   sign-in by magic link (Resend), which binds an invite to an account;
   `conversations.js` holds each account's conversations (KV, 7 days), whose
@@ -148,8 +156,11 @@ generic mode.
   decisions freeze the live count, and go through without one if
   Constellation is down. The browser's PAR, token and revoke go only to
   endpoints on the issuer's origin, and record writes only to the PDS named
-  in the re-resolved DID document. The requests pages carry a strict CSP
-  with no inline script or style; every remote string is escaped. Never link
+  in the re-resolved DID document. The requests pages and the chat page carry
+  a strict CSP with no inline script or style (the steward's `/admin` page
+  doesn't yet); every remote string is escaped. The subject URL is fixed
+  since the move: changing `PUBLIC_ORIGIN` or `BASE_PATH` once endorsements
+  exist strands them. Never link
   a Bluesky identity to an invite, email account or conversation. `SIREN_DB`
   stays bound for the planned board but nothing reads it; migration 0003
   (unapplied) drops the old endorsement tables. With `BLUESKY_LOGIN` unset,

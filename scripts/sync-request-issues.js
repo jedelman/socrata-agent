@@ -34,7 +34,7 @@
 // left the feed can't trip that refusal. Plan mode leaves unlisted issues
 // alone.
 //
-//   REQUESTS_URL=https://jason-edelman.org/ask-siren/api/requests \
+//   REQUESTS_URL=https://ask-siren.jason-edelman.org/api/requests \
 //   GITHUB_REPOSITORY=owner/repo node scripts/sync-request-issues.js --plan [--with-withdrawn]
 //     prints the desired issues as JSON ([{id, marker, title, body, state,
 //     state_reason?, create_if_missing?, label}]), needing no token. The
@@ -216,14 +216,20 @@ export function operations({ existing, requests, withdrawn, pageUrl, repo, close
   return ops;
 }
 
+/** The public request list's page, from its feed URL: <base>/api/requests -> <base>/requests. */
+export const pageUrlFor = (feedUrl) => String(feedUrl).replace(/api\/requests$/, 'requests');
+
 /** The command line, with its world passed in so tests can stub it. */
 export async function main({ argv = process.argv.slice(2), env = process.env, fetchImpl = fetch, log = console.log } = {}) {
   const dry = argv.includes('--dry-run');
   const feedUrl = env.REQUESTS_URL;
   if (!feedUrl) throw new Error('Set REQUESTS_URL to the public /api/requests feed.');
-  const pageUrl = feedUrl.replace(/api\/requests$/, 'requests');
   const res = await fetchImpl(feedUrl);
   if (!res.ok) throw new Error(`The feed answered ${res.status}; nothing was synced.`);
+  // The page link comes from where the feed was actually read, so a feed that
+  // moved (Siren's old address redirects to ask-siren.jason-edelman.org since
+  // 2026-11-10) links the new page even before REQUESTS_URL is updated.
+  const pageUrl = pageUrlFor(typeof res.url === 'string' && /^https:\/\/[^/]+\/(.+\/)?api\/requests$/.test(res.url) ? res.url : feedUrl);
   const feed = await res.json();
   if (!Array.isArray(feed?.requests)) throw new Error('The feed has no requests list; nothing was synced.');
   const repo = env.GITHUB_REPOSITORY;

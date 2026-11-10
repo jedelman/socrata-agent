@@ -28,6 +28,23 @@ token honors both fields too, and also closes issues the feed no longer
 lists. The admin page and `docs/fulfilling-requests.md` say so, and say which
 issues still need closing by hand (the end of this file).
 
+## Siren's new address (2026-11-10): update the stored prompt after the deploy
+
+Siren moved to its own origin, `https://ask-siren.jason-edelman.org`, so the
+feed is now `https://ask-siren.jason-edelman.org/api/requests`. The copy of
+the prompt below already reads it (step 2's `REQUESTS_URL`; nothing else in
+the prompt changes). The stored prompt still reads
+`https://jason-edelman.org/ask-siren/api/requests`, and only Jason can change
+it (the merge step below). Update it after the deploy that ships the move,
+once the new feed answers.
+
+Until then the old URL keeps working through the redirect: the old address
+answers 301 to the same path on the new origin, which the script's fetch
+follows. Issue bodies link the new page either way, because the script takes
+the page link from the URL it finally read the feed from. So the first run
+after the deploy updates every source-request issue's body once, to the new
+`[the request list](https://ask-siren.jason-edelman.org/requests)` link.
+
 ## Random request ids (2026-11-09)
 
 Request ids are random now (16 base32 characters), not the first 12 hex of a
@@ -43,9 +60,10 @@ A never-public request's old id is dropped, so it never reaches GitHub.
 
 ## Merge step: update the routine (Jason only)
 
-Done on 2026-11-09: Jason replaced the routine's stored prompt with the text
-below. Merging a change to the routine's contract never updates the routine
-by itself. Its prompt is stored in the routine, and only Jason can approve a
+Done on 2026-11-09 for `--with-withdrawn`: Jason replaced the routine's
+stored prompt with that text. Pending since 2026-11-10: step 2's new
+`REQUESTS_URL`, after the deploy (above). Merging a change to the routine's
+prompt never updates the routine by itself. Its prompt is stored in the routine, and only Jason can approve a
 change to it; nothing in this repo or in a session changes it on its own.
 
 The steps, as done for `--with-withdrawn`, for the next such change:
@@ -57,10 +75,15 @@ The steps, as done for `--with-withdrawn`, for the next such change:
    Jason's approval).
 3. After the next run (01:57 America/New_York), check its report. For
    `--with-withdrawn`: withdrawn requests' issues closed as not planned,
-   nothing created for them.
+   nothing created for them. For the new address: the plan read from
+   `https://ask-siren.jason-edelman.org/api/requests`, and nothing but
+   issue bodies updated, if the run before it hadn't already updated them
+   through the redirect.
 
-The stored prompt, exactly (steps 2 and 4 are what changed on 2026-11-09;
-step 2 also says the notes are steward-approved now):
+The prompt, exactly as it should be stored (steps 2 and 4 changed on
+2026-11-09, and step 2 also says the notes are steward-approved now; on
+2026-11-10 step 2's `REQUESTS_URL` moved to Siren's new address, which the
+stored prompt needs once the move is deployed, as above):
 
 ```text
 Nightly job for Jason Edelman's civic agent Siren: mirror Siren's public source-request list to GitHub issues in jedelman/socrata-agent. You only sync issues; you change no code and no other issues.
@@ -68,7 +91,7 @@ Nightly job for Jason Edelman's civic agent Siren: mirror Siren's public source-
 1. Get the repo. If jedelman/socrata-agent isn't in this session, add it with the add_repo tool (owner jedelman, repo socrata-agent, access "push", which is needed for the GitHub issue tools). Clone it and check out main. If you have no GitHub tools for listing, creating and updating issues, stop and report that; change nothing.
 
 2. Build the plan from the public feed (no token needed):
-   REQUESTS_URL=https://jason-edelman.org/ask-siren/api/requests GITHUB_REPOSITORY=jedelman/socrata-agent node scripts/sync-request-issues.js --plan --with-withdrawn > /tmp/plan.json
+   REQUESTS_URL=https://ask-siren.jason-edelman.org/api/requests GITHUB_REPOSITORY=jedelman/socrata-agent node scripts/sync-request-issues.js --plan --with-withdrawn > /tmp/plan.json
    Each entry has id, marker (an HTML comment like <!-- source-request:abc123def456 -->), title, body, state ("open" or "closed") and label ("source-request"), and may have state_reason ("completed" or "not_planned") and create_if_missing (false). The feed holds only requests the steward accepted, notes the steward approved, and the ids of requests the steward withdrew. If the feed fails or the script errors, stop and report the error; change nothing.
 
 3. List every issue in jedelman/socrata-agent with the label source-request, open and closed, using the GitHub tools. Match an issue to a plan entry only when the issue body contains that entry's marker.

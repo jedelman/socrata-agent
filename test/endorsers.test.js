@@ -9,8 +9,8 @@ import { addRequest, decide, currentId, requestKey, publicId } from '../worker/r
 import { endorseSubject, buildEndorsement, ENDORSE_NSID, BLUESKY_MODERATION_DID } from '../worker/endorse-config.js';
 import { W, json, didDoc, fakeNetwork, fakeCache, fakeLimiter, readyEnv } from './fake-atproto.js';
 
-const BASE = '/ask-siren';
-const ORIGIN = 'https://jason-edelman.org';
+const BASE = '';
+const ORIGIN = 'https://ask-siren.jason-edelman.org';
 const NOW = Date.parse('2026-11-09T12:00:00Z');
 const did = (c) => `did:plc:${c.repeat(24)}`;
 

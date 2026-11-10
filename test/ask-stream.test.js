@@ -413,9 +413,10 @@ test('a reader leaves and the platform cancels the work at its deadline: each ca
 });
 
 // The page's stream reader and its wait for a dropped answer, run as the
-// page runs them (the marked helpers block in worker/ui.html).
+// page runs them (the marked helpers block in worker/chat-page.js, the chat
+// page's script).
 const pageHelpers = () => {
-  const ui = readFileSync(new URL('../worker/ui.html', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../worker/chat-page.js', import.meta.url), 'utf8');
   const start = ui.indexOf('// ---- helpers');
   const end = ui.indexOf('// ---- end helpers');
   assert.ok(start > 0 && end > start, 'the helpers block is marked');

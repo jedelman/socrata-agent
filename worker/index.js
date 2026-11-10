@@ -37,6 +37,10 @@ import REQUESTS_PAGE from './requests.html';
 // esbuild import attribute; the same files are imported as code elsewhere).
 import PAGE_JS from './requests-page.js' with { type: 'text' };
 import PAGE_CSS from './requests.css' with { type: 'text' };
+// The chat page's script and style, served the same way so it can carry a
+// strict CSP too.
+import CHAT_JS from './chat-page.js' with { type: 'text' };
+import CHAT_CSS from './chat.css' with { type: 'text' };
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
 import STORE_JS from './endorse-store.js' with { type: 'text' };
 import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
@@ -49,6 +53,7 @@ import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 import { toolsFor } from '../src/tools.js';
 import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
+import { movedResponse } from './moved.js';
 
 // Street names per city, used only to refuse addresses in text that could go
 // public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
@@ -88,6 +93,10 @@ const inviteSetupError = (env) =>
   !env.LIMITS ? 'This site is not configured yet (invite mode needs the LIMITS storage, even in local dev).'
     : !env.INVITE_SECRET || !env.IP_SALT ? 'This site is not configured yet (invites are not set up).' : null;
 const basePath = (env) => (env.BASE_PATH || '').replace(/\/$/, '');
+// The site's own origin for links it sends out (sign-in emails, annotation
+// ids): PUBLIC_ORIGIN when it is set and valid, never the Host header; else
+// the request's origin (deployments without PUBLIC_ORIGIN).
+const siteOrigin = (env, url) => publicOrigin(env)?.origin || url.origin;
 
 // The API takes JSON only. Browsers can't send a cross-site JSON POST without
 // a CORS preflight this Worker never answers, which closes off cross-site
@@ -382,7 +391,7 @@ async function handleLogin(req, env) {
   if (setup) return json({ error: setup }, 503);
   const body = await readJson(req);
   const { config } = getDeployment(env);
-  const origin = new URL(req.url).origin;
+  const origin = siteOrigin(env, new URL(req.url));
   try {
     const out = await startLogin({
       body, env, kv: env.LIMITS, visitor: await visitorHashFor(req, env, 'login'), link: `${origin}${basePath(env)}/login`, appName: APP_NAME_OF(env, config),
@@ -463,6 +472,8 @@ const JS = 'text/javascript; charset=utf-8';
 const ASSETS = {
   'requests-page.js': [PAGE_JS, JS],
   'requests.css': [PAGE_CSS, 'text/css; charset=utf-8'],
+  'chat-page.js': [CHAT_JS, JS],
+  'chat.css': [CHAT_CSS, 'text/css; charset=utf-8'],
   'endorse-client.js': [CLIENT_JS, JS],
   'endorse-store.js': [STORE_JS, JS],
   'atproto-identity.js': [IDENTITY_JS, JS],
@@ -492,11 +503,46 @@ function assetResponse(hash, name) {
  * The requests pages' policy: scripts and styles only from this origin (no
  * inline script or style), fetches to any https server (the browser talks
  * to each person's own Bluesky server), nothing framed, no base or form
- * target elsewhere. Siren shares jason-edelman.org's origin, so 'self' also
- * covers the root site (D4: stay on the shared origin, default, pending
- * Jason; docs/bluesky-endorsements.md says what a subdomain would buy).
+ * target elsewhere. Siren has its own origin, ask-siren.jason-edelman.org,
+ * so 'self' is Siren alone (D4, settled by Jason, 2026-11-10: the subdomain;
+ * docs/bluesky-endorsements.md, "Where the endorsing page runs").
  */
 const REQUESTS_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+
+/**
+ * The chat page's scripts from elsewhere: exactly these two files, pinned
+ * versions with subresource integrity in ui.html, not the whole CDN.
+ */
+const CHAT_SCRIPTS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js',
+];
+
+/**
+ * The chat page's policy, as strict as the requests pages' (D4): no inline
+ * script or style; scripts from this origin and the two files above; styles
+ * and fonts from this origin and whatever the skin names (worker/skins.js);
+ * fetches to this origin only (the page talks to nothing else); images from
+ * this origin and data: URLs (the favicon and the masthead's wave); nothing
+ * framed, no base, forms only to this origin. It renders model output, so a
+ * script that got in could reach the endorsement session on the same
+ * origin; under this policy, injected markup can't run script.
+ */
+function chatCsp(skin) {
+  const extra = (list) => (Array.isArray(list) && list.length ? ` ${list.join(' ')}` : '');
+  const font = skin?.csp?.font;
+  return [
+    "default-src 'none'",
+    `script-src 'self' ${CHAT_SCRIPTS.join(' ')}`,
+    `style-src 'self'${extra(skin?.csp?.style)}`,
+    ...(Array.isArray(font) && font.length ? [`font-src ${font.join(' ')}`] : []),
+    "connect-src 'self'",
+    "img-src 'self' data:",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
 
 async function requestsPage(req, env, ctx, base, focus) {
   const { config } = getDeployment(env);
@@ -539,6 +585,7 @@ function page(env) {
   const skinName = skins[ui.skin] ? ui.skin : 'plain';
   const skin = skins[skinName];
   const fill = {
+    ASSETS: esc(`${basePath(env)}/assets/${ASSET_HASH}`),
     APP_NAME: esc(env.APP_NAME || config.name || 'socrata-agent'),
     SKIN: skinName,
     TAGLINE: esc(ui.tagline),
@@ -550,25 +597,38 @@ function page(env) {
     FONTS: skin.fonts,
     FAVICON: skin.favicon,
   };
-  return UI.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
+  const html = UI.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'Content-Security-Policy': chatCsp(skin),
+      'X-Frame-Options': 'DENY',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  });
 }
 
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
-    // Served under a path on someone else's site (jason-edelman.org/ask-siren):
-    // strip the prefix, and send the bare path to the trailing-slash form so the
-    // page's relative API links resolve under it.
-    let path = url.pathname;
     const base = basePath(env);
+    // A deployment that moved (MOVED_FROM, worker/moved.js): its old address
+    // answers only with redirects to the new one. Siren moved from
+    // jason-edelman.org/ask-siren to ask-siren.jason-edelman.org on 2026-11-10.
+    const moved = movedResponse(req, env, base);
+    if (moved) return moved;
+    // Served under a path on someone else's site (BASE_PATH): strip the prefix,
+    // and send the bare path to the trailing-slash form so the page's relative
+    // API links resolve under it. With no BASE_PATH (Siren's own origin), the
+    // paths are served as they are.
+    let path = url.pathname;
     if (base) {
       if (path === base) return Response.redirect(`${url.origin}${base}/${url.search}`, 301);
       if (!path.startsWith(`${base}/`)) return new Response('Not found', { status: 404 });
       path = path.slice(base.length);
     }
-    if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/' || path === '/index.html' || path === '/login')) {
-      return new Response(page(env), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' } });
-    }
+    if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/' || path === '/index.html' || path === '/login')) return page(env);
     if (req.method === 'GET' && path === '/api/cities') {
       return json(
         allowedCities(env).map((id) => ({ id, name: cities[id].name, portal: cities[id].portal, block: Boolean(cities[id].address) }))
@@ -613,7 +673,7 @@ export default {
     if (endorsersPath) return handleEndorsers(req, env, ctx, base, endorsersPath[1]);
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
-      const casesBase = `${url.origin}${base}`;
+      const casesBase = `${siteOrigin(env, url)}${base}`;
       const h = { 'Content-Type': 'application/ld+json; profile="http://www.w3.org/ns/anno.jsonld"', 'Cache-Control': 'public, max-age=3600', 'Access-Control-Allow-Origin': '*' };
       if (path === '/api/cases') {
         return json({ cases: Object.values(CASES).map((c) => ({ id: c.id, title: c.title, annotations: `${casesBase}/api/cases/${c.id}`, license: c.license })) }, 200, { 'Access-Control-Allow-Origin': '*' });
@@ -636,7 +696,7 @@ export default {
     if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/requests' || permalink)) {
       return requestsPage(req, env, ctx, base, permalink ? permalink[1] : '');
     }
-    // The page's script, style and the browser client, as module text.
+    // The pages' scripts and styles, and the browser client, as text.
     const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
     if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]]) return assetResponse(asset[1], asset[2]);
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);

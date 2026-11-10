@@ -19,7 +19,7 @@
       "type": "object",
       "required": ["uri", "id"],
       "properties": {
-        "uri": { "type": "string", "format": "uri", "maxLength": 512, "description": "The request's public page, e.g. https://jason-edelman.org/ask-siren/requests/<id>. Indexers link on this field." },
+        "uri": { "type": "string", "format": "uri", "maxLength": 512, "description": "The request's public page, e.g. https://ask-siren.jason-edelman.org/requests/<id>. Indexers link on this field." },
         "id": { "type": "string", "maxLength": 64, "description": "The request's public id on that instance." },
         "title": { "type": "string", "maxLength": 300, "maxGraphemes": 200, "description": "The request's source text when endorsed, so the record reads on its own." }
       }

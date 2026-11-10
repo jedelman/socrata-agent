@@ -35,8 +35,8 @@ async function loadWorker() {
   return worker;
 }
 
-const ORIGIN = 'https://jason-edelman.org';
-const BASE = '/ask-siren';
+const ORIGIN = 'https://ask-siren.jason-edelman.org';
+const BASE = '';
 const get = async (w, env, path, init = {}) => w.fetch(new Request(`${ORIGIN}${BASE}${path}`, init), env, { waitUntil() {} });
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
@@ -66,7 +66,7 @@ test('the page: a strict CSP, no inline script or style, and every asset it load
     assert.ok(!/<style/.test(html) && !/\sstyle="/.test(html), 'no inline style');
     assert.ok(!/\son[a-z]+="/i.test(html), 'no inline handlers');
     assert.ok(!/\{\{[A-Z_]+\}\}/.test(html), 'every placeholder filled');
-    const assets = [...html.matchAll(/(?:src|href)="(\/ask-siren\/assets\/[0-9a-f]{16}\/[^"]+)"/g)].map((m) => m[1]);
+    const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[0-9a-f]{16}\/[^"]+)"/g)].map((m) => m[1]);
     assert.deepEqual(assets.map((a) => a.split('/').pop()).sort(), ['requests-page.js', 'requests.css']);
     // Every module the page can load, and every module those import, is served.
     const seen = new Set();
@@ -88,7 +88,7 @@ test('the page: a strict CSP, no inline script or style, and every asset it load
     // An old hash still gets the file, never cached.
     const stale = await w.fetch(new Request(`${ORIGIN}${BASE}/assets/0000000000000000/requests-page.js`), env, {});
     assert.equal(stale.headers.get('Cache-Control'), 'no-store');
-    assert.equal((await w.fetch(new Request(`${ORIGIN}${BASE}/assets/${assets[0].split('/')[3]}/index.js`), env, {})).status, 404, 'only the listed files');
+    assert.equal((await w.fetch(new Request(`${ORIGIN}${BASE}/assets/${assets[0].split('/')[2]}/index.js`), env, {})).status, 404, 'only the listed files');
   }
 });
 
@@ -133,7 +133,7 @@ test('a request\'s own page exists only for a listed request, with endorsing on'
     const html = await page.text();
     assert.match(html, new RegExp(`data-focus="${listed}"`));
     assert.match(html, /data-endorse="on"/);
-    assert.match(html, /data-origin="https:\/\/jason-edelman.org"/);
+    assert.match(html, /data-origin="https:\/\/ask-siren\.jason-edelman\.org"/);
     assert.ok(page.headers.get('Content-Security-Policy'));
     for (const id of [unlisted, 'zzzzzzzzzzzzzzzz', 'abcdefabcdef', '%3Cx%3E']) assert.equal((await get(w, env, `/requests/${id}`)).status, 404, id);
   }, net.fetch);

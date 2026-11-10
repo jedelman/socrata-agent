@@ -35,7 +35,10 @@ node bin/socrata-agent.js tool water_on_my_block '{"address":"111 Pennsylvania A
 
 For the web app, add your file to `deployments/index.js` and set the Worker's
 `DEPLOYMENT` var to its name (see `[env.siren]` in `wrangler.toml` for a full
-example, including serving under a path on an existing site with `BASE_PATH`).
+example: a Workers Custom Domain of its own, with `BASE_PATH` empty, and
+`MOVED_FROM` redirecting the address it had before). To serve under a path on
+an existing site instead, use a route for that path and set `BASE_PATH` to it,
+such as `"/siren"`.
 A deployment's `city` takes precedence over the `CITIES` setting.
 
 **What a config can do:** add tools, contacts, links and exclusions, and give

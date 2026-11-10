@@ -11,8 +11,8 @@ import { ENDORSE_NSID, OAUTH_SCOPE, endorseSubject, buildEndorsement } from '../
 import { b64url, sha256 } from '../worker/crypto.js';
 import { W, json, didDoc, asMeta, fakeNetwork, fakeLimiter, readyEnv } from './fake-atproto.js';
 
-const ORIGIN = 'https://jason-edelman.org';
-const BASE = '/ask-siren';
+const ORIGIN = 'https://ask-siren.jason-edelman.org';
+const BASE = '';
 const ID = 'abcdefghijklmnop';
 const ID2 = 'qrstuvwxyz234567';
 
