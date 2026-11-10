@@ -464,3 +464,11 @@ test('the Worker sends Siren\'s allowlist on every model call, and WEB_SEARCH = 
     globalThis.fetch = real;
   }
 });
+
+test("Siren's list names Virginia agencies, never all of virginia.gov or the State Police", async () => {
+  const { default: siren } = await import('../deployments/siren.config.js');
+  const list = siren.webSearch.allowedDomains;
+  assert.ok(!list.includes('virginia.gov'), 'virginia.gov would cover vsp.virginia.gov (Wanted and Missing Persons)');
+  assert.ok(!list.some((d) => d === 'vsp.virginia.gov' || d.endsWith('.vsp.virginia.gov')));
+  assert.ok(list.includes('lis.virginia.gov'));
+});

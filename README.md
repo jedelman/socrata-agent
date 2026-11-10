@@ -195,13 +195,16 @@ For Claude models, a deployment can let the agent search the web, but only
 the sites it lists. It is off unless the config sets it:
 
 ```js
-webSearch: { allowedDomains: ['www.norfolk.gov', 'virginia.gov', 'fema.gov'], maxUses: 3 },
+webSearch: { allowedDomains: ['www.norfolk.gov', 'lis.virginia.gov', 'fema.gov'], maxUses: 3 },
 ```
 
 The list goes to Anthropic's web search tool as its `allowed_domains`, and
 the API enforces it. Entries are bare domains (no `https://`), lowercase
-ASCII, optionally with a path; subdomains are included, so `virginia.gov`
-covers `law.lis.virginia.gov`, and a subdomain entry covers only itself. The
+ASCII, optionally with a path; subdomains are included, so `lis.virginia.gov`
+covers `law.lis.virginia.gov`, and a subdomain entry covers only itself.
+Because subdomains are included, list agencies, not whole government
+domains: `virginia.gov` would also cover the State Police's Wanted and
+Missing Persons pages (`vsp.virginia.gov`), so Siren lists named agencies. The
 config is checked at startup: wildcards in the domain, IP addresses, bare
 TLDs, duplicates and entries another entry already covers are refused, and
 so is any list that covers the city's open data portal (`norfolk.gov` covers

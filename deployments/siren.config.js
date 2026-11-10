@@ -57,7 +57,19 @@ export default {
     allowedDomains: [
       'www.norfolk.gov',
       'norfolkcityva.iqm2.com',
-      'virginia.gov',
+      // Named Virginia agencies, not all of virginia.gov: that would cover
+      // vsp.virginia.gov's Wanted and Missing Persons pages (checked
+      // 2026-11-10). lis.virginia.gov covers law.lis.virginia.gov (Code of
+      // Virginia, Administrative Code); the rest are the agencies whose pages
+      // Siren's topics touch (environment, floodplains, forestry, housing,
+      // roads, regulations). Each confirmed live 2026-11-10.
+      'lis.virginia.gov',
+      'townhall.virginia.gov',
+      'deq.virginia.gov',
+      'dcr.virginia.gov',
+      'dof.virginia.gov',
+      'dhcd.virginia.gov',
+      'vdot.virginia.gov',
       'fema.gov',
       'epa.gov',
       'census.gov',
