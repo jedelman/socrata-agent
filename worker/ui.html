@@ -63,7 +63,17 @@
     <span id="conv-state">New conversation</span>
     <button type="button" id="conv-new">Start a new conversation</button>
     <button type="button" id="conv-forget" hidden>Forget this conversation</button>
-    <details id="conv-recent" hidden><summary>Your conversations</summary><ul id="conv-list"></ul><button type="button" id="conv-forget-all" class="textbtn">Forget all my conversations</button></details>
+    <details id="conv-recent" hidden><summary>Your conversations</summary>
+      <form id="conv-search" class="convsearch" role="search" autocomplete="off">
+        <input id="conv-q" name="q" type="search" placeholder="Search your questions and answers" aria-label="Search your conversations" minlength="2" maxlength="100" required autocomplete="off">
+        <button type="submit">Search</button>
+        <button type="button" id="conv-clear" hidden>Back to the list</button>
+      </form>
+      <p class="convmsg" id="conv-search-msg" role="status"></p>
+      <ul id="conv-results" class="convhits" hidden></ul>
+      <ul id="conv-list"></ul>
+      <div class="convactions"><button type="button" id="conv-more" hidden>Show more</button><button type="button" id="conv-forget-all" class="textbtn">Forget all my conversations</button></div>
+    </details>
   </div>
   <main id="log" aria-live="polite"></main>
   <template id="notes-tpl">

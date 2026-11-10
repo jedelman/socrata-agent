@@ -4,7 +4,9 @@
 // deployment; Siren invite-only; Siren with Bluesky endorsements on and
 // SIREN_DB bound), plus the paths the free tier adds, which must stay 404s.
 // public-ask-off-snapshot.json is this scenario's output from main at f6f0e9e (the
-// code before any free-tier code; retaken after main gained #31).
+// code before any free-tier code; retaken after main gained #31), with
+// conversation browsing and search applied to it (retaken 2026-11-10 on
+// f6f0e9e plus that change's worker files: still no free-tier code).
 //
 // Each entry keeps the status, every header and the body (its text when
 // short, else its SHA-256 and length), the outbound URLs it made and whether
@@ -190,6 +192,7 @@ export async function publicAskOffScenario({ worker, extraEnv = {} }) {
       await run('GET /api/admin/requests (steward)', '/api/admin/requests', { headers: { Cookie: await steward() } });
       await run('GET /api/conversations', '/api/conversations');
       await run('GET /api/conversation', '/api/conversation?id=x');
+      await run('GET /api/conversations/search', '/api/conversations/search?q=trees');
       // Posts.
       await run('POST text/plain', '/api/ask', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'x' });
       await run('POST /api/ask (empty)', '/api/ask', postJson('/api/ask', {}));
@@ -205,6 +208,7 @@ export async function publicAskOffScenario({ worker, extraEnv = {} }) {
       await run('POST decide', '/api/admin/requests/decide', postJson('/api/admin/requests/decide', { id: 'abcdefghijklmnop', status: 'accepted' }));
       await run('POST /api/bsky/resolve', '/api/bsky/resolve', postJson('/api/bsky/resolve', { account: HANDLE }, { Origin: ORIGIN }));
       await run('POST /api/conversations/delete', '/api/conversations/delete', postJson('/api/conversations/delete', { id: 'x' }));
+      await run('POST /api/conversations/search', '/api/conversations/search', postJson('/api/conversations/search', { q: 'trees' }));
       // The free tier's paths.
       for (const p of NEW_GETS) await run(`GET ${p}`, p);
       for (const p of NEW_POSTS) await run(`POST ${p}`, p, postJson(p, { uri: `at://${DID}/x.y.z/3kabc`, cid: 'bafy' }, { Cookie: await invite() }));

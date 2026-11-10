@@ -204,6 +204,14 @@ What the move does to people (2026-11-10):
   (`docs/request-sync-routine.md`) and "Siren: fulfill a source request".
   Until then the old URL keeps working through the redirect.
 
+Signed in with an invite, "Your conversations" on the chat page lists an
+account's conversations newest first, 20 at a time with **Show more**, and
+searches them: the questions and answers of the account's own 300 most
+recently updated conversations (never the tool results behind them), up to
+20 matches with a snippet each, opening the conversation at the matching
+turn. The search text is sent in a POST body, never logged, stored or cached,
+and each account may search 100 times a day.
+
 The chat page, like the request pages, is served under a strict
 Content-Security-Policy: no inline script or style (its script and style are
 `worker/chat-page.js` and `worker/chat.css`, served under
@@ -294,7 +302,12 @@ Jason accepted that for the forms). The rest of the
 City's site and the meeting portal are left off: City news shares one path
 with police news, which names arrested and missing people, and hearing
 packets list nearby owners; the config records what each probe found on
-every site left off.
+every site left off. City announcements reach Siren through the `city_news`
+tool instead: it reads the City's News Flash and Alert Center RSS feeds by
+category, and leaves Police and Commonwealth's Attorney news out in code (an
+allowlist of categories, checked against each feed's own title; a check that
+drops items cross-posted from those two feeds; and a check on crime and court
+wording).
 Web search must be enabled for the Anthropic organization (Console,
 capabilities), and if the organization restricts domains there, the
 deployment's list must sit inside that list; otherwise the API refuses the
@@ -375,6 +388,7 @@ platform's 50 for the Access key fetch (twice when a key has rotated) and any
 redirect hop, which Cloudflare counts but a fetch() call can't show. For scale, measured live
 with `socrata-agent tool` on 2026-11-06: `block_report` makes 10 to 13
 requests, `trees_on_my_block` 13 to 16, `water_on_my_block` 17, `case_file` 0,
+`city_news` 8 (2026-11-10; at most 16 with a retry for every feed),
 and each model step 1 (2 with a Claude retry); the `tool` command prints the
 count as `outbound_requests`. The CLI's `ask` has no cap unless
 `SUBREQUEST_BUDGET` is set in its environment (a whole number, 10 or more).

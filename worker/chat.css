@@ -83,6 +83,20 @@ footer { margin-top: 40px; color: var(--muted); font-size: .9rem; border-top: 1p
 .convbar button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
 .convbar details { width: 100%; }
 .convbar ul { margin: 6px 0 0; padding-left: 18px; }
+/* "Your conversations": search, matches, paging. */
+.convbar form.convsearch { margin: 8px 0 0; gap: 6px 12px; align-items: center; flex-wrap: wrap; }
+.convbar form.convsearch input { flex: 1; min-width: 14ch; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.convbar form.convsearch input:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.convbar .convmsg { margin: 6px 0 0; }
+.convbar .convmsg:empty { display: none; }
+.convbar ul.convhits li { margin: 8px 0; }
+.convbar .snippet { color: var(--ink); font-size: .88rem; overflow-wrap: anywhere; }
+.convbar mark { background: color-mix(in srgb, var(--accent) 24%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+.convbar .convactions { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 0; }
+.convbar button:disabled { opacity: .55; cursor: progress; }
+.turn.found > .q { border-left: 3px solid var(--accent); padding-left: 8px; }
+.turn { scroll-margin-top: 12px; }
+@media (max-width: 520px) { .convbar form.convsearch { flex-direction: row; } }
 details.notes { border: 1px dashed var(--line); border-radius: var(--radius); padding: 6px 14px 8px; margin: 0 0 10px; }
 details.notes summary { color: var(--muted); }
 details.notes .fine { color: var(--muted); font-size: .85rem; margin: 6px 0; }

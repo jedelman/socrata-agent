@@ -108,7 +108,20 @@ generic mode.
   request"; `CONVERSATION_DAYS` sets an expiry for other deployments). Up to
   50 turns are kept; the last 8 come back to the model, with their tool
   results as data for follow-ups. Each key's metadata carries the list's
-  title, so listing never opens every conversation. Each turn also keeps
+  title, so listing never opens every conversation. The list pages newest
+  updated first (`GET /api/conversations?limit=&cursor=`: 20 a page, 50 at
+  most; the cursor is the last `(updated, id)`, since that order isn't key
+  order). Search (`/api/conversations/search`: the page POSTs `{q}` so the
+  query is never in a URL; `GET ?q=` also works) reads the account's own
+  conversations only, the 300 newest by `updated`, and matches each turn's
+  question and answer as they read on the page (NFKC, case, whitespace,
+  markdown marks dropped), never tool results or records: at most 20
+  matches, three per conversation, with a notice when the 300 bound cut it
+  short. The query and results are never logged, stored or cached
+  (`no-store`; a failure logs one fixed line). Searches are limited to 100
+  per account per UTC day, counted under `search-rate:<day>:<HMAC(day, uid)>`
+  so the counter can't be joined to the account; a search the counter can't
+  record (KV takes one write a second per key) isn't run. Each turn also keeps
   the record shown under its answer (trace, hand-off, voice check, model,
   steps, cost, suggestions; bounded by `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are
@@ -281,6 +294,24 @@ generic mode.
   dataset's own list (a traced query) and only the City's spelling reaches
   fixed SoQL; a miss returns the closest names. Caveats are quoted from the
   live metadata or computed from the queries.
+- `plugins/city-news.js` (`city_news`) reads the City's own announcements
+  from its News Flash and Alert Center RSS feeds (`www.norfolk.gov/rss.aspx`).
+  Police and prosecutor news stays out in code. A frozen allowlist of
+  categories (`NEWS_FEEDS`, read live 2026-11-10): Police-34,
+  Commonwealths-Attorney-65 and every `All-` feed are refused at load and by
+  `test/city-news.test.js`, and since the server reads only the number at the
+  end of a CID ("Community-34" serves Police) and serves every category for a
+  CID with none, the rule is on the number (News Flash 34 and 65 never); a
+  feed is read only if its own title names the category asked for. A
+  cross-post check: those two feeds are read for their links only, and an
+  allowed item sharing a link is dropped (if they can't be read, items still
+  come back with the check marked incomplete). And a broad crime-and-court
+  wording check on titles and summaries. A call reads up to 6 category feeds
+  (home page, spotlight and emergency alerts always, the rest by the query's
+  words) plus the 2 link feeds, the link feeds first, each with one retry as
+  its own traced step (`tracedHttp`'s `retry: false`). Only `www.norfolk.gov`
+  links are kept. Fire-Rescue alerts stay off until one has been read and
+  names no one.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.

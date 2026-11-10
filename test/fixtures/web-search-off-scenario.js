@@ -6,8 +6,23 @@
 // web-search-off-snapshot.json is this scenario's output from a286524 (main
 // before web search). Timings are zeroed; usage carries no cache reads, so
 // the Sonnet 5.5 cache-read price fix doesn't move the cost.
+//
+// Siren as it was at the snapshot: tools added to Siren since then, and the
+// prompt lines that name them, are left out, so the comparison with a286524
+// still covers everything else. Add a tool's name here when it joins Siren.
+export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news']);
 
-export async function webSearchOffScenario({ ask, systemPrompt, getCity, applyConfig, definePlugin, siren, claudeResponse, extra = {} }) {
+function sirenAtSnapshot(siren) {
+  const added = (text) => ADDED_SINCE_SNAPSHOT.some((name) => text.includes(name));
+  return {
+    ...siren,
+    plugins: siren.plugins.filter((p) => !ADDED_SINCE_SNAPSHOT.includes(p.name)),
+    prompt: siren.prompt.split('\n').filter((line) => !added(line)).join('\n'),
+  };
+}
+
+export async function webSearchOffScenario({ ask, systemPrompt, getCity, applyConfig, definePlugin, siren: current, claudeResponse, extra = {} }) {
+  const siren = sirenAtSnapshot(current);
   const city = applyConfig(getCity('norfolk'), siren);
   const plugins = siren.plugins.map(definePlugin);
   const usage = { input_tokens: 1200, output_tokens: 300, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };

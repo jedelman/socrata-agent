@@ -2,9 +2,10 @@
 // existing route of the Worker answers byte-identically to the code before
 // the free tier, and the free tier's paths stay 404s. The snapshot
 // (fixtures/public-ask-off-snapshot.json) was taken from main at f6f0e9e, main plus
-// the spec, before any free-tier code (fixtures/public-ask-off-scenario.js
-// says how it is normalized: only the asset hash, signed values and trace
-// timings).
+// the spec, before any free-tier code, and retaken on f6f0e9e plus
+// conversation browsing and search, which isn't free-tier code
+// (fixtures/public-ask-off-scenario.js says how it is normalized: only the
+// asset hash, signed values and trace timings).
 //
 // Four served files changed. Three are code that the free tier extends: the
 // shared modules the browser client is built from; their behavior with the
