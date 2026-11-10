@@ -282,6 +282,24 @@ generic mode.
   dataset's own list (a traced query) and only the City's spelling reaches
   fixed SoQL; a miss returns the closest names. Caveats are quoted from the
   live metadata or computed from the queries.
+- `plugins/city-news.js` (`city_news`) reads the City's own announcements
+  from its News Flash and Alert Center RSS feeds (`www.norfolk.gov/rss.aspx`).
+  Police and prosecutor news stays out in code. A frozen allowlist of
+  categories (`NEWS_FEEDS`, read live 2026-11-10): Police-34,
+  Commonwealths-Attorney-65 and every `All-` feed are refused at load and by
+  `test/city-news.test.js`, and since the server reads only the number at the
+  end of a CID ("Community-34" serves Police) and serves every category for a
+  CID with none, the rule is on the number (News Flash 34 and 65 never); a
+  feed is read only if its own title names the category asked for. A
+  cross-post check: those two feeds are read for their links only, and an
+  allowed item sharing a link is dropped (if they can't be read, items still
+  come back with the check marked incomplete). And a broad crime-and-court
+  wording check on titles and summaries. A call reads up to 6 category feeds
+  (home page, spotlight and emergency alerts always, the rest by the query's
+  words) plus the 2 link feeds, the link feeds first, each with one retry as
+  its own traced step (`tracedHttp`'s `retry: false`). Only `www.norfolk.gov`
+  links are kept. Fire-Rescue alerts stay off until one has been read and
+  names no one.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
