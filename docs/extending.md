@@ -23,6 +23,9 @@ export default {
   contacts: [{ role: 'Our organizer', name: '...', email: '...' }],
   links: [{ title: 'Our campaign page', url: 'https://...' }],
   excluded: [],                               // more datasets to keep out (optional)
+  // Claude models only, optional: web search limited to these sites
+  // (enforced by Anthropic's API; see the README's Web search section).
+  webSearch: { allowedDomains: ['www.norfolk.gov', 'fema.gov'], maxUses: 3 },
 };
 ```
 
@@ -40,7 +43,10 @@ A deployment's `city` takes precedence over the `CITIES` setting.
 
 **What a config can do:** add tools, contacts, links and exclusions, and give
 the agent focus notes. Notes go into the prompt *after* the rules, marked as
-the operator's, with the instruction that they never override them.
+the operator's, with the instruction that they never override them. For
+Claude models it can turn on web search behind an allowlist of sites
+(`webSearch`); the list is checked at startup and may not cover the city's
+open data portal, whose data goes only through the dataset policy.
 
 **What it can't do:** remove a city's exclusions, replace a core tool, skip the
 trace, or switch off the voice check. All of those live in core and run after

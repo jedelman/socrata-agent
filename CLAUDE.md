@@ -29,6 +29,14 @@ generic mode.
   snapshots the policy. Don't add tools that search people by name, in core
   or in plugins, and don't pass `access: 'core'` from anything a model or
   plugin controls. See CONTRIBUTING.md and docs/capabilities-norfolk.md.
+  Web search (Claude models only) runs only behind the deployment's
+  `webSearch.allowedDomains`, sent as the tool's `allowed_domains` and
+  enforced by the API; only Jason widens that list (Siren's is in
+  `deployments/siren.config.js`). No list may cover the city's open data
+  portal, whose data goes only through the dataset policy, and none has a
+  blocklist form. The prompt's "never to look up a person, a business's
+  owner or an address's residents" is behaviour, not enforcement: keep the
+  list to official sites.
 - **Request budget.** Every fetch on an answer goes through its one counting
   fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
   45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.
@@ -53,6 +61,16 @@ generic mode.
   exclusions.
 - `plugins/` holds plugin tools; `deployments/` holds configs (the sponge-city
   example is the reference).
+- `src/web-search.js` is web search, off unless a deployment sets `webSearch:
+  { allowedDomains, maxUses }` (checked by `webSearchConfig` in
+  `src/plugins.js`, at startup and in `test/web-search.test.js`). Anthropic
+  runs the search; code writes a trace step per search (query, result count,
+  results, "run by Anthropic") and `kind: 'web'` hand-off records (the pages
+  the answer cites, or every result when it cites none) from the API's
+  response blocks, never from model text. Priced at $10 per 1,000 searches on
+  top of tokens. A paused turn (`pause_turn`) is resumed as its own model
+  call, a step and a counted request. With it off, requests are byte-identical
+  (`test/fixtures/web-search-off-snapshot.json`).
 - `worker/access.js` verifies Cloudflare Access JWTs for per-person limits.
   Never trust the plain email header.
 - `bin/socrata-agent.js` is the CLI (`ask` with your own key; `tool` with no key).

@@ -84,6 +84,10 @@ MAX_TOKENS = "1200"
 # (2026-11-09). Set it to 45 if the account ever returns to Free (50 a request).
 # Working notes are on (the default): uncomment to turn them off.
 # WORKING_NOTES = "off"
+# Web search runs where the deployment sets webSearch (Siren does:
+# deployments/siren.config.js). The Anthropic organization must allow web
+# search in the Console. Uncomment to turn it off at once.
+# WEB_SEARCH = "off"
 INVITE_REQUIRED = "true"
 PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"
