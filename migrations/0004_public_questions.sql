@@ -14,7 +14,12 @@
 -- beside a DID or handle: the invite, the visitor hash, an email account, a
 -- conversation (CLAUDE.md). Dates are days; checked_ms, when the record was
 -- last confirmed present, is internal, never shown, and kept to ten-minute
--- steps, so it can't be matched to the exact time of anything else.
+-- steps. That keeps exact times out of this table; it doesn't stop an
+-- operator matching a question to an invite through other records with
+-- exact times (docs/free-tier.md, "What is stored").
+--
+-- A Cron Trigger (worker/index.js scheduled) re-checks every answered or
+-- hidden question about hourly and withdraws one whose record is gone.
 --
 -- Threads (Jason, 2026-11-10): a follow-up's record names the question it
 -- replies to and its thread's root (strongRefs). root_uri and parent_uri
@@ -61,3 +66,5 @@ CREATE INDEX public_questions_list ON public_questions (status, depth, seq);
 CREATE INDEX public_questions_thread ON public_questions (root_uri, seq);
 -- Rewriting the replies of a withdrawn question.
 CREATE INDEX public_questions_parent ON public_questions (parent_uri);
+-- The sweep: the questions checked longest ago.
+CREATE INDEX public_questions_checked ON public_questions (checked_ms);

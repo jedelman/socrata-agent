@@ -103,6 +103,12 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
   const ask = kind === 'ask';
   const ids = clientIds({ PUBLIC_ORIGIN: origin }, base, { kind: ask ? 'ask' : 'endorse' });
   if (!ids) throw new EndorseError('not_set_up');
+  // The endorse client's id: what a session or flow from before they kept
+  // their own was made with.
+  const endorseId = clientIds({ PUBLIC_ORIGIN: origin }, base).clientId;
+  // The ask client's id and scope, for a sign-in on the requests page that
+  // keeps the question permission a live session holds.
+  const askIds = clientIds({ PUBLIC_ORIGIN: origin }, base, { kind: 'ask' });
   // The permission this client's own actions need. A session made before
   // sessions kept their scope was made by the endorse client, which refused
   // any token without the endorse permission.
@@ -150,13 +156,19 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     return { did, handle, pds };
   }
 
-  // What a sign-in asks for. The endorse client: its one scope, as always.
-  // The ask client: the question permission, plus the endorsement one only
-  // when the live session for this same account already holds it.
-  async function scopeFor(did) {
-    if (!ask) return ids.scope;
+  // What a sign-in asks for, and through which client. The ask client: the
+  // question permission, plus the endorsement one only when the live session
+  // for this same account already holds it. The endorse client: its one
+  // scope, as always, unless the live session for this account holds the
+  // question permission (only possible with the free tier on): then both,
+  // through the ask client (which lists this page as a redirect), so
+  // endorsing doesn't take asking away. Always back to this page.
+  async function planFor(did) {
     const s = await store.getSession();
-    return s && s.expires > now() && s.did === did && granted(s, grantsEndorse) ? ASK_CLIENT_SCOPE : ASK_SCOPE;
+    const live = s && s.expires > now() && s.did === did;
+    if (ask) return { clientId: ids.clientId, redirectUri: ids.redirectUri, scope: live && granted(s, grantsEndorse) ? ASK_CLIENT_SCOPE : ASK_SCOPE };
+    if (live && askIds && granted(s, grantsQuestion)) return { clientId: askIds.clientId, redirectUri: ids.redirectUri, scope: ASK_CLIENT_SCOPE };
+    return { clientId: ids.clientId, redirectUri: ids.redirectUri, scope: ids.scope };
   }
 
   /** Start a sign-in. -> the authorization URL to send the browser to. `after` rides along (e.g. a request id to endorse). */
@@ -170,15 +182,15 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       const state = randomToken(32);
       const { verifier, challenge } = await pkce();
       const key = await newDpopKey();
-      const scope = await scopeFor(did);
-      const { requestUri, nonce } = await pushAuthorization({ meta, clientId: ids.clientId, redirectUri: ids.redirectUri, state, challenge, loginHint: input.kind === 'did' ? input.did : input.handle, key, fetchImpl, now: now(), ...(ask ? { scope } : {}) });
+      const plan = await planFor(did);
+      const { requestUri, nonce } = await pushAuthorization({ meta, clientId: plan.clientId, redirectUri: plan.redirectUri, state, challenge, loginHint: input.kind === 'did' ? input.did : input.handle, key, fetchImpl, now: now(), scope: plan.scope });
       await store.putFlow({
         state, verifier, did, handle, pds, issuer, key, nonce,
         tokenEndpoint: meta.token_endpoint, revocationEndpoint: meta.revocation_endpoint || null,
         expires: now() + FLOW_MS, after: typeof after === 'string' && after.length <= 64 ? after : null,
-        ...(ask ? { clientId: ids.clientId } : {}),
+        clientId: plan.clientId, redirectUri: plan.redirectUri,
       });
-      return authorizeUrl(meta, ids.clientId, requestUri);
+      return authorizeUrl(meta, plan.clientId, requestUri);
     } catch (err) {
       throw new EndorseError(codeOf(err, 'as_refused'));
     }
@@ -195,9 +207,12 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     const flow = await store.takeFlow(state);
     await store.purgeFlows(now());
     if (!flow || !(flow.expires > now())) throw new EndorseError('flow_expired');
-    // A flow another page's client started (each page's code comes back to
-    // that page, so this is a tab mix-up or a forged fragment).
-    if ((flow.clientId || clientIds({ PUBLIC_ORIGIN: origin }, base).clientId) !== ids.clientId) throw new EndorseError('flow_expired');
+    // A flow another page started (each page's code comes back to that
+    // page, so this is a tab mix-up or a forged fragment). A flow from before
+    // flows kept these was the endorse client's, back to the requests page.
+    const flowRedirect = flow.redirectUri || clientIds({ PUBLIC_ORIGIN: origin }, base).redirectUri;
+    const flowClient = flow.clientId || endorseId;
+    if (flowRedirect !== ids.redirectUri || ![ids.clientId, askIds?.clientId].includes(flowClient)) throw new EndorseError('flow_expired');
     // RFC 9207, before reading the error or the code.
     if (params.get('iss') !== flow.issuer) throw new EndorseError('issuer_mismatch');
     const error = params.get('error');
@@ -206,9 +221,9 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     if (typeof code !== 'string' || code.length < 1 || code.length > 2048) throw new EndorseError('as_error');
     let token;
     let nonce = flow.nonce;
-    const revoke = () => revokeTokens({ revocationEndpoint: flow.revocationEndpoint, token, clientId: ids.clientId, key: flow.key, nonce, fetchImpl, now: now() });
+    const revoke = () => revokeTokens({ revocationEndpoint: flow.revocationEndpoint, token, clientId: flowClient, key: flow.key, nonce, fetchImpl, now: now() });
     try {
-      ({ token, nonce } = await exchangeCode({ tokenEndpoint: flow.tokenEndpoint, code, verifier: flow.verifier, clientId: ids.clientId, redirectUri: ids.redirectUri, key: flow.key, nonce, fetchImpl, now: now() }));
+      ({ token, nonce } = await exchangeCode({ tokenEndpoint: flow.tokenEndpoint, code, verifier: flow.verifier, clientId: flowClient, redirectUri: flowRedirect, key: flow.key, nonce, fetchImpl, now: now() }));
     } catch (err) {
       if (err?.token) {
         token = err.token;
@@ -237,6 +252,14 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       await revoke();
       throw new EndorseError('did_unresolved');
     }
+    // A session this one replaces that the other client made: its tokens are
+    // revoked first, with the client they belong to, never left live. (A
+    // session from the same client is only ever replaced once its token has
+    // expired, as before the free tier.)
+    const old = await store.getSession();
+    if (old?.accessToken && old.accessToken !== token.access_token && (old.clientId || endorseId) !== flowClient) {
+      await revokeTokens({ revocationEndpoint: old.revocationEndpoint, token: { access_token: old.accessToken, refresh_token: old.refreshToken }, clientId: old.clientId || endorseId, key: old.key, nonce: old.asNonce, fetchImpl, now: now() });
+    }
     const t = now();
     const life = Number.isFinite(token.expires_in) && token.expires_in > 0 ? Math.min(token.expires_in * 1000, SESSION_MS) : 5 * 60e3;
     await store.putSession({
@@ -247,7 +270,7 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       ...(typeof token.refresh_token === 'string' && token.refresh_token ? { refreshToken: token.refresh_token } : {}),
       // What the session may do, and the client its token belongs to (for
       // revocation): checked before each action, since both pages share it.
-      scope: token.scope, clientId: ids.clientId,
+      scope: token.scope, clientId: flowClient,
     });
     return { handle: flow.handle, did: flow.did, after: flow.after };
   }
@@ -426,7 +449,7 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
   async function signOut() {
     const s = await store.getSession();
     await store.deleteSession();
-    if (s) await revokeTokens({ revocationEndpoint: s.revocationEndpoint, token: { access_token: s.accessToken, refresh_token: s.refreshToken }, clientId: s.clientId || ids.clientId, key: s.key, nonce: s.asNonce, fetchImpl, now: now() });
+    if (s) await revokeTokens({ revocationEndpoint: s.revocationEndpoint, token: { access_token: s.accessToken, refresh_token: s.refreshToken }, clientId: s.clientId || endorseId, key: s.key, nonce: s.asNonce, fetchImpl, now: now() });
   }
 
   return {

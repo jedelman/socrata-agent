@@ -60,13 +60,17 @@ export function publicOrigin(env) {
 
 // The two clients: where each one's code comes back, the client_id document
 // it is named by, and the scope it declares.
+// The ask client also lists the requests page as a redirect: a sign-in
+// there for an account whose live session holds the question permission
+// goes through the ask client, so endorsing doesn't take asking away.
 const CLIENTS = {
-  endorse: { page: 'requests', metadata: 'endorse-client-metadata.json', scope: SCOPE },
-  ask: { page: 'questions', metadata: 'question-client-metadata.json', scope: ASK_CLIENT_SCOPE },
+  endorse: { page: 'requests', metadata: 'endorse-client-metadata.json', scope: SCOPE, also: [] },
+  ask: { page: 'questions', metadata: 'question-client-metadata.json', scope: ASK_CLIENT_SCOPE, also: ['requests'] },
 };
 
 /**
- * { clientId, redirectUri, clientUri, loopback, scope } or null. A new
+ * { clientId, redirectUri, clientUri, loopback, scope } (and, for the ask
+ * client, redirectUris: every page it may come back to) or null. A new
  * client_id URL for the browser client, since servers cache client metadata
  * for an unknown time; the code comes back to the page itself. `kind` is
  * 'endorse' (the requests page; the default) or 'ask' (the public questions
@@ -78,15 +82,18 @@ export function clientIds(env, base = '', { kind = 'endorse' } = {}) {
   const po = publicOrigin(env);
   if (!c || !po || typeof base !== 'string' || !/^(\/[A-Za-z0-9._~-]+)*$/.test(base)) return null;
   const redirectUri = `${po.origin}${base}/${c.page}`;
+  const also = c.also.map((page) => `${po.origin}${base}/${page}`);
+  const extra = also.length ? { redirectUris: [redirectUri, ...also] } : {};
   if (po.loopback) {
     // The atproto localhost client: ASes synthesize its metadata.
-    return { clientId: `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(c.scope)}`, redirectUri, clientUri: null, loopback: true, scope: c.scope };
+    const redirects = [redirectUri, ...also].map((u) => `redirect_uri=${encodeURIComponent(u)}`).join('&');
+    return { clientId: `http://localhost?${redirects}&scope=${encodeURIComponent(c.scope)}`, redirectUri, clientUri: null, loopback: true, scope: c.scope, ...extra };
   }
-  return { clientId: `${po.origin}${base}/${c.metadata}`, redirectUri, clientUri: `${po.origin}${base}/`, loopback: false, scope: c.scope };
+  return { clientId: `${po.origin}${base}/${c.metadata}`, redirectUri, clientUri: `${po.origin}${base}/`, loopback: false, scope: c.scope, ...extra };
 }
 
 /** The client metadata document, served at the client_id URL. */
-export function clientMetadata({ clientId, redirectUri, clientUri, appName = 'Siren', scope = SCOPE }) {
+export function clientMetadata({ clientId, redirectUri, redirectUris, clientUri, appName = 'Siren', scope = SCOPE }) {
   return {
     client_id: clientId,
     client_name: appName,
@@ -97,7 +104,7 @@ export function clientMetadata({ clientId, redirectUri, clientUri, appName = 'Si
     // allows leaving it out; the rollout probe checks that ASes agree.
     grant_types: ['authorization_code'],
     response_types: ['code'],
-    redirect_uris: [redirectUri],
+    redirect_uris: redirectUris || [redirectUri],
     scope,
     token_endpoint_auth_method: 'none',
     dpop_bound_access_tokens: true,

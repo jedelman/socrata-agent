@@ -493,8 +493,9 @@ test('the chat script and style: static files with nothing per deployment, no in
   assert.ok(!/\sstyle=/.test(js), 'no style attribute in markup the script writes');
   assert.ok(!/\son[a-z]+=["$]/i.test(js), 'no inline handlers in markup the script writes');
   assert.ok(!/\beval\(|new Function|setTimeout\(\s*['"`]/.test(js), 'nothing that needs unsafe-eval');
-  // Model output loses style attributes in DOMPurify, before the CSP would refuse them with a console error each.
-  assert.match(js, /DOMPurify\.sanitize\(marked\.parse\(s \|\| ''\), \{ FORBID_ATTR: \['style'\] \}\)/);
+  // Model output loses style attributes in DOMPurify, before the CSP would refuse them with a console error each;
+  // and data attributes, form controls and dialogs, so it can't pose as the page's own controls.
+  assert.match(js, /DOMPurify\.sanitize\(marked\.parse\(s \|\| ''\), \{ FORBID_ATTR: \['style'\], ALLOW_DATA_ATTR: false, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: \['form', 'input', 'button', 'select', 'textarea', 'option', 'dialog'\] \}\)/);
   // What were inline style attributes are classes now, styled in chat.css.
   assert.match(js, /<code class="ds">/);
   assert.match(js, /<textarea name="need" class="need"/);

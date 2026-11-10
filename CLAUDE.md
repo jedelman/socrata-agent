@@ -236,20 +236,31 @@ generic mode.
   here at those CIDs; 25 questions and depth 10 per thread); the answer gets
   the chain root to parent as history, as a conversation's turns, with
   their tool results from the row's internal `tools` column (never served),
-  and never a withdrawn or hidden question's text. Withdrawing (the record
-  gone from the asker's PDS) empties the row but its id, day, status and
-  place in the thread, and rewrites references to it as `withdrawn:<id>`;
-  `/api/q/<id>` re-checks a record over 10 minutes after its last check.
+  and never a withdrawn or hidden question's text (earlier questions wrapped
+  in `<thread_question>` as other people's words; the claim and the stored
+  answer both conditional on the parent and root still answered at their
+  CIDs). Withdrawing (the record gone from the asker's PDS) empties the row
+  but its id, day, status and place in the thread, and rewrites references
+  to it as `withdrawn:<id>`. A record deleted in the asker's own account is
+  found by the sweep (a Cron Trigger every ten minutes, `scheduled` in
+  `index.js`, a no-op with `PUBLIC_ASK` off: at most 40 questions unchecked
+  for an hour, counted, behind the breaker, re-verifying handles) and by a
+  page's re-check of its thread; only a clear RecordNotFound withdraws.
   The steward hides at `/admin/questions` or with `question-hide` /
   `question-unhide`. The pages (`questions-page.js`, `questions.html`,
   `admin-questions.js`) carry the strict CSP; answers render through marked
-  and DOMPurify with no style attributes; the new pages and their JSON send
-  `X-Robots-Tag: noindex`. With `PUBLIC_ASK` anything but `"true"`, every
-  existing route answers byte for byte as before and nothing new is served
-  (`test/public-ask-off.test.js`, against a snapshot taken before the free
-  tier; only the asset hash and the text of the three client modules it
-  extends differ); set but missing Bluesky sign-in, `SIREN_DB` or invite
-  mode, its routes answer 503.
+  and DOMPurify with no style or data attributes, form controls or dialogs
+  (the chat page's `md()` too: answers are model output a public question
+  can steer), and the public page ignores clicks inside an answer; the new
+  pages and their JSON send `X-Robots-Tag: noindex`. With `PUBLIC_ASK`
+  anything but `"true"`, every existing route answers byte for byte as
+  before and nothing new is served (`test/public-ask-off.test.js`, against a
+  snapshot taken before the free tier; only the asset hash, the text of the
+  three client modules it extends and the chat script's sanitizer line
+  differ); set but missing Bluesky sign-in, `SIREN_DB` or invite mode, its
+  routes answer 503. The operator could still match a public question to an
+  invite through exact times kept elsewhere (`redeemed:` keys), and D1 Time
+  Travel keeps withdrawn rows recoverable for 30 days: the spec says so.
   `plugins/case-file.js` serves a
   case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`

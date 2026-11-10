@@ -11,10 +11,11 @@ import * as nodeModule from 'node:module';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { entryHtml, threadHtml, answerHtml, publicLine, md, esc, WITHDRAWN, HIDDEN } from '../worker/questions-page.js';
+import { entryHtml, threadHtml, answerHtml, publicLine, md, esc, WITHDRAWN, HIDDEN, PURIFY, RECHECKS, CLOSED } from '../worker/questions-page.js';
 import { rowHtml } from '../worker/admin-questions.js';
 import { QUESTION_NSID, buildQuestion } from '../worker/endorse-config.js';
 import { newCode, inviteKey } from '../worker/invites.js';
+import { threadQuestion } from '../worker/questions.js';
 import { signUser, userId, userCookieName } from '../worker/accounts.js';
 import { visitorId } from '../worker/limits.js';
 import { W, fakeNetwork, readyEnv, SECRET } from './fake-atproto.js';
@@ -70,11 +71,13 @@ const post = (body, headers = {}) => ({ method: 'POST', headers: { 'Content-Type
 
 // The outside world for an ask: the fake atproto network, and the model
 // answering one plain sentence (keeping every request body it was sent).
-function outside(net, bodies = []) {
+function outside(net, bodies = [], opts = {}) {
   return async (input, init = {}) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url.startsWith('https://api.anthropic.com/v1/messages')) {
       bodies.push(JSON.parse(init.body));
+      // The model refusing the request outright (a 400 isn't retried).
+      if (opts.fail) return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'bad request' } }), { status: 400, headers: { 'content-type': 'application/json', 'request-id': 'req_x' } });
       return claudeResponse(init, { id: 'msg_q', type: 'message', role: 'assistant', model: 'claude-sonnet-5-5', stop_reason: 'end_turn', stop_details: null, content: [{ type: 'text', text: 'I found no permits at that address.' }], usage: { input_tokens: 900, output_tokens: 12, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } });
     }
     return net.fetch(url, init);
@@ -220,7 +223,8 @@ test('render: every remote string escaped, the answer through marked and DOMPuri
   globalThis.DOMPurify = { sanitize: (s, opts) => { seen.push(opts); return s.replace(/ style="[^"]*"/, ''); } };
   try {
     assert.equal(md('hi'), '<p>hi</p>');
-    assert.deepEqual(seen, [{ FORBID_ATTR: ['style'] }]);
+    assert.deepEqual(seen, [{ FORBID_ATTR: ['style'], ALLOW_DATA_ATTR: false, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'option', 'dialog'] }], 'no data attributes, form controls or dialogs from model output');
+    assert.deepEqual(seen[0], { ...PURIFY });
   } finally {
     delete globalThis.marked;
     delete globalThis.DOMPurify;
@@ -228,6 +232,11 @@ test('render: every remote string escaped, the answer through marked and DOMPuri
   assert.equal(md('<b>x</b>'), '<p>&lt;b&gt;x&lt;/b&gt;</p>', 'without them, escaped text');
   assert.match(answerHtml('a', { trace: [{ tool: 'web search (run by Anthropic)', ok: true, rows: 2, ms: 1, url: 'https://msc.fema.gov/' }] }, { render: (s) => s }), /\(1 web search\)/);
   assert.equal(WITHDRAWN, 'The asker withdrew this question.');
+  // When a withdrawal can't reach Siren, the page says what's true, and promises no time.
+  assert.equal(RECHECKS, 'Siren checks every public question regularly and takes it down when it finds the record gone.');
+  assert.ok(!read('worker/questions-page.js').includes('when Siren next checks'));
+  assert.match(CLOSED.full, /full, so it takes no more follow-ups/);
+  assert.match(entryHtml({ id: 'abcdefghijklmnop', did: W.DID, handle: 'a.bsky.social', question: 'q', answer: 'a', record: {}, replies: 24, thread_full: true, followup: null }, { render: (x) => x }), /24 replies<\/a> · thread full/);
   const row = rowHtml({ id: 'abcdefghijklmnop', status: 'answered', handle: hostile, day: hostile, question: hostile, answer: hostile });
   assert.ok(!row.includes('<img'));
   assert.match(row, /data-hidden="true">Hide</);
@@ -279,9 +288,12 @@ test('an ask end to end: the agent the private chat runs, on the record\'s text;
     assert.equal(f.status, 200, await f.clone().text());
     const turns = bodies[1].messages.map((m) => [m.role, typeof m.content === 'string' ? m.content : m.content.map((c) => c.text || '').join('')]);
     assert.deepEqual(turns.map(([r]) => r), ['user', 'assistant', 'user']);
-    assert.equal(turns[0][1], 'Who decided the kennel at 111 Pennsylvania Ave?');
+    assert.equal(turns[0][1], threadQuestion('Who decided the kennel at 111 Pennsylvania Ave?'), "marked as someone else's words");
     assert.ok(turns[1][1].startsWith('I found no permits at that address.'));
     assert.ok(turns[2][1].includes('Which of those were approved?'));
+    // The prompt says it's a public thread for the follow-up only; the private chat's is unchanged.
+    assert.match(bodies[1].system[0].text, /This is a public thread: each earlier question comes wrapped in <thread_question>/);
+    assert.ok(!bodies[0].system[0].text.includes('public thread'));
     const thread = (await (await call(w, e, `/api/q/${(await f.json()).id}`)).json()).thread;
     assert.deepEqual(thread.map((t) => [t.parent, t.depth]), [[null, 0], [out.id, 1]]);
     assert.equal(thread[1].handle, null, 'an account with no handle shows none');
@@ -356,13 +368,45 @@ test('privacy: no D1 statement or KV write on the public routes puts an invite o
       await call(w, e, '/api/admin/questions', { headers: { Cookie: steward } });
       await call(w, e, '/api/admin/questions/hide', post({ id, hidden: true }, { Cookie: steward }));
       await call(w, e, '/api/admin/questions/hide', post({ id, hidden: false }, { Cookie: steward }));
+      // A follow-up from another account.
+      const bob = 'did:plc:bbbbbbbbbbbbbbbbbbbbbbbb';
+      net.state.didDocs.set(bob, { id: bob, alsoKnownAs: [], service: [{ id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: W.PDS }] });
+      const follow = questionRecord(net, { did: bob, text: 'And then?', reply: { root: { uri: rec.uri, cid: rec.cid }, parent: { uri: rec.uri, cid: rec.cid } } });
+      const f = await call(w, e, '/api/public/ask', post({ uri: follow.uri, cid: follow.cid }, { Cookie: cookie }));
+      assert.equal(f.status, 200, await f.clone().text());
+      const fid = (await f.json()).id;
+      // An answer that fails.
+      await withFetch(outside(net, [], { fail: true }), async () => {
+        const doomed = questionRecord(net, { text: 'Doomed?' });
+        assert.equal((await call(w, e, '/api/public/ask', post({ uri: doomed.uri, cid: doomed.cid }, { Cookie: cookie }))).status, 502);
+      });
+      // D1 down: every route's error path.
+      e.SIREN_DB.fail = true;
+      const later = questionRecord(net, { text: 'D1 down?' });
+      for (const [path, init] of [['/api/questions'], [`/api/q/${id}`], [`/q/${id}`], ['/api/public/ask', post({ uri: later.uri, cid: later.cid }, { Cookie: cookie })], ['/api/public/withdraw', post({ uri: rec.uri })], ['/api/admin/questions', { headers: { Cookie: steward } }]]) {
+        assert.equal((await call(w, e, path, init)).status, 503, path);
+      }
+      await w.scheduled({ cron: '*/10 * * * *' }, e, { waitUntil() {} });
+      e.SIREN_DB.fail = false;
+      // Bob deletes his record elsewhere; the root's page re-checks the thread and withdraws it.
+      net.state.repos.get(bob).get(QUESTION_NSID).delete(follow.rkey);
+      e.SIREN_DB.db.prepare('UPDATE public_questions SET checked_ms = 0 WHERE id = ?').run(fid);
+      const thread = (await (await call(w, e, `/api/q/${id}`)).json()).thread;
+      assert.equal(thread.find((t) => t.id === fid).withdrawn, true);
+      // The sweep: Alice deletes hers; the scheduled run withdraws it.
       net.state.repos.get(W.DID).get(QUESTION_NSID).delete(rec.rkey);
-      const wd = await call(w, e, '/api/public/withdraw', post({ uri: rec.uri }, { Cookie: cookie }));
-      assert.equal(wd.status, 200);
+      e.SIREN_DB.db.prepare('UPDATE public_questions SET checked_ms = 0 WHERE id = ?').run(id);
+      const waits = [];
+      await w.scheduled({ cron: '*/10 * * * *' }, e, { waitUntil: (p) => waits.push(p) });
+      await Promise.all(waits);
+      assert.equal(e.SIREN_DB.rows().find((r) => r.id === id).status, 'withdrawn');
+      assert.equal((await call(w, e, '/api/public/withdraw', post({ uri: rec.uri }, { Cookie: cookie }))).status, 404, 'already withdrawn by the sweep');
     });
   } finally {
     Object.assign(console, real);
   }
+  assert.ok(logged.some((l) => /D1/.test(l)), 'the D1 error paths logged');
+  assert.ok(logged.some((l) => /the answer failed/.test(l)), 'the failed answer logged');
   // Every D1 statement, with every value it bound.
   const statements = e.SIREN_DB.log;
   assert.ok(statements.length > 5);
@@ -385,14 +429,19 @@ test('privacy: no D1 statement or KV write on the public routes puts an invite o
     if (o.key.startsWith('inv-day:')) assert.equal(o.opts.expirationTtl, undefined);
   }
   // The log.
-  for (const line of logged) for (const s of [W.DID, W.HANDLE, ...secrets]) assert.ok(!line.includes(s), line);
+  for (const line of logged) for (const s of [W.DID, W.HANDLE, 'did:plc:bbbbbbbbbbbbbbbbbbbbbbbb', 'at://', ...secrets]) assert.ok(!line.includes(s), line);
 });
 
 test('the source keeps the rule: no KV write and no log line in the free tier\'s modules carries a DID or handle', () => {
   const src = read('worker/public-ask.js');
   for (const m of src.matchAll(/kv\.put\(([^;]+);/g)) assert.ok(!/did|handle|uri/i.test(m[1].replace(/invite\.hash/, '')), m[1]);
   for (const m of src.matchAll(/console\.(?:error|log|warn)\(([^;]+);/g)) assert.ok(!/\b(did|handle|uri|invite|p\.did|row\.did)\b/.test(m[1].replace(/'[^']*'/g, '')), m[1]);
-  for (const f of ['worker/questions.js', 'worker/public-ask.js']) assert.ok(!/visitorHash|visitorId|hmacHex/.test(read(f)), `${f} computes no visitor hash`);
+  assert.ok(!/visitorHash|visitorId|hmacHex/.test(read('worker/questions.js')), 'the D1 module computes no visitor hash');
+  // public-ask.js computes one only as a rate-limiter key (as the endorsement routes do), in one place.
+  assert.equal((src.match(/hmacHex\(/g) || []).length, 1);
+  const fn = src.slice(src.indexOf('async function visitorAllowed'), src.indexOf('\n}\n', src.indexOf('async function visitorAllowed')));
+  assert.match(fn, /hmacHex\(env\.IP_SALT, `bsky-q:\$\{visitorId/);
+  assert.match(fn, /return allowed\(env\.BSKY_VISITOR_RL, `q:\$\{visitor\}`\);/);
   assert.ok(!/memberInvite|inviteAccess/.test(src), 'the public routes never read an email account for the invite');
 });
 
@@ -471,11 +520,16 @@ test("the page's script renders the list and a thread, and the follow-up button 
   assert.ok(!list.el('list').innerHTML.includes('q-cccccccccccccccc'), 'the list shows roots only');
   assert.equal(list.el('ask').hidden, false);
   const one = await runPage(w, e, '/q/cccccccccccccccc');
+  let guarded;
   try {
+    // A button inside an answer (model output) does nothing, whatever it claims to be.
+    await one.el('list').listeners.click({ target: { closest: (sel) => (sel === '.answer' ? {} : sel === 'button[data-followup]' ? { dataset: { followup: 'cccccccccccccccc' } } : sel === 'button[data-withdraw]' ? { dataset: { withdraw: 'at://x' } } : null) } });
+    guarded = { hidden: one.el('ask').hidden, title: one.el('ask-title').textContent };
     await one.el('list').listeners.click({ target: { closest: (sel) => (sel === 'button[data-followup]' ? { dataset: { followup: 'cccccccccccccccc' } } : null) } });
   } finally {
     one.restore();
   }
+  assert.deepEqual(guarded, { hidden: true, title: 'Ask a question' }, 'a click inside .answer is ignored');
   assert.deepEqual(one.missing, []);
   const t = one.el('list').innerHTML;
   assert.ok(t.indexOf('q-aaaaaaaaaaaaaaaa') < t.indexOf('q-bbbbbbbbbbbbbbbb') && t.indexOf('q-bbbbbbbbbbbbbbbb') < t.indexOf('q-cccccccccccccccc'));

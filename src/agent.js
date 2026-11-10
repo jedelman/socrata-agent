@@ -93,6 +93,12 @@ export function budgetNote({ limit, refused }) {
  * `subrequestBudget` caps the outbound requests this answer may make, model
  * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
  * requests stop short of it, keeping enough for the final answer.
+ * `publicThread` (the free tier's follow-ups): the history is a public
+ * thread, its earlier questions maybe other people's (wrapped in
+ * <thread_question> by worker/questions.js). The prompt gets a line saying
+ * so, and the carried-results trace step shows only how many were carried,
+ * never their arguments (the step is public, and an earlier question may
+ * since have been withdrawn). Off, everything is as before.
  * `budget` (optional) is a counter from src/request-budget.js the caller
  * already started, for fetches made on this answer's behalf before it (the
  * free tier reads the asker's question record through it); the answer then
@@ -137,6 +143,7 @@ export async function ask({
   gaps = null,
   webSearch = null,
   budget: given = null,
+  publicThread = false,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // Checked whatever the model, so a bad list fails here; declared only for
@@ -165,10 +172,12 @@ export async function ask({
   const gapDay = gapsOn ? buildDate() : null;
   if (carried.length) {
     await ctx.trace.record(
-      {
-        tool: 'results kept from earlier in this conversation',
-        soql: carried.map((c) => `turn ${c.turn}: ${c.name} ${JSON.stringify(c.args)}`).join('; ').slice(0, 1500),
-      },
+      publicThread
+        ? { tool: `${carried.length} earlier result${carried.length === 1 ? '' : 's'} from this thread ${carried.length === 1 ? 'was' : 'were'} carried as data` }
+        : {
+          tool: 'results kept from earlier in this conversation',
+          soql: carried.map((c) => `turn ${c.turn}: ${c.name} ${JSON.stringify(c.args)}`).join('; ').slice(0, 1500),
+        },
       async () => ({ result: null, rows: carried.length })
     );
   }
@@ -189,7 +198,7 @@ export async function ask({
   // Tool requests stop while enough is left for the model calls that finish
   // the answer: the final answer at its worst, and one voice rewrite call.
   budget.setReserve(perComplete + perCall);
-  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}) };
+  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}) };
   llm.init({
     systemPrompt: Object.keys(promptOpts).length ? systemPrompt(city, today, promptOpts) : systemPrompt(city, today),
     history,

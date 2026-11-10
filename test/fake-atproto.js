@@ -109,7 +109,10 @@ export function fakeNetwork(overrides = {}) {
       if (state.codesUsed.has(form.code)) return json({ error: 'invalid_grant' }, 400, { 'DPoP-Nonce': 'nonce-tok-2' });
       state.codesUsed.add(form.code);
       state.issued++;
-      return json({ access_token: W.ACCESS, token_type: 'DPoP', scope: state.grantedScope ?? OAUTH_SCOPE, sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
+      // distinctTokens: each sign-in gets its own token, and only the newest works at the PDS.
+      const access = state.distinctTokens ? `${W.ACCESS}-${state.issued}` : W.ACCESS;
+      if (state.distinctTokens) state.liveToken = access;
+      return json({ access_token: access, token_type: 'DPoP', scope: state.grantedScope ?? OAUTH_SCOPE, sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
     },
     [`${host(W.ISSUER)}/oauth/revoke`]: async (u, init) => {
       const proof = decodeJwt(init.headers.DPoP);

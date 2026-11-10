@@ -36,7 +36,7 @@ import { handleEndorsers } from './endorsers.js';
 // here, above the text imports, like every shared module (see below).
 import {
   publicAskOn, publicAskReady, notReady, NOINDEX, handlePublicAsk, handlePublicWithdraw, handleQuestions, handleQuestion,
-  questionPageState, handlePublicSession, handlePublicRedeem, handleQuestionMetadata, handleAdminQuestions,
+  questionPageState, handlePublicSession, handlePublicRedeem, handleQuestionMetadata, handleAdminQuestions, sweepQuestions, publicAskSetupError,
 } from './public-ask.js';
 import REQUESTS_PAGE from './requests.html';
 import QUESTIONS_PAGE from './questions.html';
@@ -336,8 +336,9 @@ function publicAskDeps(req, env, base) {
     cities: allowedCities(env),
     apiKey: env[keyNameFor(model)],
     subrequestBudget: askLimits(env, providerOf(model)).subrequestBudget,
-    // A follow-up brings its thread's chain as history and carried results.
-    answer: ({ question, cityId, budget, onCost, history = [], carried = [] }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, budget, onCost }),
+    // A follow-up brings its thread's chain as history and carried results,
+    // marked as a public thread's.
+    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost }),
   };
 }
 
@@ -876,5 +877,22 @@ export default {
       if (res) return res;
     }
     return new Response('Not found', { status: 404 });
+  },
+
+  // The Cron Trigger ([env.siren.triggers], every ten minutes): the free
+  // tier's sweep, which re-checks public questions so a record deleted in
+  // the asker's own account comes off the site, and clears abandoned claims
+  // (public-ask.js sweepQuestions). With PUBLIC_ASK anything but "true" it
+  // returns at once: no D1 call, no fetch. On but not ready, it logs why
+  // (names only) and does nothing else.
+  async scheduled(event, env, ctx) {
+    if (!publicAskOn(env)) return;
+    if (!publicAskReady(env)) {
+      console.error('public sweep:', publicAskSetupError(env));
+      return;
+    }
+    const run = sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200)));
+    if (ctx?.waitUntil) ctx.waitUntil(run);
+    else await run;
   },
 };

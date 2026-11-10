@@ -132,3 +132,51 @@ test("a sign-in one page started can't be finished by the other's client", async
   await assert.rejects(w.endorse.finish(`#state=${encodeURIComponent(par2.state)}&iss=${encodeURIComponent(W.ISSUER)}&code=c`), { code: 'flow_expired' });
   assert.equal(w.net.state.tokens.length, 0, 'no token request');
 });
+
+test('a sign-in that replaces a live session revokes its tokens first, with the client they belong to', async () => {
+  const w = setup();
+  w.net.state.distinctTokens = true;
+  await signIn(w, w.endorse, OAUTH_SCOPE);
+  const first = (await w.store.getSession()).accessToken;
+  w.net.state.revokes.length = 0;
+  await signIn(w, w.ask, ASK_CLIENT_SCOPE);
+  assert.deepEqual(w.net.state.revokes.map((r) => [r.form.token, r.form.client_id]), [[first, `${ORIGIN}/endorse-client-metadata.json`]]);
+  const second = (await w.store.getSession()).accessToken;
+  assert.notEqual(second, first);
+  // A session from before sessions kept their client is revoked as the endorse client's, whichever page signs out.
+  const s = await w.store.getSession();
+  delete s.clientId;
+  await w.store.putSession(s);
+  w.net.state.revokes.length = 0;
+  await w.ask.signOut();
+  assert.deepEqual(w.net.state.revokes.map((r) => [r.form.token, r.form.client_id]), [[second, `${ORIGIN}/endorse-client-metadata.json`]]);
+  // The same client signing in again (after its token expired) revokes nothing, as before the free tier.
+  const v = setup();
+  v.net.state.distinctTokens = true;
+  await signIn(v, v.endorse, OAUTH_SCOPE);
+  v.clock.t += 301e3;
+  await signIn(v, v.endorse, OAUTH_SCOPE);
+  assert.deepEqual(v.net.state.revokes, []);
+});
+
+test('an endorse sign-in keeps the question permission a live session holds: through the ask client, back to the requests page', async () => {
+  const w = setup();
+  await signIn(w, w.ask, ASK_SCOPE);
+  // The token expires: the requests page re-authorizes, asking for both, so asking isn't lost.
+  w.clock.t += 301e3;
+  await assert.rejects(w.endorse.endorse({ id: ID }), { code: 'reauth' });
+  w.clock.t -= 301e3;
+  const { par } = await signIn(w, w.endorse, ASK_CLIENT_SCOPE);
+  assert.equal(par.scope, ASK_CLIENT_SCOPE);
+  assert.equal(par.client_id, `${ORIGIN}/question-client-metadata.json`, 'the ask client, which declares both');
+  assert.equal(par.redirect_uri, `${ORIGIN}/requests`, 'back to the requests page');
+  assert.equal(w.net.state.tokens.at(-1).form.client_id, `${ORIGIN}/question-client-metadata.json`);
+  assert.equal(w.net.state.tokens.at(-1).form.redirect_uri, `${ORIGIN}/requests`);
+  await w.endorse.endorse({ id: ID, source: 'x' });
+  await w.ask.askQuestion({ text: 'Still asking?', city: 'norfolk' });
+  // With no question permission in the live session (the free tier never used), the endorse client is exactly as before.
+  const v = setup();
+  await v.endorse.signIn(W.HANDLE);
+  const form = v.net.state.par.at(-1).form;
+  assert.deepEqual([form.client_id, form.redirect_uri, form.scope], [`${ORIGIN}/endorse-client-metadata.json`, `${ORIGIN}/requests`, OAUTH_SCOPE]);
+});

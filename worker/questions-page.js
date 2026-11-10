@@ -25,10 +25,19 @@ const DID_RE = /^did:(plc:[a-z2-7]{24}|web:[a-z0-9.-]+)$/;
 const ID_RE = /^[a-z2-7]{16}$/;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * How the answer's markdown is sanitized, as on the chat page: no style
+ * attributes (the CSP would refuse them), no data attributes (the page's own
+ * controls are found by them), no form controls or dialogs, named
+ * properties sanitized. A public question can steer the model's output, so
+ * nothing in an answer may pose as one of the page's controls.
+ */
+export const PURIFY = Object.freeze({ FORBID_ATTR: ['style'], ALLOW_DATA_ATTR: false, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'option', 'dialog'] });
+
 /** The answer's markdown as the chat page renders it, or escaped text where marked or DOMPurify is missing. */
 export function md(s) {
   const g = typeof globalThis !== 'undefined' ? globalThis : {};
-  return g.marked && g.DOMPurify ? g.DOMPurify.sanitize(g.marked.parse(String(s || '')), { FORBID_ATTR: ['style'] }) : `<p>${esc(s)}</p>`;
+  return g.marked && g.DOMPurify ? g.DOMPurify.sanitize(g.marked.parse(String(s || '')), { ...PURIFY, FORBID_ATTR: [...PURIFY.FORBID_ATTR], FORBID_TAGS: [...PURIFY.FORBID_TAGS] }) : `<p>${esc(s)}</p>`;
 }
 
 /** The line beside the ask button once signed in (docs/free-tier.md, exact copy). */
@@ -106,6 +115,16 @@ export function flagsHtml(flags) {
   return flags.map((f) => `<span class="flag" title="${esc(f.reason)}">${esc(f.reason)}</span>`).join('');
 }
 
+/** What the page says when a withdrawal couldn't reach Siren: true, and no time promised. */
+export const RECHECKS = 'Siren checks every public question regularly and takes it down when it finds the record gone.';
+
+/** Why a thread takes no more follow-ups, as the page says it. */
+export const CLOSED = {
+  full: 'This thread is full, so it takes no more follow-ups. Ask a new question instead.',
+  withdrawn: 'The first question of this thread was withdrawn, so it takes no more follow-ups.',
+  hidden: 'The first question of this thread is hidden, so it takes no more follow-ups.',
+};
+
 /** What a withdrawn question's page says, and nothing else. */
 export const WITHDRAWN = 'The asker withdrew this question.';
 /** What a hidden question says in its thread. */
@@ -126,7 +145,7 @@ export function entryHtml(q, { base = '', mine = false, cityName = (c) => c, ren
   const who = q.handle ? `@${esc(q.handle)}` : 'an account whose handle wasn\'t verified';
   const day = DAY_RE.test(String(q.day)) ? esc(q.day) : '';
   const when = day && id && !current ? `<a href="${page}">${day}</a>` : day;
-  const replies = Number.isInteger(q.replies) && q.replies > 0 ? ` · <a href="${page}">${plural(q.replies, 'reply', 'replies')}</a>` : '';
+  const replies = (Number.isInteger(q.replies) && q.replies > 0 ? ` · <a href="${page}">${plural(q.replies, 'reply', 'replies')}</a>` : '') + (q.thread_full ? ' · thread full' : '');
   const actions = [
     q.followup ? `<button type="button" class="link" data-followup="${esc(id)}">Ask a follow-up</button>` : '',
     mine ? `<button type="button" class="link" data-withdraw="${esc(q.uri)}">Withdraw this question</button>` : '',
@@ -254,7 +273,8 @@ async function main() {
       if (!res.ok || !Array.isArray(data.thread)) throw new Error(String(res.status));
       // A withdrawn question says only that, in the thread that stays.
       thread = data.thread.length ? data.thread : [{ id: focus, withdrawn: true }];
-      $('meta').textContent = `${thread.length > 1 ? `A thread of ${plural(thread.length, 'question')}, oldest first; this one is highlighted.` : ''}${data.flags_unavailable ? ' Account flags can\'t be read just now.' : ''}`.trim();
+      const closed = data.thread_open === false && thread.length > 1 && CLOSED[data.thread_closed] ? ` ${CLOSED[data.thread_closed]}` : '';
+      $('meta').textContent = `${thread.length > 1 ? `A thread of ${plural(thread.length, 'question')}, oldest first; this one is highlighted.` : ''}${closed}${data.flags_unavailable ? ' Account flags can\'t be read just now.' : ''}`.trim();
     } catch {
       thread = [];
       $('list').innerHTML = '<li class="q empty">No public question has that id.</li>';
@@ -427,6 +447,8 @@ async function main() {
   });
 
   $('list').addEventListener('click', async (e) => {
+    // Nothing inside an answer acts: answers are model output.
+    if (e.target.closest('.answer')) return undefined;
     const f = e.target.closest('button[data-followup]');
     if (f) {
       const q = [...questions, ...thread].find((x) => x.id === f.dataset.followup);
@@ -450,13 +472,13 @@ async function main() {
     try {
       const res = await fetch(`${base}/api/public/withdraw`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uri }) });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return say(data.error || "The record is deleted, but the page couldn't be taken down just now. It will come down when Siren next checks.");
+      if (!res.ok) return say(data.error ? `${data.error} The record is deleted from your account. ${RECHECKS}` : `The record is deleted, but the page couldn't be taken down just now. ${RECHECKS}`);
       questions = questions.filter((q) => q.uri !== uri);
       if (focus) await loadOne();
       else render();
       say('Withdrawn: the record is deleted and its page is down.');
     } catch {
-      say("The record is deleted, but the page couldn't be taken down just now. It will come down when Siren next checks.");
+      say(`The record is deleted, but the page couldn't be taken down just now. ${RECHECKS}`);
     }
     return undefined;
   });

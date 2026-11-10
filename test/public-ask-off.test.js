@@ -6,11 +6,16 @@
 // says how it is normalized: only the asset hash, signed values and trace
 // timings).
 //
-// Three served files changed, as code that the free tier extends: the
-// shared modules the browser client is built from. Their status and headers
-// must still match; their text can't, and their behavior with the flag off
-// is held by the endorse client's own tests (test/endorse-client.test.js,
-// test/atproto-oauth.test.js), which run unchanged. Nothing else differs.
+// Four served files changed. Three are code that the free tier extends: the
+// shared modules the browser client is built from; their behavior with the
+// flag off is held by the endorse client's own tests (test/endorse-client.test.js,
+// test/atproto-oauth.test.js), which run unchanged. The fourth is the chat
+// page's script: its DOMPurify options now also drop data attributes, form
+// controls and dialogs from model output (the free tier's review asked for
+// it on every page that renders answers; test/move.test.js pins the line).
+// Their status and headers must still match; their text can't. Nothing else
+// differs. The scheduled handler (the free tier's sweep) does nothing at all
+// with the flag off: tested below.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as nodeModule from 'node:module';
@@ -38,8 +43,9 @@ async function loadWorker() {
 
 const SNAPSHOT = JSON.parse(readFileSync(new URL('./fixtures/public-ask-off-snapshot.json', import.meta.url), 'utf8'));
 // The served modules the free tier extends (the ask client, the question
-// record and its scope): their bodies differ, nothing else about them.
-const EXTENDED = new Set(['endorse-config.js', 'atproto-oauth.js', 'endorse-client.js']);
+// record and its scope) and the chat script (its sanitizer options): their
+// bodies differ, nothing else about them.
+const EXTENDED = new Set(['endorse-config.js', 'atproto-oauth.js', 'endorse-client.js', 'chat-page.js']);
 const extended = (e) => [...EXTENDED].some((f) => e.label === `GET asset ${f}` || (e.label === 'GET stale asset' && f === 'endorse-client.js'));
 
 function compare(now) {
@@ -67,4 +73,28 @@ test('flag off: every existing route answers exactly as before the free tier, an
 test('flag off: PUBLIC_ASK set to anything but "true" is the same as unset', { skip }, async () => {
   const w = await loadWorker();
   for (const value of ['false', '1', 'TRUE', ' true', '']) compare(await publicAskOffScenario({ worker: w, extraEnv: { PUBLIC_ASK: value } }));
+});
+
+test('flag off: the scheduled handler (the free tier\'s sweep) does nothing: no D1 call, no fetch, no log', { skip }, async () => {
+  const w = await loadWorker();
+  const touched = [];
+  const d1 = new Proxy({}, { get: (t, k) => () => { touched.push(`D1 ${String(k)}`); throw new Error('D1 touched'); } });
+  const real = { fetch: globalThis.fetch, error: console.error, log: console.log };
+  globalThis.fetch = async (u) => { touched.push(`fetch ${u}`); throw new Error('network'); };
+  console.error = (...a) => touched.push(`log ${a.join(' ')}`);
+  console.log = console.error;
+  const limiter = { limit: async () => { touched.push('limiter'); return { success: true }; } };
+  try {
+    for (const flag of [undefined, 'false', '', 'TRUE']) {
+      const env = { PUBLIC_ASK: flag, BLUESKY_LOGIN: 'true', INVITE_REQUIRED: 'true', INVITE_SECRET: 's'.repeat(32), IP_SALT: 'x', LIMITS: {}, SIREN_DB: d1, PUBLIC_ORIGIN: 'https://ask-siren.jason-edelman.org', BSKY_VISITOR_RL: limiter, BSKY_INPUT_RL: limiter, BSKY_SITE_RL: limiter };
+      const waits = [];
+      await w.scheduled({ cron: '*/10 * * * *', scheduledTime: Date.now() }, env, { waitUntil: (p) => waits.push(p) });
+      assert.equal(waits.length, 0, String(flag));
+    }
+  } finally {
+    Object.assign(globalThis, { fetch: real.fetch });
+    console.error = real.error;
+    console.log = real.log;
+  }
+  assert.deepEqual(touched, []);
 });

@@ -11,67 +11,16 @@ import {
   handlePublicAsk, handlePublicWithdraw, handleQuestions, handleQuestion, handlePublicSession, handlePublicRedeem,
   handleQuestionMetadata, handleAdminQuestions, publicAskReady, publicAskSetupError, questionPageState, FRESH_MS, RECHECK_MS,
 } from '../worker/public-ask.js';
-import { CHECK_STEP_MS, STALE_CLAIM_MS, THREAD_MAX, DEPTH_MAX } from '../worker/questions.js';
+import { CHECK_STEP_MS, STALE_CLAIM_MS, THREAD_MAX, DEPTH_MAX, threadQuestion } from '../worker/questions.js';
 import { QUESTION_NSID, QUESTION_SCOPE, ENDORSE_SCOPE, buildQuestion } from '../worker/endorse-config.js';
 import { signSession, newCode, inviteKey } from '../worker/invites.js';
 import { signUser, userId, userCookieName } from '../worker/accounts.js';
 import { W, fakeNetwork, fakeCache, readyEnv, SECRET, didDoc } from './fake-atproto.js';
 import { fakeD1, hasSqlite } from './fake-d1.js';
 
+import { ORIGIN, NOW, INVITE_HASH, INVITE_COOKIE, OTHER, BOB, CAROL, world, threads } from './public-ask-world.js';
+
 const skip = !hasSqlite && 'node:sqlite is missing';
-const ORIGIN = 'https://ask-siren.jason-edelman.org';
-const NOW = Date.parse('2026-11-10T15:00:00Z');
-const INVITE_HASH = 'a'.repeat(64);
-const INVITE_COOKIE = `__Host-siren_invite=${await signSession(SECRET, INVITE_HASH, NOW)}`;
-const OTHER = 'did:plc:cccccccccccccccccccccccc';
-
-function world({ env: over = {}, now = NOW } = {}) {
-  const net = fakeNetwork();
-  const env = readyEnv({ PUBLIC_ASK: 'true', INVITE_REQUIRED: 'true', SIREN_DB: fakeD1(), ...over });
-  env.LIMITS.store.set(`invite:${INVITE_HASH}`, { value: JSON.stringify({ label: 'test', max_uses: 5 }) });
-  const answers = [];
-  const w = { net, env, answers, clock: { t: now } };
-  w.deps = (extra = {}) => ({
-    base: '', cities: ['norfolk'], apiKey: 'sk-test', subrequestBudget: 120, fetchImpl: net.fetch, now: w.clock.t,
-    answer: async ({ question, cityId, budget, history = [], carried = [] }) => {
-      answers.push({ question, cityId, usedBefore: budget.used, history, carried });
-      await budget.model('https://api.anthropic.com/v1/messages').catch(() => {});
-      return {
-        answer: `I found nothing for: ${question}`, trace: [{ n: 1, tool: 'query_dataset', ok: true, rows: 0, ms: 5, url: 'https://data.norfolk.gov/x' }], resources: { links: [{ title: 'Portal', url: 'https://data.norfolk.gov' }] }, voice: { ok: true }, model: 'claude-sonnet-5-5', steps: 1, cost: 0.002, requestBudget: budget.summary(),
-        toolResults: [{ name: 'query_dataset', args: { soql: `about ${question}` }, content: JSON.stringify({ rows: [{ note: `rows for ${question}` }] }) }],
-      };
-    },
-    ...extra,
-  });
-  /** A question record in the asker's own repo (W.DID on W.PDS): -> { uri, cid, rkey, record }. */
-  w.record = ({ text = 'What is on my block at 810 Union St?', city = 'norfolk', at = w.clock.t, did = W.DID, extra = {}, reply = null } = {}) => {
-    const rkey = net.state.nextTid();
-    const record = { ...buildQuestion({ text, city, now: at, reply }), ...extra };
-    net.state.putRecord(did, QUESTION_NSID, rkey, record, { index: false });
-    return { uri: `at://${did}/${QUESTION_NSID}/${rkey}`, cid: net.state.cidOf(record), rkey, record };
-  };
-  w.ask = async (body, { cookie = INVITE_COOKIE, deps = {}, headers = {} } = {}) => {
-    const waits = [];
-    const req = new Request(`${ORIGIN}/api/public/ask`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, ...headers }, body: JSON.stringify(body) });
-    const res = await handlePublicAsk(req, env, { waitUntil: (p) => waits.push(p) }, w.deps(deps));
-    await Promise.all(waits);
-    return { status: res.status, body: await res.json(), headers: res.headers };
-  };
-  w.withdraw = async (uri) => {
-    const res = await handlePublicWithdraw(new Request(`${ORIGIN}/api/public/withdraw`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uri }) }), env, {}, { fetchImpl: net.fetch });
-    return { status: res.status, body: await res.json() };
-  };
-  w.list = async (q = '') => {
-    const res = await handleQuestions(new Request(`${ORIGIN}/api/questions${q}`), env, {}, { fetchImpl: net.fetch, cache: null, now: w.clock.t });
-    return { status: res.status, body: await res.json(), headers: res.headers };
-  };
-  w.one = async (id) => {
-    const res = await handleQuestion(new Request(`${ORIGIN}/api/q/${id}`), env, {}, id, { fetchImpl: net.fetch, cache: null, now: w.clock.t });
-    return { status: res.status, body: await res.json(), headers: res.headers };
-  };
-  return w;
-}
-
 const modelCalls = (w) => w.answers.length;
 
 test('a question is answered from the record in the asker\'s own repo, and published', { skip }, async () => {
@@ -102,7 +51,8 @@ test('a question is answered from the record in the asker\'s own repo, and publi
   assert.equal(list.status, 200);
   assert.equal(list.body.questions.length, 1);
   const q = list.body.questions[0];
-  assert.deepEqual(Object.keys(q).sort(), ['answer', 'cid', 'city', 'day', 'depth', 'did', 'flags', 'followup', 'handle', 'id', 'parent', 'question', 'record', 'replies', 'uri']);
+  assert.deepEqual(Object.keys(q).sort(), ['answer', 'cid', 'city', 'day', 'depth', 'did', 'flags', 'followup', 'handle', 'id', 'parent', 'question', 'record', 'replies', 'thread_full', 'uri']);
+  assert.equal(q.thread_full, false);
   assert.deepEqual(q.followup, { root: { uri: rec.uri, cid: rec.cid }, parent: { uri: rec.uri, cid: rec.cid } }, 'what a follow-up to it carries');
   assert.equal(q.replies, 0);
   assert.ok(!('tools' in q), 'the tool results kept for follow-ups are never served');
@@ -237,7 +187,7 @@ test('one answer per record: a second POST returns the stored page; one being an
   assert.equal((await pending).status, 200);
 });
 
-test('a failed answer deletes its row; an abandoned claim is cleared after 30 minutes', { skip }, async () => {
+test('a failed answer deletes its row; an abandoned claim is cleared once surely 15 minutes old', { skip }, async () => {
   const w = world();
   const rec = w.record();
   const out = await w.ask({ uri: rec.uri, cid: rec.cid }, { deps: { answer: async () => { throw new Error('Anthropic 529 overloaded'); } } });
@@ -246,7 +196,7 @@ test('a failed answer deletes its row; an abandoned claim is cleared after 30 mi
   assert.equal(w.env.SIREN_DB.rows().length, 0, 'no row kept');
   // A claim whose request died stays "answering" (a 409), until it is stale.
   const db = w.env.SIREN_DB;
-  db.db.prepare("INSERT INTO public_questions (id, question_uri, question_cid, did, status, day, checked_ms) VALUES ('aaaaaaaaaaaaaaaa', ?, ?, ?, 'answering', '2026-11-10', ?)").run(rec.uri, rec.cid, W.DID, NOW - STALE_CLAIM_MS - CHECK_STEP_MS);
+  db.db.prepare("INSERT INTO public_questions (id, question_uri, question_cid, did, status, day, checked_ms) VALUES ('aaaaaaaaaaaaaaaa', ?, ?, ?, 'answering', '2026-11-10', ?)").run(rec.uri, rec.cid, W.DID, NOW - STALE_CLAIM_MS - CHECK_STEP_MS - 1);
   const after = await w.ask({ uri: rec.uri, cid: rec.cid });
   assert.equal(after.status, 200, 'the abandoned claim was cleared');
   assert.deepEqual(db.rows().map((r) => r.status), ['answered']);
@@ -297,7 +247,7 @@ test('withdraw: only once the record is gone from the asker\'s own PDS, and only
   }
   assert.equal(row.status, 'withdrawn');
   assert.equal(row.checked_ms, 0);
-  assert.deepEqual((await w.one(id)).body, { id, withdrawn: true, thread: [{ id, withdrawn: true, depth: 0, parent: null }] }, 'its page says only that');
+  assert.deepEqual((await w.one(id)).body, { id, withdrawn: true, thread: [{ id, withdrawn: true, depth: 0, parent: null }], thread_open: false, thread_closed: 'withdrawn' }, 'its page says only that');
   assert.equal((await w.list()).body.questions.length, 0, 'absent from the list');
   assert.equal((await w.withdraw(rec.uri)).status, 404, 'once');
 });
@@ -455,7 +405,7 @@ test('the ask client\'s metadata: its own client_id, the questions page as redir
   const res = handleQuestionMetadata(new Request(`${ORIGIN}/question-client-metadata.json`), w.env, '', 'Siren');
   const m = await res.json();
   assert.equal(m.client_id, `${ORIGIN}/question-client-metadata.json`);
-  assert.deepEqual(m.redirect_uris, [`${ORIGIN}/questions`]);
+  assert.deepEqual(m.redirect_uris, [`${ORIGIN}/questions`, `${ORIGIN}/requests`], 'and the requests page, for a sign-in there that keeps asking');
   assert.equal(m.scope, `atproto ${QUESTION_SCOPE} ${ENDORSE_SCOPE}`);
   assert.ok(!m.scope.includes('transition:'));
   assert.deepEqual(m.grant_types, ['authorization_code']);
@@ -467,7 +417,7 @@ test('migration 0004: the columns the spec lists, unique on the id and the recor
   const cols = db.db.prepare("SELECT name FROM pragma_table_info('public_questions')").all().map((c) => c.name);
   assert.deepEqual(cols, ['seq', 'id', 'question_uri', 'question_cid', 'did', 'handle', 'city', 'question', 'answer', 'record', 'status', 'day', 'checked_ms', 'root_uri', 'parent_uri', 'depth', 'tools']);
   const indexes = db.db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'public_questions' AND name NOT LIKE 'sqlite_%'").all().map((r) => r.name).sort();
-  assert.deepEqual(indexes, ['public_questions_list', 'public_questions_parent', 'public_questions_thread'], 'an index for loading a thread');
+  assert.deepEqual(indexes, ['public_questions_checked', 'public_questions_list', 'public_questions_parent', 'public_questions_thread'], 'an index for loading a thread, and for the sweep');
   const sql = readFileSync(new URL('../migrations/0004_public_questions.sql', import.meta.url), 'utf8');
   assert.match(sql, /seq INTEGER PRIMARY KEY/);
   assert.match(sql, /id TEXT NOT NULL UNIQUE/);
@@ -488,34 +438,6 @@ test('nothing on these routes reads an Authorization or DPoP header, or keeps a 
 
 // ---- Threads: follow-ups as threaded replies (Jason, 2026-11-10) ----------
 
-const BOB = 'did:plc:bbbbbbbbbbbbbbbbbbbbbbbb';
-const CAROL = 'did:plc:cccccccccccccccccccccccc';
-// Two more askers on the same PDS, each with a handle that resolves back.
-function threads(opts = {}) {
-  const w = world({ env: { PER_INVITE_DAILY: '100', ADMIN_EMAILS: 'steward@example.org' }, ...opts });
-  const handles = { [W.DID]: W.HANDLE, [BOB]: 'bob.fixture.dev', [CAROL]: 'carol.fixture.dev' };
-  w.net.state.didDocs.set(BOB, didDoc({ did: BOB, handle: handles[BOB], pds: W.PDS }));
-  w.net.state.didDocs.set(CAROL, didDoc({ did: CAROL, handle: handles[CAROL], pds: W.PDS }));
-  w.net.routes['dns.fixture.dev/dns-query'] = (u) => {
-    const name = u.searchParams.get('name');
-    const did = Object.keys(handles).find((d) => `_atproto.${handles[d]}` === name);
-    return new Response(JSON.stringify(did ? { Status: 0, Answer: [{ name, type: 16, data: `"did=${did}"` }] } : { Status: 3 }), { headers: { 'Content-Type': 'application/json' } });
-  };
-  const ref = (r) => ({ uri: r.uri, cid: r.cid });
-  /** Ask, and return the record with its public id. `on`: the parent's record; `root`: the thread's root record. */
-  w.q = async (text, { did = W.DID, on = null, root = null, expect = 200 } = {}) => {
-    const rec = w.record({ text, did, reply: on ? { root: ref(root || on), parent: ref(on) } : null });
-    const out = await w.ask({ uri: rec.uri, cid: rec.cid });
-    assert.equal(out.status, expect, `${text}: ${JSON.stringify(out.body)}`);
-    return { ...rec, id: out.body.id, out };
-  };
-  w.remove = async (r) => {
-    w.net.state.repos.get(r.uri.split('/')[2]).get(QUESTION_NSID).delete(r.rkey);
-    assert.equal((await w.withdraw(r.uri)).status, 200);
-  };
-  return w;
-}
-
 test('a follow-up from a second account works: threaded under its parent, with the chain as context', { skip }, async () => {
   const w = threads();
   const root = await w.q('What permits are open at 810 Union St?');
@@ -527,7 +449,7 @@ test('a follow-up from a second account works: threaded under its parent, with t
   const { question, history, carried } = w.answers[1];
   assert.equal(question, 'Who issued the newest one?');
   assert.deepEqual(history.map((m) => m.role), ['user', 'assistant']);
-  assert.equal(history[0].content, 'What permits are open at 810 Union St?');
+  assert.equal(history[0].content, threadQuestion('What permits are open at 810 Union St?'), "marked as someone else's words");
   assert.ok(history[1].content.startsWith('I found nothing for: What permits are open at 810 Union St?'));
   assert.match(history[1].content, /<data note="The tool results behind the answer above[^"]*">\n.*rows for What permits are open/);
   assert.deepEqual(carried.map((c) => [c.name, c.turn]), [['query_dataset', 1]]);
@@ -551,7 +473,7 @@ test('the chain reaches the model in order, without siblings, and a withdrawn or
   const sibling = await w.q('A sibling, not in the chain?', { did: CAROL, on: root });
   const b = await w.q('Second follow-up?', { did: CAROL, on: a, root });
   const c = await w.q('Third follow-up?', { on: b, root });
-  assert.deepEqual(w.answers.at(-1).history.filter((m) => m.role === 'user').map((m) => m.content), ['Root question?', 'First follow-up?', 'Second follow-up?']);
+  assert.deepEqual(w.answers.at(-1).history.filter((m) => m.role === 'user').map((m) => m.content), ['Root question?', 'First follow-up?', 'Second follow-up?'].map(threadQuestion));
   // Bob withdraws his question; the steward hides Carol's.
   await w.remove(a);
   const steward = `${userCookieName('')}=${await signUser(SECRET, await userId(SECRET, 'steward@example.org'))}`;
@@ -559,9 +481,9 @@ test('the chain reaches the model in order, without siblings, and a withdrawn or
   assert.equal(hid.status, 200);
   await w.q('Fourth follow-up?', { did: BOB, on: c, root });
   const users = w.answers.at(-1).history.filter((m) => m.role === 'user').map((m) => m.content);
-  assert.equal(users[0], 'Root question?');
+  assert.equal(users[0], threadQuestion('Root question?'));
   assert.match(users[1], /^\[Siren's note, not a question: an earlier question in this thread was withdrawn by its asker, and an earlier question was hidden by the steward, so their text and answers are left out here\.\]$/);
-  assert.equal(users[2], 'Third follow-up?');
+  assert.equal(users[2], threadQuestion('Third follow-up?'));
   const all = JSON.stringify(w.answers.at(-1).history);
   for (const gone of ['First follow-up?', 'Second follow-up?', sibling.record.text]) assert.ok(!all.includes(gone), gone);
 });

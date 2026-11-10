@@ -38,15 +38,17 @@ import { publicOrigin, clientIds, clientMetadata } from './atproto-oauth.js';
 import { blueskyReady } from './bluesky.js';
 import { currentInvite, redeem, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser } from './accounts.js';
-import { setting, spentToday, recordSpend } from './limits.js';
-import { boundary } from './crypto.js';
+import { setting, spentToday, recordSpend, visitorId } from './limits.js';
+import { boundary, hmacHex } from './crypto.js';
+import { mapLimit } from './public-list.js';
 import { answerRecord, historyFrom } from './conversations.js';
 import { getProfiles, flagsFor, appviewOrigin, youngDays } from './endorsers.js';
 import { userAgent } from './constellation.js';
 import { requestBudget } from '../src/request-budget.js';
 import {
   QUESTION_ID_RE, THREAD_MAX, DEPTH_MAX, claimQuestion, storeAnswer, dropClaim, getById, getByUri, listPublic, withdrawQuestion, markChecked,
-  setHidden, listAll, publicView, placeholderView, stewardView, dayOf, threadOf, chainTo, contextTurns, replyCounts, withdrawnRef,
+  setHidden, listAll, publicView, placeholderView, stewardView, dayOf, threadOf, chainTo, contextTurns, threadCounts, withdrawnRef,
+  staleRows, clearStaleClaims, SWEEP_AGE_MS,
 } from './questions.js';
 
 /** A record older than this is refused as a replay. */
@@ -55,8 +57,18 @@ export const FRESH_MS = 10 * 60e3;
 export const FUTURE_SKEW_MS = 60e3;
 /** /q/<id> re-checks the record when the last check is older than this. */
 export const RECHECK_MS = 10 * 60e3;
-/** Outbound requests a withdraw or a page's re-check may make: the DID document and one getRecord. */
-export const CHECK_BUDGET = 4;
+/**
+ * Outbound requests one record check may make: the DID document, one
+ * getRecord, and the handle's two lookups (DNS and the well-known, with its
+ * redirects).
+ */
+export const CHECK_BUDGET = 8;
+/** At most this many stale questions re-checked on one page view (its thread). */
+export const PAGE_RECHECKS = 10;
+/** The sweep's batch, its concurrency and its time. */
+export const SWEEP_BATCH = 40;
+const SWEEP_CONCURRENCY = 6;
+export const SWEEP_DEADLINE_MS = 25000;
 const PROFILE_SECONDS = 300;
 const ANSWER_CHARS = 8000;
 const CURSOR_RE = /^[1-9][0-9]{0,15}$/;
@@ -115,12 +127,13 @@ export const ASK_ERRORS = {
   thread_city: 'A follow-up asks about the same city as the rest of its thread.',
   thread_deep: `That thread is as deep as it goes (${DEPTH_MAX} follow-ups in a row). Ask a new question instead.`,
   thread_full: `That thread is full (${THREAD_MAX} questions). Ask a new question instead.`,
+  parent_gone: 'The question this follows up was withdrawn or hidden while it was being answered, so nothing was kept.',
 };
 const STATUS = {
   not_set_up: 503, not_here: 403, bad_body: 400, no_model: 503, busy: 429, unavailable: 503, bad_uri: 400, wrong_collection: 400,
   no_pds: 400, not_found: 404, wrong_cid: 400, malformed: 400, stale: 400, future: 400, bad_city: 400, unreachable: 502,
   answering: 409, hidden: 409, withdrawn_meanwhile: 410, still_there: 409, not_listed: 404, not_found_page: 404, bad_cursor: 400,
-  parent_not_public: 409, parent_mismatch: 400, root_mismatch: 400, thread_city: 400, thread_deep: 409, thread_full: 409,
+  parent_not_public: 409, parent_mismatch: 400, root_mismatch: 400, thread_city: 400, thread_deep: 409, thread_full: 409, parent_gone: 409,
 };
 
 /** Public, but not put in search engines (Jason, docs/free-tier.md). */
@@ -151,6 +164,17 @@ async function allowed(limiter, key) {
   } catch {
     return false; // fail closed
   }
+}
+
+/**
+ * The per-visitor limit (BSKY_VISITOR_RL), as the endorsement routes charge
+ * it: keyed by a hash of the visitor in its own domain, only ever a limiter
+ * key, never stored or logged. -> whether this visitor may make Siren fetch.
+ */
+async function visitorAllowed(req, env) {
+  if (!req) return true;
+  const visitor = await hmacHex(env.IP_SALT, `bsky-q:${visitorId(req.headers.get('CF-Connecting-IP'))}`, 32);
+  return allowed(env.BSKY_VISITOR_RL, `q:${visitor}`);
 }
 
 const parse = (text) => {
@@ -206,12 +230,16 @@ async function readQuestion(env, { did, collection, rkey, uri, cid, fetchImpl })
   return { doc, value: body.value };
 }
 
-/** 'gone' (a clear RecordNotFound), 'present', or 'unknown' (couldn't check): the record by its key, any version. */
+/**
+ * The record by its key, any version: { state: 'gone' (a clear
+ * RecordNotFound from the PDS the DID document names), 'present' (with the
+ * DID document), or 'unknown' (couldn't check) }.
+ */
 async function recordState(env, { did, collection, rkey }, fetchImpl) {
   const got = await readQuestion(env, { did, collection, rkey, fetchImpl });
-  if (got.error === 'not_found') return 'gone';
-  if (got.error) return 'unknown';
-  return 'present';
+  if (got.error === 'not_found') return { state: 'gone' };
+  if (got.error) return { state: 'unknown' };
+  return { state: 'present', doc: got.doc };
 }
 
 /** The handle the DID document claims, verified both ways (the handle resolves back to the DID), or null. */
@@ -242,7 +270,29 @@ async function followUp(db, rec) {
   if (thread.length >= THREAD_MAX) return { error: 'thread_full' };
   const chain = chainTo(thread, thread.find((r) => r.id === parent.id));
   if (!chain || chain[0].id !== root.id) return { error: 'root_mismatch' };
-  return { reply: { rootUri: root.question_uri, parentUri: parent.question_uri, depth: Number(parent.depth) + 1 }, turns: contextTurns(chain) };
+  return {
+    reply: { rootUri: root.question_uri, rootCid: root.question_cid, parentUri: parent.question_uri, parentCid: parent.question_cid, depth: Number(parent.depth) + 1 },
+    turns: contextTurns(chain),
+  };
+}
+
+/**
+ * Re-check one answered or hidden question: withdrawn on a clear
+ * RecordNotFound; present, its handle verified both ways again (updated,
+ * or none if it no longer verifies); unknown, left as it is, not checked
+ * again for a while. -> the state. Each fetch on `budget`.
+ */
+async function recheck(env, row, { budget, now }) {
+  const p = parseRecordUri(row.question_uri);
+  if (!p) {
+    await markChecked(env.SIREN_DB, row.id, now);
+    return 'unknown';
+  }
+  const { state, doc } = await recordState(env, p, budget.tool);
+  if (state === 'gone') await withdrawQuestion(env.SIREN_DB, row.id);
+  else if (state === 'present') await markChecked(env.SIREN_DB, row.id, now, { handle: await verifiedHandle(env, doc, p.did, budget.tool) });
+  else await markChecked(env.SIREN_DB, row.id, now);
+  return state;
 }
 
 // The full upstream error goes to the operator's log only; askers get the gist.
@@ -280,8 +330,9 @@ export async function handlePublicAsk(req, env, ctx, deps) {
     return json({ error: "Today's shared budget for this free site is used up. It resets at midnight UTC.", limit: 'budget' }, 503);
   }
   // Counted before the work, as /api/ask counts it, on the same key. Its
-  // expiry is a day boundary, not 48 hours from now, so the key doesn't
-  // carry the time of a public question.
+  // expiry is a day boundary, not 48 hours from now, so this key itself
+  // carries no exact time (other records do: docs/free-tier.md, "What is
+  // stored").
   await kv.put(key, String(Number(used || 0) + 1), { expiration: boundary(now, 'day', 2) });
   // The site-wide breaker, before any outbound fetch.
   if (!(await allowed(env.BSKY_SITE_RL, 'ask'))) return fail('busy');
@@ -319,12 +370,31 @@ export async function handlePublicAsk(req, env, ctx, deps) {
     console.error('public ask: D1 claim failed', clip(err));
     return fail('unavailable');
   }
-  if (claim.state === 'thread_full') return fail('thread_full');
+  if (claim.state === 'thread_full' || claim.state === 'parent_gone') return fail(claim.state === 'parent_gone' ? 'parent_not_public' : 'thread_full');
   if (claim.state === 'answered') {
     const v = publicView(claim.row);
     return json({ id: v.id, url: questionUrl(env, deps.base, v.id), answer: v.answer, record: v.record, already: true });
   }
   if (claim.state !== 'claimed') return fail(claim.state === 'hidden' ? 'hidden' : 'answering');
+
+  // The context, read again now the claim holds: a question in the chain
+  // withdrawn or hidden since followUp() read it is left out.
+  if (thread) {
+    try {
+      const fresh = await threadOf(env.SIREN_DB, { root_uri: null, question_uri: thread.reply.rootUri, id: '' }, { tools: true });
+      const parent = fresh.find((r) => r.question_uri === thread.reply.parentUri && r.status === 'answered');
+      const chain = parent && chainTo(fresh, parent);
+      if (!chain || chain[0].question_uri !== thread.reply.rootUri) {
+        await dropClaim(env.SIREN_DB, claim.id);
+        return fail('parent_not_public');
+      }
+      thread.turns = contextTurns(chain);
+    } catch (err) {
+      console.error('public ask: D1 thread read failed', clip(err));
+      await dropClaim(env.SIREN_DB, claim.id).catch(() => {});
+      return fail('unavailable');
+    }
+  }
 
   const spends = [];
   const onCost = (usd) => {
@@ -336,10 +406,12 @@ export async function handlePublicAsk(req, env, ctx, deps) {
     try {
       // The chain as history, as a private conversation carries its turns.
       const { history, carried } = thread ? historyFrom({ turns: thread.turns }) : { history: [], carried: [] };
-      const out = await deps.answer({ question, cityId: rec.city, budget, onCost, history, carried });
+      const out = await deps.answer({ question, cityId: rec.city, budget, onCost, history, carried, publicThread: Boolean(thread) });
       const record = answerRecord(out);
       const answer = String(out.answer ?? '').slice(0, ANSWER_CHARS);
-      if (!(await storeAnswer(env.SIREN_DB, claim.id, { answer, record, tools: out.toolResults, now: deps.now ?? Date.now() }))) return fail('withdrawn_meanwhile');
+      const stored = await storeAnswer(env.SIREN_DB, claim.id, { answer, record, tools: out.toolResults, reply: thread?.reply || null, now: deps.now ?? Date.now() });
+      if (stored === 'gone') return fail('withdrawn_meanwhile');
+      if (stored === 'parent_gone') return fail('parent_gone');
       return json({ id: claim.id, url: questionUrl(env, deps.base, claim.id), answer, record });
     } catch (err) {
       console.error('public ask: the answer failed', clip(err));
@@ -374,9 +446,9 @@ export async function handlePublicWithdraw(req, env, ctx, deps = {}) {
     return fail('unavailable');
   }
   if (!row || row.did !== p.did || row.status === 'withdrawn') return fail('not_listed');
-  if (!(await allowed(env.BSKY_SITE_RL, 'withdraw'))) return fail('busy');
+  if (!(await visitorAllowed(req, env)) || !(await allowed(env.BSKY_SITE_RL, 'withdraw'))) return fail('busy');
   const budget = requestBudget({ limit: CHECK_BUDGET, fetchImpl: deps.fetchImpl });
-  const state = await recordState(env, p, budget.tool);
+  const { state } = await recordState(env, p, budget.tool);
   if (state === 'present') return fail('still_there');
   if (state !== 'gone') return fail('unreachable');
   try {
@@ -395,7 +467,7 @@ const defaultCache = () => (typeof caches !== 'undefined' && caches?.default ? c
  * exclude), from the public AppView, each profile cached five minutes.
  * -> Map(did -> flags), or null when the AppView couldn't be asked.
  */
-async function askerFlags(env, dids, { fetchImpl, cache, cacheBase, now }) {
+async function askerFlags(env, dids, { fetchImpl, cache, cacheBase, now, req }) {
   const want = [...new Set(dids.filter((d) => typeof d === 'string' && isSupportedDid(d)))].slice(0, 25);
   const profiles = new Map();
   const missing = [];
@@ -414,7 +486,7 @@ async function askerFlags(env, dids, { fetchImpl, cache, cacheBase, now }) {
     else missing.push(did);
   }
   if (missing.length) {
-    if (!(await allowed(env.BSKY_SITE_RL, 'questions'))) return null;
+    if (!(await visitorAllowed(req, env)) || !(await allowed(env.BSKY_SITE_RL, 'questions'))) return null;
     const budget = requestBudget({ limit: 1, fetchImpl });
     let got;
     try {
@@ -448,18 +520,23 @@ export async function handleQuestions(req, env, ctx, deps = {}) {
   }
   let counts;
   try {
-    counts = await replyCounts(env.SIREN_DB, page.rows.map((r) => r.question_uri));
+    counts = await threadCounts(env.SIREN_DB, page.rows.map((r) => r.question_uri));
   } catch (err) {
     console.error('public questions: D1 read failed', clip(err));
     return fail('unavailable');
   }
   const cache = deps.cache !== undefined ? deps.cache : defaultCache();
   const flags = page.rows.length
-    ? await askerFlags(env, page.rows.map((r) => r.did), { fetchImpl: deps.fetchImpl, cache, cacheBase: `${new URL(req.url).origin}${deps.base || ''}`, now: deps.now ?? Date.now() })
+    ? await askerFlags(env, page.rows.map((r) => r.did), { fetchImpl: deps.fetchImpl, cache, cacheBase: `${new URL(req.url).origin}${deps.base || ''}`, now: deps.now ?? Date.now(), req })
     : new Map();
   return json({
-    // Roots only, each with its answered replies' count and the refs a follow-up to it carries.
-    questions: page.rows.map((r) => publicView(r, flags?.get(r.did), { parent: null, replies: counts.get(r.question_uri) || 0, followup: refsTo(r, r) })),
+    // Roots only, each with its answered replies' count, whether its thread
+    // takes another follow-up, and the refs one carries (null when it's full).
+    questions: page.rows.map((r) => {
+      const c = counts.get(r.question_uri) || { answered: 0, total: 0 };
+      const full = c.total + 1 >= THREAD_MAX;
+      return publicView(r, flags?.get(r.did), { parent: null, replies: c.answered, thread_full: full, followup: full ? null : refsTo(r, r) });
+    }),
     cursor: page.cursor,
     ...(flags ? {} : { flags_unavailable: true }),
   });
@@ -468,6 +545,14 @@ export async function handleQuestions(req, env, ctx, deps = {}) {
 const strongRef = (row) => ({ uri: row.question_uri, cid: row.question_cid });
 /** The strongRefs a follow-up to `row` carries, in a thread whose root is `root`. */
 const refsTo = (row, root) => ({ root: strongRef(root), parent: strongRef(row) });
+
+/** Whether a thread takes another follow-up: null if it does, else why not ('full', 'withdrawn', 'hidden'). */
+function threadClosed(thread) {
+  const root = thread.find((r) => !r.parent_uri) || null;
+  if (!root || root.status === 'withdrawn') return 'withdrawn';
+  if (root.status === 'hidden') return 'hidden';
+  return thread.length >= THREAD_MAX ? 'full' : null;
+}
 
 /**
  * A thread as the page shows it, oldest first: answered questions in full,
@@ -482,7 +567,7 @@ function threadView(thread, flags) {
     idOf.set(withdrawnRef(r.id), r.id);
   }
   const root = thread.find((r) => !r.parent_uri) || null;
-  const open = Boolean(root && root.status === 'answered' && thread.length < THREAD_MAX);
+  const open = !threadClosed(thread);
   return thread.filter((r) => r.status !== 'answering').map((r) => {
     const parent = r.parent_uri ? idOf.get(r.parent_uri) || null : null;
     if (r.status !== 'answered') return placeholderView(r, { parent });
@@ -517,39 +602,97 @@ export async function handleQuestion(req, env, ctx, id, deps = {}) {
     return fail('unavailable');
   }
   if (!row || (row.status !== 'answered' && row.status !== 'withdrawn')) return fail('not_found_page');
-  const p = row.status === 'answered' ? parseRecordUri(row.question_uri) : null;
-  if (p && now - Number(row.checked_ms || 0) > RECHECK_MS && (await allowed(env.BSKY_SITE_RL, 'recheck'))) {
-    const budget = requestBudget({ limit: CHECK_BUDGET, fetchImpl: deps.fetchImpl });
-    const state = await recordState(env, p, budget.tool);
-    try {
-      if (state === 'gone') await withdrawQuestion(db, row.id);
-      else await markChecked(db, row.id, now);
-    } catch (err) {
-      console.error('public question: D1 write failed', clip(err));
-    }
-  }
-  // The whole thread it belongs to (re-read: the check may have withdrawn it).
   let thread;
   try {
-    row = (await getById(db, id)) || row;
     thread = await threadOf(db, row);
   } catch (err) {
     console.error('public question: D1 read failed', clip(err));
     return fail('unavailable');
   }
+  // Every question this page shows whose last check is over ten minutes
+  // old (at most PAGE_RECHECKS, this one first), each behind the site
+  // breaker, after the visitor's own limit, every fetch counted.
+  const stale = thread
+    .filter((r) => (r.status === 'answered' || r.status === 'hidden') && now - Number(r.checked_ms || 0) > RECHECK_MS)
+    .sort((a, b) => (b.id === row.id) - (a.id === row.id) || Number(a.checked_ms) - Number(b.checked_ms))
+    .slice(0, PAGE_RECHECKS);
+  if (stale.length && (await visitorAllowed(req, env))) {
+    const budget = requestBudget({ limit: CHECK_BUDGET * stale.length, fetchImpl: deps.fetchImpl });
+    await mapLimit(stale, 5, async (r) => {
+      if (!(await allowed(env.BSKY_SITE_RL, 'recheck'))) return;
+      try {
+        await recheck(env, r, { budget, now });
+      } catch (err) {
+        console.error('public question: re-check failed', clip(err));
+      }
+    });
+    // Read again: a check may have withdrawn some, or changed a handle.
+    try {
+      row = (await getById(db, id)) || row;
+      thread = await threadOf(db, row);
+    } catch (err) {
+      console.error('public question: D1 read failed', clip(err));
+      return fail('unavailable');
+    }
+  }
   const answered = thread.filter((r) => r.status === 'answered');
   const cache = deps.cache !== undefined ? deps.cache : defaultCache();
   const flags = answered.length
-    ? await askerFlags(env, answered.map((r) => r.did), { fetchImpl: deps.fetchImpl, cache, cacheBase: `${new URL(req.url).origin}${deps.base || ''}`, now })
+    ? await askerFlags(env, answered.map((r) => r.did), { fetchImpl: deps.fetchImpl, cache, cacheBase: `${new URL(req.url).origin}${deps.base || ''}`, now, req })
     : new Map();
   const view = threadView(thread, flags);
   const focus = view.find((v) => v.id === row.id);
+  const closed = threadClosed(thread);
   return json({
     // A withdrawn question says only that; the thread around it stays.
     ...(row.status === 'withdrawn' ? { id: row.id, withdrawn: true } : { question: focus }),
     thread: view,
+    // Whether the thread takes another follow-up, and if not, why.
+    thread_open: !closed,
+    ...(closed ? { thread_closed: closed } : {}),
     ...(flags ? {} : { flags_unavailable: true }),
   });
+}
+
+/**
+ * The Cron Trigger's sweep (worker/index.js scheduled, every ten minutes):
+ * abandoned claims cleared, then at most SWEEP_BATCH answered or hidden
+ * questions not checked for SWEEP_AGE_MS re-checked, oldest check first, so
+ * a record deleted in the asker's own account comes off the site without
+ * anyone opening its page. The same rule as a page's re-check: only a clear
+ * RecordNotFound from the DID's own PDS withdraws. Each question is charged
+ * to the site breaker; every fetch is counted on the run's budget; the run
+ * stops starting checks at its deadline. With the free tier off or not
+ * ready it does nothing at all: no D1 call, no fetch.
+ * -> { skipped } or { cleared, checked, withdrawn, unknown }.
+ */
+export async function sweepQuestions(env, { fetchImpl, now = Date.now(), limit = SWEEP_BATCH, deadlineMs = SWEEP_DEADLINE_MS } = {}) {
+  if (!publicAskReady(env)) return { skipped: true };
+  const db = env.SIREN_DB;
+  const cleared = await clearStaleClaims(db, now);
+  const rows = await staleRows(db, { before: now - SWEEP_AGE_MS, limit });
+  const budget = requestBudget({ limit: CHECK_BUDGET * rows.length, fetchImpl });
+  const deadline = Date.now() + deadlineMs;
+  const out = { cleared, checked: 0, withdrawn: 0, unknown: 0 };
+  let stop = false;
+  await mapLimit(rows, SWEEP_CONCURRENCY, async (r) => {
+    if (stop || Date.now() > deadline) return;
+    if (!(await allowed(env.BSKY_SITE_RL, 'recheck'))) {
+      stop = true;
+      return;
+    }
+    let state;
+    try {
+      state = await recheck(env, r, { budget, now });
+    } catch (err) {
+      console.error('public sweep: re-check failed', clip(err));
+      return;
+    }
+    out.checked++;
+    if (state === 'gone') out.withdrawn++;
+    if (state === 'unknown') out.unknown++;
+  });
+  return out;
 }
 
 /**

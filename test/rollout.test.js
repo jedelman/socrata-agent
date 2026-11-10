@@ -10,14 +10,24 @@ import { fileURLToPath } from 'node:url';
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
 
-test('wrangler.toml: the flag off, three limiters, no cron, SIREN_DB still bound (D9)', () => {
+test('wrangler.toml: the flag off, three limiters, only the free tier\'s sweep cron, SIREN_DB still bound (D9)', () => {
   const toml = read('wrangler.toml');
   assert.ok(!/^\s*BLUESKY_LOGIN\s*=/m.test(toml), 'the flag flips in its own PR, after the live probe');
-  for (const gone of ['BSKY_ACCOUNT_RL', 'BSKY_D1_RL', 'crons', '[env.siren.triggers]']) assert.ok(!toml.includes(gone), gone);
+  assert.ok(!/^\s*PUBLIC_ASK\s*=/m.test(toml), 'the free tier flips in its own PR too');
+  for (const gone of ['BSKY_ACCOUNT_RL', 'BSKY_D1_RL']) assert.ok(!toml.includes(gone), gone);
   for (const kept of ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_SITE_RL']) assert.match(toml, new RegExp(`name = "${kept}"`));
   assert.match(toml, /binding = "SIREN_DB"/);
   assert.match(toml, /next one applied also\n# applies 0003/, 'applying any later migration applies 0003 too');
-  assert.match(read('worker/index.js'), /export default \{\n  async fetch/, 'no scheduled handler');
+  // The old endorsement purge cron is gone; the one cron is the free tier's
+  // sweep, and the scheduled handler does nothing but that (a no-op with
+  // PUBLIC_ASK off: test/public-ask-off.test.js).
+  assert.deepEqual([...toml.matchAll(/^crons = (.*)$/gm)].map((m) => m[1]), ['["*/10 * * * *"]']);
+  assert.equal((toml.match(/\[env\.siren\.triggers\]/g) || []).length, 1);
+  const index = read('worker/index.js');
+  assert.match(index, /export default \{\n  async fetch/);
+  const scheduled = index.slice(index.indexOf('  async scheduled(event, env, ctx) {'));
+  assert.match(scheduled, /^  async scheduled\(event, env, ctx\) \{\n    if \(!publicAskOn\(env\)\) return;/);
+  assert.deepEqual([...scheduled.matchAll(/await |sweepQuestions\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['sweepQuestions(']);
 });
 
 test('migration 0003 drops every table and trigger 0001 and 0002 made', () => {
