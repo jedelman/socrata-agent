@@ -46,7 +46,7 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
     })),
     resources: {
       datasets: (r.datasets || []).slice(0, 20).map((d) => ({ id: clip(d.id, 20), name: clip(d.name, 200), page: clip(d.page, 500), docs: clip(d.docs, 500), csv: clip(d.csv, 500), department: clip(d.department, 200), queries: (d.queries || []).slice(0, 5).map((q) => clip(q, 2000)) })),
-      records: (r.records || []).slice(0, 30).map((x) => ({ title: clip(x.title, 300), url: clip(x.url, 2000), kind: clip(x.kind, 40) })),
+      records: (r.records || []).slice(0, 30).map((x) => ({ title: clip(x.title, 300), url: clip(x.url, 2000), kind: clip(x.kind, 40), page_age: clip(x.page_age, 60) })),
       contacts: (r.contacts || []).slice(0, 20).map((c) => ({ role: clip(c.role, 200), name: clip(c.name, 200), email: clip(c.email, 200), phone: clip(c.phone, 60), url: clip(c.url, 500), note: clip(c.note, 300) })),
       links: (r.links || []).slice(0, 20).map((l) => ({ title: clip(l.title, 300), url: clip(l.url, 2000) })),
     },

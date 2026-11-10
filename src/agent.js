@@ -16,6 +16,7 @@ import { matchGaps, gapItem, citeCatalog, classifyRefusal, refilterUnanswered, a
 import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
 import { requestBudget } from './request-budget.js';
+import { webSearchSettings, checkWebSearchForCity, traceSearches, handOffWebPages } from './web-search.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 const RESULT_CHARS = 16000;
@@ -78,6 +79,17 @@ export function budgetNote({ limit, refused }) {
  * `gaps` (off by default) is { data, streets?, absenceLines? }: a built gap
  * file (data/gaps/<city>.json) and options (docs/gaps.md §8). With gaps off,
  * every output is byte-identical to a build without gaps.
+ * `webSearch` (off by default) is a deployment's { allowedDomains, maxUses }
+ * (src/web-search.js): for Claude models it declares Anthropic's web search
+ * tool, limited to those sites by the API. Each search the API's response
+ * shows gets a code-written trace step, and the pages the answer cites (or
+ * every result, when it cites none) are handed off as records of kind
+ * 'web'. A paused turn (pause_turn) is resumed as its own model call, which
+ * counts as a step and against the request budget like any other; the answer
+ * is the whole turn's text. A call that resumes server-side work never sends
+ * tool_choice none, and a client tool it asks for past the cap isn't run:
+ * the answer ends as at the step cap. With web search off, every request and
+ * output is as it was before it.
  * `subrequestBudget` caps the outbound requests this answer may make, model
  * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
  * requests stop short of it, keeping enough for the final answer.
@@ -118,8 +130,13 @@ export async function ask({
   onCost = () => {},
   thinkingEvents = false,
   gaps = null,
+  webSearch = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
+  // Checked whatever the model, so a bad list fails here; declared only for
+  // Claude models (it is Anthropic's server tool).
+  const searchSettings = checkWebSearchForCity(webSearchSettings(webSearch), city);
+  const searchOn = Boolean(searchSettings) && providerOf(model) === 'anthropic';
   // A bad setting must never make the tool loop unbounded.
   maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
   // One counter for every fetch this answer makes: tools and model alike.
@@ -157,7 +174,7 @@ export async function ask({
   const onThinking = thinkingEvents ? (text) => onEvent({ type: 'thinking', step, text }) : undefined;
   const onFallback = thinkingEvents ? () => onEvent({ type: 'fallback', step }) : undefined;
   const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking, onFallback })
+    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking, onFallback, ...(searchOn ? { webSearch: searchSettings } : {}) })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
   // Fetches one API call can take, and one complete() at worst (a cut-off
   // call's second try, each with its retry).
@@ -166,8 +183,9 @@ export async function ask({
   // Tool requests stop while enough is left for the model calls that finish
   // the answer: the final answer at its worst, and one voice rewrite call.
   budget.setReserve(perComplete + perCall);
+  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}) };
   llm.init({
-    systemPrompt: gapsOn ? systemPrompt(city, today, { gaps: true }) : systemPrompt(city, today),
+    systemPrompt: Object.keys(promptOpts).length ? systemPrompt(city, today, promptOpts) : systemPrompt(city, today),
     history,
     question,
     toolDefs: gapsOn ? toolsFor(city, plugins, { gaps: gaps.data }) : toolsFor(city, plugins),
@@ -179,6 +197,15 @@ export async function ask({
   let fallback = false;
   // Set when the request budget ended the tool loop.
   let budgetStopped = false;
+  // Web search: the results that may be handed off, and the citations on
+  // the text that became the answer.
+  const webResults = [];
+  let answerCitations = [];
+  // Every search a response shows gets a trace step, written from its blocks.
+  const traceWeb = async (out) => {
+    if (!searchOn || !out.searches?.length) return;
+    webResults.push(...(await traceSearches(ctx.trace, out.searches, { allowedDomains: searchSettings.allowedDomains, withheld: Boolean(out.refusal) })));
+  };
   const spend = (usd) => {
     cost += usd;
     onCost(usd);
@@ -202,6 +229,7 @@ export async function ask({
     const lastStep = steps >= maxSteps || budgetStopped;
     const out = await complete({ allowTools: !lastStep });
     spend(out.cost);
+    await traceWeb(out);
     if (out.refusal) {
       onEvent({ type: 'refusal', step });
       refusal = out.refusal;
@@ -209,8 +237,20 @@ export async function ask({
       answer = "I can't answer that one: the model declined it. The queries I ran before it stopped are in the trace below.";
       break;
     }
+    // The API paused its server-side loop (web search): the turn goes back as
+    // it is and the next call resumes it. That call is a step of its own.
+    if (out.paused && !lastStep) {
+      steps++;
+      llm.appendAssistant();
+      continue;
+    }
     if (!out.calls.length || lastStep) {
-      answer = out.text;
+      // A paused turn's text is unfinished: never the answer. Nor is a
+      // response past the cap that still asks for a client tool (one that
+      // resumed web search's server-side work goes without tool_choice none):
+      // its tools don't run and it ends with the step cap's fallback.
+      answer = out.paused || out.calls.length ? '' : out.text;
+      if (answer) answerCitations = out.citations || [];
       if (!answer) {
         fallback = true;
         answer = out.truncated
@@ -291,13 +331,19 @@ export async function ask({
     llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
     const out = await complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
+    await traceWeb(out);
     if (out.refusal) onEvent({ type: 'refusal', step });
-    if (out.text && !out.refusal && !out.truncated) {
+    if (out.text && !out.refusal && !out.truncated && !out.paused) {
       answer = out.text;
       rewritten = true;
       violations = check(answer);
+      // The rewrite rewords the same answer: its citations join the first's.
+      answerCitations = [...answerCitations, ...(out.citations || [])];
     }
   }
+
+  // The web pages behind the answer, handed off by code from the API's blocks.
+  if (searchOn && webResults.length) handOffWebPages(ctx.resources, webResults, answerCitations);
 
   // Gaps: attached by code from what this turn ran, never by the model.
   let gapOut = null;

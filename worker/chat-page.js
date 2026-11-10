@@ -50,8 +50,13 @@ function renderResources(r) {
   if (r.contacts?.length) {
     parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${link(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
-  if (r.records?.length) {
-    parts.push(`<details><summary>Public records <small>(${r.records.length})</small></summary><ul class="plain">${r.records.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
+  const records = (r.records || []).filter((x) => x.kind !== 'web');
+  const pages = (r.records || []).filter((x) => x.kind === 'web');
+  if (records.length) {
+    parts.push(`<details><summary>Public records <small>(${records.length})</small></summary><ul class="plain">${records.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
+  }
+  if (pages.length) {
+    parts.push(`<details><summary>Web pages <small>(${pages.length})</small></summary><p class="meta">Found by web search, which Anthropic runs, on the official sites this deployment allows. A web page is not a record: it says what it said when the search found it.</p><ul class="plain">${pages.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>${x.page_age ? ` <small>${esc(x.page_age)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
   if (r.datasets?.length) {
     parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${link(d.page)}" target="_blank" rel="noopener">dataset page</a>${d.csv ? `<a href="${link(d.csv)}">full CSV</a>` : ''}${(d.queries || []).map((q, i) => `<a href="${link(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${link(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
@@ -106,11 +111,30 @@ function renderAnswer(answer, r, at) {
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
   return `<div class="answer">${md(answer)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
 }
+// A web search step (web search on). Its tool name is WEB_SEARCH_STEP in
+// src/web-search.js (test/web-search.test.js keeps the two the same). The
+// search ran on Anthropic's side, so there is nothing to re-run: the step's
+// link is the first page it found, or the tool's documentation.
+const WEB_STEP = 'web search (run by Anthropic)';
+const isWebStep = (s) => s.tool === WEB_STEP;
+function traceStep(s) {
+  if (isWebStep(s)) {
+    const status = s.ok ? (s.rows == null ? 'ok' : `${s.rows} result${s.rows === 1 ? '' : 's'}`) : `failed: ${esc(s.error)}`;
+    const docs = /^https:\/\/platform\.claude\.com\//.test(String(s.url || ''));
+    return `<li><strong>${esc(s.tool)}</strong>${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${status} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">${docs ? 'how web search works' : 'first page found'}</a></span></li>`;
+  }
+  return `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code class="ds">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`;
+}
 function renderTrace(t) {
   if (!t?.length) return '';
   const refused = t.filter((s) => s.refused).length;
-  const ran = t.length - refused;
-  return `<details><summary>How I found this <small>(${ran} quer${ran === 1 ? 'y' : 'ies'}${refused ? `, ${refused} not sent` : ''})</small></summary><ol class="trace">${t.map((s) => `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code class="ds">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`).join('')}</ol></details>`;
+  const searches = t.filter((s) => !s.refused && isWebStep(s)).length;
+  const queries = t.length - refused - searches;
+  const counts = [];
+  if (queries || !searches) counts.push(`${queries} quer${queries === 1 ? 'y' : 'ies'}`);
+  if (searches) counts.push(`${searches} web search${searches === 1 ? '' : 'es'}`);
+  if (refused) counts.push(`${refused} not sent`);
+  return `<details><summary>How I found this <small>(${counts.join(', ')})</small></summary><ol class="trace">${t.map(traceStep).join('')}</ol></details>`;
 }
 
 function showGate(on) {

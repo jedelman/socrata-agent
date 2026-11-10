@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 import { cities, getCity } from '../src/cities/index.js';
 import { ask, createContext, DEFAULT_MODEL, apiKeyFromEnv } from '../src/agent.js';
 import { toolsFor, runTool } from '../src/tools.js';
-import { applyConfig, definePlugin } from '../src/plugins.js';
+import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
@@ -86,7 +86,7 @@ async function loadDeployment() {
   const mod = await import(pathToFileURL(resolve(values.config)).href);
   const config = mod.default || {};
   const city = applyConfig(getCity(values.city || config.city || 'norfolk'), config);
-  return { city, plugins: (config.plugins || []).map(definePlugin), model: config.model, gaps: config.gaps };
+  return { city, plugins: (config.plugins || []).map(definePlugin), model: config.model, gaps: config.gaps, webSearch: webSearchConfig(config, city) };
 }
 
 // The built gap catalog for a city, when gaps are on (off by default).
@@ -132,7 +132,7 @@ try {
   } else if (cmd === 'ask') {
     const question = rest.join(' ').trim();
     if (!question) throw new Error('ask needs a question');
-    const { city, plugins, model: configModel, gaps: gapsConfig } = await loadDeployment();
+    const { city, plugins, model: configModel, gaps: gapsConfig, webSearch } = await loadDeployment();
     const gaps = await loadGaps(city, gapsConfig);
     const model = values.model || configModel || process.env.SOCRATA_AGENT_MODEL || DEFAULT_MODEL;
     // --thinking: the summarized thinking goes to stderr, a block per step.
@@ -151,6 +151,8 @@ try {
       model,
       effort: values.effort,
       ...(gaps ? { gaps } : {}),
+      // A config's web search (Claude models only; off unless it sets one).
+      ...(webSearch ? { webSearch } : {}),
       // Unset: no cap (the count still runs and is reported).
       subrequestBudget: cliSubrequestBudget(process.env.SUBREQUEST_BUDGET),
       thinkingEvents: values.thinking && !values.json,

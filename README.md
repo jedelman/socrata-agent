@@ -125,7 +125,8 @@ budget, then send what works back upstream. Two pieces:
 
 - **A deployment config** in `deployments/` adds plugins, contacts, links,
   exclusions and focus notes. It can't remove exclusions or switch off the
-  trace or the voice check.
+  trace or the voice check. For Claude models it can also turn on web search,
+  limited to the sites it lists (see [Web search](#web-search)).
 - **Plugin tools** in `plugins/` get a traced context and never a raw `fetch`.
   `test/conformance.js` checks them before they are merged.
 
@@ -227,6 +228,57 @@ unset until the rollout's live probe passes. The record, the flow, the
 counts, the flags and the rollout are in
 [docs/bluesky-endorsements.md](docs/bluesky-endorsements.md).
 
+## Web search
+
+For Claude models, a deployment can let the agent search the web, but only
+the sites it lists. It is off unless the config sets it:
+
+```js
+webSearch: { allowedDomains: ['law.lis.virginia.gov', 'msc.fema.gov', 'congress.gov/bill'], maxUses: 3 },
+```
+
+The list goes to Anthropic's web search tool as its `allowed_domains`, and
+the API enforces it. Entries are bare domains (no `https://`), lowercase
+ASCII, optionally with a path; subdomains are included, so `lis.virginia.gov`
+covers `law.lis.virginia.gov`, and a subdomain entry covers only itself.
+Because subdomains are included, list agencies, not whole government
+domains: `virginia.gov` would also cover the State Police's Wanted and
+Missing Persons pages (`vsp.virginia.gov`). And because the API takes an
+allowlist or a blocklist, never both, a site with one section that names
+private people (police news, hearing packets with owners' names, public
+comments, wanted or debarment lists) is listed by subdomain or path, or not
+at all: web search must not become the people-finding the dataset policy
+refuses. Probe a site before listing it. The
+config is checked at startup: wildcards in the domain, IP addresses, bare
+TLDs, duplicates and entries another entry already covers are refused, and
+so is any list that covers the city's open data portal (`norfolk.gov` covers
+`data.norfolk.gov`; list the subdomains you want instead), because portal data goes
+only through the dataset policy. `maxUses` (1 to 10) caps searches per step.
+The prompt tells the model to use search only for official pages its other
+tools can't reach, never to look up a person, a business's owner or an
+address's residents, and to attribute what a page says to the page.
+
+Anthropic runs each search, not the Worker. The trace gets a step per search,
+written by code from the API's response (the query, how many results, the
+result links, and that Anthropic ran it), and the pages the answer cites (or
+every result, when it cites none) are listed under the answer as web pages,
+not records. Each search costs $10 per 1,000 on top of tokens (Anthropic's
+pricing page, 2026-11-10), and it counts toward `DAILY_BUDGET_USD`. When the
+API pauses a long search turn (`pause_turn`), the agent sends the turn back
+and continues; each continuation is a step and an outbound request like any
+other model call, and the answer is the whole turn's text, from before the
+pause and after it. Siren's list is in `deployments/siren.config.js`: the
+Code of Virginia, state and federal bill pages, the Census Bureau, USGS,
+FEMA's flood maps, NOAA's tides and sea-level sites, Virginia's
+conservation and forestry departments, and VDOT's project pages. The City's
+site and meeting portal are left off: police news there names arrested and
+missing people, and hearing packets list nearby owners; the config records
+what each probe found on every site left off.
+Web search must be enabled for the Anthropic organization (Console,
+capabilities), and if the organization restricts domains there, the
+deployment's list must sit inside that list; otherwise the API refuses the
+request. `WEB_SEARCH = "off"` in the Worker's vars turns it off at once.
+
 ## Deploy the web app
 
 ```bash
@@ -251,6 +303,7 @@ Limits, set in `wrangler.toml`:
 | `SUBREQUEST_BUDGET` | 120 | Outbound requests per answer (10–10000), counting every Socrata, meeting-portal and plugin request and every model call and retry. The answer stays within it: tool requests stop while enough is left for the final answer; the answer then says it stopped at the limit, and the trace marks the requests not sent as refused |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
 | `WORKING_NOTES` | on | The live working notes on the chat page (see below). `"off"` sends the plain answer only |
+| `WEB_SEARCH` | on where the deployment sets `webSearch` | `"off"` drops web search from every answer (see [Web search](#web-search)); the Anthropic organization must allow web search in the Console, or requests carrying the tool fail |
 
 Claude spend is priced from each response's token usage. The SDK retries a
 failed call once (on rate limits, server errors and timeouts), only before a

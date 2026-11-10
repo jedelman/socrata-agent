@@ -39,6 +39,74 @@ export default {
     badge: 'Pre-alpha · invite only',
     operator: 'Jason Edelman',
   },
+  // Web search (Claude models only): official public sites, enforced by the
+  // API as the tool's allowed_domains (src/web-search.js). Only Jason widens
+  // this list. Subdomains are included (API docs, read 2026-11-10), so:
+  // - www.norfolk.gov, not norfolk.gov: norfolk.gov would also cover
+  //   data.norfolk.gov, the open data portal, whose datasets go only through
+  //   the dataset policy (src/web-search.js checkWebSearchForCity refuses it),
+  //   and every other City subdomain (air.norfolk.gov among them).
+  // - virginia.gov covers the state agencies, and lis.virginia.gov and
+  //   law.lis.virginia.gov (legislation and the Code of Virginia).
+  // - norfolkcityva.iqm2.com is the City's meeting portal (src/cities/norfolk.js).
+  // NRHA is not listed: nrha.org redirects to the North American Hardware and
+  // Paint Association (yournhpa.org), not the Norfolk Redevelopment and
+  // Housing Authority, checked 2026-11-10. nrha.us calls itself the
+  // authority (555 E. Main St.); adding it is Jason's call.
+  webSearch: {
+    // Sites that publish law, maps, data and program pages, never news
+    // posts, case documents, public comments or hearing exhibits: those
+    // name private people, and Siren doesn't find people (CLAUDE.md). The
+    // API takes an allowlist or a blocklist, never both, so a site with one
+    // such section is listed by subdomain or path, or not at all. Probed
+    // 2026-11-10 with Anthropic's web search (names, arrests, missing
+    // persons, owners, convictions); the probes found nothing about private
+    // people on the sites kept, and what they found on the sites dropped is
+    // below. A probe is a sample, not proof: check a site before adding it.
+    //
+    // Left off, with what a probe found there on 2026-11-10:
+    // - www.norfolk.gov: Norfolk Police news posts name arrested adults with
+    //   charges, identify arrested juveniles by age, and name missing people
+    //   with the street where they were last seen; the same kind of record
+    //   as the Arrest Reports and Active Warrants datasets the Norfolk
+    //   profile excludes. (The city's open data, budget books, zoning
+    //   ordinance and meetings reach Siren through its own tools.)
+    // - norfolkcityva.iqm2.com: hearing packets carry the names and
+    //   addresses of property owners within 300 feet (the owner columns the
+    //   profile withholds). Siren reads meetings through its iqm2 adapter.
+    // - virginia.gov: covers vsp.virginia.gov (Wanted and Missing Persons).
+    //   lis.virginia.gov whole: rga.lis.virginia.gov holds the Governor's
+    //   clemency lists, by person and conviction; only law.lis and bill
+    //   pages are listed. townhall.virginia.gov and regulations.gov: public
+    //   comments with the commenter's name and city or ZIP.
+    //   dhcd.virginia.gov: certification lists of named individuals.
+    //   deq.virginia.gov: enforcement orders, mostly against companies, not
+    //   checked for individuals; off until they are.
+    //   vdot.virginia.gov whole: project PDFs (right-of-way plans) not
+    //   checked for owner names; only the project pages are listed.
+    // - epa.gov: a fugitives list, wanted posters and per-defendant case
+    //   summaries. hud.gov: the Limited Denial of Participation list, by
+    //   person and city. noaa.gov whole: a permit-holder file with names,
+    //   phones and mailing addresses, and enforcement decisions naming
+    //   respondents. fema.gov whole: press releases naming people sentenced
+    //   for disaster fraud. congress.gov whole: hearing exhibits about named
+    //   people; only bill pages are listed.
+    // Only Jason widens this list.
+    allowedDomains: [
+      'law.lis.virginia.gov', // Code of Virginia, Administrative Code, city charters
+      'lis.virginia.gov/bill-details', // Virginia bills, their text and votes
+      'congress.gov/bill', // federal bills
+      'census.gov',
+      'usgs.gov',
+      'msc.fema.gov', // flood maps
+      'tidesandcurrents.noaa.gov', // tides and sea level
+      'coast.noaa.gov', // sea level rise viewer, Digital Coast
+      'dcr.virginia.gov', // floodplains, dam safety, conservation
+      'dof.virginia.gov', // forestry, urban tree canopy
+      'vdot.virginia.gov/projects', // road project pages
+    ],
+    maxUses: 3,
+  },
   contacts: [],
   links: [
     { title: 'Siren is open source: github.com/jedelman/socrata-agent', url: 'https://github.com/jedelman/socrata-agent' },

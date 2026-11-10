@@ -9,6 +9,13 @@
 //       SSE when the request body asks for a stream, JSON otherwise.
 //   sseEvents(message, opts)  the events, for tests that build their own.
 //
+// Server tools (web search) stream as the API documents them (server tools
+// and web search tool pages, read 2026-11-10): a server_tool_use block opens
+// like a tool_use and fills by input_json_delta; a result block (for example
+// web_search_tool_result) arrives whole in content_block_start; a text
+// block's citations arrive as citations_delta; message_delta carries the
+// container and usage.server_tool_use.
+//
 // opts:
 //   chunk      characters per delta (default 5), so a block arrives in pieces
 //   errorAfter after this many events, an SSE `error` event (overloaded) and
@@ -27,18 +34,24 @@ function opening(block) {
   if (block.type === 'text') return { type: 'text', text: '' };
   if (block.type === 'thinking') return { type: 'thinking', thinking: '', signature: '' };
   if (block.type === 'tool_use') return { type: 'tool_use', id: block.id, name: block.name, input: {} };
+  if (block.type === 'server_tool_use') return { type: 'server_tool_use', id: block.id, name: block.name, input: {}, ...(block.caller ? { caller: block.caller } : {}) };
   return block;
 }
 
 function deltas(block, chunk) {
-  if (block.type === 'text') return split(block.text, chunk).map((text) => ({ type: 'text_delta', text }));
+  if (block.type === 'text') {
+    return [
+      ...split(block.text, chunk).map((text) => ({ type: 'text_delta', text })),
+      ...(block.citations || []).map((citation) => ({ type: 'citations_delta', citation })),
+    ];
+  }
   if (block.type === 'thinking') {
     return [
       ...split(block.thinking, chunk).map((thinking) => ({ type: 'thinking_delta', thinking })),
       { type: 'signature_delta', signature: block.signature },
     ];
   }
-  if (block.type === 'tool_use') {
+  if (block.type === 'tool_use' || block.type === 'server_tool_use') {
     const json = block.partial_json ?? JSON.stringify(block.input ?? {});
     return split(json, chunk).map((partial_json) => ({ type: 'input_json_delta', partial_json }));
   }
@@ -46,7 +59,7 @@ function deltas(block, chunk) {
 }
 
 export function sseEvents(message, { chunk = 5 } = {}) {
-  const { content = [], stop_reason, stop_details = null, usage = {}, ...rest } = message;
+  const { content = [], stop_reason, stop_details = null, usage = {}, container = null, ...rest } = message;
   const startUsage = {
     input_tokens: usage.input_tokens ?? 0,
     cache_creation_input_tokens: usage.cache_creation_input_tokens ?? 0,
@@ -61,13 +74,14 @@ export function sseEvents(message, { chunk = 5 } = {}) {
   });
   events.push({
     type: 'message_delta',
-    delta: { stop_reason, stop_sequence: null, stop_details },
+    delta: { stop_reason, stop_sequence: null, stop_details, ...(container ? { container } : {}) },
     usage: {
       output_tokens: usage.output_tokens ?? 0,
       input_tokens: usage.input_tokens ?? null,
       cache_creation_input_tokens: usage.cache_creation_input_tokens ?? null,
       cache_read_input_tokens: usage.cache_read_input_tokens ?? null,
       ...(usage.iterations ? { iterations: usage.iterations } : {}),
+      ...(usage.server_tool_use ? { server_tool_use: usage.server_tool_use } : {}),
     },
   });
   events.push({ type: 'message_stop' });
