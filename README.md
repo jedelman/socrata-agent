@@ -270,10 +270,12 @@ other model call, and the answer is the whole turn's text, from before the
 pause and after it. Siren's list is in `deployments/siren.config.js`: the
 Code of Virginia, state and federal bill pages, the Census Bureau, USGS,
 FEMA's flood maps, NOAA's tides and sea-level sites, Virginia's
-conservation and forestry departments, and VDOT's project pages. The City's
-site and meeting portal are left off: police news there names arrested and
-missing people, and hearing packets list nearby owners; the config records
-what each probe found on every site left off.
+conservation and forestry departments, VDOT's project pages, and two paths
+on the City's site: its Form Center and its newsletters. The rest of the
+City's site and the meeting portal are left off: City news shares one path
+with police news, which names arrested and missing people, and hearing
+packets list nearby owners; the config records what each probe found on
+every site left off.
 Web search must be enabled for the Anthropic organization (Console,
 capabilities), and if the organization restricts domains there, the
 deployment's list must sit inside that list; otherwise the API refuses the

@@ -601,6 +601,9 @@ function page(env) {
     TAGLINE: esc(ui.tagline),
     LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
     FOOTER_NOTE: esc(ui.footerNote),
+    // Where questions go beyond this Worker (the model's provider, and what
+    // it keeps), when the deployment states it.
+    DATA_NOTE: ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '',
     BADGE: esc(ui.badge),
     OPERATOR: esc(ui.operator ? `${APP_NAME_OF(env, config)} is run by ${ui.operator}. ` : ''),
     MARK: skin.mark,
