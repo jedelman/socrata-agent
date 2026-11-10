@@ -241,9 +241,15 @@ sign-in and an invite, at `/questions`. Every question, answer and asker's
 handle is public, on Siren's site only (a row in the `SIREN_DB` D1 database
 and a page at `/q/<id>`), and anyone with an invite can ask a follow-up as a
 threaded reply. The question is a record in the asker's own repo; Siren
-reads it there, answers its text, and takes the page down when it's deleted
-(a Cron Trigger re-checks public questions every ten minutes, a no-op while
-the flag is off).
+reads it there, answers its text, and takes the page down when it's deleted,
+or when the whole account is: within seconds, by a Durable Object that
+watches Jetstream for deletions in the question collection and confirms
+each at the asker's PDS (binding `QUESTION_WATCHER`; `JETSTREAM_URL`
+overrides the public instances), and as a backstop by a Cron Trigger that
+re-checks public questions every ten minutes, at most 240 an hour, so
+within about an hour while there are few to re-check (both no-ops while the
+flag is off). The deploy that adds the Durable Object is a rollback
+barrier: no Siren version from before it can be rolled back to.
 Email sign-in stays the private tier. The design, what is stored, threads
 and the rollout (publish the question Lexicon, apply migration 0004, then
 set the flag) are in [docs/free-tier.md](docs/free-tier.md); the steward

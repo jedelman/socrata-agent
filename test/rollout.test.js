@@ -19,15 +19,16 @@ test('wrangler.toml: the flag off, three limiters, only the free tier\'s sweep c
   assert.match(toml, /binding = "SIREN_DB"/);
   assert.match(toml, /next one applied also\n# applies 0003/, 'applying any later migration applies 0003 too');
   // The old endorsement purge cron is gone; the one cron is the free tier's
-  // sweep, and the scheduled handler does nothing but that (a no-op with
-  // PUBLIC_ASK off: test/public-ask-off.test.js).
+  // sweep, and the scheduled handler does nothing but that and wake the
+  // Jetstream watcher (both no-ops with PUBLIC_ASK off:
+  // test/public-ask-off.test.js).
   assert.deepEqual([...toml.matchAll(/^crons = (.*)$/gm)].map((m) => m[1]), ['["*/10 * * * *"]']);
   assert.equal((toml.match(/\[env\.siren\.triggers\]/g) || []).length, 1);
   const index = read('worker/index.js');
   assert.match(index, /export default \{\n  async fetch/);
   const scheduled = index.slice(index.indexOf('  async scheduled(event, env, ctx) {'));
   assert.match(scheduled, /^  async scheduled\(event, env, ctx\) \{\n    if \(!publicAskOn\(env\)\) return;/);
-  assert.deepEqual([...scheduled.matchAll(/await |sweepQuestions\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['sweepQuestions(']);
+  assert.deepEqual([...scheduled.matchAll(/await |sweepQuestions\(|ping[A-Z]\w*\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['sweepQuestions(', 'pingQuestionWatcher(']);
 });
 
 test('migration 0003 drops every table and trigger 0001 and 0002 made', () => {

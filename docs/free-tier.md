@@ -1,8 +1,9 @@
 # The free tier: ask in public with Bluesky
 
 Status: built 2026-11-10, behind `PUBLIC_ASK` (off by default; unset in
-`wrangler.toml`). Migration 0004 is not applied, and the question Lexicon is
-not published: both are rollout steps ("Flags and rollout"). Where the build
+`wrangler.toml`), with instant takedowns the same day ("Deletions as they
+happen"). Migration 0004 is not applied, and the question Lexicon is not
+published: both are rollout steps ("Flags and rollout"). Where the build
 made a call this spec didn't settle, "Built as" says which.
 
 ## Jason's decisions (2026-11-10)
@@ -247,23 +248,43 @@ them when it can).
   and `tools`. Every other row naming its URI names `withdrawn:<id>`
   instead, so its replies stay and the asker's DID goes with it.
 - **Deleted elsewhere:** the record is re-checked, and the question withdrawn
-  on a clear RecordNotFound from the PDS the DID document names. Not on an
-  unreachable PDS: that is "couldn't check", the question stays, and it isn't
-  checked again for a while. Two things re-check:
-  - **The sweep** (built after review): a Cron Trigger every ten minutes
-    (`[env.siren.triggers]`, `worker/index.js` `scheduled`) takes at most 40
+  on a clear RecordNotFound from the PDS the DID document names, re-resolved
+  each time. Not on an unreachable PDS: that is "couldn't check", the
+  question stays, and it isn't checked again for a while.
+  **The whole account deleted** (built after the second review): a Bluesky
+  PDS answers getRecord for an account it doesn't serve as active through
+  the AppView, which says InvalidRequest "Could not find repo" for a deleted
+  account and for a deactivated or taken-down one alike (bluesky-social/
+  atproto at dd74699, read 2026-11-10: `packages/pds/.../repo/getRecord.ts`,
+  `packages/bsky/.../repo/getRecord.ts`, `hydration/actor.ts` `getActors`).
+  So on that answer (or `RepoNotFound`) the re-check asks the same PDS
+  `com.atproto.sync.getRepoStatus`: 400 `RepoNotFound`, the one error its
+  Lexicon declares, which the reference PDS gives only once the account's
+  rows are deleted (`sync/util.ts` `assertRepoAvailability`), is gone, and
+  the question is withdrawn. A deactivated, suspended or taken-down account
+  (200 with `active: false`, or a getRecord error naming it) stays
+  "couldn't check": those accounts can come back. The same rule for
+  withdrawal, the sweep, a page's re-check and the watcher; an ask is still
+  refused as unreachable. Three things re-check:
+  - **The Jetstream watcher**, within seconds of the deletion ("Deletions as
+    they happen" below).
+  - **The sweep** (built after review), the backstop: a Cron Trigger every
+    ten minutes (`[env.siren.triggers]`, `worker/index.js` `scheduled`) takes at most 40
     answered or hidden questions not checked for an hour, oldest check
     first, each behind the site breaker, every fetch counted, stopping at a
     25-second deadline. So a record deleted in the asker's own account comes
     off the list and every page without anyone opening its page, within
-    about an hour while the backlog is small. With `PUBLIC_ASK` off or not
+    about an hour while the backlog is small: at most 240 questions are
+    re-checked an hour, so with more answered questions than that a full
+    round takes longer. With `PUBLIC_ASK` off or not
     ready it does nothing at all: no D1 call, no fetch. It also deletes
     abandoned claims (`answering` rows surely older than 15 minutes).
   - **A page:** `/api/q/<id>` re-checks every question in the thread it
     shows whose last check is over 10 minutes old, at most ten, its own
     first.
-  Each re-check also verifies the asker's handle both ways again: the stored
-  handle is updated, or set to none if it no longer verifies.
+  The sweep's and a page's re-checks also verify the asker's handle both
+  ways again: the stored handle is updated, or set to none if it no longer
+  verifies. The watcher's changes nothing unless the record is gone.
 - **What withdrawal can't undo:** a follow-up's answer may restate what the
   withdrawn question asked or what its answer found, and that answer is
   someone else's and stays. The carried-results trace step under a
@@ -354,13 +375,122 @@ under it are plain data (markdown and JSON), with nothing in them that only
 Siren's database could resolve. A move would write one answer record per
 answered row, from its `answer` and `record`, and keep the row as an index.
 
-## Later: deletions as they happen
+## Deletions as they happen
 
-The sweep finds a deleted record within about an hour. A Jetstream consumer
-filtered to `QUESTION_NSID` delete events (`wantedCollections`) would make
-it immediate: on a delete for a record Siren holds, withdraw it at once. It
-needs a long-lived connection (a Durable Object), so it waits; the sweep
-stays as the backstop.
+Jason, 2026-11-10: "Takedowns should be a worker path so it's instant." A
+withdrawal on Siren's own page and a steward's hide were already instant;
+a record deleted directly in the asker's Bluesky account waited for the
+sweep (about an hour while the backlog is small) or for someone to open its
+page. Now it comes down within seconds.
+
+- **What watches.** One Durable Object, `QuestionWatcher`
+  (`worker/question-watcher.js`, exported from `worker/index.js`; binding
+  `QUESTION_WATCHER` and the SQLite-backed class's migration
+  `v1-question-watcher`, both under `[env.siren]`), one instance
+  (`idFromName('jetstream')`, created with the location hint `enam`, near
+  `SIREN_DB`). It holds one WebSocket to Jetstream v2,
+  `wss://jetstream.us-east.bsky.network` failing over to
+  `wss://jetstream.us-west.bsky.network` (`JETSTREAM_URL` replaces them),
+  subscribed with `kinds=commit&collections=<QUESTION_NSID>`: commits in the
+  question collection, and nothing else.
+- **What a delete does.** For a delete in that collection (a supported DID,
+  a TID record key), the watcher looks the AT-URI up in D1 (batched, 50 to a
+  statement, read only). Only a question held as answering, answered or
+  hidden goes on: the watcher re-resolves the DID, asks the PDS its document
+  names for the record (`getRecord`), and when the record is gone
+  (RecordNotFound), or the whole account (above), withdraws it through the
+  same code path as `/api/public/withdraw` (`public-ask.js`
+  `takedownIfGone`, then `withdrawQuestion`: the row emptied but its place in
+  the thread, references rewritten to `withdrawn:<id>`). The event is never
+  trusted: a forged or replayed delete finds the record present, or the PDS
+  unreachable, and changes nothing, with no D1 write. Creates and updates are
+  ignored, and a delete for a URI Siren doesn't hold costs a share of one
+  batched read, once: a URI found not held isn't looked up again for a day.
+- **Why v2, not the wire this section first named.** Jetstream's README now
+  points to its documentation site (bsky.network/docs/jetstream, read
+  2026-11-10), which recommends v2 for new projects. The v1 wire
+  (`/subscribe?wantedCollections=…`, events `{kind: "commit", commit:
+  {operation, collection, rkey}}` with `time_us`) is still served, at
+  `jetstream1.us-west` and `jetstream2.us-east` (the two the site lists), but
+  it delivers every account's identity and account events whatever the
+  collection filter. On v2, `kinds=commit` leaves only this collection's
+  commits. v2 still takes a unix-microsecond cursor on the live tail, and
+  its `witnessedAt` is "the portable resume position" across instances
+  (Jetstream's lexicon, `network.bsky.jetstream.subscribeEvents`).
+- **Staying connected.** The cursor is the newest witnessed time seen, in
+  microseconds, never past Siren's own clock, and the cursor saved (at most
+  every five seconds, and on every tick and close) never passes a deletion
+  still waiting for its lookup or its check, so a restart (every deploy is
+  one) replays those. A reconnect, to either instance, resumes a minute
+  before it (Jetstream's own client rewinds five seconds on failover;
+  instances witness the same event up to about a second apart, measured
+  2026-11-10, and replaying this collection costs almost nothing) and never
+  more than a day back, clear of Jetstream's 36-hour lookback: an older
+  deletion is the sweep's. The upgrade request is given up on after 10
+  seconds and never follows a redirect (a 3xx is a failed connect); a
+  connect still unfinished after 30 seconds is abandoned all the same. A
+  failed connect moves to the other instance; a dropped session retries the
+  same one and moves on at the third failure in a row; the wait doubles from
+  1 to 30 seconds, with jitter, and starts again after a session that lasted
+  a minute; after three refusals (4xx) in a row it tries every 10 minutes
+  until one works. An `error` frame (`ConsumerTooSlow`) ends the session the
+  same way. An alarm every minute, set before each connect so a hung one
+  can't leave the object without it, checks the socket (reconnecting one
+  that is closing or closed) and reconnects it, and a socket silent for 30
+  minutes is reconnected anyway, since one can die without closing. The
+  cron's ping (every ten minutes, beside the sweep) starts the object after
+  a deploy or an eviction. The watcher never sends a frame (any client frame
+  closes a v2 stream).
+- **Bounds.** Anyone can write records in this collection to their own repo,
+  so deletions Siren doesn't hold must not crowd out the ones it does. A
+  frame over 64 KiB is skipped unread. One DID gets at most 30 deletions
+  taken a minute, and at most 2,000 wait for a lookup at once; past either
+  they are left for the sweep (logged as a count). Lookups are at most 20
+  statements a minute (1,000 URIs). Only held questions count against the
+  checks: at most 20 a minute (the rest on the next tick), each behind the
+  site breaker (`BSKY_SITE_RL`, key `takedown`) and on its own counted
+  budget (`CHECK_BUDGET`, 8 requests), as the sweep's are; the WebSocket
+  upgrade is counted too. A question checked in the last ten minutes isn't
+  checked again for a re-delivered event. Nothing logged names a DID or a
+  handle: host names, fixed sentences and counts; connection trouble is
+  logged once per change for the worse (failing, refused, down five
+  minutes), and recovery once.
+- **Flag off.** With `PUBLIC_ASK` unset or not ready, the cron returns before
+  the ping, so the object is never reached; the first deploy of the
+  migration only creates an empty namespace. If the object wakes anyway (an
+  alarm set before the flag went off), it closes its socket, deletes its
+  alarm and does nothing else.
+- **The sweep stays.** It still re-checks answered and hidden questions, the
+  longest unchecked first, so a deletion the watcher missed (Jetstream down
+  longer than a day, a burst past the caps, a PDS briefly unreachable) still
+  comes down: within about an hour while the backlog is small, since the
+  sweep re-checks at most 240 questions an hour.
+
+**What it costs** (Cloudflare's Durable Objects pricing, last updated
+2026-10-18, read 2026-11-10; Workers Paid):
+
+- *Duration.* An object that has accepted a WebSocket is billed for as long
+  as it's connected, on 128 MB, and the minute alarm keeps it in memory in
+  any case: 0.125 GB × 2,592,000 s = 324,000 GB-s in a 30-day month (334,800
+  in a 31-day one). Workers Paid includes 400,000 GB-s a month for the
+  account, so with no other Durable Object this costs nothing. Past the
+  allowance it is $12.50 per million GB-s: about $4.05 a month.
+- *Requests.* An alarm a minute (43,200 a month) and the cron's ping (4,320),
+  plus incoming WebSocket messages at 20 to 1 if Cloudflare counts a client
+  socket's (the page doesn't say; on this subscription they are only the
+  question collection's commits, a handful a day): about 48,000 against
+  1 million included; past it, $0.15 per million.
+- *Storage.* Each `setAlarm` is a row written (the minute's, the ping's and
+  a reconnect's: about 48,000 a month, a few more on a day with
+  reconnects), and the cursor is written only when
+  it moved, at most once in five seconds while events arrive (rare on this
+  subscription), against 50 million rows written included; the data is a few
+  bytes. Outgoing messages are free, and the watcher sends none.
+- *Total:* $0 a month within the included allowances; about $4.06 a month at
+  most if the account's other Durable Objects had already spent them. Each
+  deletion of a held question also costs a D1 read and two fetches, about
+  what a page's re-check costs, and Jetstream's public instances ask for no
+  key.
 
 ## Flags and rollout
 
@@ -368,7 +498,24 @@ stays as the backstop.
   page shows no public link), and no D1 or Bluesky call happens for it. With
   it set but `BLUESKY_LOGIN` or `SIREN_DB` missing, the routes fail closed
   (503, reason logged). The sweep's Cron Trigger is deployed with the flag
-  off and returns at once on every run.
+  off and returns at once on every run, before it would ping the Jetstream
+  watcher; the watcher's Durable Object namespace is created by the deploy
+  (migration `v1-question-watcher`, Workers Builds runs it) and stays empty
+  until the flag goes on. Nothing to apply by hand for it. **That deploy is
+  a rollback barrier:** Cloudflare refuses a rollback across "a Durable
+  Object class lifecycle change (via exports or the legacy migrations
+  array)" (developers.cloudflare.com/workers/versions-and-deployments/
+  rollbacks/, "Bindings", read 2026-11-10), so once it is live no Siren
+  version from before it can be rolled back to; a fix goes forward as a new
+  deploy. It ships as its own deploy, as Cloudflare advises for lifecycle
+  changes ("should be deployed independently of other code changes",
+  /workers/versions-and-deployments/gradual-deployments/with-durable-objects/).
+  `JETSTREAM_URL` (unset: Jetstream v2's public pair) takes comma-separated
+  `wss://` origins;
+  an entry of any other shape turns the watcher off, logged, and leaves the
+  sweep running. For a local try, `JETSTREAM_URL = "ws://127.0.0.1:<port>"`
+  points it at a Jetstream run locally (or any WebSocket server that speaks
+  its v2 frames).
 - Rollout rides the endorsement rollout: publish the question Lexicon from
   Jason's account beside the endorsement one (the schema record's key is the
   question NSID; the same `_lexicon` TXT record covers it), apply migration
@@ -412,6 +559,21 @@ stays as the backstop.
   the carried trace shows a count only; the visitor limit; the context keeps
   the root and counts what it drops; earlier questions are marked; handles
   re-verified; full threads say so; abandoned claims cleared.
+- Instant takedowns (`test/question-watcher.test.js`, a fake WebSocket,
+  clock and storage): a delete for a held question withdraws it once the PDS
+  confirms, through the withdraw path; an event the PDS contradicts, or an
+  unreachable PDS, changes nothing; deletes for URIs Siren doesn't hold cost
+  a batched read and no write; creates and updates are ignored; the cursor is
+  saved and resumed; backoff and failover; the alarm reconnects; with the
+  flag off the object only closes; every fetch is counted; no DID in any log
+  line; the Worker's cron pings it only when ready. After the second review:
+  a hung upgrade and a throwing `accept()` recover on the next alarm; a
+  redirect isn't followed; deletions waiting for a check survive a restart;
+  a flood of deletions Siren doesn't hold doesn't delay a held one; repeated
+  refusals back off to ten minutes and log once; a dead socket is
+  reconnected (`test/question-watcher.test.js`); and a deleted account's
+  questions are taken down by every re-check while a deactivated one's stay
+  (`test/account-deleted.test.js`).
 - Hidden and withdrawn rows are absent from `/api/questions`.
 - Flag off: byte-identical behaviour on every existing route.
 - Strict CSP and escaping on the new pages, as the requests pages' tests do.
