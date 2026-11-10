@@ -87,6 +87,13 @@ routes = [
   { pattern = "ask-siren.jason-edelman.org", custom_domain = true },
   { pattern = "jason-edelman.org/ask-siren", zone_name = "jason-edelman.org" },
   { pattern = "jason-edelman.org/ask-siren/*", zone_name = "jason-edelman.org" },
+  # Step 1 of the move to ask-siren.jason-edelman.org (Jason, 2026-11-10):
+  # attach the new hostname as a Custom Domain first, with nothing else
+  # changed, so its DNS record and certificate exist (the app answers there
+  # at /ask-siren/ meanwhile) before step 2 turns the old path into a
+  # redirect. Wrangler publishes the script before routes and domains, so
+  # doing both at once would redirect to a host that might not answer yet.
+  { pattern = "ask-siren.jason-edelman.org", custom_domain = true },
 ]
 
 [env.siren.vars]
