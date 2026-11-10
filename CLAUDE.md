@@ -255,10 +255,31 @@ generic mode.
   CIDs). Withdrawing (the record gone from the asker's PDS) empties the row
   but its id, day, status and place in the thread, and rewrites references
   to it as `withdrawn:<id>`. A record deleted in the asker's own account is
-  found by the sweep (a Cron Trigger every ten minutes, `scheduled` in
-  `index.js`, a no-op with `PUBLIC_ASK` off: at most 40 questions unchecked
-  for an hour, counted, behind the breaker, re-verifying handles) and by a
-  page's re-check of its thread; only a clear RecordNotFound withdraws.
+  taken down within seconds by the Jetstream watcher (`question-watcher.js`,
+  the Durable Object `QuestionWatcher`, binding `QUESTION_WATCHER`, migration
+  `v1-question-watcher` in `[env.siren]`, exported from `index.js`; Jason
+  2026-11-10: one instance holds a WebSocket to Jetstream v2, `kinds=commit`
+  in `QUESTION_NSID`'s collection, `JETSTREAM_URL` overriding the public
+  pair; a delete only names a record to look at: a held one is withdrawn
+  through `takedownIfGone`, the withdraw path, after its PDS says it's gone,
+  and a forged or replayed event writes nothing; the saved cursor is a
+  witnessed time that never passes a deletion still waiting, resumed 60 s
+  early, at most a day back; the upgrade times out at 10 s and never follows
+  a redirect, the alarm is set before each connect; backoff, failover,
+  10-minute retries after repeated 4xx; per-DID, lookup and check caps a
+  minute so strangers' deletions can't crowd out held ones; every fetch
+  counted, no DID logged, trouble logged once per change; about 324,000 GB-s
+  a month, inside Workers Paid's 400,000). Its deploy is a rollback barrier
+  (a Durable Object lifecycle change): no earlier Siren version can be
+  rolled back to. The backstop is the sweep (a Cron Trigger every ten
+  minutes, `scheduled` in `index.js`, which also pings the watcher, both
+  no-ops with `PUBLIC_ASK` off and the object never reached: at most 40
+  questions unchecked for an hour, so 240 an hour, counted, behind the
+  breaker, re-verifying handles) and a page's re-check of its thread. Every
+  re-check withdraws only on a clear RecordNotFound, or when the PDS the
+  re-resolved DID document names answers `sync.getRepoStatus` with
+  RepoNotFound (the account deleted; getRecord's "Could not find repo" also
+  covers deactivated accounts, which stay).
   The steward hides at `/admin/questions` or with `question-hide` /
   `question-unhide`. The pages (`questions-page.js`, `questions.html`,
   `admin-questions.js`) carry the strict CSP; answers render through marked
