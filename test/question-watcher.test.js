@@ -13,8 +13,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   QuestionWatcher, readFrame, subscribeUrl, jetstreamOrigins, micros, pingQuestionWatcher, WATCHER_NAME, SUBSCRIBE_PATH, DEFAULT_JETSTREAM_URL,
-  TICK_MS, CURSOR_SAVE_MS, REWIND_US, MAX_REPLAY_MS, BACKOFF_MIN_MS, BACKOFF_MAX_MS, STABLE_MS, IDLE_RECYCLE_MS, DELETES_PER_MINUTE, CHECKS_PER_MINUTE,
-  QUEUE_MAX, COOLDOWN_MS, MAX_FRAME_CHARS,
+  TICK_MS, CURSOR_SAVE_MS, REWIND_US, MAX_REPLAY_MS, BACKOFF_MIN_MS, BACKOFF_MAX_MS, STABLE_MS, IDLE_RECYCLE_MS, CHECKS_PER_MINUTE,
+  QUEUE_MAX, COOLDOWN_MS, MAX_FRAME_CHARS, PER_DID_PER_MINUTE, LOOKUPS_PER_MINUTE, UPGRADE_TIMEOUT_MS, CONNECT_STALE_MS, BLOCKED_AFTER, BLOCKED_BACKOFF_MS,
+  DOWN_LOG_MS, NOT_HELD_MEMO_MS,
 } from '../worker/question-watcher.js';
 import { QUESTION_NSID } from '../worker/endorse-config.js';
 import { CHECK_BUDGET, takedownIfGone } from '../worker/public-ask.js';
@@ -40,6 +41,7 @@ class FakeSocket {
   }
   accept() {
     this.accepted = true;
+    this.readyState = 1;
   }
   addEventListener(type, fn) {
     (this.listeners[type] ||= []).push(fn);
@@ -49,6 +51,7 @@ class FakeSocket {
   }
   close(code, reason) {
     this.closed = { code, reason };
+    this.readyState = 3;
   }
   emit(type, ev = {}) {
     for (const fn of this.listeners[type] || []) fn(ev);
@@ -58,6 +61,7 @@ class FakeSocket {
   }
   /** The far end goes away. */
   drop() {
+    this.readyState = 3;
     this.emit('close', { code: 1006 });
   }
 }
@@ -285,7 +289,7 @@ test('hidden questions and claims still being answered are taken down too; the s
   assert.equal(status(w, during.id), 'withdrawn');
 });
 
-test('the cursor: the newest witnessed time, saved at most every five seconds, never past Siren\'s clock; a reconnect resumes five seconds before it, at most an hour back', { skip }, async () => {
+test('the cursor: the newest witnessed time, saved at most every five seconds, never past Siren\'s clock; a reconnect resumes a minute before it, at most a day back', { skip }, async () => {
   const w = threads();
   const state = fakeState();
   const { watcher, js } = watch(w, { state });
@@ -305,7 +309,8 @@ test('the cursor: the newest witnessed time, saved at most every five seconds, n
   await watcher.settled();
   const t = (i) => (NOW + i * 1000 - 1) * 1000 + 250;
   assert.equal(watcher.cursor, t(12), 'microseconds kept');
-  assert.deepEqual(puts().map((o) => o[2]), [t(1), t(6), t(11)]);
+  // (The first is the ping's: listening started at NOW.)
+  assert.deepEqual(puts().map((o) => o[2]), [NOW * 1000, t(5), t(10)]);
   // A time from the future moves the cursor only to Siren's clock.
   js.last().frame(commit({ rkey: '3kaaaaaaaaaab', operation: 'create', at: w.clock.t + 3600e3 }));
   assert.equal(watcher.cursor, w.clock.t * 1000);
@@ -322,12 +327,14 @@ test('the cursor: the newest witnessed time, saved at most every five seconds, n
   const fresh = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5 });
   await ping(fresh);
   assert.equal(Number(js.urls[2].searchParams.get('cursor')), saved - REWIND_US);
-  // Hours later, the replay goes back an hour at most: older deletions are the sweep's.
-  w.clock.t += 5 * 3600e3;
+  // Thirty hours later, the replay goes back a day at most (Jetstream keeps 36 hours): older deletions are the sweep's.
+  w.clock.t += 30 * 3600e3;
   const later = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5 });
   await ping(later);
   assert.equal(Number(js.urls[3].searchParams.get('cursor')), (w.clock.t - MAX_REPLAY_MS) * 1000);
-  assert.equal(MAX_REPLAY_MS, 3600e3);
+  assert.equal(MAX_REPLAY_MS, 24 * 3600e3);
+  // The rewind covers instances witnessing the same event about a second apart, with room to spare.
+  assert.equal(REWIND_US, 60e6);
 });
 
 test('backoff and failover: a failed connect moves to the other instance; drops back off, doubling to the cap; a stable session starts the backoff again', { skip }, async () => {
@@ -505,37 +512,60 @@ test('every fetch is counted: the upgrade and each check go through a budget (CH
   assert.equal(status(v, q.id), 'answered');
 });
 
-test('bounds: deletions taken a minute and waiting at once are capped (the rest are the sweep\'s); checks a minute are capped and resume on the next tick; behind the site breaker; long frames skipped unread', { skip }, async () => {
+const S32 = '234567abcdefghijklmnopqrstuvwxyz';
+const b32 = (i, n) => [...i.toString(32).padStart(n, '0')].map((c) => S32[parseInt(c, 32)]).join('');
+const rkeyN = (i) => `3k${b32(i, 11)}`;
+const didN = (i) => `did:plc:${b32(i, 24)}`;
+
+test('bounds: one DID\'s deletions a minute, the queue, D1 lookups a minute and checks a minute are capped; only held questions count against the checks; behind the site breaker; long frames skipped unread', { skip }, async () => {
   const w = threads();
   const state = fakeState();
   const { watcher, js } = watch(w, { state });
   await ping(watcher);
-  // A burst of deletes for records Siren doesn't hold: at most a minute's worth taken, looked up in batches.
-  const from = w.env.SIREN_DB.log.length;
-  const S32 = '234567abcdefghijklmnopqrstuvwxyz';
-  const rkey = (i) => `3k${[...i.toString(32).padStart(11, '0')].map((c) => S32[parseInt(c, 32)]).join('')}`;
-  // (Delivered fifty at a time, drained in between, so the queue's own cap isn't what stops them.)
-  for (let i = 0; i < DELETES_PER_MINUTE + 10; i++) {
-    js.last().frame(commit({ did: CAROL, rkey: rkey(100000 + i) }));
-    if (i % 50 === 49) await watcher.settled();
-  }
+  // One account deleting a burst in this collection: its share a minute is taken, the rest are the sweep's, unread.
+  let from = w.env.SIREN_DB.log.length;
+  for (let i = 0; i < PER_DID_PER_MINUTE + 10; i++) js.last().frame(commit({ did: CAROL, rkey: rkeyN(100000 + i) }));
   await watcher.settled();
+  assert.equal(watcher.stats.notHeld, PER_DID_PER_MINUTE);
   assert.equal(watcher.stats.leftForSweep, 10);
-  assert.equal(watcher.stats.notHeld, DELETES_PER_MINUTE);
-  const reads = w.env.SIREN_DB.log.slice(from);
-  assert.ok(reads.length >= DELETES_PER_MINUTE / HELD_BATCH && reads.every((e) => e.params.length <= HELD_BATCH), `${reads.length} reads`);
+  assert.ok(w.env.SIREN_DB.log.length - from <= 2, 'batched: the first alone (it starts the drain), the rest together');
   assert.deepEqual(writes(w.env.SIREN_DB, from), []);
+  // Many accounts at once: LOOKUPS_PER_MINUTE statements of HELD_BATCH this minute, the rest the next minute.
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  from = w.env.SIREN_DB.log.length;
+  const total = (LOOKUPS_PER_MINUTE + 2) * HELD_BATCH;
+  for (let i = 0; i < total; i++) js.last().frame(commit({ did: didN(Math.floor(i / PER_DID_PER_MINUTE)), rkey: rkeyN(200000 + i) }));
+  await watcher.settled();
+  const reads = w.env.SIREN_DB.log.slice(from);
+  assert.equal(reads.length, LOOKUPS_PER_MINUTE);
+  assert.ok(reads.every((e) => e.params.length <= HELD_BATCH));
+  const looked = reads.reduce((n, e) => n + e.params.length, 0);
+  assert.ok(looked > (LOOKUPS_PER_MINUTE - 1) * HELD_BATCH - HELD_BATCH);
+  assert.equal(watcher.queue.size, total - looked, 'the rest wait, still holding the cursor');
+  assert.ok(watcher.safeCursor() <= NOW * 1000, 'the saved cursor waits for them');
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  await watcher.settled();
+  assert.equal(watcher.queue.size, 0, 'looked up the next minute');
+  assert.deepEqual(writes(w.env.SIREN_DB, from), []);
+  // Not looked up again when a replay re-delivers them.
+  const reread = w.env.SIREN_DB.log.length;
+  js.last().frame(commit({ did: didN(0), rkey: rkeyN(200000) }));
+  await watcher.settled();
+  assert.equal(w.env.SIREN_DB.log.length, reread);
+  assert.ok(NOT_HELD_MEMO_MS >= MAX_REPLAY_MS);
   // The queue's own cap: nothing past QUEUE_MAX waits at once.
   const q = new QuestionWatcher(fakeState(), w.env, { now: () => w.clock.t });
   q.pump = Promise.resolve(); // nothing drains
-  for (let i = 0; i < QUEUE_MAX + 5; i++) q.take(`at://${CAROL}/${QUESTION_NSID}/${rkey(200000 + i)}`, w.clock.t);
+  for (let i = 0; i < QUEUE_MAX + 5; i++) q.take({ uri: `at://${didN(i)}/${QUESTION_NSID}/${rkeyN(300000 + i)}`, did: didN(i), at: NOW * 1000 }, w.clock.t);
   assert.equal(q.queue.size, QUEUE_MAX);
   assert.equal(q.stats.leftForSweep, 5);
   // A new minute: CHECKS_PER_MINUTE held deletions checked now, the rest on the next tick.
   w.clock.t = state.alarm;
   await watcher.alarm();
   const qs = [];
-  for (let i = 0; i < CHECKS_PER_MINUTE + 3; i++) qs.push(await w.q(`Held ${i}?`));
+  for (let i = 0; i < CHECKS_PER_MINUTE + 3; i++) qs.push(await w.q(`Held ${i}?`, { did: [W.DID, BOB, CAROL][i % 3] }));
   for (const x of qs) w.del(x);
   for (const x of qs) js.last().frame(deleteOf(x, w.clock.t));
   await watcher.settled();
@@ -620,7 +650,7 @@ test('JETSTREAM_URL: the default pair, a list of wss:// origins, a local instanc
 });
 
 test('frames: v2 deletes in the question collection by a supported DID with a TID key, witnessed times to the microsecond; anything else is ignored', () => {
-  assert.deepEqual(readFrame(JSON.stringify(commit({ rkey: '3kaaaaaaaaaab', us: 789 }))), { kind: 'delete', uri: `at://${W.DID}/${QUESTION_NSID}/3kaaaaaaaaaab`, at: NOW * 1000 + 789 });
+  assert.deepEqual(readFrame(JSON.stringify(commit({ rkey: '3kaaaaaaaaaab', us: 789 }))), { kind: 'delete', uri: `at://${W.DID}/${QUESTION_NSID}/3kaaaaaaaaaab`, did: W.DID, at: NOW * 1000 + 789 });
   assert.equal(micros('2026-11-10T15:00:00.123456Z'), Date.parse('2026-11-10T15:00:00Z') * 1000 + 123456);
   assert.equal(micros('2026-11-10T10:00:00.5-05:00'), Date.parse('2026-11-10T15:00:00Z') * 1000 + 500000);
   assert.equal(micros('2026-11-10T15:00:00Z'), Date.parse('2026-11-10T15:00:00Z') * 1000);
@@ -655,6 +685,276 @@ test('heldByUris reads only, at most a batch, and only questions a deletion can 
   const many = Array.from({ length: HELD_BATCH + 20 }, (_, i) => `at://${CAROL}/${QUESTION_NSID}/3k${String(i).padStart(11, 'a')}`);
   await heldByUris(w.env.SIREN_DB, many);
   assert.equal(w.env.SIREN_DB.log.at(-1).params.length, HELD_BATCH);
+});
+
+// ---- After the second review (P1-P5 began as the reviewer's probes) ------
+
+/** Timers a test fires by hand: set() records, fire() runs whatever is still set. */
+function manualTimers() {
+  const t = { list: [] };
+  t.set = (fn, ms) => {
+    const h = { fn, ms, done: false };
+    t.list.push(h);
+    return h;
+  };
+  t.clear = (h) => {
+    if (h) h.done = true;
+  };
+  t.fire = () => {
+    for (const h of t.list) {
+      if (!h.done) {
+        h.done = true;
+        h.fn();
+      }
+    }
+  };
+  return t;
+}
+const tickOver = () => new Promise((r) => setImmediate(r));
+
+/** EAST takes the connection and never answers the upgrade (until a test resolves it). */
+function hangEast(w, js) {
+  const hung = [];
+  w.net.routes[`${EAST}${SUBSCRIBE_PATH}`] = (u, init) => {
+    js.urls.push(u);
+    return new Promise((resolve) => hung.push({ resolve, init }));
+  };
+  return hung;
+}
+
+test('P1: an upgrade that never answers is given up on after UPGRADE_TIMEOUT_MS; the alarm is set before the attempt; the next alarm tries the other instance; a late answer is closed unused', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const js = jetstream(w);
+  const hung = hangEast(w, js);
+  const timers = manualTimers();
+  const watcher = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5, timers });
+  const first = watcher.alarm();
+  await tickOver();
+  assert.equal(watcher.connecting, true);
+  assert.equal(state.alarm, NOW + TICK_MS, 'the next alarm is set before the upgrade is awaited');
+  assert.equal(timers.list[0].ms, UPGRADE_TIMEOUT_MS);
+  assert.equal(UPGRADE_TIMEOUT_MS, 10e3);
+  assert.equal(hung[0].init.redirect, 'manual');
+  assert.ok(hung[0].init.signal instanceof AbortSignal);
+  assert.equal(hung[0].init.signal.aborted, false);
+  timers.fire(); // ten seconds pass
+  await first;
+  assert.equal(hung[0].init.signal.aborted, true, 'the request is aborted');
+  assert.equal(watcher.connecting, false);
+  assert.equal(watcher.ws, null);
+  assert.equal(state.alarm, NOW + BACKOFF_MIN_MS, 'retried after the backoff');
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  assert.equal(js.last().host, WEST, 'on the other instance');
+  assert.equal(watcher.ws, js.last());
+  // The hung upgrade answers at last: that socket is closed unused, the live one untouched.
+  const late = new FakeSocket(EAST);
+  hung[0].resolve({ status: 101, webSocket: late, body: null });
+  await tickOver();
+  assert.deepEqual(late.closed, { code: 1000, reason: 'late' });
+  assert.equal(watcher.ws, js.last());
+  // A timer cleared once the answer came: an open socket's request is never aborted later.
+  const live = timers.list.at(-1);
+  assert.equal(live.done, true);
+});
+
+test('P1: if even the timeout never fires, a connect older than CONNECT_STALE_MS is abandoned and retried, and its late answer is closed', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const js = jetstream(w);
+  const hung = hangEast(w, js);
+  const never = { set: () => ({}), clear: () => {} };
+  const watcher = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5, timers: never });
+  watcher.alarm(); // never settles while the upgrade hangs
+  await tickOver();
+  assert.equal(state.alarm, NOW + TICK_MS, 'an alarm is set all the same');
+  // The cron's ping ten seconds later: the connect isn't stale yet, so nothing new.
+  w.clock.t = NOW + 10e3;
+  await ping(watcher);
+  assert.equal(js.urls.length, 1);
+  w.clock.t = NOW + CONNECT_STALE_MS;
+  await watcher.alarm();
+  assert.equal(watcher.connecting, false, 'abandoned');
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  assert.equal(js.urls.length, 2);
+  assert.equal(js.last().host, WEST);
+  assert.equal(watcher.ws, js.last());
+  const late = new FakeSocket(EAST);
+  hung[0].resolve({ status: 101, webSocket: late, body: null });
+  await tickOver();
+  assert.deepEqual(late.closed, { code: 1000, reason: 'stale' });
+  assert.equal(watcher.ws, js.last(), 'the live socket stays');
+});
+
+test('P2: an accept() that throws is a failed connect: nothing is left half-connected, and the next alarm connects', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const js = jetstream(w);
+  const real = w.net.routes[`${EAST}${SUBSCRIBE_PATH}`];
+  let bad = true;
+  w.net.routes[`${EAST}${SUBSCRIBE_PATH}`] = (u, init) => {
+    const res = real(u, init);
+    if (bad) {
+      bad = false;
+      res.webSocket.accept = () => {
+        throw new Error('accept failed');
+      };
+    }
+    return res;
+  };
+  const watcher = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5 });
+  const lines = await capture(() => watcher.alarm());
+  assert.equal(watcher.connecting, false);
+  assert.equal(watcher.ws, null);
+  assert.equal(state.alarm, NOW + BACKOFF_MIN_MS);
+  assert.ok(lines.some((l) => l.startsWith('question watcher: accepting the stream failed')));
+  for (let i = 0; i < 2; i++) {
+    w.clock.t = state.alarm;
+    await watcher.alarm();
+  }
+  assert.ok(watcher.ws, 'connected');
+  assert.equal(watcher.ws, js.last());
+});
+
+test('P3: deletions still waiting for their check hold the saved cursor back, so a restart replays them and they are taken down', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const { watcher, js } = watch(w, { state });
+  await ping(watcher);
+  const qs = [];
+  for (let i = 0; i < CHECKS_PER_MINUTE + 5; i++) qs.push(await w.q(`Held ${i}?`, { did: [W.DID, BOB, CAROL][i % 3] }));
+  for (const q of qs) w.del(q);
+  const deletedAt = w.clock.t;
+  const frames = qs.map((q) => deleteOf(q, deletedAt));
+  for (const f of frames) js.last().frame(f);
+  await watcher.settled();
+  assert.equal(watcher.pending.size, 5, 'five wait for the next minute');
+  // Ten seconds later an unrelated create moves the cursor on; the cursor is saved.
+  w.clock.t += 10e3;
+  js.last().frame(commit({ rkey: rkeyN(999), operation: 'create', at: w.clock.t }));
+  await watcher.saveCursor(true);
+  assert.ok(watcher.cursor > deletedAt * 1000);
+  assert.equal(state.store.get('cursor'), deletedAt * 1000, 'saved no later than the oldest deletion still waiting');
+  // A deploy (every push to main) or a restart: a new instance from the same storage.
+  const fresh = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5 });
+  await ping(fresh);
+  const resume = Number(js.urls.at(-1).searchParams.get('cursor'));
+  assert.equal(resume, deletedAt * 1000 - REWIND_US);
+  // Jetstream replays from there: the five still up are taken down; the rest aren't held any more.
+  for (const f of frames) js.last().frame(f);
+  await fresh.settled();
+  assert.ok(qs.every((q) => status(w, q.id) === 'withdrawn'));
+  assert.equal(fresh.stats.withdrawn, 5);
+  // Once dealt with, they no longer hold the cursor back.
+  await fresh.saveCursor(true);
+  assert.equal(state.store.get('cursor'), fresh.cursor);
+});
+
+test('P4: a flood of deletions of records Siren doesn\'t hold doesn\'t keep a held one from being checked that minute', { skip }, async () => {
+  for (const flood of ['one account', 'many accounts']) {
+    const w = threads();
+    const state = fakeState();
+    const { watcher, js } = watch(w, { state });
+    await ping(watcher);
+    const victim = await w.q('Please take this down?');
+    // Anyone can create and delete records in this collection in their own repo (no invite needed).
+    const n = flood === 'one account' ? 300 : 600;
+    for (let i = 0; i < n; i++) {
+      const did = flood === 'one account' ? CAROL : didN(1000 + Math.floor(i / PER_DID_PER_MINUTE));
+      js.last().frame(commit({ did, rkey: rkeyN(500000 + i), at: w.clock.t }));
+    }
+    w.del(victim);
+    js.last().frame(deleteOf(victim, w.clock.t));
+    await watcher.settled();
+    assert.equal(status(w, victim.id), 'withdrawn', `${flood}: the real deletion is taken down this minute`);
+    assert.equal(watcher.stats.withdrawn, 1);
+    if (flood === 'one account') {
+      assert.equal(watcher.stats.notHeld, PER_DID_PER_MINUTE, 'one account gets its share, read in a batch or two');
+      assert.equal(watcher.stats.leftForSweep, n - PER_DID_PER_MINUTE);
+    } else {
+      assert.equal(watcher.stats.notHeld, n, 'many accounts: all looked up, within the minute\'s reads');
+      assert.ok(w.env.SIREN_DB.log.filter((e) => /question_uri IN/.test(e.sql)).length <= LOOKUPS_PER_MINUTE);
+    }
+  }
+});
+
+test('P5: the upgrade never follows a redirect: a 3xx is a failed connect, nothing is fetched from where it points, and the next attempt goes to the other instance', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const js = jetstream(w);
+  const seen = [];
+  w.net.routes[`${EAST}${SUBSCRIBE_PATH}`] = (u, init) => {
+    seen.push(init);
+    return new Response(null, { status: 302, headers: { Location: 'https://elsewhere.example/stream' } });
+  };
+  const watcher = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5 });
+  await ping(watcher);
+  assert.equal(seen[0].redirect, 'manual');
+  assert.ok(seen[0].signal instanceof AbortSignal);
+  assert.equal(watcher.ws, null);
+  assert.ok(!w.net.calls.some((c) => c.url.includes('elsewhere.example')));
+  assert.equal(watcher.refusals, 0, 'a redirect is not a refusal');
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  assert.equal(js.last().host, WEST);
+});
+
+test('refusals: three 4xx answers in a row and the watcher tries every ten minutes; an outage is logged once per change of state; recovery once', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const js = jetstream(w);
+  for (const host of [EAST, WEST]) w.net.routes[`${host}${SUBSCRIBE_PATH}`] = (u) => (js.urls.push(u), Response.json({ error: 'InvalidRequest', message: 'unknown parameter' }, { status: 400 }));
+  const watcher = new QuestionWatcher(state, w.env, { now: () => w.clock.t, fetchImpl: w.net.fetch, random: () => 0.5 });
+  const lines = await capture(async () => {
+    await ping(watcher);
+    for (let i = 1; i < BLOCKED_AFTER; i++) {
+      w.clock.t = state.alarm;
+      await watcher.alarm();
+    }
+    assert.equal(js.urls.length, BLOCKED_AFTER);
+    assert.equal(watcher.nextAttemptAt, w.clock.t + BLOCKED_BACKOFF_MS);
+    // The minute alarm keeps running; no attempt until the ten minutes are up.
+    const t0 = w.clock.t;
+    while (w.clock.t < t0 + BLOCKED_BACKOFF_MS - TICK_MS) {
+      w.clock.t = state.alarm;
+      await watcher.alarm();
+    }
+    assert.equal(js.urls.length, BLOCKED_AFTER, 'no attempts in between');
+    w.clock.t = t0 + BLOCKED_BACKOFF_MS;
+    await watcher.alarm();
+    assert.equal(js.urls.length, BLOCKED_AFTER + 1);
+    // Jetstream takes the subscription again.
+    jetstream(w);
+    w.clock.t = watcher.nextAttemptAt;
+    await watcher.alarm();
+    assert.ok(watcher.ws);
+  });
+  assert.deepEqual(lines.map((l) => l.replace(/\d+ minutes/g, 'N minutes')), [
+    `question watcher: couldn't connect to ${EAST} (400); retrying`,
+    'question watcher: Jetstream refused the subscription 3 times in a row (400); trying every N minutes',
+    'question watcher: not connected for N minutes; instant takedowns wait, and the sweep still runs',
+    `question watcher: connected to ${EAST} after N minutes`,
+  ]);
+  assert.ok(DOWN_LOG_MS <= BLOCKED_BACKOFF_MS);
+});
+
+test('a socket CLOSING or CLOSED with no close event is reconnected on the next minute', { skip }, async () => {
+  const w = threads();
+  const state = fakeState();
+  const { watcher, js } = watch(w, { state });
+  await ping(watcher);
+  js.last().readyState = 3; // the close event never reached us
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  assert.equal(js.sockets.length, 2);
+  assert.deepEqual(js.sockets[0].closed, { code: 1000, reason: 'dead' });
+  assert.equal(watcher.ws, js.last());
+  // An open one (readyState 1) is left alone.
+  w.clock.t = state.alarm;
+  await watcher.alarm();
+  assert.equal(js.sockets.length, 2);
 });
 
 // ---- The Worker: the binding, the export, the cron's ping ----------------

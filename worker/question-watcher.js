@@ -12,19 +12,28 @@
 //
 // The event is never trusted. A delete only names a record to look at:
 // Siren re-resolves the DID, asks the PDS its document names for the record,
-// and withdraws only on a clear RecordNotFound. A forged or replayed event
-// finds the record present (or the PDS unreachable) and changes nothing,
-// with no D1 write. Creates and updates are ignored, and a delete for a URI
-// Siren doesn't hold costs one batched D1 read and nothing else.
+// and withdraws only when that PDS says the record (RecordNotFound) or the
+// whole repo (sync.getRepoStatus: RepoNotFound) is gone. A forged or
+// replayed event finds the record present (or the PDS unreachable) and
+// changes nothing, with no D1 write. Creates and updates are ignored, and a
+// delete for a URI Siren doesn't hold costs a share of one batched D1 read.
 //
-// Bounds: a frame over MAX_FRAME_CHARS is skipped unread; at most
-// DELETES_PER_MINUTE deletions are taken a minute and QUEUE_MAX wait at once
-// (the rest are the sweep's); D1 lookups go HELD_BATCH URIs to a statement;
-// at most CHECKS_PER_MINUTE records are checked a minute, each behind the
-// site breaker (BSKY_SITE_RL, key 'takedown') and on its own counted budget
-// (CHECK_BUDGET, src/request-budget.js), as the sweep's are; the WebSocket
-// upgrade is counted too. Nothing logged names a DID: only host names, fixed
-// sentences and counts.
+// Bounds. Anyone can write records in this collection to their own repo, so
+// deletions of URIs Siren doesn't hold must not crowd out the ones it does:
+// a frame over MAX_FRAME_CHARS is skipped unread; one DID gets at most
+// PER_DID_PER_MINUTE deletions taken a minute and QUEUE_MAX wait at once;
+// D1 lookups go HELD_BATCH URIs to a statement, at most LOOKUPS_PER_MINUTE
+// statements a minute; only held questions count against CHECKS_PER_MINUTE,
+// each checked behind the site breaker (BSKY_SITE_RL, key 'takedown') and on
+// its own counted budget (CHECK_BUDGET, src/request-budget.js), as the
+// sweep's are; the WebSocket upgrade is counted too. A URI found not held is
+// remembered (NOT_HELD_MEMO_MS) so a replay doesn't look it up again. What
+// a cap leaves is the sweep's. Nothing logged names a DID: only host names,
+// fixed sentences and counts, and connection trouble once per change of
+// state.
+//
+// The saved cursor never passes a deletion still waiting for its lookup or
+// its check: a restart (every deploy is one) replays it.
 //
 // With PUBLIC_ASK off or not ready, nothing fetches this object (index.js
 // `scheduled` returns before the ping), and if it wakes anyway (an alarm
@@ -41,22 +50,25 @@
 // identity, account, sync), `collections` (NSIDs; it "constrains only commit
 // events", so a commits-only stream needs kinds=commit too) and `dids`, and
 // a `cursor` that, at or above 1e15, is "a unix-microseconds timestamp" for
-// the live tail ("Cursors in the future drop into live-tip mode"; one below
-// the 36-hour lookback is clamped and an #info OutdatedCursor sent). Each
-// frame is {"$type": "message", "payload": {...}}, the payload's $type
-// network.bsky.jetstream.subscribeEvents#commit (or #identity, #account,
-// #sync, #info) with did, seq, time, witnessedAt, operation, collection,
-// rkey; "A delete carries no record or cid". {"$type": "error"} frames are
-// terminal. Delivery is at-least-once and "any client data frame closes the
-// connection", so the watcher never sends. witnessedAt is "the portable
-// resume position" across instances, so the cursor is a time: on reconnect,
-// to either instance, the stream resumes from it less five seconds, as
-// Jetstream's own client does on failover (specs/client.md, "Cursor modes &
-// failover": "resume at lastWitnessed - WithFailoverRewind (default 5s)").
-// The v1 wire (/subscribe, wantedCollections, time_us, {kind: 'commit',
-// commit: {operation}}) is still served, but delivers every account's
-// identity and account events whatever the collection filter; v2's
-// kinds=commit leaves only this collection's commits.
+// the live tail ("Cursors in the future drop into live-tip mode"; the
+// lookback is 36 hours: an older one is clamped and an #info OutdatedCursor
+// sent). Each frame is {"$type": "message", "payload": {...}}, the payload's
+// $type network.bsky.jetstream.subscribeEvents#commit (or #identity,
+// #account, #sync, #info) with did, seq, time, witnessedAt, operation,
+// collection, rkey; "A delete carries no record or cid". {"$type": "error"}
+// frames are terminal. Delivery is at-least-once and "any client data frame
+// closes the connection", so the watcher never sends. witnessedAt is "the
+// portable resume position" across instances, so the cursor is a time: on
+// reconnect, to either instance, the stream resumes REWIND_US before it.
+// Jetstream's own client rewinds five seconds on failover (specs/client.md,
+// "Cursor modes & failover"); this one rewinds a minute, since instances
+// witness the same event up to about a second apart (measured by the
+// review, 2026-11-10), replaying this collection costs almost nothing, and
+// a replayed deletion is skipped (memo) or re-checked harmlessly. The v1
+// wire (/subscribe, wantedCollections, time_us, {kind: 'commit', commit:
+// {operation}}) is still served, but delivers every account's identity and
+// account events whatever the collection filter; v2's kinds=commit leaves
+// only this collection's commits.
 //
 // Cloudflare, as read on 2026-11-10:
 // - An outbound WebSocket is a fetch() with `Upgrade: websocket` to an
@@ -64,7 +76,8 @@
 //   it in JavaScript ("Write a WebSocket client", developers.cloudflare.com/
 //   workers/examples/websockets/, last updated 2026-04-23; "use http: or
 //   https: as the protocol, not ws: nor wss:", /workers/configuration/
-//   compatibility-flags/). Going through fetch() lets the upgrade be counted.
+//   compatibility-flags/). Going through fetch() lets the upgrade be counted,
+//   aborted after UPGRADE_TIMEOUT_MS, and kept from following a redirect.
 // - "Outgoing WebSockets do not hibernate", and "an open outbound WebSocket
 //   connection prevents eviction for up to 15 minutes"; "Events such as
 //   alarms, incoming requests ... prevent hibernation" (/durable-objects/
@@ -75,7 +88,8 @@
 // - Alarms: setAlarm(ms since epoch) (one per object), getAlarm, deleteAlarm;
 //   alarm() runs at least once and is retried with exponential backoff, up
 //   to six times, if it throws (/durable-objects/api/alarms/, /api/base/). So
-//   alarm() never throws here, and the cron's ping re-arms it regardless.
+//   alarm() never throws here, sets the next alarm before it connects, and
+//   the cron's ping re-arms it regardless.
 // - Billing: "Calling accept() on a WebSocket in an Object will incur
 //   duration charges for the entire time the WebSocket is connected"; Workers
 //   Paid includes 400,000 GB-s and 1 million requests a month, then $12.50
@@ -92,7 +106,7 @@
 import { QUESTION_NSID, TID_RE } from './endorse-config.js';
 import { isSupportedDid } from './atproto-identity.js';
 import { publicAskReady, takedownIfGone, CHECK_BUDGET } from './public-ask.js';
-import { heldByUris, HELD_BATCH, SWEEP_AGE_MS } from './questions.js';
+import { heldByUris, HELD_BATCH } from './questions.js';
 import { mapLimit } from './public-list.js';
 import { requestBudget } from '../src/request-budget.js';
 
@@ -104,36 +118,63 @@ export const SUBSCRIBE_PATH = '/xrpc/network.bsky.jetstream.subscribeEvents';
 const LEXICON = 'network.bsky.jetstream.subscribeEvents';
 /** The alarm: the socket is checked, and reconnected if it's down, every minute. */
 export const TICK_MS = 60e3;
+/** The upgrade request is given up on after this long (a server that takes the connection and never answers). */
+export const UPGRADE_TIMEOUT_MS = 10e3;
+/** A connect still "in progress" after this long is abandoned and retried (the timeout's own backstop). */
+export const CONNECT_STALE_MS = 30e3;
+/** Disconnected this long: logged once, until connected again. */
+export const DOWN_LOG_MS = 5 * 60e3;
 /** The cursor is written to storage at most this often (and on every tick and close). */
 export const CURSOR_SAVE_MS = 5e3;
-/** A reconnect resumes this far before the cursor (microseconds). */
-export const REWIND_US = 5e6;
-/** ...and never further back than this: a deletion older than the sweep's hour is the sweep's. */
-export const MAX_REPLAY_MS = SWEEP_AGE_MS;
+/** A reconnect resumes this far before the cursor (microseconds): see the header. */
+export const REWIND_US = 60e6;
+/**
+ * ...and never further back than this. Jetstream keeps 36 hours; a day stays
+ * clear of its clamp. Replaying this one collection is cheap (a handful of
+ * frames an hour, creates ignored without a D1 read, deletions remembered),
+ * and the sweep can take longer than an hour to reach a question once there
+ * are more than about 240 to re-check (40 every ten minutes), so the watcher
+ * catches up on a whole day's deletions after an outage rather than an
+ * hour's. A deletion older than this is the sweep's.
+ */
+export const MAX_REPLAY_MS = 24 * 3600e3;
 /** Reconnect backoff: doubling from the first to the last, with jitter. */
 export const BACKOFF_MIN_MS = 1e3;
 export const BACKOFF_MAX_MS = 30e3;
+/** Refused (4xx) this many times in a row: retried every BLOCKED_BACKOFF_MS instead, until it works. */
+export const BLOCKED_AFTER = 3;
+export const BLOCKED_BACKOFF_MS = 10 * 60e3;
 /** A session open this long was progress: the backoff starts again from the first step. */
 export const STABLE_MS = 60e3;
 /** No frame for this long: reconnect anyway, since a socket can die without closing. */
 export const IDLE_RECYCLE_MS = 30 * 60e3;
 /** A frame longer than this is skipped unread (a delete is a few hundred characters). */
 export const MAX_FRAME_CHARS = 65536;
-/** Deletions taken a minute, and waiting at once; past either, they are left for the sweep. */
-export const DELETES_PER_MINUTE = 300;
-export const QUEUE_MAX = 200;
-/** Records checked at their PDS a minute; the rest wait for the next minute. */
+/** Deletions taken from one DID a minute; past it they are the sweep's. */
+export const PER_DID_PER_MINUTE = 30;
+/** Deletions waiting for their lookup at once; past it they are the sweep's. */
+export const QUEUE_MAX = 2000;
+/** D1 lookups a minute, HELD_BATCH URIs each; the rest wait for the next minute. */
+export const LOOKUPS_PER_MINUTE = 20;
+/** Held questions waiting for their check at once. */
+export const PENDING_MAX = 1000;
+/** Held questions checked at their PDS a minute; the rest wait for the next minute. */
 export const CHECKS_PER_MINUTE = 20;
 const CHECK_CONCURRENCY = 4;
-/** A record checked this recently isn't checked again for a re-delivered event. */
+/** A held question checked this recently isn't checked again for a re-delivered event. */
 export const COOLDOWN_MS = 10 * 60e3;
-const RECENT_MAX = 1000;
+/** A URI found not held isn't looked up again for this long (a replay re-delivers it). */
+export const NOT_HELD_MEMO_MS = MAX_REPLAY_MS;
+const RECENT_MAX = 10000;
 const CURSOR_KEY = 'cursor';
 const MIN_CURSOR_US = 1e15; // Jetstream reads a cursor at or above this as a time
 
 // For the log: an error's message, cut short, with anything shaped like a
 // DID taken out (nothing logged here names one; this is belt and braces).
 const clip = (err) => String(err?.message || err || 'unknown').replace(/did:[a-z]+:[A-Za-z0-9._:%-]+/g, 'did:…').slice(0, 200);
+const minutes = (ms) => Math.max(1, Math.round(ms / 60e3));
+// How bad each logged connection state is (report() logs only a worse one until it's 'up' again).
+const TROUBLE = { up: 0, failing: 1, refused: 2, down: 3, config: 4 };
 
 /**
  * The Jetstream instances to use, in order, as the http(s) origins fetch()
@@ -182,8 +223,8 @@ const plain = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 const NAME_RE = /^[A-Za-z][A-Za-z0-9]{0,39}$/;
 
 /**
- * One Jetstream frame, read: { kind: 'delete', uri, at } for a delete in
- * QUESTION_NSID's collection by a supported DID with a TID record key;
+ * One Jetstream frame, read: { kind: 'delete', uri, did, at } for a delete
+ * in QUESTION_NSID's collection by a supported DID with a TID record key;
  * { kind: 'error', name } (the stream is ending); { kind: 'info', name };
  * { kind: 'other', at } for any other event; { kind: 'skip' } for anything
  * unreadable or too long. `at` is the event's witnessed time in unix
@@ -206,7 +247,7 @@ export function readFrame(data) {
   const at = micros(p.witnessedAt) ?? micros(p.time);
   if (p.$type !== `${LEXICON}#commit` || p.operation !== 'delete' || p.collection !== QUESTION_NSID) return { kind: 'other', at };
   if (!isSupportedDid(p.did) || typeof p.rkey !== 'string' || !TID_RE.test(p.rkey)) return { kind: 'other', at };
-  return { kind: 'delete', uri: `at://${p.did}/${QUESTION_NSID}/${p.rkey}`, at };
+  return { kind: 'delete', uri: `at://${p.did}/${QUESTION_NSID}/${p.rkey}`, did: p.did, at };
 }
 
 async function allowed(limiter, key) {
@@ -214,6 +255,21 @@ async function allowed(limiter, key) {
     return Boolean((await limiter.limit({ key }))?.success);
   } catch {
     return false; // fail closed: the sweep takes it
+  }
+}
+
+/** Close a socket nobody will use (a connect given up on, or one whose accept() failed). */
+function discard(ws, reason) {
+  if (!ws) return;
+  try {
+    ws.accept();
+  } catch {
+    // already accepted, or can't be
+  }
+  try {
+    ws.close(1000, reason);
+  } catch {
+    // already closed
   }
 }
 
@@ -246,8 +302,9 @@ export async function pingQuestionWatcher(env) {
 export class QuestionWatcher {
   /**
    * The runtime passes (state, env). Tests pass `opts`: { now, fetchImpl,
-   * random }, a clock, the network under every counted fetch, and the
-   * backoff's jitter.
+   * random, upgradeTimeoutMs, timers: { set, clear } }: a clock, the network
+   * under every counted fetch, the backoff's jitter, and the upgrade's
+   * timeout and the timer functions it runs on.
    */
   constructor(state, env, opts = {}) {
     this.ctx = state;
@@ -255,23 +312,31 @@ export class QuestionWatcher {
     this.now = opts.now || (() => Date.now());
     this.fetchImpl = opts.fetchImpl; // undefined: the real network, through each budget
     this.random = opts.random || Math.random;
+    this.upgradeTimeoutMs = opts.upgradeTimeoutMs ?? UPGRADE_TIMEOUT_MS;
+    this.timers = opts.timers || { set: (fn, ms) => setTimeout(fn, ms), clear: (t) => clearTimeout(t) };
     this.ws = null;
     this.connecting = false;
+    this.connectingSince = 0;
+    this.attempt = 0; // a connect whose number is no longer current was given up on
     this.origin = null;
     this.host = 0; // which instance, round-robin over jetstreamOrigins
     this.failures = 0;
+    this.refusals = 0; // 4xx answers to the upgrade, in a row
     this.nextAttemptAt = 0;
     this.openedAt = 0;
     this.lastFrameAt = 0;
+    this.downSince = null; // when the socket was last lost (or first failed), while it's down
+    this.reported = null; // the connection state last logged: 'up', 'failing', 'down', 'refused'
     this.loaded = false;
     this.cursor = null; // unix microseconds: the newest witnessed time seen
     this.savedCursor = null;
     this.savedAt = -Infinity;
-    this.queue = new Set(); // deleted URIs not yet looked up
-    this.pending = new Map(); // held rows not yet checked: uri -> { id, question_uri }
-    this.recent = new Map(); // uri -> when it was last checked
+    this.queue = new Map(); // deleted URI -> its witnessed time, not yet looked up
+    this.pending = new Map(); // held: uri -> { id, question_uri, at }, not yet checked
+    this.recent = new Map(); // uri -> until when it isn't looked up or checked again
     this.window = -1;
-    this.taken = 0;
+    this.byDid = new Map(); // this minute's deletions taken per DID
+    this.lookups = 0;
     this.checks = 0;
     this.left = 0;
     this.tally = { withdrawn: 0, present: 0, unknown: 0, notHeld: 0 }; // this minute's, for the log
@@ -327,25 +392,52 @@ export class QuestionWatcher {
     this.loaded = true;
   }
 
+  /**
+   * Log the connection's state only when it changes for the worse, or comes
+   * back up: 'up' once per recovery; trouble ('failing', then 'refused',
+   * 'down', 'config') only when it's worse than what was last logged since
+   * the last 'up'. So an outage is a line or two, not a line a retry.
+   */
+  report(state, line) {
+    if (state === 'up' ? this.reported === 'up' : TROUBLE[state] <= (TROUBLE[this.reported] ?? 0)) return;
+    this.reported = state;
+    console.log(line);
+  }
+
   async tick() {
     await this.load();
     const origins = jetstreamOrigins(this.env);
     if (!origins) {
       this.close('config');
-      console.error('question watcher: JETSTREAM_URL is not a list of wss:// origins, so instant takedowns are off; the sweep still runs');
+      this.report('config', 'question watcher: JETSTREAM_URL is not a list of wss:// origins, so instant takedowns are off; the sweep still runs');
       await this.ctx.storage.deleteAlarm();
       return;
     }
-    await this.saveCursor(true);
     const now = this.now();
     this.roll(now);
-    if (this.ws && now - this.lastFrameAt >= IDLE_RECYCLE_MS) {
-      this.close('idle');
+    // A connect that never finished (the timeout below is its own guard; this is the guard's guard).
+    if (this.connecting && now - this.connectingSince >= CONNECT_STALE_MS) {
+      this.attempt++; // its answer, if it ever comes, is closed unused
+      this.connecting = false;
+      if (this.downSince === null) this.downSince = now;
+      this.failed({ rotate: true });
+      this.report('failing', `question watcher: a connect didn't finish in ${CONNECT_STALE_MS / 1000} seconds; retrying`);
+    }
+    // A socket that closed without telling us, or that has been silent too long.
+    if (this.ws && (this.ws.readyState === 2 || this.ws.readyState === 3 || now - this.lastFrameAt >= IDLE_RECYCLE_MS)) {
+      this.close(this.ws.readyState === 2 || this.ws.readyState === 3 ? 'dead' : 'idle');
       this.nextAttemptAt = 0;
     }
-    if (!this.ws && !this.connecting && now >= this.nextAttemptAt) await this.connect(origins);
-    this.kick();
+    // The next alarm first: a connect that hangs can't leave the object without one.
     await this.arm();
+    if (!this.ws && !this.connecting && now >= this.nextAttemptAt) {
+      if (!(await this.connect(origins))) await this.arm(); // sooner, for the backoff's retry
+    }
+    if (!this.ws && this.downSince !== null && this.now() - this.downSince >= DOWN_LOG_MS) {
+      this.report('down', `question watcher: not connected for ${minutes(this.now() - this.downSince)} minutes; instant takedowns wait, and the sweep still runs`);
+    }
+    await this.saveCursor(true);
+    this.kick();
   }
 
   /** The next alarm: a minute from now, or sooner when a reconnect is due. */
@@ -356,51 +448,126 @@ export class QuestionWatcher {
     await this.ctx.storage.setAlarm(at);
   }
 
-  /** Where a (re)connect resumes: the cursor less REWIND_US, at most MAX_REPLAY_MS back; null for the live tip. */
+  /** The cursor that's safe to keep: never past a deletion still waiting for its lookup or its check. */
+  safeCursor() {
+    let c = this.cursor;
+    if (c === null) return null;
+    for (const at of this.queue.values()) if (at < c) c = at;
+    for (const p of this.pending.values()) if (p.at < c) c = p.at;
+    return c;
+  }
+
+  /** Where a (re)connect resumes: the safe cursor less REWIND_US, at most MAX_REPLAY_MS back; null for the live tip. */
   resumeFrom(now) {
-    if (this.cursor === null) return null;
-    return Math.max(this.cursor - REWIND_US, (now - MAX_REPLAY_MS) * 1000);
+    const c = this.safeCursor();
+    if (c === null) return null;
+    return Math.max(c - REWIND_US, (now - MAX_REPLAY_MS) * 1000);
+  }
+
+  /**
+   * The upgrade request: counted on `budget`, never following a redirect, and
+   * given up on after upgradeTimeoutMs (aborted, and raced, in case the abort
+   * doesn't reach it). The abort is a timer cleared once the answer comes, not
+   * a signal that fires later, so it can't touch a socket already open. An
+   * answer that arrives after it was given up on is closed unused.
+   */
+  async upgrade(budget, url) {
+    const ac = new AbortController();
+    let timer = null;
+    const timeout = new Promise((resolve, reject) => {
+      timer = this.timers.set(() => {
+        ac.abort();
+        reject(new Error('the upgrade timed out'));
+      }, this.upgradeTimeoutMs);
+    });
+    const req = budget.tool(url, { headers: { Upgrade: 'websocket' }, signal: ac.signal, redirect: 'manual' });
+    let won = false;
+    try {
+      const res = await Promise.race([req, timeout]);
+      won = true;
+      return res;
+    } finally {
+      this.timers.clear(timer);
+      timeout.catch(() => {});
+      if (!won) req.then((r) => discard(r?.webSocket, 'late')).catch(() => {});
+    }
   }
 
   async connect(origins) {
+    const attempt = ++this.attempt;
     this.connecting = true;
+    this.connectingSince = this.now();
     const origin = origins[this.host % origins.length];
-    const now = this.now();
-    const budget = requestBudget({ limit: 1, fetchImpl: this.fetchImpl });
-    let res = null;
+    const host = new URL(origin).host;
+    let ws = null;
     try {
-      res = await budget.tool(subscribeUrl(origin, this.resumeFrom(now)), { headers: { Upgrade: 'websocket' } });
-    } catch {
-      res = null;
-    } finally {
-      this.stats.fetches += budget.used;
-    }
-    const ws = res?.webSocket;
-    if (!ws) {
+      const now = this.now();
+      const budget = requestBudget({ limit: 1, fetchImpl: this.fetchImpl });
+      let res = null;
       try {
-        await res?.body?.cancel();
+        res = await this.upgrade(budget, subscribeUrl(origin, this.resumeFrom(now)));
       } catch {
-        // nothing to cancel
+        res = null;
+      } finally {
+        this.stats.fetches += budget.used;
       }
-      this.connecting = false;
-      console.log(`question watcher: couldn't connect to ${new URL(origin).host}${res ? ` (${Number(res.status) || 'no status'})` : ''}`);
-      this.failed({ rotate: true });
+      if (attempt !== this.attempt) {
+        discard(res?.webSocket, 'stale'); // the watchdog gave up on this one
+        return false;
+      }
+      ws = res?.webSocket || null;
+      if (!ws) {
+        try {
+          await res?.body?.cancel();
+        } catch {
+          // nothing to cancel
+        }
+        // No socket: a timeout, a network error, a redirect (3xx, not
+        // followed), a refusal (4xx) or a server error. All failed connects.
+        this.connectFailed(host, res ? Number(res.status) || null : null);
+        return false;
+      }
+      ws.accept();
+      this.ws = ws;
+      this.origin = origin;
+      this.openedAt = this.now();
+      this.lastFrameAt = this.openedAt;
+      this.refusals = 0;
+      // Listening from now: a later reconnect replays from here.
+      if (this.cursor === null) this.cursor = now * 1000;
+      ws.addEventListener('message', (e) => this.onMessage(ws, e));
+      ws.addEventListener('close', () => this.onClose(ws));
+      ws.addEventListener('error', () => this.onClose(ws));
+      this.stats.connects++;
+      const was = this.downSince;
+      this.downSince = null;
+      this.report('up', `question watcher: connected to ${host}${was !== null && this.reported !== null ? ` after ${minutes(this.now() - was)} minutes` : ''}`);
+      return true;
+    } catch (err) {
+      // accept() threw, or a listener couldn't be added: not connected.
+      if (this.ws === ws) this.ws = null;
+      discard(ws, 'accept failed');
+      if (attempt === this.attempt) {
+        this.connectFailed(host, null);
+        console.error('question watcher: accepting the stream failed', clip(err));
+      }
       return false;
+    } finally {
+      if (attempt === this.attempt) this.connecting = false;
     }
-    ws.accept();
-    this.ws = ws;
-    this.origin = origin;
-    this.openedAt = now;
-    this.lastFrameAt = now;
-    this.connecting = false;
-    // Listening from now: a later reconnect replays from here.
-    if (this.cursor === null) this.cursor = now * 1000;
-    ws.addEventListener('message', (e) => this.onMessage(ws, e));
-    ws.addEventListener('close', () => this.onClose(ws));
-    ws.addEventListener('error', () => this.onClose(ws));
-    this.stats.connects++;
-    console.log(`question watcher: connected to ${new URL(origin).host}`);
-    return true;
+  }
+
+  /** A connect that got no socket: back off on the other instance; after repeated refusals, every ten minutes. */
+  connectFailed(host, status) {
+    if (this.downSince === null) this.downSince = this.now();
+    this.refusals = status !== null && status >= 400 && status < 500 ? this.refusals + 1 : 0;
+    this.failed({ rotate: true });
+    if (this.refusals >= BLOCKED_AFTER) {
+      this.nextAttemptAt = this.now() + BLOCKED_BACKOFF_MS;
+      this.report('refused', `question watcher: Jetstream refused the subscription ${this.refusals} times in a row (${status}); trying every ${minutes(BLOCKED_BACKOFF_MS)} minutes`);
+    } else {
+      this.report('failing', `question watcher: couldn't connect to ${host}${status ? ` (${status})` : ''}; retrying`);
+    }
   }
 
   /** Close our own socket (no backoff: the caller decides what comes next). */
@@ -445,7 +612,7 @@ export class QuestionWatcher {
     if (ws !== this.ws) return; // ours, closed on purpose, or an old one
     this.ws = null;
     if (this.now() - this.openedAt >= STABLE_MS) this.failures = 0;
-    console.log('question watcher: the stream closed');
+    if (this.downSince === null) this.downSince = this.now();
     this.failed({ rotate: false });
     this.later();
   }
@@ -458,14 +625,15 @@ export class QuestionWatcher {
       const f = readFrame(event?.data);
       if (f.at != null) this.advance(f.at, now);
       if (f.kind === 'error') {
-        console.log(`question watcher: Jetstream ended the stream (${f.name})`);
         this.close('error');
+        if (this.downSince === null) this.downSince = now;
         this.failed({ rotate: true });
+        this.report('failing', `question watcher: Jetstream ended the stream (${f.name}); retrying`);
         this.later();
       } else if (f.kind === 'info') {
         console.log(`question watcher: Jetstream notice (${f.name})`);
       } else if (f.kind === 'delete') {
-        this.take(f.uri, now);
+        this.take(f, now);
       } else {
         this.stats.ignored++;
       }
@@ -482,13 +650,13 @@ export class QuestionWatcher {
     this.saveCursor(false).catch((err) => console.error('question watcher: saving the cursor failed', clip(err)));
   }
 
-  /** Write the cursor if it moved: at most every CURSOR_SAVE_MS, unless forced (a tick, a close). */
+  /** Write the safe cursor if it moved: at most every CURSOR_SAVE_MS, unless forced (a tick, a close). */
   async saveCursor(force) {
-    if (this.cursor === null || this.cursor === this.savedCursor) return;
+    const v = this.safeCursor();
+    if (v === null || v === this.savedCursor) return;
     const now = this.now();
     if (!force && now - this.savedAt < CURSOR_SAVE_MS) return;
     this.savedAt = now;
-    const v = this.cursor;
     await this.ctx.storage.put(CURSOR_KEY, v);
     this.savedCursor = v;
   }
@@ -502,25 +670,35 @@ export class QuestionWatcher {
       console.log(`question watcher: last minute, ${t.withdrawn} taken down, ${t.present} still present, ${t.unknown} couldn't be checked, ${t.notHeld} not held here, ${this.left} left for the sweep`);
     }
     this.window = w;
-    this.taken = 0;
+    this.byDid.clear();
+    this.lookups = 0;
     this.checks = 0;
     this.left = 0;
     this.tally = { withdrawn: 0, present: 0, unknown: 0, notHeld: 0 };
   }
 
-  /** A reported deletion, queued for a batched lookup, within the minute's caps. */
-  take(uri, now) {
+  /** Remember a URI until `until` (bounded: the oldest go first). */
+  remember(uri, until) {
+    this.recent.delete(uri);
+    this.recent.set(uri, until);
+    while (this.recent.size > RECENT_MAX) this.recent.delete(this.recent.keys().next().value);
+  }
+
+  /** A reported deletion, queued for a batched lookup, within its DID's share and the queue's bound. */
+  take({ uri, did, at }, now) {
     this.roll(now);
     if (this.queue.has(uri) || this.pending.has(uri)) return;
-    const seen = this.recent.get(uri);
-    if (seen !== undefined && now - seen < COOLDOWN_MS) return;
-    if (this.taken >= DELETES_PER_MINUTE || this.queue.size + this.pending.size >= QUEUE_MAX) {
+    const until = this.recent.get(uri);
+    if (until !== undefined && now < until) return;
+    const n = this.byDid.get(did) || 0;
+    if (n >= PER_DID_PER_MINUTE || this.queue.size >= QUEUE_MAX) {
       this.left++;
       this.stats.leftForSweep++;
       return;
     }
-    this.taken++;
-    this.queue.add(uri);
+    this.byDid.set(did, n + 1);
+    // Its witnessed time holds the saved cursor back until it's dealt with.
+    this.queue.set(uri, Math.min(at ?? this.cursor ?? now * 1000, now * 1000));
     this.kick();
   }
 
@@ -539,29 +717,40 @@ export class QuestionWatcher {
   }
 
   async drain() {
-    while (this.queue.size || this.pending.size) {
-      if (this.queue.size) {
-        const batch = [...this.queue].slice(0, HELD_BATCH);
+    for (;;) {
+      this.roll(this.now());
+      let looked = false;
+      if (this.queue.size && this.lookups < LOOKUPS_PER_MINUTE) {
+        this.lookups++;
+        looked = true;
+        const batch = [...this.queue.keys()].slice(0, HELD_BATCH);
         let rows;
         try {
           rows = await heldByUris(this.env.SIREN_DB, batch);
         } catch (err) {
           console.error('question watcher: D1 read failed', clip(err));
-          return; // still queued: the next tick tries again
+          return; // still queued, and still holding the cursor: the next tick tries again
         }
         const held = new Map(rows.map((r) => [r.question_uri, r]));
+        const now = this.now();
         for (const uri of batch) {
+          const at = this.queue.get(uri);
           this.queue.delete(uri);
           const r = held.get(uri);
-          if (r) this.pending.set(uri, { id: r.id, question_uri: r.question_uri });
-          else {
-            this.stats.notHeld++; // not ours: no write
+          if (!r) {
+            this.stats.notHeld++; // not ours: no write, and not looked up again
             this.tally.notHeld++;
+            this.remember(uri, now + NOT_HELD_MEMO_MS);
+          } else if (this.pending.size < PENDING_MAX) {
+            this.pending.set(uri, { id: r.id, question_uri: r.question_uri, at });
+          } else {
+            this.left++;
+            this.stats.leftForSweep++;
           }
         }
       }
-      const progressed = await this.check();
-      if (!progressed && !this.queue.size) return; // the minute's checks are spent: the next tick goes on
+      const checked = await this.check();
+      if (!looked && !checked) return; // nothing left this minute: the next tick goes on
     }
   }
 
@@ -572,28 +761,30 @@ export class QuestionWatcher {
     const room = CHECKS_PER_MINUTE - this.checks;
     if (room <= 0 || !this.pending.size) return false;
     const rows = [...this.pending.values()].slice(0, room);
-    for (const r of rows) this.pending.delete(r.question_uri);
     this.checks += rows.length;
     await mapLimit(rows, CHECK_CONCURRENCY, async (row) => {
-      this.recent.delete(row.question_uri);
-      this.recent.set(row.question_uri, this.now());
-      while (this.recent.size > RECENT_MAX) this.recent.delete(this.recent.keys().next().value);
-      if (!(await allowed(this.env.BSKY_SITE_RL, 'takedown'))) {
-        this.stats.leftForSweep++;
-        this.left++;
-        return;
-      }
-      const budget = requestBudget({ limit: CHECK_BUDGET, fetchImpl: this.fetchImpl });
       try {
-        const state = await takedownIfGone(this.env, row, budget);
-        const key = state === 'gone' ? 'withdrawn' : state === 'present' ? 'present' : 'unknown';
-        this.stats[key]++;
-        this.tally[key]++;
-        if (state === 'gone') console.log('question watcher: took down a question deleted in its account');
-      } catch (err) {
-        console.error('question watcher: a takedown failed', clip(err));
+        this.remember(row.question_uri, this.now() + COOLDOWN_MS);
+        if (!(await allowed(this.env.BSKY_SITE_RL, 'takedown'))) {
+          this.stats.leftForSweep++;
+          this.left++;
+          return;
+        }
+        const budget = requestBudget({ limit: CHECK_BUDGET, fetchImpl: this.fetchImpl });
+        try {
+          const state = await takedownIfGone(this.env, row, budget);
+          const key = state === 'gone' ? 'withdrawn' : state === 'present' ? 'present' : 'unknown';
+          this.stats[key]++;
+          this.tally[key]++;
+          if (state === 'gone') console.log('question watcher: took down a question deleted in its account');
+        } catch (err) {
+          console.error('question watcher: a takedown failed', clip(err));
+        } finally {
+          this.stats.fetches += budget.used;
+        }
       } finally {
-        this.stats.fetches += budget.used;
+        // Dealt with, one way or another: it no longer holds the cursor back.
+        this.pending.delete(row.question_uri);
       }
     });
     return true;

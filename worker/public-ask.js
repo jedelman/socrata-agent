@@ -224,6 +224,12 @@ async function readQuestion(env, { did, collection, rkey, uri, cid, fetchImpl })
   }
   const body = parse(res.text);
   if (res.status === 400 && body?.error === 'RecordNotFound') return { error: 'not_found', doc };
+  // No such repo here (or none active): a Bluesky PDS answers getRecord for
+  // an account it doesn't serve as active through the AppView, whose answer
+  // is InvalidRequest "Could not find repo" for a deleted account and for a
+  // deactivated or taken-down one alike. To an ask that's "unreachable", as
+  // before; a re-check asks the PDS which it is (recordState, repoDeleted).
+  if (res.status === 400 && (body?.error === 'InvalidRequest' || body?.error === 'RepoNotFound')) return { error: 'unreachable', noRepo: true, pds };
   if (res.status !== 200 || !body || typeof body !== 'object' || Array.isArray(body)) return { error: 'unreachable' };
   if (uri && body.uri !== uri) return { error: 'malformed' };
   if (cid && body.cid !== cid) return { error: 'wrong_cid' };
@@ -231,13 +237,41 @@ async function readQuestion(env, { did, collection, rkey, uri, cid, fetchImpl })
 }
 
 /**
+ * Whether the account itself is gone from `pds`, the PDS the freshly
+ * re-resolved DID document names: com.atproto.sync.getRepoStatus answers
+ * 400 RepoNotFound, the one error its lexicon declares. The reference PDS
+ * (bluesky-social/atproto at dd74699, read 2026-11-10: packages/pds/src/api/
+ * com/atproto/sync/util.ts assertRepoAvailability, account-manager/helpers/
+ * account.ts deleteAccount) answers so only once the account's rows are
+ * deleted: a deactivated or taken-down account is still found, and answered
+ * 200 { active: false, status: 'deactivated' | 'takendown' | ... }, which
+ * stays "couldn't check", since those accounts can come back. Anything else
+ * (another error, an unreachable PDS) is not gone either. One fetch.
+ */
+async function repoDeleted(pds, did, fetchImpl) {
+  const u = new URL('/xrpc/com.atproto.sync.getRepoStatus', pds);
+  u.searchParams.set('did', did);
+  let res;
+  try {
+    res = await safeFetch(u.href, { fetchImpl, maxBytes: 4096 });
+  } catch {
+    return false;
+  }
+  return res.status === 400 && parse(res.text)?.error === 'RepoNotFound';
+}
+
+/**
  * The record by its key, any version: { state: 'gone' (a clear
- * RecordNotFound from the PDS the DID document names), 'present' (with the
- * DID document), or 'unknown' (couldn't check) }.
+ * RecordNotFound from the PDS the DID document names, or that PDS saying
+ * the whole account is gone: repoDeleted), 'present' (with the DID
+ * document), or 'unknown' (couldn't check; a deactivated, suspended or
+ * taken-down account included) }. Shared by withdrawal, the sweep, a page's
+ * re-check and the Jetstream watcher.
  */
 async function recordState(env, { did, collection, rkey }, fetchImpl) {
   const got = await readQuestion(env, { did, collection, rkey, fetchImpl });
   if (got.error === 'not_found') return { state: 'gone' };
+  if (got.noRepo && got.pds && (await repoDeleted(got.pds, did, fetchImpl))) return { state: 'gone' };
   if (got.error) return { state: 'unknown' };
   return { state: 'present', doc: got.doc };
 }

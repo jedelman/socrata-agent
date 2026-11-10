@@ -109,18 +109,27 @@ crons = ["*/10 * * * *"]
 # public question down as soon as its record is deleted in the asker's own
 # account, after the asker's PDS confirms it. The cron above pings it, only
 # with PUBLIC_ASK on and ready; with the flag off nothing ever reaches it, so
-# this first deploy only creates the empty namespace. A SQLite-backed class
-# (new_sqlite_classes: "New Durable Object namespaces must use the SQLite
-# storage backend", developers.cloudflare.com/changelog/post/
-# 2026-07-09-restrict-new-kv-backed-namespaces/), declared with the
+# this first deploy only creates the empty namespace.
+# THIS DEPLOY IS A ROLLBACK BARRIER: Cloudflare refuses a rollback across "a
+# Durable Object class lifecycle change (via exports or the legacy
+# migrations array)" (developers.cloudflare.com/workers/versions-and-
+# deployments/rollbacks/, "Bindings", read 2026-11-10). Once it is live, no
+# Siren version from before it can be rolled back to; fix forward. It ships
+# as its own deploy ("Durable Object lifecycle changes should be deployed
+# independently of other code changes", /workers/versions-and-deployments/
+# gradual-deployments/with-durable-objects/).
+# A SQLite-backed class (new_sqlite_classes: "New Durable Object namespaces
+# must use the SQLite storage backend", developers.cloudflare.com/changelog/
+# post/2026-07-09-restrict-new-kv-backed-namespaces/), declared with the
 # migrations array, which Cloudflare now calls the legacy form beside
-# `exports`; it stays reversible ("After a Worker deploys with exports, it
-# cannot return to the migrations array", /durable-objects/reference/
-# durable-objects-migrations/, last updated 2026-09-28, read 2026-11-10).
-# Bindings aren't inherited, so both live under env.siren. Never rename the
-# class or change this tag: a later change is a new migration with a new
-# tag. JETSTREAM_URL (vars) replaces the default instances, the two public
-# Jetstream v2 ones.
+# `exports`. Chosen because only the configuration form can move one way
+# later (to `exports`; "After a Worker deploys with exports, it cannot return
+# to the migrations array", /durable-objects/reference/durable-objects-
+# migrations/, last updated 2026-09-28, read 2026-11-10): neither form makes
+# the deploy itself reversible. Bindings aren't inherited, so both live
+# under env.siren. Never rename the class or change this tag: a later change
+# is a new migration with a new tag. JETSTREAM_URL (vars) replaces the
+# default instances, the two public Jetstream v2 ones.
 [[env.siren.durable_objects.bindings]]
 name = "QUESTION_WATCHER"
 class_name = "QuestionWatcher"
