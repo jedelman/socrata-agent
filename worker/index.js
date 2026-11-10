@@ -32,7 +32,15 @@ import { handleAdmin } from './admin.js';
 import { cachedPublicList } from './public-list.js';
 import { blueskyReady, handleMetadata, handleResolve } from './bluesky.js';
 import { handleEndorsers } from './endorsers.js';
+// The free tier (docs/free-tier.md), behind PUBLIC_ASK: imported as code
+// here, above the text imports, like every shared module (see below).
+import {
+  publicAskOn, publicAskReady, notReady, NOINDEX, handlePublicAsk, handlePublicWithdraw, handleQuestions, handleQuestion,
+  questionPageState, handlePublicSession, handlePublicRedeem, handleQuestionMetadata, handleAdminQuestions,
+} from './public-ask.js';
 import REQUESTS_PAGE from './requests.html';
+import QUESTIONS_PAGE from './questions.html';
+import ADMIN_QUESTIONS_PAGE from './admin-questions.html';
 // The requests page's module and style, and the browser OAuth client with
 // the shared modules it imports, served as text (with { type: 'text' } is an
 // esbuild import attribute; the same files are imported as code elsewhere).
@@ -46,6 +54,11 @@ import PAGE_CSS from './requests.css' with { type: 'text' };
 // strict CSP too.
 import CHAT_JS from './chat-page.js' with { type: 'text' };
 import CHAT_CSS from './chat.css' with { type: 'text' };
+// The public questions pages' script and style, and the steward's page for
+// them (the free tier), served only with PUBLIC_ASK on.
+import QUESTIONS_JS from './questions-page.js' with { type: 'text' };
+import QUESTIONS_CSS from './questions.css' with { type: 'text' };
+import ADMIN_QUESTIONS_JS from './admin-questions.js' with { type: 'text' };
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
 import STORE_JS from './endorse-store.js' with { type: 'text' };
 import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
@@ -141,7 +154,7 @@ async function inviteAccess(req, env, kv) {
 }
 
 async function handleAsk(req, env, ctx) {
-  const { config: deployment, plugins, webSearch } = getDeployment(env);
+  const { config: deployment, plugins } = getDeployment(env);
   let body;
   try {
     body = await req.json();
@@ -222,27 +235,7 @@ async function handleAsk(req, env, ctx) {
 
   const gapsOn = deployment.gaps?.enabled === true && GAPS[cityId];
   // Built inside each path's try, as before, so a failure here is an error body.
-  const askArgs = () => ({
-    question,
-    history,
-    carried,
-    city: applyConfig(getCity(cityId), deployment),
-    plugins,
-    indexes: INDEXES,
-    apiKey,
-    appToken: env.SOCRATA_APP_TOKEN,
-    model,
-    effort: env.EFFORT || undefined,
-    // Steps, outbound requests and tokens per answer (worker/limits.js).
-    ...askLimits(env, providerOf(model)),
-    referer: new URL(req.url).origin,
-    ...(gapsOn ? { gaps: { data: GAPS[cityId], streets: STREETS[cityId], absenceLines: deployment.gaps.absenceLines === true } } : {}),
-    // Off unless the deployment sets webSearch (Claude models only).
-    // WEB_SEARCH = "off" turns it off without a deploy of new code: a request
-    // carrying the tool fails with a 400 if the Anthropic organization has
-    // web search disabled in the Console (web search tool docs, 2026-11-10).
-    ...(webSearch && String(env.WEB_SEARCH ?? '').trim().toLowerCase() !== 'off' ? { webSearch } : {}),
-  });
+  const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId) });
   // The response body, and the conversation save (started, not awaited).
   const finish = (out) => {
     const { toolResults, ...answer } = out;
@@ -303,6 +296,49 @@ async function handleAsk(req, env, ctx) {
       else await write;
     }
   }
+}
+
+// What every answer runs with, private or public: the deployment's city,
+// plugins, model and limits, for one city.
+function answerArgs(env, req, cityId) {
+  const { config: deployment, plugins, webSearch } = getDeployment(env);
+  const model = env.MODEL || deployment.model;
+  const gapsOn = deployment.gaps?.enabled === true && GAPS[cityId];
+  return {
+    city: applyConfig(getCity(cityId), deployment),
+    plugins,
+    indexes: INDEXES,
+    apiKey: env[keyNameFor(model)],
+    appToken: env.SOCRATA_APP_TOKEN,
+    model,
+    effort: env.EFFORT || undefined,
+    // Steps, outbound requests and tokens per answer (worker/limits.js).
+    ...askLimits(env, providerOf(model)),
+    referer: new URL(req.url).origin,
+    ...(gapsOn ? { gaps: { data: GAPS[cityId], streets: STREETS[cityId], absenceLines: deployment.gaps.absenceLines === true } } : {}),
+    // Off unless the deployment sets webSearch (Claude models only).
+    // WEB_SEARCH = "off" turns it off without a deploy of new code: a request
+    // carrying the tool fails with a 400 if the Anthropic organization has
+    // web search disabled in the Console (web search tool docs, 2026-11-10).
+    ...(webSearch && String(env.WEB_SEARCH ?? '').trim().toLowerCase() !== 'off' ? { webSearch } : {}),
+  };
+}
+
+// The free tier's answer: the same agent as the private chat, on the
+// record's text, for its city, counting on the budget the record's check
+// started. A follow-up carries its thread's chain, as a private
+// conversation carries its earlier turns.
+function publicAskDeps(req, env, base) {
+  const { config: deployment } = getDeployment(env);
+  const model = env.MODEL || deployment.model;
+  return {
+    base,
+    cities: allowedCities(env),
+    apiKey: env[keyNameFor(model)],
+    subrequestBudget: askLimits(env, providerOf(model)).subrequestBudget,
+    // A follow-up brings its thread's chain as history and carried results.
+    answer: ({ question, cityId, budget, onCost, history = [], carried = [] }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, budget, onCost }),
+  };
 }
 
 // The full upstream error goes to the operator's log only; visitors get the gist.
@@ -490,7 +526,13 @@ const ASSETS = {
   'atproto-oauth.js': [OAUTH_JS, JS],
   'endorse-config.js': [CONFIG_JS, JS],
   'crypto.js': [CRYPTO_JS, JS],
+  'questions-page.js': [QUESTIONS_JS, JS],
+  'questions.css': [QUESTIONS_CSS, 'text/css; charset=utf-8'],
+  'admin-questions.js': [ADMIN_QUESTIONS_JS, JS],
 };
+// The free tier's files: served only with PUBLIC_ASK on (with it off,
+// nothing new is served).
+const ASK_ASSETS = new Set(['questions-page.js', 'questions.css', 'admin-questions.js']);
 // A content hash of every asset, computed once per isolate (FNV-1a, two
 // seeds; for cache-busting, not security), so the page's URLs change with
 // any deploy that changes them and each can be cached for a year.
@@ -568,6 +610,52 @@ function chatCsp(skin) {
   ].join('; ');
 }
 
+/**
+ * The public questions pages' policy (the free tier): the requests pages'
+ * (scripts and styles from this origin, fetches to any https server, since
+ * the browser talks to each person's own Bluesky server), plus the chat
+ * page's two pinned files from the CDN, which render the answers. No inline
+ * script, style or handler.
+ */
+const QUESTIONS_CSP = `default-src 'none'; script-src 'self' ${[...CHAT_SCRIPTS, ...CF_BEACON].join(' ')}; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
+/** The steward's questions page talks to this origin only. */
+const ADMIN_QUESTIONS_CSP = `default-src 'none'; script-src 'self' ${CF_BEACON.join(' ')}; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
+const PAGE_HEADERS = (csp) => ({ 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': csp, 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff', ...NOINDEX });
+
+/**
+ * GET /questions, and /q/<id> for a question that has a page (answered, or
+ * withdrawn, which says only that). Everything on them is public.
+ */
+async function questionsPage(req, env, base, focus) {
+  if (!publicAskReady(env)) return notReady(env);
+  if (focus) {
+    let state;
+    try {
+      state = await questionPageState(env, focus);
+    } catch (err) {
+      console.error('public question page: D1 read failed', String(err?.message || err).slice(0, 200));
+      return new Response("Public questions can't be read just now. Try again in a minute.", { status: 503, headers: { 'Cache-Control': 'no-store', ...NOINDEX } });
+    }
+    if (!state) return new Response('Not found', { status: 404, headers: NOINDEX });
+  }
+  const { config } = getDeployment(env);
+  const ui = config.ui || {};
+  const fill = {
+    APP_NAME: esc(APP_NAME_OF(env, config)),
+    REPO: esc(env.REPO_URL || 'https://github.com/jedelman/socrata-agent'),
+    BASE: esc(base),
+    ASSETS: esc(`${base}/assets/${ASSET_HASH}`),
+    ORIGIN: esc(publicOrigin(env).origin),
+    FOCUS: esc(focus),
+    LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
+    // Where questions go beyond this Worker, as on the chat page.
+    DATA_NOTE: ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '',
+  };
+  return new Response(QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m)), {
+    headers: { ...PAGE_HEADERS(QUESTIONS_CSP), 'Cache-Control': 'public, max-age=60' },
+  });
+}
+
 async function requestsPage(req, env, ctx, base, focus) {
   const { config } = getDeployment(env);
   const on = blueskyReady(env);
@@ -623,6 +711,9 @@ function page(env) {
     MARK: skin.mark,
     FONTS: skin.fonts,
     FAVICON: skin.favicon,
+    // The other door (the free tier): only with PUBLIC_ASK on and ready; with
+    // it off, the page is exactly as before.
+    PUBLIC_DOOR: publicAskReady(env) ? '\n    <p class="convbar" id="public-door">Want to ask in public instead? Sign in with Bluesky at <a href="questions">the public questions page</a>.</p>' : '',
   };
   const html = UI.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
   return new Response(html, {
@@ -634,6 +725,35 @@ function page(env) {
       'X-Content-Type-Options': 'nosniff',
     },
   });
+}
+
+// The free tier's routes, or null for any other path. Each fails closed (503)
+// when the flag is on but something it needs is missing.
+async function publicAskRoute(req, env, ctx, path, base) {
+  const get = req.method === 'GET' || req.method === 'HEAD';
+  const qPage = /^\/q\/([^/]{1,64})$/.exec(path);
+  if (get && (path === '/questions' || qPage)) return questionsPage(req, env, base, qPage ? qPage[1] : '');
+  if (req.method === 'GET' && path === '/api/questions') return handleQuestions(req, env, ctx, { base });
+  const qApi = req.method === 'GET' && /^\/api\/q\/([^/]{1,64})$/.exec(path);
+  if (qApi) return handleQuestion(req, env, ctx, qApi[1], { base });
+  if (req.method === 'GET' && path === '/api/public/session') return handlePublicSession(req, env, { base });
+  if (get && path === '/question-client-metadata.json') {
+    const { config } = getDeployment(env);
+    return handleQuestionMetadata(req, env, base, APP_NAME_OF(env, config));
+  }
+  if (get && path === '/admin/questions') {
+    if (!publicAskReady(env)) return notReady(env);
+    return new Response(ADMIN_QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base) })[k] ?? m), {
+      headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' },
+    });
+  }
+  if (req.method === 'GET' && path === '/api/admin/questions') return handleAdminQuestions(req, env, path);
+  if (req.method !== 'POST') return null;
+  if (path === '/api/public/ask') return handlePublicAsk(req, env, ctx, publicAskDeps(req, env, base));
+  if (path === '/api/public/withdraw') return handlePublicWithdraw(req, env, ctx);
+  if (path === '/api/public/redeem') return handlePublicRedeem(req, env, { base, visitor: await visitorHash(req, env) });
+  if (path === '/api/admin/questions/hide') return handleAdminQuestions(req, env, path);
+  return null;
 }
 
 export default {
@@ -715,7 +835,8 @@ export default {
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin') {
       const { config } = getDeployment(env);
-      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))), {
+      const questionsLink = publicAskReady(env) ? '\n  <p class="lede"><a href="admin/questions">Public questions</a>: hide or unhide a question asked in public.</p>' : '';
+      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace('{{QUESTIONS_LINK}}', questionsLink), {
         // Its buttons act for the signed-in steward, so it can't be framed.
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' },
       });
@@ -729,7 +850,7 @@ export default {
     }
     // The pages' scripts and styles, and the browser client, as text.
     const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
-    if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]]) return assetResponse(asset[1], asset[2]);
+    if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]] && (!ASK_ASSETS.has(asset[2]) || publicAskOn(env))) return assetResponse(asset[1], asset[2]);
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
@@ -742,6 +863,12 @@ export default {
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
     if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
+    // The free tier (docs/free-tier.md): with PUBLIC_ASK anything but "true",
+    // none of this is reached and every one of these paths is the 404 below.
+    if (publicAskOn(env)) {
+      const res = await publicAskRoute(req, env, ctx, path, base);
+      if (res) return res;
+    }
     return new Response('Not found', { status: 404 });
   },
 };

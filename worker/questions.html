@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Public questions</title>
+<meta name="description" content="Questions asked of {{APP_NAME}} in public, with her answers and how she found them.">
+<link rel="stylesheet" href="{{ASSETS}}/questions.css">
+<script type="module" src="{{ASSETS}}/questions-page.js"></script>
+</head>
+<body data-base="{{BASE}}" data-origin="{{ORIGIN}}" data-focus="{{FOCUS}}" data-loading="{{LOADING}}">
+<div class="wrap">
+  <p class="crumbs"><a href="{{BASE}}/">Ask {{APP_NAME}} in private</a> · <a href="{{BASE}}/questions">Public questions</a></p>
+  <h1>Public questions</h1>
+  <p class="public-notice" id="public-notice">Everything here is public. Each question, {{APP_NAME}}'s answer, how she found it, and the asker's Bluesky handle can be read by anyone.</p>
+  <section class="panel" id="ask" hidden aria-labelledby="ask-title">
+    <h2 id="ask-title">Ask a question</h2>
+    <div id="ask-intro">
+      <p id="ask-notice"><strong>Ask in public.</strong> Sign in with Bluesky and an invite to ask. Your question, {{APP_NAME}}'s answer, how she found it and your Bluesky handle will be public on this site, and your question is saved as a record in your own Bluesky account, public on the network like a post. You can delete it at any time, here or in your account, and {{APP_NAME}} takes its page down; copies other people made may remain. For a private question, use email sign-in on <a href="{{BASE}}/">the main page</a>.</p>
+      <p class="small">{{APP_NAME}} asks your Bluesky server for one permission: to create and delete these question records. It can't post, follow, or change anything else. Your browser talks to your server directly; {{APP_NAME}}'s server never sees your sign-in. It reads your question from your account, keeps it here with the answer and your handle, and takes the page down when you delete the record.</p>
+    </div>
+    <form id="invite-form" hidden>
+      <label>Invite code<input id="invite-code" name="code" placeholder="SIREN-XXXXX-XXXXX" maxlength="40" autocomplete="off" required></label>
+      <button type="submit">Enter</button>
+    </form>
+    <form id="bsky-form">
+      <label>Your Bluesky handle<input id="bsky-account" name="account" placeholder="alice.bsky.social" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="260" required></label>
+      <button type="submit">Sign in with Bluesky</button>
+    </form>
+    <div id="signed-in" hidden>
+      <p><span id="who"></span> · <button type="button" class="link" id="signout">Sign out</button></p>
+      <form id="q-form">
+        <p class="small" id="reply-to" hidden><span id="reply-text"></span> · <button type="button" class="link" id="reply-cancel">Ask a new question instead</button></p>
+        <label id="city-label" hidden>City <select id="city" name="city"></select></label>
+        <textarea id="q" name="q" maxlength="600" required aria-label="Your question" placeholder="e.g. What's going on at 111 Pennsylvania Ave?"></textarea>
+        <div class="row"><button type="submit" id="go">Ask in public</button><span class="small" id="public-line"></span></div>
+      </form>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+  <p class="meta" id="meta">Loading…</p>
+  <ol id="list"></ol>
+  <p><button type="button" class="link" id="more" hidden>More questions</button></p>
+  <footer>
+    {{DATA_NOTE}}
+    <p>{{APP_NAME}} is an AI agent, not a person, and not a government service. Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it.</p>
+    <p>Accounts that call themselves bots, that Bluesky's moderators have labelled, or that are under 30 days old are flagged next to their handle. Flags are shown, never used to leave anyone out.</p>
+    <p>Open source: <a href="{{REPO}}">{{REPO}}</a>.</p>
+  </footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>
+</body>
+</html>

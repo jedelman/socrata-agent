@@ -228,6 +228,18 @@ unset until the rollout's live probe passes. The record, the flow, the
 counts, the flags and the rollout are in
 [docs/bluesky-endorsements.md](docs/bluesky-endorsements.md).
 
+**The free tier** (behind `PUBLIC_ASK`, off): ask in public with a Bluesky
+sign-in and an invite, at `/questions`. Every question, answer and asker's
+handle is public, on Siren's site only (a row in the `SIREN_DB` D1 database
+and a page at `/q/<id>`), and anyone with an invite can ask a follow-up as a
+threaded reply. The question is a record in the asker's own repo; Siren
+reads it there, answers its text, and takes the page down when it's deleted.
+Email sign-in stays the private tier. The design, what is stored, threads
+and the rollout (publish the question Lexicon, apply migration 0004, then
+set the flag) are in [docs/free-tier.md](docs/free-tier.md); the steward
+hides a question at `/admin/questions` or with
+`node scripts/invites.js question-hide <id>`.
+
 ## Web search
 
 For Claude models, a deployment can let the agent search the web, but only

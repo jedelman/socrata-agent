@@ -14,6 +14,8 @@
 //   node scripts/invites.js request-note <request id> <note id> approve|delete
 //   node scripts/invites.js request-ids [--apply]       (one-time: give every legacy request a random public id)
 //   node scripts/invites.js endorsements <request id>   (the live Bluesky endorsement count, from Constellation)
+//   node scripts/invites.js question-hide <question id>    (the free tier: take a public question off the list and its page)
+//   node scripts/invites.js question-unhide <question id>  (put a hidden one back)
 //
 // Once a request or note has been synced to GitHub, declining or deleting it
 // doesn't erase it there: the old title stays in the issue's timeline and old
@@ -33,6 +35,13 @@
 // the count. The env's config is read through wrangler's unstable_readConfig
 // and unstable_getVarsForDev; if a wrangler upgrade breaks them, decisions
 // fail before writing anything, and --no-endorsements decides without them.
+//
+// Public questions (the free tier, docs/free-tier.md, behind PUBLIC_ASK) live
+// in the SIREN_DB D1 database, not KV: question-hide and question-unhide run
+// one UPDATE there through `wrangler d1 execute` (--local and --dry-run work
+// as for KV). They publish at once, with no review first; hiding is the
+// remedy. A withdrawn question was deleted by its asker and can't be hidden
+// or brought back.
 //
 // Each browser or device that redeems a code uses one of its --uses (default
 // 3). Codes are stored only as hashes, so a lost code can't be looked up
@@ -65,6 +74,17 @@ function wrangler(args) {
     return '';
   }
   return execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
+}
+
+// One statement against the SIREN_DB D1 database (public questions). -> the
+// rows wrangler's --json prints, or [] on a dry run.
+function d1(sql) {
+  const full = ['wrangler', 'd1', 'execute', 'SIREN_DB', '--env', env, where, '--json', '--command', sql, ...(opt('config') ? ['--config', opt('config')] : [])];
+  if (dry) {
+    console.error(`npx ${full.map((a) => (/[\s"'{}=]/.test(a) ? `'${a.replace(/'/g, "'\\''")}'` : a)).join(' ')}`);
+    return [];
+  }
+  return JSON.parse(execFileSync('npx', full, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }) || '[]');
 }
 
 // One key read directly, for a check that mustn't trust a listing (which is
@@ -351,6 +371,17 @@ async function main() {
     console.error(n === 0 ? 'Every request already has a random id. Nothing to do.'
       : apply ? `Gave ${n} request${n === 1 ? '' : 's'} a random id. Run the issue sync (docs/request-sync-routine.md) to put the new ids in the issue bodies.`
         : `Dry run: ${n} request${n === 1 ? '' : 's'} would get a random id. Run again with --apply to write them.`);
+  } else if (cmd === 'question-hide' || cmd === 'question-unhide') {
+    // The id is checked against its fixed shape before it goes into the SQL,
+    // so nothing but 16 base32 characters can reach the statement.
+    const id = String(argv[1] || '').trim().toLowerCase();
+    if (!/^[a-z2-7]{16}$/.test(id)) throw new Error('Give the question id: the 16 characters at the end of its page, /q/<id>.');
+    const [from, to] = cmd === 'question-hide' ? ['answered', 'hidden'] : ['hidden', 'answered'];
+    const out = d1(`UPDATE public_questions SET status = '${to}' WHERE id = '${id}' AND status = '${from}'`);
+    if (dry) return;
+    const changes = (Array.isArray(out) ? out : []).reduce((n, r) => n + (Number(r?.meta?.changes) || 0), 0);
+    if (changes !== 1) throw new Error(`No ${from} question has that id (a withdrawn one can't be ${cmd === 'question-hide' ? 'hidden' : 'unhidden'}). Nothing changed.`);
+    console.error(cmd === 'question-hide' ? `Hidden: ${id} is off the public list and its page.` : `Unhidden: ${id} is public again.`);
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -359,7 +390,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] | endorsements <id>  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] | endorsements <id> | question-hide <question id> | question-unhide <question id>  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

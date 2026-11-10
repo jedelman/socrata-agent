@@ -93,6 +93,11 @@ export function budgetNote({ limit, refused }) {
  * `subrequestBudget` caps the outbound requests this answer may make, model
  * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
  * requests stop short of it, keeping enough for the final answer.
+ * `budget` (optional) is a counter from src/request-budget.js the caller
+ * already started, for fetches made on this answer's behalf before it (the
+ * free tier reads the asker's question record through it); the answer then
+ * counts on it, and `subrequestBudget` and `fetchImpl` are not used. Unset,
+ * the answer starts its own, as before.
  * `onEvent` hears the answer's progress, each event with `step`, the model
  * call it belongs to (counted from 0; a step's tools follow its thinking):
  *   { type: 'thinking', step, text }  a delta of the model's summarized
@@ -131,6 +136,7 @@ export async function ask({
   thinkingEvents = false,
   gaps = null,
   webSearch = null,
+  budget: given = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // Checked whatever the model, so a bad list fails here; declared only for
@@ -140,7 +146,7 @@ export async function ask({
   // A bad setting must never make the tool loop unbounded.
   maxSteps = Number.isFinite(Number(maxSteps)) && Number(maxSteps) >= 1 ? Math.min(Number(maxSteps), 12) : 8;
   // One counter for every fetch this answer makes: tools and model alike.
-  const budget = requestBudget({ limit: subrequestBudget, fetchImpl });
+  const budget = given || requestBudget({ limit: subrequestBudget, fetchImpl });
   const ctx = createContext({ city, indexes, appToken, plugins, budget });
   const gapsOn = Boolean(gaps?.data);
   const today = new Date().toISOString().slice(0, 10);

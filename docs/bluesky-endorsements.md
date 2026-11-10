@@ -241,6 +241,15 @@ in the client metadata from day one.
 `org.jason-edelman.siren.endorsement` and Create and Delete ticked. Other AS
 software may show the raw scope string.
 
+**A second client, for the free tier** (`docs/free-tier.md`, behind
+`PUBLIC_ASK`). The public questions page is another client of the same
+module, with its own client_id (`/question-client-metadata.json`, served only
+with that flag on), its own redirect (`/questions`) and the question
+permission. This page's client_id, metadata and scope are unchanged. The two
+pages share the one session in IndexedDB, which now keeps the scope it was
+granted; an action whose permission the session lacks re-authorizes (the
+requests page already does that for an expired token).
+
 ## Constellation: the counts
 
 Counts come from Constellation (microcosm,
