@@ -10,7 +10,14 @@
 // Siren as it was at the snapshot: tools added to Siren since then, and the
 // prompt lines that name them, are left out, so the comparison with a286524
 // still covers everything else. Add a tool's name here when it joins Siren.
+import { PARTIAL_PROMPT } from '../../src/prompt.js';
+
 export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news']);
+// Base-prompt lines added since the snapshot (each joins every deployment's
+// prompt, so it can't be left out by tool): stripped from the prompt and the
+// requests before comparing. Add the exported text here when one joins.
+export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT]);
+const stripAdded = (s) => PROMPT_ADDED_SINCE_SNAPSHOT.reduce((t, x) => t.split(x).join(''), s);
 
 function sirenAtSnapshot(siren) {
   const added = (text) => ADDED_SINCE_SNAPSHOT.some((name) => text.includes(name));
@@ -54,6 +61,6 @@ export async function webSearchOffScenario({ ask, systemPrompt, getCity, applyCo
     fetchImpl, thinkingEvents: true, onEvent: (e) => events.push(e), ...extra,
   });
   // The prompt holds the date: any date reads "(today)".
-  const zero = (k, v) => (k === 'ms' ? 0 : typeof v === 'string' ? v.replace(/ · \d+ ms · /g, ' · 0 ms · ').replace(/Today is \d{4}-\d{2}-\d{2}\./g, 'Today is (today).') : v);
+  const zero = (k, v) => (k === 'ms' ? 0 : typeof v === 'string' ? stripAdded(v).replace(/ · \d+ ms · /g, ' · 0 ms · ').replace(/Today is \d{4}-\d{2}-\d{2}\./g, 'Today is (today).') : v);
   return JSON.parse(JSON.stringify({ systemPrompt: systemPrompt(city, '2026-11-10'), requests, events, ask: out }, zero));
 }

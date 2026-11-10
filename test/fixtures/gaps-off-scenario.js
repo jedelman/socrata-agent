@@ -7,6 +7,13 @@
 // branch, still without gaps) when it was merged in, which added only the
 // answer's requestBudget.
 
+import { PARTIAL_PROMPT } from '../../src/prompt.js';
+
+// Base-prompt lines added since the snapshot, for every deployment, gaps on
+// or off: stripped before comparing, so the comparison still covers the rest.
+export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT]);
+const stripAdded = (s) => PROMPT_ADDED_SINCE_SNAPSHOT.reduce((t, x) => t.split(x).join(''), s);
+
 const call = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 
 export async function gapsOffScenario({ ask, toolsFor, systemPrompt, getCity }) {
@@ -30,7 +37,7 @@ export async function gapsOffScenario({ ask, toolsFor, systemPrompt, getCity }) 
     return new Response(JSON.stringify([{ n: '1' }]));
   };
   const out = await ask({ question: 'How many Forestry work orders?', city: norfolk, apiKey: 'k', fetchImpl });
-  const zero = (k, v) => (k === 'ms' ? 0 : typeof v === 'string' ? v.replace(/ · \d+ ms · /g, ' · 0 ms · ') : v);
+  const zero = (k, v) => (k === 'ms' ? 0 : typeof v === 'string' ? stripAdded(v).replace(/ · \d+ ms · /g, ' · 0 ms · ') : v);
   return JSON.parse(
     JSON.stringify(
       {
