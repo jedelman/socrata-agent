@@ -119,6 +119,7 @@ test("every deployment's webSearch block validates against its city; Siren's is 
     'https://law.lis.virginia.gov/vacode/title15.2/', 'https://lis.virginia.gov/bill-details/20261/HB549/text/CHAP0626',
     'https://msc.fema.gov/portal', 'https://tidesandcurrents.noaa.gov/x', 'https://www.congress.gov/bill/119th-congress/house-bill/8474',
     'https://www.vdot.virginia.gov/projects/hampton-roads-district/', 'https://www.dcr.virginia.gov/dam-safety-and-floodplains/', 'https://data.census.gov/table',
+    'https://www.norfolk.gov/FormCenter/MarCom-48/Film-Permit-Application-361', 'https://www.norfolk.gov/CivicSend/ViewMessage/message?id=21232',
   ];
   for (const url of allowed) assert.ok(urlAllowed(url, s.allowedDomains), url);
   for (const url of ['https://data.norfolk.gov/resource/cab7-wvn5.json', 'https://air.norfolk.gov/', 'https://evilnorfolk.gov/', 'https://www.norfolk.gov.evil.example/', 'https://example.iqm2.com/', 'https://www.nrha.org/', 'javascript:alert(1)', 'not a url']) {
@@ -636,6 +637,9 @@ test("Siren's list reaches no page found naming private people (probed 2026-11-1
   // exhibits. None may be reachable through the list.
   const refused = [
     'https://www.norfolk.gov/CivicAlerts.aspx?AID=1', 'https://www.norfolk.gov/m/newsflash/Home/Detail/1',
+    'https://www.norfolk.gov/CivicAlerts.aspx?CID=1', 'https://www.norfolk.gov/1234/Police', 'https://www.norfolk.gov/',
+    // Planning staff reports name the applicant beside the address; off until Jason decides.
+    'https://www.norfolk.gov/DocumentCenter/View/107596/R-02-Conditional-Use-Permit---Prestige-Hand-Car-Wash',
     'https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=1&ID=1',
     'https://vsp.virginia.gov/sex-offender-registry/', 'https://rga.lis.virginia.gov/Published/2024/SD2/PDF',
     'https://townhall.virginia.gov/L/viewcomments.cfm?commentid=1', 'https://downloads.regulations.gov/x/attachment_1.pdf',
@@ -699,4 +703,13 @@ test('page: web searches are counted and linked as searches, not as queries to r
   assert.match(html, /failed: search error · 5 ms · <a href="https:\/\/platform\.claude\.com\/[^"]*"[^>]*>how web search works<\/a>/);
   assert.match(renderTrace([{ tool: WEB_SEARCH_STEP, ok: true, rows: 1, ms: 1, url: 'https://msc.fema.gov/' }]), /\(1 web search\)/);
   assert.match(renderTrace([{ tool: 'query_dataset', ok: true, rows: 1, ms: 1, url: 'https://x.gov/' }, { tool: 'query_dataset', refused: true, ok: false, error: 'budget', ms: 0, url: 'https://x.gov/' }]), /\(1 query, 1 not sent\)/, 'without search, the count reads as before');
+});
+
+test("the page says where questions go when the deployment states it (Siren: Anthropic, 30 days), and nothing when it doesn't", { skip }, async () => {
+  const w = await loadWorker();
+  const get = async (env) => (await w.fetch(new Request('https://x.org/'), { LIMITS: memoryKV(), ...env }, { waitUntil() {} })).text();
+  const html = await get({ DEPLOYMENT: 'siren' });
+  assert.ok(html.includes('<p>Each question, and what Siren finds for it, goes to Anthropic, whose model writes the answer. Anthropic keeps them for 30 days and may review them for safety and security.</p>'), 'Siren states it');
+  const plain = await get({});
+  assert.ok(!plain.includes('Anthropic keeps') && !plain.includes('{{DATA_NOTE}}'), 'a deployment without a note shows none');
 });

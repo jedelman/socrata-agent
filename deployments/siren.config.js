@@ -38,6 +38,10 @@ export default {
     footerNote: "Named for Norfolk's mermaids, the greater siren of Virginia's coastal-plain swamps, and the alarm.",
     badge: 'Pre-alpha · invite only',
     operator: 'Jason Edelman',
+    // Anthropic Console, Settings > Data retention, read by Jason 2026-11-10:
+    // "Inputs, Outputs, and other data are retained for 30 days by default
+    // and may be accessed by Anthropic for safety and security purposes."
+    dataNote: 'Each question, and what Siren finds for it, goes to Anthropic, whose model writes the answer. Anthropic keeps them for 30 days and may review them for safety and security.',
   },
   // Web search (Claude models only): official public sites, enforced by the
   // API as the tool's allowed_domains (src/web-search.js). Only Jason widens
@@ -65,12 +69,20 @@ export default {
     // below. A probe is a sample, not proof: check a site before adding it.
     //
     // Left off, with what a probe found there on 2026-11-10:
-    // - www.norfolk.gov: Norfolk Police news posts name arrested adults with
-    //   charges, identify arrested juveniles by age, and name missing people
-    //   with the street where they were last seen; the same kind of record
-    //   as the Arrest Reports and Active Warrants datasets the Norfolk
-    //   profile excludes. (The city's open data, budget books, zoning
-    //   ordinance and meetings reach Siren through its own tools.)
+    // - www.norfolk.gov, all but two paths: Norfolk Police news posts name
+    //   arrested adults with charges, identify arrested juveniles by age, and
+    //   name missing people with the street where they were last seen; the
+    //   same kind of record as the Arrest Reports and Active Warrants
+    //   datasets the Norfolk profile excludes. They are the City's News Flash
+    //   (/CivicAlerts.aspx, /m/newsflash/), the same path as all City news,
+    //   told apart only by a query string, which a path can't filter. So
+    //   City news reaches Siren through the newsletters (/CivicSend) and
+    //   forms through the Form Center (/FormCenter), both listed below.
+    //   /DocumentCenter holds most PDF forms but also Planning staff reports,
+    //   which name each applicant beside the address (a business in the one
+    //   read, a homeowner for a short-term rental); off until Jason decides.
+    //   (The city's open data, budget books, zoning ordinance and meetings
+    //   reach Siren through its own tools.)
     // - norfolkcityva.iqm2.com: hearing packets carry the names and
     //   addresses of property owners within 300 feet (the owner columns the
     //   profile withholds). Siren reads meetings through its iqm2 adapter.
@@ -104,6 +116,11 @@ export default {
       'dcr.virginia.gov', // floodplains, dam safety, conservation
       'dof.virginia.gov', // forestry, urban tree canopy
       'vdot.virginia.gov/projects', // road project pages
+      // The City's online forms and its email newsletters (Jason asked for
+      // forms and public communications, 2026-11-10). Probed that day for
+      // arrests, wanted and missing people, and owner lists: nothing.
+      'www.norfolk.gov/FormCenter',
+      'www.norfolk.gov/CivicSend',
     ],
     maxUses: 3,
   },

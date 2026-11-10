@@ -41,7 +41,8 @@ generic mode.
   missing-person, clemency or debarment lists), by subdomain or path where
   a site mixes them: a probe on 2026-11-10 found such pages on www.norfolk.gov,
   the iqm2 portal, EPA, HUD, NOAA, FEMA, Town Hall and regulations.gov, so
-  they are off (reasons in the config, refusals in the test).
+  they are off (reasons in the config, refusals in the test); of the City's
+  site only `/FormCenter` and `/CivicSend` (newsletters) are listed.
 - **Request budget.** Every fetch on an answer goes through its one counting
   fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
   45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.
