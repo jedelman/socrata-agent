@@ -1,7 +1,6 @@
 {
   "city": "norfolk",
-  "built": "2026-11-06",
-  "rebuilt": "2026-11-09",
+  "built": "2026-11-10",
   "note": "Built by scripts/build-gaps.js. Every number comes from a dated query, metadata or a bundled file; the requests are in the trace file beside this one.",
   "gaps": [
     {
@@ -39,15 +38,15 @@
           "line": 38
         }
       ],
-      "statement": "I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-09, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”",
-      "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09.",
+      "statement": "I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-10, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”",
+      "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "7f0de0bc0086",
           "text": "How many tree requests reached MyNorfolk 311 in my ward last year?",
           "blocks": "all",
-          "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-09."
+          "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-10."
         }
       ],
       "actions": [
@@ -67,7 +66,7 @@
         "finding": true
       },
       "state": "open",
-      "measured": "2026-11-09",
+      "measured": "2026-11-10",
       "hand_off": []
     },
     {
@@ -122,7 +121,7 @@
               "field": "addresses"
             }
           ],
-          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-09, so I can't match them to a block."
+          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-10, so I can't match them to a block."
         }
       ],
       "actions": [
@@ -149,7 +148,7 @@
         "over": "whole"
       },
       "state": "open",
-      "measured": "2026-11-09",
+      "measured": "2026-11-10",
       "hand_off": []
     },
     {
@@ -190,7 +189,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -208,24 +207,24 @@
           },
           "siblings_cleared": [],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.378Z"
+          "read": "2026-11-10T17:58:45.406Z"
         },
         "problem_codes": {
           "codes": [
             {
               "value": "Dead Tree",
-              "n": 770
+              "n": 772
             },
             {
               "value": "Diseased",
-              "n": 127
+              "n": 126
             },
             {
               "value": "Damaged Tree",
-              "n": 258
+              "n": 260
             }
           ],
-          "read": "2026-11-07T01:01:58.974Z"
+          "read": "2026-11-10T17:58:46.331Z"
         }
       },
       "evidence": [
@@ -234,7 +233,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -242,7 +241,7 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -250,7 +249,7 @@
           "dataset": "jz6u-9g3c",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
-          "read": "2026-11-07T01:01:58.284Z",
+          "read": "2026-11-10T17:58:45.291Z",
           "trace_n": 17
         },
         {
@@ -258,7 +257,7 @@
           "dataset": "u85v-sad9",
           "columns": 12,
           "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
-          "read": "2026-11-07T01:01:58.378Z",
+          "read": "2026-11-10T17:58:45.406Z",
           "trace_n": 18
         },
         {
@@ -269,39 +268,39 @@
           "result": [
             {
               "v": "General Maintenance",
-              "n": "4215"
+              "n": "4221"
             },
             {
               "v": "Stump",
-              "n": "2879"
+              "n": "2887"
             },
             {
               "v": "Limb / Tree Down",
-              "n": "827"
+              "n": "826"
             },
             {
               "v": "Dead Tree",
-              "n": "770"
+              "n": "772"
             },
             {
               "v": "Blocking Street",
-              "n": "557"
+              "n": "558"
             },
             {
               "v": "Routine Maintenance",
-              "n": "430"
+              "n": "431"
             },
             {
               "v": "Broken Hanging Limb",
-              "n": "351"
+              "n": "353"
             },
             {
               "v": "Damaged Tree",
-              "n": "258"
+              "n": "260"
             },
             {
               "v": "Diseased",
-              "n": "127"
+              "n": "126"
             },
             {
               "v": "Damaging Curb/Sidewalk",
@@ -340,12 +339,12 @@
               "n": "1"
             }
           ],
-          "read": "2026-11-07T01:01:58.974Z",
+          "read": "2026-11-10T17:58:46.331Z",
           "trace_n": 21
         }
       ],
-      "statement": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-06. I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
-      "short": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read, measured 2026-11-06.",
+      "statement": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-10. I found problem codes such as “Dead Tree” on 772, “Diseased” on 126 and “Damaged Tree” on 260 Forestry work orders in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-10.",
+      "short": "I found no column for tree condition, health or risk in any of the 4 tree datasets I read, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -358,7 +357,7 @@
               "column": "problem_description"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders, measured 2026-11-06, and I found no column for condition in the City Tree Inventory (cmvv-agyb)."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found problem codes such as “Dead Tree” on 772, “Diseased” on 126 and “Damaged Tree” on 260 Forestry work orders, measured 2026-11-10, and I found no column for condition in the City Tree Inventory (cmvv-agyb)."
         },
         {
           "qid": "q2",
@@ -371,7 +370,7 @@
               "column": "problem_description"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found problem codes such as “Dead Tree” on 770, “Diseased” on 127 and “Damaged Tree” on 258 Forestry work orders, measured 2026-11-06, and I found no column for condition in the City Tree Inventory (cmvv-agyb)."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found problem codes such as “Dead Tree” on 772, “Diseased” on 126 and “Damaged Tree” on 260 Forestry work orders, measured 2026-11-10, and I found no column for condition in the City Tree Inventory (cmvv-agyb)."
         }
       ],
       "actions": [
@@ -401,7 +400,7 @@
         "null_share_at_most": 0.05
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "cmvv-agyb",
@@ -451,7 +450,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -459,11 +458,11 @@
       },
       "checked_live": "2026-11-06",
       "how_much": {
-        "part": 6918,
-        "whole": 93997,
-        "read": "2026-11-07T01:01:59.269Z",
-        "no_range": 65858,
-        "no_diameter": 25174,
+        "part": 6920,
+        "whole": 93998,
+        "read": "2026-11-10T17:58:46.618Z",
+        "no_range": 65860,
+        "no_diameter": 25173,
         "siblings": {
           "pattern": "/trunk|diameter|dbh|(^|_)size(_|$)/i",
           "datasets": {
@@ -496,7 +495,7 @@
             }
           ],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.378Z"
+          "read": "2026-11-10T17:58:45.406Z"
         }
       },
       "evidence": [
@@ -507,13 +506,13 @@
           "url": "https://data.norfolk.gov/resource/cmvv-agyb.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_range%2C%20sum(case(trunk_diameter%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_dia%2C%20sum(case((trunk_diameter%20IS%20NULL%20OR%20trunk_diameter%20%3C%3D%200)%20AND%20trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_usable%20WHERE%20(common_name%20IS%20NULL%20OR%20common_name%20!%3D%20'PRIVATE%20TREES')%20LIMIT%20100",
           "result": [
             {
-              "whole": "93997",
-              "no_range": "65858",
-              "no_dia": "25174",
-              "no_usable": "6918"
+              "whole": "93998",
+              "no_range": "65860",
+              "no_dia": "25173",
+              "no_usable": "6920"
             }
           ],
-          "read": "2026-11-07T01:01:59.269Z",
+          "read": "2026-11-10T17:58:46.618Z",
           "trace_n": 22
         },
         {
@@ -522,7 +521,7 @@
           "field": "trunk_diameter",
           "quote": "The approximate trunk diameter of the tree. Since trees grow over time, the current diameter may be larger than what data shows.",
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -530,7 +529,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -538,7 +537,7 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -546,7 +545,7 @@
           "dataset": "jz6u-9g3c",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
-          "read": "2026-11-07T01:01:58.284Z",
+          "read": "2026-11-10T17:58:45.291Z",
           "trace_n": 17
         },
         {
@@ -554,12 +553,12 @@
           "dataset": "u85v-sad9",
           "columns": 12,
           "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
-          "read": "2026-11-07T01:01:58.378Z",
+          "read": "2026-11-10T17:58:45.406Z",
           "trace_n": 18
         }
       ],
-      "statement": "I found 6,918 of 93,997 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero in the City Tree Inventory (cmvv-agyb), leaving out rows labeled “PRIVATE TREES”, as I read it on 2026-11-06. Its description of trunk_diameter, in its words: “The approximate trunk diameter of the tree. Since trees grow over time, the current diameter may be larger than what data shows.”",
-      "short": "I found 6,918 of 93,997 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero in the City Tree Inventory, measured 2026-11-06.",
+      "statement": "I found 6,920 of 93,998 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero in the City Tree Inventory (cmvv-agyb), leaving out rows labeled “PRIVATE TREES”, as I read it on 2026-11-10. Its description of trunk_diameter, in its words: “The approximate trunk diameter of the tree. Since trees grow over time, the current diameter may be larger than what data shows.”",
+      "short": "I found 6,920 of 93,998 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero in the City Tree Inventory, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -576,7 +575,7 @@
               "column": "trunk_diameter_range"
             }
           ],
-          "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found 6,918 of 93,997 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero, measured 2026-11-06, so I can't give their size."
+          "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found 6,920 of 93,998 city trees (7%) with neither a trunk-size range nor a trunk diameter above zero, measured 2026-11-10, so I can't give their size."
         }
       ],
       "actions": [
@@ -602,7 +601,7 @@
         "over": "whole"
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "cmvv-agyb",
@@ -645,7 +644,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -656,11 +655,11 @@
         "quote": {
           "dataset": "cmvv-agyb",
           "text": "The original inventory of these trees was conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners. No official re-inventory has been conducted since then by City officials or ISA Certified Arborists, however, tree records in this dataset have been and are being updated over time by City Staff.",
-          "read": "2026-11-07T01:01:58.110Z"
+          "read": "2026-11-10T17:58:45.052Z"
         },
         "published": {
-          "rows_updated": "2026-11-06T12:27:08.000Z",
-          "read": "2026-11-07T01:01:58.110Z"
+          "rows_updated": "2026-11-10T12:30:02.000Z",
+          "read": "2026-11-10T17:58:45.052Z"
         },
         "columns_absent": {
           "pattern": "/(^|_)(date|survey\\w*|updated|modified|inspect\\w*|year)(_|$)/i",
@@ -669,7 +668,7 @@
           },
           "siblings_cleared": [],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.110Z"
+          "read": "2026-11-10T17:58:45.052Z"
         }
       },
       "evidence": [
@@ -678,7 +677,7 @@
           "dataset": "cmvv-agyb",
           "quote": "The original inventory of these trees was conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners. No official re-inventory has been conducted since then by City officials or ISA Certified Arborists, however, tree records in this dataset have been and are being updated over time by City Staff.",
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -686,7 +685,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -705,8 +704,8 @@
           "reverified": null
         }
       ],
-      "statement": "The City Tree Inventory's own description (cmvv-agyb), as I read it on 2026-11-06, says: “The original inventory of these trees was conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners. No official re-inventory has been conducted since then by City officials or ISA Certified Arborists, however, tree records in this dataset have been and are being updated over time by City Staff.” I found no column dating when each tree's record was surveyed or updated among its 13 data columns, as I read them on 2026-11-06.",
-      "short": "The City Tree Inventory's own description says its original inventory was conducted in the “late 1990s/early 2000s”, as I read it on 2026-11-06.",
+      "statement": "The City Tree Inventory's own description (cmvv-agyb), as I read it on 2026-11-10, says: “The original inventory of these trees was conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners. No official re-inventory has been conducted since then by City officials or ISA Certified Arborists, however, tree records in this dataset have been and are being updated over time by City Staff.” I found no column dating when each tree's record was surveyed or updated among its 13 data columns, as I read them on 2026-11-10.",
+      "short": "The City Tree Inventory's own description says its original inventory was conducted in the “late 1990s/early 2000s”, as I read it on 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -719,7 +718,7 @@
               "column": "tree_id"
             }
           ],
-          "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found no column dating when each tree's record was surveyed or updated among its 13 data columns, measured 2026-11-06, so I can count its records but not date them."
+          "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found no column dating when each tree's record was surveyed or updated among its 13 data columns, measured 2026-11-10, so I can count its records but not date them."
         },
         {
           "qid": "q2",
@@ -732,7 +731,7 @@
               "metadata": "rowsUpdatedAt"
             }
           ],
-          "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found no column dating when each tree's record was surveyed or updated among its 13 data columns, measured 2026-11-06, so I can count its records but not date them."
+          "consequence": "With the City Tree Inventory (cmvv-agyb) I can answer this only in part: I found no column dating when each tree's record was surveyed or updated among its 13 data columns, measured 2026-11-10, so I can count its records but not date them."
         }
       ],
       "actions": [
@@ -760,7 +759,7 @@
         "finding": true
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "cmvv-agyb",
@@ -807,7 +806,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -825,14 +824,14 @@
           },
           "siblings_cleared": [],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.378Z"
+          "read": "2026-11-10T17:58:45.406Z"
         },
         "catalog": [
           {
             "q": "line clearance",
             "result_set_size": 0,
             "open_to_siren": [],
-            "read": "2026-11-07T01:01:59.371Z"
+            "read": "2026-11-10T17:58:46.717Z"
           },
           {
             "q": "Dominion",
@@ -855,7 +854,7 @@
                 "name": "Street Light Outages"
               }
             ],
-            "read": "2026-11-07T01:01:59.432Z"
+            "read": "2026-11-10T17:58:46.824Z"
           }
         ],
         "values": {
@@ -863,7 +862,7 @@
           "field": "problem_description",
           "count": 18,
           "matched": [],
-          "read": "2026-11-07T01:01:58.974Z"
+          "read": "2026-11-10T17:58:46.331Z"
         }
       },
       "evidence": [
@@ -874,7 +873,7 @@
           "excluded": 0,
           "open_to_siren": [],
           "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=line+clearance",
-          "read": "2026-11-07T01:01:59.371Z",
+          "read": "2026-11-10T17:58:46.717Z",
           "trace_n": 23
         },
         {
@@ -901,7 +900,7 @@
             }
           ],
           "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=Dominion",
-          "read": "2026-11-07T01:01:59.432Z",
+          "read": "2026-11-10T17:58:46.824Z",
           "trace_n": 24
         },
         {
@@ -931,7 +930,7 @@
           "pattern": "/utilit|power ?line|line clearance|dominion/i",
           "matched": [],
           "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200",
-          "read": "2026-11-07T01:01:58.974Z",
+          "read": "2026-11-10T17:58:46.331Z",
           "trace_n": 21
         },
         {
@@ -939,7 +938,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -947,7 +946,7 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -955,7 +954,7 @@
           "dataset": "jz6u-9g3c",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
-          "read": "2026-11-07T01:01:58.284Z",
+          "read": "2026-11-10T17:58:45.291Z",
           "trace_n": 17
         },
         {
@@ -963,7 +962,7 @@
           "dataset": "u85v-sad9",
           "columns": 12,
           "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
-          "read": "2026-11-07T01:01:58.378Z",
+          "read": "2026-11-10T17:58:45.406Z",
           "trace_n": 18
         },
         {
@@ -982,15 +981,15 @@
           "reverified": null
         }
       ],
-      "statement": "I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-06). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-06. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-09).",
-      "short": "I found no dataset in Norfolk's catalog for the search “line clearance” and no Forestry problem code naming utility lines, searched 2026-11-06.",
+      "statement": "I found 0 datasets in Norfolk's open data catalog for the search “line clearance”, and 4 for “Dominion”, all open to Siren: Streetlights and Outages Reports, Municipal Building Energy Use, Address Information, Street Light Outages (searched 2026-11-10). I found 18 problem descriptions on Forestry work orders in the City's Work Orders records (qzfe-wj25), none matching “utility”, “power line”, “line clearance” or “Dominion”, as I read them on 2026-11-10. Dominion Energy's page says: “Nearly all of our neighborhood power lines are cleared on a four year cycle” (quote checked 2026-11-09).",
+      "short": "I found no dataset in Norfolk's catalog for the search “line clearance” and no Forestry problem code naming utility lines, searched 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "17e866b64501",
           "text": "Which tree work near me was utility line clearance?",
           "blocks": "all",
-          "consequence": "I found no column for utility line clearance in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+          "consequence": "I found no column for utility line clearance in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-10, so I can't answer this from them."
         }
       ],
       "actions": [
@@ -1015,7 +1014,7 @@
         "finding": true
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -1052,8 +1051,8 @@
         "area": "citywide",
         "span": {
           "field": "end_date",
-          "from": "2025-11-06",
-          "through": "2026-11-05"
+          "from": "2025-11-10",
+          "through": "2026-11-09"
         }
       },
       "topic": {
@@ -1072,7 +1071,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -1081,37 +1080,37 @@
       "checked_live": "2026-11-06",
       "how_much": {
         "part": 115,
-        "whole": 360,
-        "read": "2026-11-07T01:01:57.861Z",
+        "whole": 367,
+        "read": "2026-11-10T17:58:44.810Z",
         "window": {
-          "from": "2025-11-06",
+          "from": "2025-11-10",
           "part": 115,
-          "whole": 360,
+          "whole": 367,
           "also": {
             "before": 22,
             "same": 93
           }
         },
         "all_time": {
-          "part": 868,
-          "whole": 2378,
-          "read": "2026-11-07T01:01:57.982Z"
+          "part": 869,
+          "whole": 2387,
+          "read": "2026-11-10T17:58:44.941Z"
         }
       },
       "evidence": [
         {
           "type": "query",
           "dataset": "qzfe-wj25",
-          "soql": "SELECT count(*) AS whole, sum(case(date_trunc_ymd(end_date) < date_trunc_ymd(created_datetime),1,true,0)) AS before, sum(case(date_trunc_ymd(end_date) = date_trunc_ymd(created_datetime),1,true,0)) AS same WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND end_date >= '2025-11-06T00:00:00' AND end_date < '2026-11-06T00:00:00' LIMIT 100",
-          "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-06T00%3A00%3A00'%20LIMIT%20100",
+          "soql": "SELECT count(*) AS whole, sum(case(date_trunc_ymd(end_date) < date_trunc_ymd(created_datetime),1,true,0)) AS before, sum(case(date_trunc_ymd(end_date) = date_trunc_ymd(created_datetime),1,true,0)) AS same WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND end_date >= '2025-11-10T00:00:00' AND end_date < '2026-11-10T00:00:00' LIMIT 100",
+          "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-10T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-10T00%3A00%3A00'%20LIMIT%20100",
           "result": [
             {
-              "whole": "360",
+              "whole": "367",
               "before": "22",
               "same": "93"
             }
           ],
-          "read": "2026-11-07T01:01:57.861Z",
+          "read": "2026-11-10T17:58:44.810Z",
           "trace_n": 13
         },
         {
@@ -1121,17 +1120,17 @@
           "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20IS%20NOT%20NULL%20LIMIT%20100",
           "result": [
             {
-              "whole": "2378",
+              "whole": "2387",
               "before": "628",
-              "same": "240"
+              "same": "241"
             }
           ],
-          "read": "2026-11-07T01:01:57.982Z",
+          "read": "2026-11-10T17:58:44.941Z",
           "trace_n": 14
         }
       ],
-      "statement": "Of 360 Forestry removal work orders with status “Complete” and an end date from 2025-11-06 through 2026-11-05, I found 115 (32%) with an end date on or before the day they were created (22 before it, 93 the same day), in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
-      "short": "I found 115 of 360 Forestry removal work orders with status “Complete” ending 2025-11-06 through 2026-11-05 (32%) created on or after their end date, measured 2026-11-06.",
+      "statement": "Of 367 Forestry removal work orders with status “Complete” and an end date from 2025-11-10 through 2026-11-09, I found 115 (31%) with an end date on or before the day they were created (22 before it, 93 the same day), in the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-10.",
+      "short": "I found 115 of 367 Forestry removal work orders with status “Complete” ending 2025-11-10 through 2026-11-09 (31%) created on or after their end date, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -1148,7 +1147,7 @@
               "column": "end_date"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 115 of 360 Forestry removal work orders with status “Complete” and an end date from 2025-11-06 through 2026-11-05 (32%) created on or after the day of their end date, measured 2026-11-06, so a search of these records made before their end date finds no order for them."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 115 of 367 Forestry removal work orders with status “Complete” and an end date from 2025-11-10 through 2026-11-09 (31%) created on or after the day of their end date, measured 2026-11-10, so a search of these records made before their end date finds no order for them."
         }
       ],
       "actions": [
@@ -1181,7 +1180,7 @@
         "over": "window"
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -1224,7 +1223,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -1239,7 +1238,7 @@
           },
           "siblings_cleared": [],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.199Z"
+          "read": "2026-11-10T17:58:45.176Z"
         }
       },
       "evidence": [
@@ -1248,12 +1247,12 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         }
       ],
-      "statement": "I found no column naming a requester or approver of a work order among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
-      "short": "I found no column naming a requester or approver of a work order among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
+      "statement": "I found no column naming a requester or approver of a work order among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-10.",
+      "short": "I found no column naming a requester or approver of a work order among the 32 columns of the City's Work Orders records, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -1274,7 +1273,7 @@
               "column": "problem_description"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found no column naming a requester or approver of a work order among its 32 columns, measured 2026-11-06, so I can name only the department, priority and problem code the records hold."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found no column naming a requester or approver of a work order among its 32 columns, measured 2026-11-10, so I can name only the department, priority and problem code the records hold."
         }
       ],
       "actions": [
@@ -1298,7 +1297,7 @@
         "null_share_at_most": 0.05
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -1350,7 +1349,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -1376,11 +1375,11 @@
             }
           ],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.378Z"
+          "read": "2026-11-10T17:58:45.406Z"
         },
-        "part": 563,
-        "whole": 2378,
-        "read": "2026-11-07T01:01:56.871Z"
+        "part": 564,
+        "whole": 2387,
+        "read": "2026-11-10T17:58:44.026Z"
       },
       "evidence": [
         {
@@ -1388,7 +1387,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -1396,7 +1395,7 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -1404,7 +1403,7 @@
           "dataset": "jz6u-9g3c",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
-          "read": "2026-11-07T01:01:58.284Z",
+          "read": "2026-11-10T17:58:45.291Z",
           "trace_n": 17
         },
         {
@@ -1412,7 +1411,7 @@
           "dataset": "u85v-sad9",
           "columns": 12,
           "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
-          "read": "2026-11-07T01:01:58.378Z",
+          "read": "2026-11-10T17:58:45.406Z",
           "trace_n": 18
         },
         {
@@ -1424,17 +1423,17 @@
             {
               "status_code": "2",
               "status_description": "New Work Order",
-              "whole": "336",
-              "no_street": "79",
+              "whole": "333",
+              "no_street": "77",
               "cc": "12",
               "has_end": "41"
             },
             {
               "status_code": "4",
               "status_description": "On-Going",
-              "whole": "17",
+              "whole": "16",
               "no_street": "6",
-              "cc": "5",
+              "cc": "4",
               "has_end": "9"
             },
             {
@@ -1480,21 +1479,21 @@
             {
               "status_code": "957",
               "status_description": "Duplicate Work Order",
-              "whole": "21",
+              "whole": "20",
               "no_street": "7",
               "cc": "0",
-              "has_end": "21"
+              "has_end": "20"
             },
             {
               "status_code": "999",
               "status_description": "Complete",
-              "whole": "2378",
-              "no_street": "582",
-              "cc": "563",
-              "has_end": "2378"
+              "whole": "2387",
+              "no_street": "584",
+              "cc": "564",
+              "has_end": "2387"
             }
           ],
-          "read": "2026-11-07T01:01:56.871Z",
+          "read": "2026-11-10T17:58:44.026Z",
           "trace_n": 9
         },
         {
@@ -1513,15 +1512,15 @@
           "reverified": null
         }
       ],
-      "statement": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. I found a contractor cost above zero on 563 of 2,378 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-06. The City's FY2024 adopted budget says: “Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.” (quote checked 2026-11-09).",
-      "short": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
+      "statement": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-10. I found a contractor cost above zero on 564 of 2,387 of its Forestry removal work orders with status “Complete” (24%), as I read them on 2026-11-10. The City's FY2024 adopted budget says: “Technical adjustment to support a $250,000 contractual increase in expenses and increased utilization of the city's tree care maintenance contract. The contract is used to remove decaying or diseased trees throughout the city.” (quote checked 2026-11-09).",
+      "short": "I found no column linking a work order to a contract or invoice among the 32 columns of the City's Work Orders records, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "66893ab0e996",
           "text": "Does every contracted tree removal have a work order in these records?",
           "blocks": "all",
-          "consequence": "I found no column linking a work order to a contract or invoice in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+          "consequence": "I found no column linking a work order to a contract or invoice in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-10, so I can't answer this from them."
         },
         {
           "qid": "q2",
@@ -1534,7 +1533,7 @@
               "column": "contractor_cost"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found a contractor cost above zero on 563 of 2,378 Forestry removal work orders with status “Complete” (24%), measured 2026-11-06, which counts orders, not trees."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found a contractor cost above zero on 564 of 2,387 Forestry removal work orders with status “Complete” (24%), measured 2026-11-10, which counts orders, not trees."
         }
       ],
       "actions": [
@@ -1561,7 +1560,7 @@
         "null_share_at_most": 0.05
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -1619,7 +1618,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -1637,7 +1636,7 @@
           },
           "siblings_cleared": [],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.378Z"
+          "read": "2026-11-10T17:58:45.406Z"
         }
       },
       "evidence": [
@@ -1646,7 +1645,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -1654,7 +1653,7 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -1662,7 +1661,7 @@
           "dataset": "jz6u-9g3c",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
-          "read": "2026-11-07T01:01:58.284Z",
+          "read": "2026-11-10T17:58:45.291Z",
           "trace_n": 17
         },
         {
@@ -1670,19 +1669,19 @@
           "dataset": "u85v-sad9",
           "columns": 12,
           "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
-          "read": "2026-11-07T01:01:58.378Z",
+          "read": "2026-11-10T17:58:45.406Z",
           "trace_n": 18
         }
       ],
-      "statement": "I found no column for notice to residents in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-06.",
-      "short": "I found no column for notice to residents in any of the 4 tree datasets I read, measured 2026-11-06.",
+      "statement": "I found no column for notice to residents in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), as I read them on 2026-11-10.",
+      "short": "I found no column for notice to residents in any of the 4 tree datasets I read, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "13b99d40d974",
           "text": "How much notice does the City give before removing a street tree?",
           "blocks": "all",
-          "consequence": "I found no column for notice to residents in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+          "consequence": "I found no column for notice to residents in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-10, so I can't answer this from them."
         }
       ],
       "actions": [
@@ -1705,7 +1704,7 @@
         "null_share_at_most": 0.05
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "cmvv-agyb",
@@ -1766,7 +1765,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -1792,18 +1791,18 @@
             }
           ],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.378Z"
+          "read": "2026-11-10T17:58:45.406Z"
         },
         "backlog": {
           "as_recorded": [
             "New Work Order",
             "On-Going"
           ],
-          "whole": 353,
+          "whole": 349,
           "with_end": 50,
           "median_created": "2024-04-09",
-          "median_days": 941,
-          "read": "2026-11-07T01:01:58.527Z"
+          "median_days": 945,
+          "read": "2026-11-10T17:58:45.633Z"
         }
       },
       "evidence": [
@@ -1812,7 +1811,7 @@
           "dataset": "cmvv-agyb",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/cmvv-agyb.json",
-          "read": "2026-11-07T01:01:58.110Z",
+          "read": "2026-11-10T17:58:45.052Z",
           "trace_n": 15
         },
         {
@@ -1820,7 +1819,7 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -1828,7 +1827,7 @@
           "dataset": "jz6u-9g3c",
           "columns": 13,
           "url": "https://data.norfolk.gov/api/views/jz6u-9g3c.json",
-          "read": "2026-11-07T01:01:58.284Z",
+          "read": "2026-11-10T17:58:45.291Z",
           "trace_n": 17
         },
         {
@@ -1836,7 +1835,7 @@
           "dataset": "u85v-sad9",
           "columns": 12,
           "url": "https://data.norfolk.gov/api/views/u85v-sad9.json",
-          "read": "2026-11-07T01:01:58.378Z",
+          "read": "2026-11-10T17:58:45.406Z",
           "trace_n": 18
         },
         {
@@ -1845,7 +1844,7 @@
           "field": "start_date",
           "quote": "Date the work on the work order began.",
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         },
         {
@@ -1855,36 +1854,36 @@
           "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20with_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20LIMIT%20100",
           "result": [
             {
-              "whole": "353",
+              "whole": "349",
               "with_end": "50"
             }
           ],
-          "read": "2026-11-07T01:01:58.527Z",
+          "read": "2026-11-10T17:58:45.633Z",
           "trace_n": 19
         },
         {
           "type": "query",
           "dataset": "qzfe-wj25",
-          "soql": "SELECT created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) ORDER BY created_datetime, work_order_number LIMIT 1 OFFSET 176",
-          "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20176",
+          "soql": "SELECT created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) ORDER BY created_datetime, work_order_number LIMIT 1 OFFSET 174",
+          "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20174",
           "result": [
             {
-              "created_datetime": "2024-04-09T11:28:45.000"
+              "created_datetime": "2024-04-09T11:13:00.000"
             }
           ],
-          "read": "2026-11-07T01:01:58.649Z",
+          "read": "2026-11-10T17:58:45.847Z",
           "trace_n": 20
         }
       ],
-      "statement": "I found no column for a planned or scheduled date among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06. Its description of start_date, in its words: “Date the work on the work order began.” I found 353 Forestry removal work orders with status “New Work Order” or “On-Going” (50 of them with an end date), a median of 941 days since created, as I read them on 2026-11-06.",
-      "short": "I found no column for a planned or scheduled date in any of the 4 tree datasets I read, measured 2026-11-06.",
+      "statement": "I found no column for a planned or scheduled date among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-10. Its description of start_date, in its words: “Date the work on the work order began.” I found 349 Forestry removal work orders with status “New Work Order” or “On-Going” (50 of them with an end date), a median of 945 days since created, as I read them on 2026-11-10.",
+      "short": "I found no column for a planned or scheduled date in any of the 4 tree datasets I read, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "f53307e01706",
           "text": "When is a logged tree removal on my street planned to happen?",
           "blocks": "all",
-          "consequence": "I found no column for a planned or scheduled date in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-06, so I can't answer this from them."
+          "consequence": "I found no column for a planned or scheduled date in any of the 4 tree datasets I read (cmvv-agyb, qzfe-wj25, jz6u-9g3c, u85v-sad9), measured 2026-11-10, so I can't answer this from them."
         }
       ],
       "actions": [
@@ -1914,7 +1913,7 @@
         "null_share_at_most": 0.05
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -1957,7 +1956,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -1972,7 +1971,7 @@
           },
           "siblings_cleared": [],
           "siblings": [],
-          "read": "2026-11-07T01:01:58.199Z"
+          "read": "2026-11-10T17:58:45.176Z"
         }
       },
       "evidence": [
@@ -1981,12 +1980,12 @@
           "dataset": "qzfe-wj25",
           "columns": 32,
           "url": "https://data.norfolk.gov/api/views/qzfe-wj25.json",
-          "read": "2026-11-07T01:01:58.199Z",
+          "read": "2026-11-10T17:58:45.176Z",
           "trace_n": 16
         }
       ],
-      "statement": "I found no column for the number of trees on a work order among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-06.",
-      "short": "I found no column for the number of trees on a work order among the 32 columns of the City's Work Orders records, measured 2026-11-06.",
+      "statement": "I found no column for the number of trees on a work order among the 32 columns of the City's Work Orders records (qzfe-wj25), as I read them on 2026-11-10.",
+      "short": "I found no column for the number of trees on a work order among the 32 columns of the City's Work Orders records, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -1999,7 +1998,7 @@
               "column": "work_order_number"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found no column for the number of trees on a work order among its 32 columns, measured 2026-11-06, so I can count removal orders, not trees."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found no column for the number of trees on a work order among its 32 columns, measured 2026-11-10, so I can count removal orders, not trees."
         }
       ],
       "actions": [
@@ -2025,7 +2024,7 @@
         "null_share_at_most": 0.05
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -2063,7 +2062,7 @@
         "span": {
           "field": "created_datetime",
           "from": "2020-08-05",
-          "through": "2026-10-30"
+          "through": "2026-11-09"
         }
       },
       "topic": {
@@ -2082,7 +2081,7 @@
             "quote": "STORM, an acronym for System to Track, Organize, Record and Map, captures data collected by residents and city staff during and after inclement weather events. The app captures incidents such as flooded streets, damaged trees, disabled vehicles, downed cable lines, etc.",
             "reason": "STORM records incidents reported during and after weather events, damaged trees among them. Those reports are not the City Tree Inventory’s records or Forestry work orders, so the topic-wide column checks leave STORM out.",
             "placed": "Placed outside the tree topic in the Inc 4 catalog PR; Jason approved the catalog, entries and placements, on 2026-11-06 (A16).",
-            "read": "2026-11-07T01:01:56.455Z",
+            "read": "2026-11-10T17:58:43.732Z",
             "trace_n": 7
           }
         ],
@@ -2090,14 +2089,14 @@
       },
       "checked_live": "2026-11-06",
       "how_much": {
-        "part": 582,
-        "whole": 2378,
-        "read": "2026-11-07T01:01:56.871Z",
+        "part": 584,
+        "whole": 2387,
+        "read": "2026-11-10T17:58:44.026Z",
         "series": [
           {
             "k": "2020",
             "part": 21,
-            "whole": 205
+            "whole": 206
           },
           {
             "k": "2021",
@@ -2107,7 +2106,7 @@
           {
             "k": "2022",
             "part": 101,
-            "whole": 499
+            "whole": 500
           },
           {
             "k": "2023",
@@ -2116,8 +2115,8 @@
           },
           {
             "k": "2024",
-            "part": 149,
-            "whole": 343
+            "part": 151,
+            "whole": 348
           },
           {
             "k": "2025",
@@ -2127,13 +2126,13 @@
           {
             "k": "2026",
             "part": 21,
-            "whole": 246
+            "whole": 248
           }
         ],
         "window": {
-          "from": "2025-11-06",
+          "from": "2025-11-10",
           "part": 24,
-          "whole": 272,
+          "whole": 271,
           "also": {
             "no_ward_or_league": 22
           }
@@ -2144,8 +2143,8 @@
               "New Work Order",
               "On-Going"
             ],
-            "part": 85,
-            "whole": 353
+            "part": 83,
+            "whole": 349
           }
         ]
       },
@@ -2159,17 +2158,17 @@
             {
               "status_code": "2",
               "status_description": "New Work Order",
-              "whole": "336",
-              "no_street": "79",
+              "whole": "333",
+              "no_street": "77",
               "cc": "12",
               "has_end": "41"
             },
             {
               "status_code": "4",
               "status_description": "On-Going",
-              "whole": "17",
+              "whole": "16",
               "no_street": "6",
-              "cc": "5",
+              "cc": "4",
               "has_end": "9"
             },
             {
@@ -2215,21 +2214,21 @@
             {
               "status_code": "957",
               "status_description": "Duplicate Work Order",
-              "whole": "21",
+              "whole": "20",
               "no_street": "7",
               "cc": "0",
-              "has_end": "21"
+              "has_end": "20"
             },
             {
               "status_code": "999",
               "status_description": "Complete",
-              "whole": "2378",
-              "no_street": "582",
-              "cc": "563",
-              "has_end": "2378"
+              "whole": "2387",
+              "no_street": "584",
+              "cc": "564",
+              "has_end": "2387"
             }
           ],
-          "read": "2026-11-07T01:01:56.871Z",
+          "read": "2026-11-10T17:58:44.026Z",
           "trace_n": 9
         },
         {
@@ -2240,10 +2239,10 @@
           "result": [
             {
               "min_created_datetime": "2020-08-05T08:31:36.000",
-              "max_created_datetime": "2026-10-30T11:42:52.000"
+              "max_created_datetime": "2026-11-09T15:35:24.000"
             }
           ],
-          "read": "2026-11-07T01:01:57.425Z",
+          "read": "2026-11-10T17:58:44.237Z",
           "trace_n": 10
         },
         {
@@ -2254,7 +2253,7 @@
           "result": [
             {
               "y": "2020",
-              "whole": "205",
+              "whole": "206",
               "part": "21"
             },
             {
@@ -2264,7 +2263,7 @@
             },
             {
               "y": "2022",
-              "whole": "499",
+              "whole": "500",
               "part": "101"
             },
             {
@@ -2274,8 +2273,8 @@
             },
             {
               "y": "2024",
-              "whole": "343",
-              "part": "149"
+              "whole": "348",
+              "part": "151"
             },
             {
               "y": "2025",
@@ -2284,31 +2283,31 @@
             },
             {
               "y": "2026",
-              "whole": "246",
+              "whole": "248",
               "part": "21"
             }
           ],
-          "read": "2026-11-07T01:01:57.592Z",
+          "read": "2026-11-10T17:58:44.534Z",
           "trace_n": 11
         },
         {
           "type": "query",
           "dataset": "qzfe-wj25",
-          "soql": "SELECT count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS part, sum(case(street IS NULL AND ward IS NULL AND civic_league IS NULL,1,true,0)) AS no_loc WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND created_datetime >= '2025-11-06T00:00:00' LIMIT 100",
-          "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-06T00%3A00%3A00'%20LIMIT%20100",
+          "soql": "SELECT count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS part, sum(case(street IS NULL AND ward IS NULL AND civic_league IS NULL,1,true,0)) AS no_loc WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND created_datetime >= '2025-11-10T00:00:00' LIMIT 100",
+          "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-10T00%3A00%3A00'%20LIMIT%20100",
           "result": [
             {
-              "whole": "272",
+              "whole": "271",
               "part": "24",
               "no_loc": "22"
             }
           ],
-          "read": "2026-11-07T01:01:57.709Z",
+          "read": "2026-11-10T17:58:44.657Z",
           "trace_n": 12
         }
       ],
-      "statement": "I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street in the City's Work Orders records (qzfe-wj25), created 2020-08-05 through 2026-10-30, as I read them on 2026-11-06. Of the 272 with status “Complete” created since 2025-11-06, I found 24 with no street, and 22 of those 24 with no ward or civic league either, as I read them on 2026-11-06. Of the 353 with status “New Work Order” or “On-Going”, I found 85 with no street, as I read them on 2026-11-06.",
-      "short": "I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06.",
+      "statement": "I found 584 of 2,387 Forestry removal work orders with status “Complete” (24%) with no street in the City's Work Orders records (qzfe-wj25), created 2020-08-05 through 2026-11-09, as I read them on 2026-11-10. Of the 271 with status “Complete” created since 2025-11-10, I found 24 with no street, and 22 of those 24 with no ward or civic league either, as I read them on 2026-11-10. Of the 349 with status “New Work Order” or “On-Going”, I found 83 with no street, as I read them on 2026-11-10.",
+      "short": "I found 584 of 2,387 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-10.",
       "questions": [
         {
           "qid": "q1",
@@ -2321,7 +2320,7 @@
               "column": "street"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06, so a street search can't find them."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 584 of 2,387 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-10, so a street search can't find them."
         },
         {
           "qid": "q2",
@@ -2334,7 +2333,7 @@
               "column": "street"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06, so a street search can't find them."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 584 of 2,387 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-10, so a street search can't find them."
         },
         {
           "qid": "q3",
@@ -2347,7 +2346,7 @@
               "column": "street"
             }
           ],
-          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 582 of 2,378 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-06, so a street search can't find them."
+          "consequence": "With the City's Work Orders records (qzfe-wj25) I can answer this only in part: I found 584 of 2,387 Forestry removal work orders with status “Complete” (24%) with no street, measured 2026-11-10, so a street search can't find them."
         }
       ],
       "actions": [
@@ -2391,7 +2390,7 @@
         "over": "window"
       },
       "state": "open",
-      "measured": "2026-11-06",
+      "measured": "2026-11-10",
       "hand_off": [
         {
           "id": "qzfe-wj25",
@@ -2518,7 +2517,7 @@
           "text": "All tree-care contracts and invoices from FY2020 to now, with trees pruned, removed and stump-ground per invoice."
         },
         "leave_out": "Please leave out the names and addresses of residents who made requests.",
-        "frame": "Siren drafted this from public records on 2026-11-09. Siren doesn't send requests; you do."
+        "frame": "Siren drafted this from public records on 2026-11-10. Siren doesn't send requests; you do."
       }
     },
     {
@@ -2553,7 +2552,7 @@
           }
         ],
         "leave_out": "Please leave out the names and addresses of residents who made requests.",
-        "frame": "Siren drafted this from public records on 2026-11-09. Siren doesn't send requests; you do."
+        "frame": "Siren drafted this from public records on 2026-11-10. Siren doesn't send requests; you do."
       }
     },
     {
@@ -2665,18 +2664,8 @@
     }
   ],
   "meetings": {
-    "read": "2026-11-07T01:01:59.790Z",
+    "read": "2026-11-10T17:58:47.167Z",
     "listed": [
-      {
-        "when": "2026-11-09T16:00:00.000",
-        "body": "Architectural Review Board",
-        "type": "Regular Meeting"
-      },
-      {
-        "when": "2026-11-09T17:30:00.000",
-        "body": "E. Little Creek Advisory Committee",
-        "type": "Regular"
-      },
       {
         "when": "2026-11-10T00:00:00.000",
         "body": "Civil Service Commission",
@@ -2791,9 +2780,19 @@
         "when": "2026-11-19T13:00:00.000",
         "body": "Commission for Persons with Disabilities",
         "type": "Regular Meeting"
+      },
+      {
+        "when": "2026-11-19T14:30:00.000",
+        "body": "Planning Commission",
+        "type": "Public Hearing"
+      },
+      {
+        "when": "2026-11-19T15:00:00.000",
+        "body": "East Side Task Force",
+        "type": "Regular"
       }
     ],
     "calendar": "https://norfolkcityva.iqm2.com/Citizens/Calendar.aspx",
-    "note": "As listed on 2026-11-06; check the City's calendar."
+    "note": "As listed on 2026-11-10; check the City's calendar."
   }
 }
