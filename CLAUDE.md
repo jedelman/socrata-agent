@@ -9,7 +9,13 @@ generic mode.
 
 - **Voice contract.** The agent says "I found" / "I see", never "there is" /
   "there are" / "nobody" / "no one". `src/voice.js` enforces it; don't weaken
-  the check to make an answer pass.
+  the check to make an answer pass. A question the records can't settle (a
+  plan, an intention, what will happen) but that the tools found something
+  about is answered with what was found, led by exactly "I can't say that for
+  sure, but here's what I found:" and closed with an offer to summarize that
+  carries "AI can make mistakes" (Jason, 2026-11-10; `PARTIAL_LEAD`,
+  `SUMMARY_OFFER`, `SUMMARY_CAVEAT` in `src/prompt.js`, pinned by
+  `test/prompt-partial.test.js`).
 - **The trace is written by code.** Every outbound request goes through
   `Trace.record` (`src/trace.js`). Never let model output become the trace.
 - **Hand-off.** Every dataset touched is registered in `Resources` with page,
