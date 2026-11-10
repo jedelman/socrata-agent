@@ -76,11 +76,9 @@ export default {
     //   datasets the Norfolk profile excludes. They are the City's News Flash
     //   (/CivicAlerts.aspx, /m/newsflash/), the same path as all City news,
     //   told apart only by a query string, which a path can't filter. So
-    //   City news reaches Siren through the newsletters (/CivicSend) and
-    //   forms through the Form Center (/FormCenter), both listed below.
-    //   /DocumentCenter holds most PDF forms but also Planning staff reports,
-    //   which name each applicant beside the address (a business in the one
-    //   read, a homeowner for a short-term rental); off until Jason decides.
+    //   City news reaches Siren through the newsletters (/CivicSend), and
+    //   forms through the Form Center (/FormCenter) and the Document Center
+    //   (/DocumentCenter), all listed below.
     //   (The city's open data, budget books, zoning ordinance and meetings
     //   reach Siren through its own tools.)
     // - norfolkcityva.iqm2.com: hearing packets carry the names and
@@ -121,6 +119,16 @@ export default {
       // arrests, wanted and missing people, and owner lists: nothing.
       'www.norfolk.gov/FormCenter',
       'www.norfolk.gov/CivicSend',
+      // Most PDF forms (building, plumbing, event permits). It also holds
+      // Planning staff reports, which name each land-use applicant beside the
+      // address: a business in the one read, but a homeowner for a short-term
+      // rental permit. Norfolk's ordinance titles never carry those names.
+      // Jason accepted that on 2026-11-10 ("1. Yes"), for the forms; the
+      // prompt asks Siren not to repeat a private person's name from a page.
+      // Probed that day for arrests, wanted and missing people, and owner
+      // lists: nothing (letters to owners within 300 ft are mentioned, not
+      // listed).
+      'www.norfolk.gov/DocumentCenter',
     ],
     maxUses: 3,
   },

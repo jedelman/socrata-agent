@@ -450,7 +450,10 @@ test('the chat page: a strict CSP, no inline script, style or handler, and only 
     assert.deepEqual(dirs['img-src'], ["'self'", 'data:']);
     assert.ok(!/unsafe-inline|unsafe-eval|unsafe-hashes|\*/.test(csp), `${label}: ${csp}`);
     assert.equal(dirs['script-src'][0], "'self'");
-    for (const s of dirs['script-src'].slice(1)) assert.match(s, /^https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/[a-z]+\/[0-9.]+\/[a-z.]+\.js$/, 'exact files, not the whole CDN');
+    // Exact files, not the whole CDN; and Cloudflare's analytics beacon, the file and its versioned copies only.
+    const beacon = ['https://static.cloudflareinsights.com/beacon.min.js', 'https://static.cloudflareinsights.com/beacon.min.js/'];
+    for (const s of dirs['script-src'].slice(1)) assert.ok(beacon.includes(s) || /^https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/[a-z]+\/[0-9.]+\/[a-z.]+\.js$/.test(s), `${label}: ${s}`);
+    assert.ok(beacon.every((b) => dirs['script-src'].includes(b)), 'the analytics beacon runs (Jason, 2026-11-10)');
     if (fonts) {
       assert.deepEqual(dirs['style-src'], ["'self'", 'https://fonts.googleapis.com']);
       assert.deepEqual(dirs['font-src'], ['https://fonts.gstatic.com']);

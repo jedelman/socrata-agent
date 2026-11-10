@@ -270,8 +270,10 @@ other model call, and the answer is the whole turn's text, from before the
 pause and after it. Siren's list is in `deployments/siren.config.js`: the
 Code of Virginia, state and federal bill pages, the Census Bureau, USGS,
 FEMA's flood maps, NOAA's tides and sea-level sites, Virginia's
-conservation and forestry departments, VDOT's project pages, and two paths
-on the City's site: its Form Center and its newsletters. The rest of the
+conservation and forestry departments, VDOT's project pages, and three paths
+on the City's site: its Form Center, its newsletters and its Document Center
+(PDF forms, alongside Planning staff reports that name land-use applicants;
+Jason accepted that for the forms). The rest of the
 City's site and the meeting portal are left off: City news shares one path
 with police news, which names arrested and missing people, and hearing
 packets list nearby owners; the config records what each probe found on

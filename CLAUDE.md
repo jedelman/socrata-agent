@@ -41,8 +41,11 @@ generic mode.
   missing-person, clemency or debarment lists), by subdomain or path where
   a site mixes them: a probe on 2026-11-10 found such pages on www.norfolk.gov,
   the iqm2 portal, EPA, HUD, NOAA, FEMA, Town Hall and regulations.gov, so
-  they are off (reasons in the config, refusals in the test); of the City's
-  site only `/FormCenter` and `/CivicSend` (newsletters) are listed.
+  they are off (reasons in the config, refusals in the test). Of the City's
+  site only `/FormCenter`, `/CivicSend` (newsletters) and `/DocumentCenter`
+  are listed; the last holds Planning staff reports naming land-use
+  applicants, which Jason accepted for the PDF forms (2026-11-10), and the
+  prompt asks Siren not to repeat a private person's name from a page.
 - **Request budget.** Every fetch on an answer goes through its one counting
   fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
   45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.
@@ -190,7 +193,9 @@ generic mode.
   endpoints on the issuer's origin, and record writes only to the PDS named
   in the re-resolved DID document. The requests pages and the chat page carry
   a strict CSP with no inline script or style (the steward's `/admin` page
-  doesn't yet); every remote string is escaped. The subject URL is fixed
+  doesn't yet); their scripts come from this origin, the chat page's two
+  pinned CDN files, and Cloudflare's Web Analytics beacon (`CF_BEACON` in
+  `index.js`, Jason 2026-11-10); every remote string is escaped. The subject URL is fixed
   since the move: changing `PUBLIC_ORIGIN` or `BASE_PATH` once endorsements
   exist strands them. Never link
   a Bluesky identity to an invite, email account or conversation. `SIREN_DB`

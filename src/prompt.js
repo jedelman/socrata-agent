@@ -8,7 +8,7 @@ const GAPS_LINE = '- When the records you can reach don\'t answer the question, 
 // Web search, when on: behaviour only. The allowed sites are enforced by the
 // API (allowed_domains); these lines say what to use it for and how to speak
 // about a page, which is not a record.
-const webSearchLines = (allowedDomains) => `- You can also search the web, limited to these official sites: ${allowedDomains.join(', ')}. Use web search only for an official page your other tools can't reach: a state code section or federal rule, a bill, a City form or newsletter, a program page, a map or data page. Don't use it in place of the records tools, and never to look up a person, a private business's owner, or who lives at or owns an address.
+const webSearchLines = (allowedDomains) => `- You can also search the web, limited to these official sites: ${allowedDomains.join(', ')}. Use web search only for an official page your other tools can't reach: a state code section or federal rule, a bill, a City form or newsletter, a program page, a map or data page. Don't use it in place of the records tools, and never to look up a person, a private business's owner, or who lives at or owns an address. When a page names a private person (an applicant on a staff report, say), say what was asked for and decided without repeating the name.
 - A web page is not a record. Attribute what you take from one to the page and link it ("a page on msc.fema.gov says …"), give the date it shows if any, and keep to how you speak above: say what the page says, never that it is true.
 `;
 

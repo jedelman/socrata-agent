@@ -56,7 +56,7 @@ test('the page: a strict CSP, no inline script or style, and every asset it load
     const res = await get(w, env, '/requests');
     assert.equal(res.status, 200);
     const csp = res.headers.get('Content-Security-Policy');
-    assert.match(csp, /script-src 'self'/);
+    assert.match(csp, /script-src 'self' https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js\/;/, 'this origin and the analytics beacon, nothing else');
     assert.match(csp, /frame-ancestors 'none'/);
     assert.match(csp, /base-uri 'none'/);
     assert.match(csp, /form-action 'self'/);
