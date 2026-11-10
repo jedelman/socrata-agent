@@ -18,7 +18,7 @@ import norfolkGaps from '../data/gaps/norfolk.json';
 import { compileStreets } from '../src/public-text.js';
 import UI from './ui.html';
 import deployments from '../deployments/index.js';
-import { applyConfig, definePlugin } from '../src/plugins.js';
+import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
 import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
@@ -59,14 +59,15 @@ const STREETS = { norfolk: compileStreets(norfolkStreets.streets) };
 const GAPS = { norfolk: norfolkGaps };
 
 // DEPLOYMENT picks a config from deployments/index.js; unknown names fail
-// loudly rather than quietly serving the default.
+// loudly rather than quietly serving the default. A bad web search list
+// fails here too, before any question is asked.
 const prepared = new Map();
 function getDeployment(env) {
   const name = env.DEPLOYMENT || 'default';
   if (!prepared.has(name)) {
     const config = deployments[name];
     if (!config) throw new Error(`Unknown DEPLOYMENT "${name}". Known: ${Object.keys(deployments).join(', ')}`);
-    prepared.set(name, { config, plugins: (config.plugins || []).map(definePlugin) });
+    prepared.set(name, { config, plugins: (config.plugins || []).map(definePlugin), webSearch: webSearchConfig(config) });
   }
   return prepared.get(name);
 }
@@ -127,7 +128,7 @@ async function inviteAccess(req, env, kv) {
 }
 
 async function handleAsk(req, env, ctx) {
-  const { config: deployment, plugins } = getDeployment(env);
+  const { config: deployment, plugins, webSearch } = getDeployment(env);
   let body;
   try {
     body = await req.json();
@@ -223,6 +224,11 @@ async function handleAsk(req, env, ctx) {
     ...askLimits(env, providerOf(model)),
     referer: new URL(req.url).origin,
     ...(gapsOn ? { gaps: { data: GAPS[cityId], streets: STREETS[cityId], absenceLines: deployment.gaps.absenceLines === true } } : {}),
+    // Off unless the deployment sets webSearch (Claude models only).
+    // WEB_SEARCH = "off" turns it off without a deploy of new code: a request
+    // carrying the tool fails with a 400 if the Anthropic organization has
+    // web search disabled in the Console (web search tool docs, 2026-11-10).
+    ...(webSearch && String(env.WEB_SEARCH ?? '').trim().toLowerCase() !== 'off' ? { webSearch } : {}),
   });
   // The response body, and the conversation save (started, not awaited).
   const finish = (out) => {

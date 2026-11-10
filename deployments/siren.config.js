@@ -39,6 +39,36 @@ export default {
     badge: 'Pre-alpha · invite only',
     operator: 'Jason Edelman',
   },
+  // Web search (Claude models only): official public sites, enforced by the
+  // API as the tool's allowed_domains (src/web-search.js). Only Jason widens
+  // this list. Subdomains are included (API docs, read 2026-11-10), so:
+  // - www.norfolk.gov, not norfolk.gov: norfolk.gov would also cover
+  //   data.norfolk.gov, the open data portal, whose datasets go only through
+  //   the dataset policy (src/web-search.js checkWebSearchForCity refuses it),
+  //   and every other City subdomain (air.norfolk.gov among them).
+  // - virginia.gov covers the state agencies, and lis.virginia.gov and
+  //   law.lis.virginia.gov (legislation and the Code of Virginia).
+  // - norfolkcityva.iqm2.com is the City's meeting portal (src/cities/norfolk.js).
+  // NRHA is not listed: nrha.org redirects to the North American Hardware and
+  // Paint Association (yournhpa.org), not the Norfolk Redevelopment and
+  // Housing Authority, checked 2026-11-10. nrha.us calls itself the
+  // authority (555 E. Main St.); adding it is Jason's call.
+  webSearch: {
+    allowedDomains: [
+      'www.norfolk.gov',
+      'norfolkcityva.iqm2.com',
+      'virginia.gov',
+      'fema.gov',
+      'epa.gov',
+      'census.gov',
+      'hud.gov',
+      'noaa.gov',
+      'usgs.gov',
+      'regulations.gov',
+      'congress.gov',
+    ],
+    maxUses: 3,
+  },
   contacts: [],
   links: [
     { title: 'Siren is open source: github.com/jedelman/socrata-agent', url: 'https://github.com/jedelman/socrata-agent' },

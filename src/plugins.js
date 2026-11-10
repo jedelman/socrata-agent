@@ -19,6 +19,7 @@ import { ACCESS } from './socrata.js';
 import { deepFreeze } from './cities/index.js';
 import { gapStatementsFor } from './gaps/answer.js';
 import { networkFetch } from './request-budget.js';
+import { webSearchSettings, checkWebSearchForCity } from './web-search.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,48}$/;
 export const USER_AGENT = 'socrata-agent (+https://github.com/jedelman/socrata-agent)';
@@ -125,6 +126,19 @@ export function pluginContext(ctx) {
     cite: ({ tool, url, rows = null, note }) =>
       ctx.trace.record({ tool, url, ...(note ? { soql: note } : {}) }, async () => ({ result: null, rows })),
   });
+}
+
+/**
+ * A deployment's web search, checked: null (off) unless the config sets
+ * `webSearch: { allowedDomains: [...], maxUses }`. The list becomes the
+ * tool's allowed_domains, which the API enforces (src/web-search.js has the
+ * format rules and their sources); a bad list throws here, at startup and in
+ * tests. Only an allowlist exists: a config can't hand the model the open web.
+ * With `city`, the list also may not cover that city's open data portal.
+ */
+export function webSearchConfig(config = {}, city) {
+  const settings = webSearchSettings(config?.webSearch);
+  return city ? checkWebSearchForCity(settings, city) : settings;
 }
 
 function toPattern(p) {

@@ -12,19 +12,31 @@
 //     top-level cache_control
 //   - every call is streamed (the SDK's stream helper, read to its final
 //     message), so a caller can show the summarized thinking as it arrives
+//   - with a deployment's `webSearch` on, Anthropic's web search server tool
+//     is declared too (src/web-search.js): its server_tool_use and
+//     web_search_tool_result blocks stay in the history exactly as the API
+//     sent them, a paused turn (stop_reason "pause_turn") goes back as is
+//     for the agent to resume, and the code execution container it may use
+//     is sent back on later calls
 // Spend is priced from the response's usage, per attempt, from the table
-// below. A model with no price on file is refused rather than run at an
-// unknown cost, so the Worker's daily budget can't be bypassed.
+// below, plus each web search. A model with no price on file is refused
+// rather than run at an unknown cost, so the Worker's daily budget can't be
+// bypassed.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { networkFetch } from '../request-budget.js';
+import { WEB_SEARCH_USD, webSearchTool, searchesIn, searchesBilledIn, citationsIn } from '../web-search.js';
 
 // USD per million tokens, Anthropic list prices as of 2026-10-06 (Claude API
 // docs). cacheWrite is the 5-minute write rate. longOver: prompts with more
 // input tokens than this use the `long` card (Claude Haiku 5.5 only).
+// Claude Sonnet 5.5's cache hits are $0.10 / MTok, 0.05x its input price
+// (https://platform.claude.com/docs/en/about-claude/pricing, read
+// 2026-11-10); it was $0.20 here until then. Web searches are priced on top
+// (WEB_SEARCH_USD, src/web-search.js), whatever the model.
 export const PRICES = {
   'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125, longOver: 100_000, long: { input: 0.5, output: 2.5, cacheRead: 0.05, cacheWrite: 0.625 } },
-  'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5 },
+  'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
   'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
   // Possible server-side fallback targets for Sonnet 5.5 / Opus 5.5 refusals.
   // Cache rates unknown here, so priced at the full input rate (never under).
@@ -73,7 +85,7 @@ export function guardedFetch(apiKey, fetchImpl) {
   };
 }
 
-function priceOne(u, model) {
+function priceTokens(u, model) {
   const card = PRICES[model] || CEILING;
   const promptTokens = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0);
   const rates = card.longOver && promptTokens > card.longOver ? card.long : card;
@@ -86,13 +98,39 @@ function priceOne(u, model) {
   );
 }
 
-/** USD for one response. With fallbacks, `usage.iterations` lists every attempt. */
+/**
+ * Web searches billed in a response's usage (usage.server_tool_use
+ * .web_search_requests). With fallbacks, top-level usage covers only the
+ * attempt that answered and `usage.iterations` lists every attempt; whether
+ * each attempt carries its own server_tool_use isn't documented, so this
+ * takes the larger of the two counts, which never counts a search twice.
+ */
+export function billedSearches(usage) {
+  if (!usage) return 0;
+  const n = (u) => Math.max(0, Number(u?.server_tool_use?.web_search_requests) || 0);
+  const perAttempt = Array.isArray(usage.iterations) ? usage.iterations.reduce((sum, it) => sum + n(it), 0) : 0;
+  return Math.max(n(usage), perAttempt);
+}
+
+/** USD for one response: tokens, per attempt with fallbacks (`usage.iterations`), and web searches. */
 export function priceUsage(usage, model) {
   if (!usage) return 0;
-  if (Array.isArray(usage.iterations) && usage.iterations.length) {
-    return usage.iterations.reduce((sum, it) => sum + priceOne(it, it.model || model), 0);
-  }
-  return priceOne(usage, model);
+  const tokens = Array.isArray(usage.iterations) && usage.iterations.length
+    ? usage.iterations.reduce((sum, it) => sum + priceTokens(it, it.model || model), 0)
+    : priceTokens(usage, model);
+  const searches = billedSearches(usage);
+  return searches ? tokens + searches * WEB_SEARCH_USD : tokens;
+}
+
+/**
+ * Usage with at least as many web searches as the response's blocks show
+ * returned (each one billed), so a usage report that leaves some out can't
+ * price a search at nothing. Unchanged when the blocks show no more.
+ */
+export function withSearchFloor(usage, content) {
+  const seen = searchesBilledIn(content);
+  if (!usage || seen <= billedSearches(usage)) return usage;
+  return { ...usage, server_tool_use: { ...(usage.server_tool_use || {}), web_search_requests: seen } };
 }
 
 /** OpenAI-style function tools (from src/tools.js) as Messages API tools. */
@@ -104,20 +142,49 @@ export function toAnthropicTools(tools = []) {
   }));
 }
 
+const isServerToolResult = (b) => typeof b?.type === 'string' && b.type !== 'tool_result' && b.type.endsWith('_tool_result') && typeof b.tool_use_id === 'string';
+
+/**
+ * The server-tool calls in `blocks` that are complete: a server_tool_use
+ * with its result block (web_search_tool_result, code_execution_tool_result
+ * and the like, paired by tool_use_id). A call made from code (its `caller`
+ * names a code execution call) counts only while that call is complete too.
+ */
+function pairedServerTools(blocks) {
+  const uses = new Map(blocks.filter((b) => b.type === 'server_tool_use').map((b) => [b.id, b]));
+  const results = new Set(blocks.filter(isServerToolResult).map((b) => b.tool_use_id));
+  const paired = new Set([...uses.keys()].filter((id) => results.has(id)));
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const id of paired) {
+      const by = uses.get(id).caller?.tool_id;
+      if (by && !paired.has(by)) {
+        paired.delete(id);
+        changed = true;
+      }
+    }
+  }
+  return paired;
+}
+
 /**
  * With server-side fallbacks, a stream keeps what a declining model wrote
  * before the switch, then a `fallback` block, then the fallback model's turn
  * (a non-streaming response leaves that partial out). The API's rule for
- * echoing such a turn: before the last `fallback` block, send back only text
- * blocks (the fallback model continued from them) and the `fallback` blocks
- * where they are; thinking, tool_use and anything else from the declined
- * partial is omitted (shared/model-migration.md, "Echoing fallback turns
- * back"). A tool_use from before the switch is never run.
+ * echoing such a turn: before the last `fallback` block, send back text
+ * blocks (the fallback model continued from them), paired server-tool
+ * blocks (a server_tool_use with its result) and the `fallback` blocks where
+ * they are; thinking, tool_use, a server_tool_use without its result and
+ * anything else from the declined partial is omitted
+ * (shared/model-migration.md, "Echoing fallback turns back"; read again
+ * 2026-11-10). A tool_use from before the switch is never run.
  */
 export function afterFallback(content) {
   const cut = content.findLastIndex((b) => b.type === 'fallback');
   if (cut < 0) return content;
-  return content.filter((b, i) => i >= cut || b.type === 'text' || b.type === 'fallback');
+  const paired = pairedServerTools(content.slice(0, cut));
+  const keep = (b) => b.type === 'text' || b.type === 'fallback' || (b.type === 'server_tool_use' ? paired.has(b.id) : isServerToolResult(b) && paired.has(b.tool_use_id));
+  return content.filter((b, i) => i >= cut || keep(b));
 }
 
 /**
@@ -132,14 +199,22 @@ export function partialUsage(message) {
   for (const b of message.content || []) {
     if (b.type === 'text') chars += (b.text || '').length;
     else if (b.type === 'thinking') chars += (b.thinking || '').length;
-    else if (b.type === 'tool_use') chars += JSON.stringify(b.input ?? {}).length;
+    else if (b.type === 'tool_use' || b.type === 'server_tool_use') chars += JSON.stringify(b.input ?? {}).length;
   }
-  return { ...message.usage, output_tokens: Math.max(message.usage.output_tokens || 0, Math.ceil(chars / 3)) };
+  // Web searches that returned before the failure were billed too.
+  return withSearchFloor({ ...message.usage, output_tokens: Math.max(message.usage.output_tokens || 0, Math.ceil(chars / 3)) }, message.content);
 }
 
 /**
  * A provider for src/agent.js. Holds the conversation in Messages API shape.
- * `complete()` returns { text, calls: [{ id, name, args }], cost, refusal }.
+ * `complete()` returns { text, calls: [{ id, name, args }], cost, refusal,
+ * searches, citations }, with `paused: true` when the API paused the turn
+ * (pause_turn: append the assistant turn and call again, with no new user
+ * message). `searches` are the web searches the response's blocks show ran
+ * (src/web-search.js searchesIn; from every attempt complete() made, a
+ * cut-off one included); `citations` the web citations on the text kept.
+ * `webSearch` (checked settings from src/web-search.js) declares the web
+ * search tool; without it, requests are exactly as they were before it.
  * `onThinking(text)`, when given, gets each summarized-thinking delta as it
  * streams, and asks the API for display "summarized" (display changes what
  * comes back, not what is billed). It sees thinking only: never the answer,
@@ -149,7 +224,7 @@ export function partialUsage(message) {
  * forwarded: the declining model's notes are to be withdrawn.
  * `streamDeadlineMs` bounds each call (default STREAM_DEADLINE_MS).
  */
-export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking, onFallback, streamDeadlineMs = STREAM_DEADLINE_MS }) {
+export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking, onFallback, webSearch, streamDeadlineMs = STREAM_DEADLINE_MS }) {
   if (!PRICES[model]) throw new Error(`No price on file for ${model}. Add it to PRICES in src/providers/anthropic.js before using it.`);
   // The base URL is pinned: without it the SDK reads ANTHROPIC_BASE_URL from
   // the environment, and inside a Claude Code session (or behind someone
@@ -164,6 +239,11 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
   let tools = [];
   const messages = [];
   let last = null;
+  // Web search only: the code execution container a response named (dynamic
+  // filtering runs there), sent back so a resumed turn keeps it, and the
+  // searches whose result waits on a client tool (paired in a later response).
+  let container = null;
+  const pendingSearches = new Map();
 
   return {
     name: 'anthropic',
@@ -175,6 +255,7 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
     init({ systemPrompt, history, question, toolDefs }) {
       system = systemPrompt;
       tools = toAnthropicTools(toolDefs);
+      if (webSearch) tools.push(webSearchTool(webSearch));
       // The API rejects empty turns, so skip any (a client may send one back).
       for (const m of history) if (String(m.content ?? '').trim()) messages.push({ role: m.role, content: String(m.content) });
       messages.push({ role: 'user', content: question });
@@ -196,6 +277,8 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
           throw err;
         }
         retry.cost += out.cost;
+        // The cut-off attempt's searches ran (and were billed) too.
+        retry.searches = [...out.searches, ...retry.searches];
         out = retry;
       }
       return out;
@@ -233,6 +316,7 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
       // Adaptive is these models' default; asking for the summary is what
       // makes the thinking readable (its display is otherwise "omitted").
       ...(onThinking ? { thinking: { type: 'adaptive', display: 'summarized' } } : {}),
+      ...(container ? { container } : {}),
     };
     const stream = FALLBACK_MODELS.has(model)
       ? client.beta.messages.stream({ ...params, betas: [FALLBACK_BETA], fallbacks: 'default' })
@@ -281,23 +365,31 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
     } finally {
       clearTimeout(deadline);
     }
-    const cost = priceUsage(res.usage, model);
+    const cost = priceUsage(withSearchFloor(res.usage, res.content), model);
+    if (webSearch && typeof res.container?.id === 'string') container = res.container.id;
+    // Every search the blocks show ran on Anthropic's side, whatever happens
+    // to the content below; the agent traces them (withheld on a refusal).
+    const searches = searchesIn(res.content, pendingSearches);
     // A refusal can come mid-stream, after partial output: discard all of it.
     if (res.stop_reason === 'refusal') {
       last = null;
-      return { text: '', calls: [], cost, refusal: res.stop_details?.category ?? 'unspecified' };
+      return { text: '', calls: [], cost, refusal: res.stop_details?.category ?? 'unspecified', searches, citations: [] };
     }
     if (res.stop_reason === 'max_tokens') {
       last = null;
-      return { text: '', calls: [], cost, refusal: null, truncated: true };
+      return { text: '', calls: [], cost, refusal: null, truncated: true, searches, citations: [] };
     }
     const content = afterFallback(res.content);
     last = { role: 'assistant', content };
     const text = content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    // The API paused its server-side loop mid-turn: the turn goes back as is
+    // and is resumed by calling again, with no new user message (server
+    // tools docs, "The server-side loop and pause_turn", read 2026-11-10).
+    if (res.stop_reason === 'pause_turn') return { text, calls: [], cost, refusal: null, paused: true, searches, citations: citationsIn(content) };
     // Run tools only when the model stopped to call them.
     const calls = allowTools && res.stop_reason === 'tool_use'
       ? content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} }))
       : [];
-    return { text, calls, cost, refusal: null };
+    return { text, calls, cost, refusal: null, searches, citations: citationsIn(content) };
   }
 }

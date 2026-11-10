@@ -66,10 +66,16 @@ export class Resources {
         out.push(`- ${d.name || d.id} (\`${d.id}\`)${d.department ? `, from ${d.department}` : ''}: ${parts.join(' · ')}`);
       }
     }
-    const recs = [...this.records.values()];
+    // Web pages found by web search are kept apart: a page is not a record.
+    const recs = [...this.records.values()].filter((r) => r.kind !== 'web');
     if (recs.length) {
       out.push('**Public records**');
       for (const r of recs) out.push(`- [${r.title}](${r.url})`);
+    }
+    const pages = [...this.records.values()].filter((r) => r.kind === 'web');
+    if (pages.length) {
+      out.push('**Web pages** (found by web search; pages, not records)');
+      for (const r of pages) out.push(`- [${r.title}](${r.url})${r.page_age ? `, ${r.page_age}` : ''}`);
     }
     const cs = this.sortedContacts();
     if (cs.length) {
