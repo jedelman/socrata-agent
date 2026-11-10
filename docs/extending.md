@@ -25,7 +25,7 @@ export default {
   excluded: [],                               // more datasets to keep out (optional)
   // Claude models only, optional: web search limited to these sites
   // (enforced by Anthropic's API; see the README's Web search section).
-  webSearch: { allowedDomains: ['www.norfolk.gov', 'fema.gov'], maxUses: 3 },
+  webSearch: { allowedDomains: ['msc.fema.gov', 'law.lis.virginia.gov'], maxUses: 3 },
 };
 ```
 

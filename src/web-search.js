@@ -87,8 +87,10 @@ export function covers(a, b) {
   const hostCovered = y.host === x.host || y.host.endsWith(`.${x.host}`);
   if (!hostCovered) return false;
   if (!x.path || x.path === '/' || x.path === '/*') return true;
-  // A path entry on a different host than its own never covers it.
-  if (y.host !== x.host) return false;
+  // A path entry covers that path on its subdomains too, as the API applies
+  // it: congress.gov/bill returned www.congress.gov/bill/… pages, and
+  // vdot.virginia.gov/projects www.vdot.virginia.gov/projects/… (probed
+  // 2026-11-10).
   return y.path.startsWith(x.path.replace(/\*.*$/, ''));
 }
 

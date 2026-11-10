@@ -111,13 +111,15 @@ test("every deployment's webSearch block validates against its city; Siren's is 
   }
   const s = webSearchConfig(siren, applyConfig(norfolk, siren));
   assert.equal(s.maxUses, 3);
-  // Official public sites: .gov hosts, and the City's own meeting portal.
-  assert.ok(s.allowedDomains.every((d) => /\.gov$/.test(d) || d === 'norfolkcityva.iqm2.com'), s.allowedDomains.join(' '));
-  assert.ok(s.allowedDomains.includes(new URL(norfolk.meetings.iqm2).hostname), 'the meeting portal named in the city profile');
+  // Official public sites: .gov hosts, some by path.
+  assert.ok(s.allowedDomains.every((d) => /^[^/]+\.gov(\/|$)/.test(d)), s.allowedDomains.join(' '));
   assert.ok(!s.allowedDomains.some((d) => d.includes('nrha.org')), 'nrha.org is not the housing authority');
-  for (const url of ['https://www.norfolk.gov/1234/Program', 'https://law.lis.virginia.gov/vacode/title15.2/', 'https://lis.virginia.gov/bill-details', 'https://msc.fema.gov/portal', 'https://tidesandcurrents.noaa.gov/x', 'https://www.congress.gov/bill/1', 'https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=1']) {
-    assert.ok(urlAllowed(url, s.allowedDomains), url);
-  }
+  const allowed = [
+    'https://law.lis.virginia.gov/vacode/title15.2/', 'https://lis.virginia.gov/bill-details/20261/HB549/text/CHAP0626',
+    'https://msc.fema.gov/portal', 'https://tidesandcurrents.noaa.gov/x', 'https://www.congress.gov/bill/119th-congress/house-bill/8474',
+    'https://www.vdot.virginia.gov/projects/hampton-roads-district/', 'https://www.dcr.virginia.gov/dam-safety-and-floodplains/', 'https://data.census.gov/table',
+  ];
+  for (const url of allowed) assert.ok(urlAllowed(url, s.allowedDomains), url);
   for (const url of ['https://data.norfolk.gov/resource/cab7-wvn5.json', 'https://air.norfolk.gov/', 'https://evilnorfolk.gov/', 'https://www.norfolk.gov.evil.example/', 'https://example.iqm2.com/', 'https://www.nrha.org/', 'javascript:alert(1)', 'not a url']) {
     assert.ok(!urlAllowed(url, s.allowedDomains), url);
   }
@@ -465,10 +467,24 @@ test('the Worker sends Siren\'s allowlist on every model call, and WEB_SEARCH = 
   }
 });
 
-test("Siren's list names Virginia agencies, never all of virginia.gov or the State Police", async () => {
+test("Siren's list reaches no page found naming private people (probed 2026-11-10)", async () => {
   const { default: siren } = await import('../deployments/siren.config.js');
   const list = siren.webSearch.allowedDomains;
-  assert.ok(!list.includes('virginia.gov'), 'virginia.gov would cover vsp.virginia.gov (Wanted and Missing Persons)');
-  assert.ok(!list.some((d) => d === 'vsp.virginia.gov' || d.endsWith('.vsp.virginia.gov')));
-  assert.ok(list.includes('lis.virginia.gov'));
+  // Each URL is a kind of page a probe found on a site once listed: police
+  // news naming arrested and missing people, hearing packets listing nearby
+  // owners, wanted and missing persons, clemency lists, public comments,
+  // fugitives, debarment lists, permit holders, fraud sentencings, hearing
+  // exhibits. None may be reachable through the list.
+  const refused = [
+    'https://www.norfolk.gov/CivicAlerts.aspx?AID=1', 'https://www.norfolk.gov/m/newsflash/Home/Detail/1',
+    'https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=1&ID=1',
+    'https://vsp.virginia.gov/sex-offender-registry/', 'https://rga.lis.virginia.gov/Published/2024/SD2/PDF',
+    'https://townhall.virginia.gov/L/viewcomments.cfm?commentid=1', 'https://downloads.regulations.gov/x/attachment_1.pdf',
+    'https://www.epa.gov/enforcement/epa-fugitives', 'https://www.hud.gov/hud-partners/limited-denial',
+    'https://apps-garfo.fisheries.noaa.gov/permits/data/permits_2025.csv', 'https://www.fema.gov/press-release/1',
+    'https://www.congress.gov/119/meeting/house/1/documents/x.pdf', 'https://www.vdot.virginia.gov/media/vdotvirginiagov/projects/x.pdf',
+    'https://www.dhcd.virginia.gov/certification', 'https://www.deq.virginia.gov/permits-regulations/enforcement',
+  ];
+  for (const url of refused) assert.ok(!urlAllowed(url, list), url);
+  assert.ok(!list.includes('virginia.gov') && !list.includes('lis.virginia.gov'));
 });

@@ -35,8 +35,13 @@ generic mode.
   `deployments/siren.config.js`). No list may cover the city's open data
   portal, whose data goes only through the dataset policy, and none has a
   blocklist form. The prompt's "never to look up a person, a business's
-  owner or an address's residents" is behaviour, not enforcement: keep the
-  list to official sites.
+  owner or an address's residents" is behaviour, not enforcement; the list
+  is the enforcement. Keep it to sites with no pages naming private people
+  (police news, hearing packets with owners' names, public comments, wanted,
+  missing-person, clemency or debarment lists), by subdomain or path where
+  a site mixes them: a probe on 2026-11-10 found such pages on www.norfolk.gov,
+  the iqm2 portal, EPA, HUD, NOAA, FEMA, Town Hall and regulations.gov, so
+  they are off (reasons in the config, refusals in the test).
 - **Request budget.** Every fetch on an answer goes through its one counting
   fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
   45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.

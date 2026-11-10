@@ -195,7 +195,7 @@ For Claude models, a deployment can let the agent search the web, but only
 the sites it lists. It is off unless the config sets it:
 
 ```js
-webSearch: { allowedDomains: ['www.norfolk.gov', 'lis.virginia.gov', 'fema.gov'], maxUses: 3 },
+webSearch: { allowedDomains: ['law.lis.virginia.gov', 'msc.fema.gov', 'congress.gov/bill'], maxUses: 3 },
 ```
 
 The list goes to Anthropic's web search tool as its `allowed_domains`, and
@@ -204,11 +204,16 @@ ASCII, optionally with a path; subdomains are included, so `lis.virginia.gov`
 covers `law.lis.virginia.gov`, and a subdomain entry covers only itself.
 Because subdomains are included, list agencies, not whole government
 domains: `virginia.gov` would also cover the State Police's Wanted and
-Missing Persons pages (`vsp.virginia.gov`), so Siren lists named agencies. The
+Missing Persons pages (`vsp.virginia.gov`). And because the API takes an
+allowlist or a blocklist, never both, a site with one section that names
+private people (police news, hearing packets with owners' names, public
+comments, wanted or debarment lists) is listed by subdomain or path, or not
+at all: web search must not become the people-finding the dataset policy
+refuses. Probe a site before listing it. The
 config is checked at startup: wildcards in the domain, IP addresses, bare
 TLDs, duplicates and entries another entry already covers are refused, and
 so is any list that covers the city's open data portal (`norfolk.gov` covers
-`data.norfolk.gov`; list `www.norfolk.gov` instead), because portal data goes
+`data.norfolk.gov`; list the subdomains you want instead), because portal data goes
 only through the dataset policy. `maxUses` (1 to 10) caps searches per step.
 The prompt tells the model to use search only for official pages its other
 tools can't reach, never to look up a person, a business's owner or an
@@ -223,8 +228,12 @@ pricing page, 2026-11-10), and it counts toward `DAILY_BUDGET_USD`. When the
 API pauses a long search turn (`pause_turn`), the agent sends the turn back
 and continues; each continuation is a step and an outbound request like any
 other model call. Siren's list is in `deployments/siren.config.js`: the
-City's site and meeting portal, Virginia's state sites, and FEMA, EPA, the
-Census Bureau, HUD, NOAA, USGS, regulations.gov and congress.gov.
+Code of Virginia, state and federal bill pages, the Census Bureau, USGS,
+FEMA's flood maps, NOAA's tides and sea-level sites, Virginia's
+conservation and forestry departments, and VDOT's project pages. The City's
+site and meeting portal are left off: police news there names arrested and
+missing people, and hearing packets list nearby owners; the config records
+what each probe found on every site left off.
 Web search must be enabled for the Anthropic organization (Console,
 capabilities), and if the organization restricts domains there, the
 deployment's list must sit inside that list; otherwise the API refuses the
