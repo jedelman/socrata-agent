@@ -63,7 +63,7 @@
     <span id="conv-state">New conversation</span>
     <button type="button" id="conv-new">Start a new conversation</button>
     <button type="button" id="conv-forget" hidden>Forget this conversation</button>
-    <details id="conv-recent" hidden><summary>Your recent conversations</summary><ul id="conv-list"></ul></details>
+    <details id="conv-recent" hidden><summary>Your conversations</summary><ul id="conv-list"></ul><button type="button" id="conv-forget-all" class="textbtn">Forget all my conversations</button></details>
   </div>
   <main id="log" aria-live="polite"></main>
   <template id="notes-tpl">
@@ -78,7 +78,7 @@
     <p class="footer-note">{{FOOTER_NOTE}}</p>
     {{DATA_NOTE}}
     <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
-    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept for 7 days, with the queries behind each answer, so you can ask follow-ups and pick them up on another device. Only your account can open them, you can forget one at any time, and nothing from them goes into {{APP_NAME}}'s shared findings. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" class="textbtn">Sign out</button></p>
+    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept until you delete them, with the queries behind each answer, so you can ask follow-ups and pick them up on another device. They're private: only your account can open them, nobody can look them up, and nothing from them goes into {{APP_NAME}}'s shared findings. Forget one, or all of them, at any time. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" class="textbtn">Sign out</button></p>
     <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
     <p>Sources people have asked {{APP_NAME}} to learn: <a href="requests">the source request list</a>. Anyone can help fulfill one.</p>
     <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>

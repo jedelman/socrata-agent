@@ -3,27 +3,30 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newCode, inviteKey, signSession } from '../worker/invites.js';
 import { userId, signUser, verifyUser, verifyUserInfo, userCookie, clearUserCookie, userCookieName, currentUser, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured } from '../worker/accounts.js';
-import { saveTurn, loadConversation, historyFrom, listConversations, deleteConversation, newConversationId, MAX_TURNS, answerRecord, turnView } from '../worker/conversations.js';
+import { saveTurn, loadConversation, historyFrom, listConversations, deleteConversation, deleteAllConversations, newConversationId, MAX_TURNS, CONTEXT_TURNS, ttl, answerRecord, turnView } from '../worker/conversations.js';
 import { ask } from '../src/agent.js';
 import { getCity } from '../src/cities/index.js';
 
 function fakeKV() {
   const store = new Map();
+  const gets = [];
   return {
     store,
+    gets,
     async get(key, type) {
+      gets.push(key);
       if (!store.has(key)) return null;
       const v = store.get(key).value;
       return type === 'json' ? JSON.parse(v) : v;
     },
     async put(key, value, opts = {}) {
-      store.set(key, { value: String(value), ttl: opts.expirationTtl, expiration: opts.expiration });
+      store.set(key, { value: String(value), ttl: opts.expirationTtl, expiration: opts.expiration, metadata: opts.metadata });
     },
     async delete(key) {
       store.delete(key);
     },
     async list({ prefix }) {
-      return { keys: [...store.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })), list_complete: true };
+      return { keys: [...store.entries()].filter(([k]) => k.startsWith(prefix)).map(([name, v]) => ({ name, ...(v.metadata ? { metadata: v.metadata } : {}) })), list_complete: true };
     },
   };
 }
@@ -123,24 +126,64 @@ test('an invite bound to an account works until the invite is revoked', async ()
   assert.equal(await memberInvite(kv, uid), null);
 });
 
-test('conversations belong to one account, keep trimmed tool results, and expire', async () => {
+test('conversations belong to one account, keep trimmed tool results, and are kept until deleted', async () => {
   const kv = fakeKV();
   const a = await userId(SECRET, 'a@b.org');
   const b = await userId(SECRET, 'b@b.org');
   const id = newConversationId();
   const big = 'x'.repeat(10000);
-  let conv = await saveTurn(kv, a, id, null, { city: 'norfolk', question: 'Trees at 1500 Bolling Ave?', answer: 'I found 67 city trees.', tools: [{ name: 'trees_on_my_block', args: { address: '1500 Bolling Ave' }, content: big }] }, { days: 7 });
-  assert.equal([...kv.store.values()][0].ttl, 7 * 86400);
+  let conv = await saveTurn(kv, a, id, null, { city: 'norfolk', question: 'Trees at 1500 Bolling Ave?', answer: 'I found 67 city trees.', tools: [{ name: 'trees_on_my_block', args: { address: '1500 Bolling Ave' }, content: big }] });
+  assert.equal([...kv.store.values()][0].ttl, undefined, 'no expiry: kept until the account deletes it (Jason, 2026-11-10)');
+  assert.deepEqual([...kv.store.values()][0].metadata, { title: 'Trees at 1500 Bolling Ave?', turns: 1, updated: conv.turns[0].at, city: 'norfolk' });
   assert.ok(conv.turns[0].tools[0].result.length < 6100 && /trimmed/.test(conv.turns[0].tools[0].result));
   assert.equal(await loadConversation(kv, b, id), null, 'another account cannot open it');
   assert.equal(await loadConversation(kv, a, 'not-a-uuid'), null);
   conv = await loadConversation(kv, a, id);
-  for (let i = 0; i < MAX_TURNS + 2; i++) conv = await saveTurn(kv, a, id, conv, { city: 'norfolk', question: `q${i}`, answer: `a${i}` });
+  for (let i = 0; i < MAX_TURNS + 2; i++) conv = await saveTurn(kv, a, id, conv, { city: 'norfolk', question: `q${i}`, answer: `a${i}`, tools: [{ name: 't', args: {}, content: `r${i}` }] });
   assert.equal(conv.turns.length, MAX_TURNS);
+  assert.equal(conv.turns.filter((t) => t.tools.length).length, CONTEXT_TURNS, 'tool results kept only for the turns fed back');
+  const { history } = historyFrom(conv);
+  assert.equal(history.length, CONTEXT_TURNS * 2, 'the model gets the last CONTEXT_TURNS turns');
+  assert.equal(history.at(-2).content, conv.turns.at(-1).question);
+  kv.gets.length = 0;
   assert.equal((await listConversations(kv, a))[0].turns, MAX_TURNS);
+  assert.deepEqual(kv.gets, [], 'the list reads metadata, never the conversations');
   assert.deepEqual(await listConversations(kv, b), []);
   assert.ok(await deleteConversation(kv, a, id));
   assert.equal(await loadConversation(kv, a, id), null);
+});
+
+test('CONVERSATION_DAYS, when a deployment sets it, expires conversations; unset keeps them', async () => {
+  assert.equal(ttl(undefined), null);
+  assert.equal(ttl(''), null);
+  assert.equal(ttl('keep'), null);
+  assert.equal(ttl('7'), 7 * 86400);
+  assert.equal(ttl('0'), 86400, 'at least a day');
+  assert.equal(ttl('9999'), 365 * 86400, 'at most a year');
+  const kv = fakeKV();
+  const a = await userId(SECRET, 'a@b.org');
+  await saveTurn(kv, a, newConversationId(), null, { city: 'norfolk', question: 'q', answer: 'a' }, { days: '7' });
+  assert.equal([...kv.store.values()][0].ttl, 7 * 86400);
+});
+
+test('an account can forget all its conversations, and only its own', async () => {
+  const kv = fakeKV();
+  const a = await userId(SECRET, 'a@b.org');
+  const b = await userId(SECRET, 'b@b.org');
+  for (let i = 0; i < 3; i++) await saveTurn(kv, a, newConversationId(), null, { city: 'norfolk', question: `a${i}`, answer: 'x' });
+  await saveTurn(kv, b, newConversationId(), null, { city: 'norfolk', question: 'b0', answer: 'x' });
+  assert.equal(await deleteAllConversations(kv, a), 3);
+  assert.deepEqual(await listConversations(kv, a), []);
+  assert.equal((await listConversations(kv, b)).length, 1, "another account's conversations stay");
+  assert.equal(await deleteAllConversations(kv, ''), 0);
+});
+
+test('a conversation saved before metadata existed still lists, by opening it once', async () => {
+  const kv = fakeKV();
+  const a = await userId(SECRET, 'a@b.org');
+  const id = newConversationId();
+  kv.store.set(`conv:${a}:${id}`, { value: JSON.stringify({ city: 'norfolk', turns: [{ at: '2026-11-01T00:00:00.000Z', question: 'Old one?', answer: 'x', tools: [] }] }) });
+  assert.deepEqual(await listConversations(kv, a), [{ id, title: 'Old one?', turns: 1, updated: '2026-11-01T00:00:00.000Z', city: 'norfolk' }]);
 });
 
 test('a turn keeps what was shown under its answer, bounded, and reopens with it', async () => {

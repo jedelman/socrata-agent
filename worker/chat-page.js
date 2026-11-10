@@ -206,6 +206,12 @@ $('#conv-forget').addEventListener('click', async () => {
   newConversation();
   loadRecent();
 });
+$('#conv-forget-all').addEventListener('click', async () => {
+  if (!window.confirm('Forget all your conversations? This deletes them for good.')) return;
+  await postJson('api/conversations/delete-all', { confirm: 'delete all' }).catch(() => {});
+  newConversation();
+  loadRecent();
+});
 $('#conv-list').addEventListener('click', async (e) => {
   const id = e.target.closest('button')?.dataset.id;
   if (!id) return;

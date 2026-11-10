@@ -307,6 +307,7 @@ Limits, set in `wrangler.toml`:
 | `SUBREQUEST_BUDGET` | 120 | Outbound requests per answer (10–10000), counting every Socrata, meeting-portal and plugin request and every model call and retry. The answer stays within it: tool requests stop while enough is left for the final answer; the answer then says it stopped at the limit, and the trace marks the requests not sent as refused |
 | `CITIES` | `norfolk,seattle,chicago` | Cities offered in the picker |
 | `WORKING_NOTES` | on | The live working notes on the chat page (see below). `"off"` sends the plain answer only |
+| `CONVERSATION_DAYS` | unset: kept until deleted | Signed-in accounts' private conversations are kept until the account deletes one or all of them. A number of days (1 to 365) expires them instead |
 | `WEB_SEARCH` | on where the deployment sets `webSearch` | `"off"` drops web search from every answer (see [Web search](#web-search)); the Anthropic organization must allow web search in the Console, or requests carrying the tool fail |
 
 Claude spend is priced from each response's token usage. The SDK retries a

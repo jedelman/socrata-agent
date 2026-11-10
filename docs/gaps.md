@@ -556,7 +556,7 @@ Civic-league names are not on the allowlist, so a league name gets flagged.
 
 ### 7.3 Card notice (draft for J24; voice-checked)
 
-> "Questions are public once a steward reviews them, on Siren's board. Write it as a question about the records for the whole city. Leave out streets, house numbers, your address and anyone's name. Siren keeps the question and a count, not who asked. If you asked in a conversation, that conversation still holds what you typed for 7 days unless you forget it."
+> "Questions are public once a steward reviews them, on Siren's board. Write it as a question about the records for the whole city. Leave out streets, house numbers, your address and anyone's name. Siren keeps the question and a count, not who asked. If you asked in a conversation, that conversation still holds what you typed until you forget it."
 
 GitHub and Bluesky aren't named, because neither carries residents' words by default (J18, J19). If Jason allows either, the notice names it.
 

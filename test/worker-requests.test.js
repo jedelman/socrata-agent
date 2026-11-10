@@ -269,3 +269,25 @@ test('flag off: an unreadable request list is a JSON 503 with no count of anythi
     else delete globalThis.caches;
   }
 });
+
+test('forgetting all conversations needs the account and an explicit confirmation', { skip: !canHook && 'node:module has no registerHooks' }, async () => {
+  const w = await loadWorker();
+  const e = { ...env(), INVITE_REQUIRED: 'true' };
+  const kv = e.LIMITS;
+  const uid = await userId(SECRET, 'member@example.org');
+  await kv.put('invite:h1', JSON.stringify({ label: 'test' }));
+  await kv.put(`member:${uid}`, JSON.stringify({ invite: 'h1', since: '2026-11-10T00:00:00.000Z' }));
+  await kv.put(`conv:${uid}:11111111-1111-1111-1111-111111111111`, JSON.stringify({ city: 'norfolk', turns: [{ at: '2026-11-10T00:00:00.000Z', question: 'q', answer: 'a', tools: [] }] }));
+  await kv.put('conv:someone-else:22222222-2222-2222-2222-222222222222', '{}');
+  const ctx = { waitUntil() {} };
+  const anon = await w.fetch(post('/api/conversations/delete-all', { confirm: 'delete all' }), e, ctx);
+  assert.equal(anon.status, 401, 'signed out: refused');
+  const cookie = await cookieFor('member@example.org');
+  const bare = await w.fetch(post('/api/conversations/delete-all', {}, cookie), e, ctx);
+  assert.equal(bare.status, 400, 'no confirmation: refused');
+  assert.equal(kv.store.size, 4, 'nothing deleted');
+  const ok = await w.fetch(post('/api/conversations/delete-all', { confirm: 'delete all' }, cookie), e, ctx);
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), { ok: true, deleted: 1 });
+  assert.ok(kv.store.has('conv:someone-else:22222222-2222-2222-2222-222222222222'), "another account's conversation stays");
+});
