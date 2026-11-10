@@ -19,7 +19,7 @@ import { Resources } from '../src/resources.js';
 import siren from '../deployments/siren.config.js';
 import deployments from '../deployments/index.js';
 import { claudeResponse } from './fake-claude.js';
-import { webSearchOffScenario } from './fixtures/web-search-off-scenario.js';
+import { webSearchOffScenario, ADDED_SINCE_SNAPSHOT } from './fixtures/web-search-off-scenario.js';
 
 const KEY = 'sk-ant-test-secret-key-do-not-leak';
 const norfolk = getCity('norfolk');
@@ -155,6 +155,13 @@ test('with web search off, every request and the answer are byte-identical to ma
   assert.deepEqual(await webSearchOffScenario(deps), snapshot);
   assert.deepEqual(await webSearchOffScenario({ ...deps, extra: { webSearch: null } }), snapshot);
   assert.deepEqual(await webSearchOffScenario({ ...deps, extra: { webSearch: undefined } }), snapshot);
+});
+
+test('the snapshot scenario leaves out only tools that joined Siren after it, with their prompt lines', () => {
+  for (const name of ADDED_SINCE_SNAPSHOT) {
+    assert.ok(siren.plugins.some((p) => p.name === name), `${name} is a Siren plugin`);
+    assert.equal(siren.prompt.split('\n').filter((l) => l.includes(name)).length, 1, `${name} has one prompt line`);
+  }
 });
 
 test('with web search on, the request declares the tool with the allowlist, and the prompt says how to use it', async () => {

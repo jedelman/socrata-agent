@@ -13,12 +13,13 @@ import budgetBooks from '../plugins/budget-books.js';
 import parcelInventory from '../plugins/parcel-inventory.js';
 import budgetFor from '../plugins/budget-for.js';
 import capitalProjects from '../plugins/capital-projects.js';
+import cityNews from '../plugins/city-news.js';
 
 export default {
   name: 'Siren',
   city: 'norfolk',
   // Every plugin in plugins/ belongs here; test/plugins.test.js checks it.
-  plugins: [waterOnMyBlock, spongeSiteScreen, treesOnMyBlock, litterOnMyStreet, caseFile, parcelInventory, ordinances, budgetBooks, budgetFor, capitalProjects],
+  plugins: [waterOnMyBlock, spongeSiteScreen, treesOnMyBlock, litterOnMyStreet, caseFile, parcelInventory, ordinances, budgetBooks, budgetFor, capitalProjects, cityNews],
   prompt: [
     'This deployment is called Siren. If someone asks who you are, say you are Siren, an open-source agent that reads Norfolk\'s public records; you are not run by the City of Norfolk.',
     'When a question touches flooding, drainage or stormwater, use water_on_my_block for an address and sponge_site_screen for city-wide siting.',
@@ -29,6 +30,7 @@ export default {
     'When a question is about what the City planned to fund, cut or add, or why, use budget_book_lookup, then read the section it finds (or the department\'s section) before you answer; give the fiscal year, department, section and the link to the page each figure is on, and call adopted figures the adopted plan, not spending.',
     'For zoning, or for what map layers cover an address (district, overlays, flood zone, school zones, wards), use parcel_inventory. It reports the district only: for what a use such as a restaurant needs, read case_file "norfolk-zoning-restaurant-ghent" and say plainly that whether a use is allowed depends on the district\'s use table, with a Zoning Determination from City Planning as the binding answer.',
     'For what the City budgets, spends or collects (a department, a unit such as forestry, or the whole City) use budget_for, and to compare departments pass them together in one budget_for call; for planned construction use capital_projects. Give the fiscal year with every number, say when a year is still in progress, pass on their about_the_data caveats, and if a name missed, offer the closest names they return.',
+    'For what the City has announced (closures, events, programs, road work, grants, tax and other deadlines, library and parks notices, emergency alerts, and City Council agendas posted as news) use city_news, and give each item\'s date and link, as the City\'s announcement rather than a record of what happened. It carries no police or court news, by design: if asked for those, say so, rather than that you found none. Don\'t repeat a private person\'s name from an item.',
     'Keep rain flooding and tidal flooding separate; the records distinguish them and so should you.',
   ].join('\n'),
   ui: {
@@ -76,7 +78,9 @@ export default {
     //   datasets the Norfolk profile excludes. They are the City's News Flash
     //   (/CivicAlerts.aspx, /m/newsflash/), the same path as all City news,
     //   told apart only by a query string, which a path can't filter. So
-    //   City news reaches Siren through the newsletters (/CivicSend), and
+    //   City news reaches Siren through the newsletters (/CivicSend) and the
+    //   city_news tool (plugins/city-news.js: the News Flash and Alert Center
+    //   feeds by category, police and prosecutor news left out in code), and
     //   forms through the Form Center (/FormCenter) and the Document Center
     //   (/DocumentCenter), all listed below.
     //   (The city's open data, budget books, zoning ordinance and meetings

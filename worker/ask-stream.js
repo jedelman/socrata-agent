@@ -56,6 +56,7 @@ export const TOOL_LABELS = Object.freeze({
   budget_book_lookup: 'Looking in the adopted budget books',
   budget_for: 'Reading the budget datasets',
   capital_projects: 'Reading planned capital projects',
+  city_news: "Reading the City's announcements",
 });
 export const REWRITE_LABEL = 'Rewording the answer to say only what the records show';
 

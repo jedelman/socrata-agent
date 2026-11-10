@@ -56,7 +56,9 @@ export function tracedHttp(trace, fetchImpl) {
       const init = { headers: { 'User-Agent': USER_AGENT, ...(info?.headers || {}) } };
       let res = await doFetch(url, init);
       // One retry on a server error: FEMA's map service times out now and then.
-      if (res.status >= 500) {
+      // `retry: false` turns it off, for a plugin that retries on its own (each
+      // try its own traced step, as plugins/city-news.js does).
+      if (res.status >= 500 && info?.retry !== false) {
         await new Promise((r) => setTimeout(r, info?.retryDelayMs ?? 1000));
         res = await doFetch(url, init);
       }
