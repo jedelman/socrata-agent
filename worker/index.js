@@ -55,7 +55,7 @@ import CRYPTO_JS from './crypto.js' with { type: 'text' };
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
-import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
+import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, deleteAllConversations, newConversationId, turnView } from './conversations.js';
 import { toolsFor } from '../src/tools.js';
 import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
 
@@ -446,13 +446,19 @@ async function handleConversations(req, env, path) {
   if (req.method === 'GET' && path === '/api/conversations') return json({ conversations: await listConversations(kv, uid) }, 200, headers);
   if (req.method === 'GET' && path === '/api/conversation') {
     const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
-    if (!conv) return json({ error: 'That conversation is gone (they expire) or was never yours.' }, 404, headers);
+    if (!conv) return json({ error: 'That conversation is gone (it was deleted) or was never yours.' }, 404, headers);
     return json({ city: conv.city, turns: conv.turns.map(turnView) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/conversations/delete') {
     const body = await readJson(req);
     await deleteConversation(kv, uid, body?.id);
     return json({ ok: true }, 200, headers);
+  }
+  if (req.method === 'POST' && path === '/api/conversations/delete-all') {
+    const body = await readJson(req);
+    // An explicit confirmation in the body, so a stray request can't empty an account.
+    if (body?.confirm !== 'delete all') return json({ error: 'Send { "confirm": "delete all" } to delete every conversation.' }, 400, headers);
+    return json({ ok: true, deleted: await deleteAllConversations(kv, uid) }, 200, headers);
   }
   return json({ error: 'Not found' }, 404);
 }
@@ -741,7 +747,7 @@ export default {
     if (req.method === 'POST' && path === '/api/bsky/resolve') return handleResolve(req, env);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
-    if (req.method === 'POST' && path === '/api/conversations/delete') return handleConversations(req, env, path);
+    if (req.method === 'POST' && (path === '/api/conversations/delete' || path === '/api/conversations/delete-all')) return handleConversations(req, env, path);
     return new Response('Not found', { status: 404 });
   },
 };
