@@ -1,0 +1,58 @@
+{
+  "lexicon": 1,
+  "id": "org.jason-edelman.siren.question",
+  "description": "A question asked of Siren in public (docs/free-tier.md). Siren answers the record's text on its own site, with the asker's handle, and takes the page down when the record is deleted. A follow-up names the question it replies to and its thread's root, as Bluesky replies do.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "text",
+          "city",
+          "createdAt"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1800,
+            "maxGraphemes": 600,
+            "description": "The question, at most 600 characters as the chat counts them (UTF-16 units)."
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 32,
+            "description": "The id of a city Siren serves, such as norfolk."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          },
+          "reply": {
+            "type": "ref",
+            "ref": "#replyRef",
+            "description": "For a follow-up: the question it replies to (parent) and the first question of its thread (root)."
+          }
+        }
+      }
+    },
+    "replyRef": {
+      "type": "object",
+      "required": [
+        "root",
+        "parent"
+      ],
+      "properties": {
+        "root": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef"
+        },
+        "parent": {
+          "type": "ref",
+          "ref": "com.atproto.repo.strongRef"
+        }
+      }
+    }
+  }
+}

@@ -3,8 +3,11 @@
 // PKCE S256, DPoP (ES256, a non-extractable key), the code returned in the
 // URL fragment, the RFC 9207 iss check, the sub check, and a check that the
 // server granted the narrow repo scope Siren asked for (it may grant less
-// without saying so). The Worker uses this module only for publicOrigin,
-// clientIds and clientMetadata; it never sees a token. Built on WebCrypto
+// without saying so). Two clients share it: the endorse client (the requests
+// page) and, with the free tier on, the ask client (the public questions
+// page, docs/free-tier.md), each with its own client_id, redirect and scope.
+// The Worker uses this module only for publicOrigin, clientIds and
+// clientMetadata; it never sees a token. Built on WebCrypto
 // and fetch; no dependency. Pure: every call takes `fetchImpl`. Served to
 // the browser as module text by index.js.
 //
@@ -15,7 +18,7 @@
 
 import { enc, b64url, randomToken, sha256 } from './crypto.js';
 import { safeFetch, safeUrl, isSupportedDid } from './atproto-identity.js';
-import { OAUTH_SCOPE, ENDORSE_NSID } from './endorse-config.js';
+import { OAUTH_SCOPE, ENDORSE_NSID, QUESTION_NSID, ASK_CLIENT_SCOPE } from './endorse-config.js';
 
 export class OAuthError extends Error {
   constructor(code) {
@@ -55,24 +58,42 @@ export function publicOrigin(env) {
   return null;
 }
 
+// The two clients: where each one's code comes back, the client_id document
+// it is named by, and the scope it declares.
+// The ask client also lists the requests page as a redirect: a sign-in
+// there for an account whose live session holds the question permission
+// goes through the ask client, so endorsing doesn't take asking away.
+const CLIENTS = {
+  endorse: { page: 'requests', metadata: 'endorse-client-metadata.json', scope: SCOPE, also: [] },
+  ask: { page: 'questions', metadata: 'question-client-metadata.json', scope: ASK_CLIENT_SCOPE, also: ['requests'] },
+};
+
 /**
- * { clientId, redirectUri, clientUri, loopback } or null. A new client_id
- * URL for the browser client, since servers cache client metadata for an
- * unknown time; the code comes back to the requests page itself.
+ * { clientId, redirectUri, clientUri, loopback, scope } (and, for the ask
+ * client, redirectUris: every page it may come back to) or null. A new
+ * client_id URL for the browser client, since servers cache client metadata
+ * for an unknown time; the code comes back to the page itself. `kind` is
+ * 'endorse' (the requests page; the default) or 'ask' (the public questions
+ * page, a client_id of its own so the endorse client's metadata never
+ * changes); `scope` is what the client declares.
  */
-export function clientIds(env, base = '') {
+export function clientIds(env, base = '', { kind = 'endorse' } = {}) {
+  const c = Object.hasOwn(CLIENTS, kind) ? CLIENTS[kind] : null;
   const po = publicOrigin(env);
-  if (!po || typeof base !== 'string' || !/^(\/[A-Za-z0-9._~-]+)*$/.test(base)) return null;
-  const redirectUri = `${po.origin}${base}/requests`;
+  if (!c || !po || typeof base !== 'string' || !/^(\/[A-Za-z0-9._~-]+)*$/.test(base)) return null;
+  const redirectUri = `${po.origin}${base}/${c.page}`;
+  const also = c.also.map((page) => `${po.origin}${base}/${page}`);
+  const extra = also.length ? { redirectUris: [redirectUri, ...also] } : {};
   if (po.loopback) {
     // The atproto localhost client: ASes synthesize its metadata.
-    return { clientId: `http://localhost?redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(SCOPE)}`, redirectUri, clientUri: null, loopback: true };
+    const redirects = [redirectUri, ...also].map((u) => `redirect_uri=${encodeURIComponent(u)}`).join('&');
+    return { clientId: `http://localhost?${redirects}&scope=${encodeURIComponent(c.scope)}`, redirectUri, clientUri: null, loopback: true, scope: c.scope, ...extra };
   }
-  return { clientId: `${po.origin}${base}/endorse-client-metadata.json`, redirectUri, clientUri: `${po.origin}${base}/`, loopback: false };
+  return { clientId: `${po.origin}${base}/${c.metadata}`, redirectUri, clientUri: `${po.origin}${base}/`, loopback: false, scope: c.scope, ...extra };
 }
 
 /** The client metadata document, served at the client_id URL. */
-export function clientMetadata({ clientId, redirectUri, clientUri, appName = 'Siren' }) {
+export function clientMetadata({ clientId, redirectUri, redirectUris, clientUri, appName = 'Siren', scope = SCOPE }) {
   return {
     client_id: clientId,
     client_name: appName,
@@ -83,8 +104,8 @@ export function clientMetadata({ clientId, redirectUri, clientUri, appName = 'Si
     // allows leaving it out; the rollout probe checks that ASes agree.
     grant_types: ['authorization_code'],
     response_types: ['code'],
-    redirect_uris: [redirectUri],
-    scope: SCOPE,
+    redirect_uris: redirectUris || [redirectUri],
+    scope,
     token_endpoint_auth_method: 'none',
     dpop_bound_access_tokens: true,
   };
@@ -241,13 +262,13 @@ export async function dpopPost(url, { form, json, key, nonce, accessToken, fetch
  * never reaches the Worker or its logs. -> { requestUri, nonce } or
  * OAuthError('as_refused').
  */
-export async function pushAuthorization({ meta, clientId, redirectUri, state, challenge, loginHint, key, fetchImpl = fetch, signal, now = Date.now() }) {
+export async function pushAuthorization({ meta, clientId, redirectUri, state, challenge, loginHint, key, fetchImpl = fetch, signal, now = Date.now(), scope = SCOPE }) {
   const form = {
     client_id: clientId,
     response_type: 'code',
     response_mode: 'fragment',
     redirect_uri: redirectUri,
-    scope: SCOPE,
+    scope,
     state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
@@ -296,12 +317,12 @@ export async function exchangeCode({ tokenEndpoint, code, verifier, clientId, re
 }
 
 /**
- * Whether a granted scope string lets Siren create and delete its
- * endorsement records: a `repo:` permission (atproto.com/specs/permission)
+ * Whether a granted scope string lets Siren create and delete records of
+ * one collection: a `repo:` permission (atproto.com/specs/permission)
  * naming the collection (or `*`), whose actions (all three when none is
  * given) include create and delete. Partial wildcards aren't a thing.
  */
-export function grantsEndorse(scope) {
+export function grantsRepo(scope, nsid) {
   if (typeof scope !== 'string' || scope.length > 4096) return false;
   for (const tok of scope.split(' ')) {
     let collections;
@@ -319,19 +340,25 @@ export function grantsEndorse(scope) {
     }
     const actions = params.getAll('action');
     const acts = actions.length ? actions : ['create', 'update', 'delete'];
-    if (collections.some((c) => c === ENDORSE_NSID || c === '*') && acts.includes('create') && acts.includes('delete')) return true;
+    if (collections.some((c) => c === nsid || c === '*') && acts.includes('create') && acts.includes('delete')) return true;
   }
   return false;
 }
 
+/** Whether a granted scope lets Siren create and delete its endorsement records. */
+export const grantsEndorse = (scope) => grantsRepo(scope, ENDORSE_NSID);
+/** Whether a granted scope lets Siren create and delete its question records (the free tier). */
+export const grantsQuestion = (scope) => grantsRepo(scope, QUESTION_NSID);
+
 /**
- * The token response must be DPoP-bound, carry `atproto` and the endorse
- * permission, and name the bound DID.
+ * The token response must be DPoP-bound, carry `atproto` and the
+ * permission the client needs (`grants`: the endorse permission unless
+ * told otherwise), and name the bound DID.
  */
-export function checkTokenResponse(token, expectedDid) {
+export function checkTokenResponse(token, expectedDid, { grants = grantsEndorse } = {}) {
   if (String(token?.token_type).toLowerCase() !== 'dpop') throw new OAuthError('token_type');
   if (typeof token.scope !== 'string' || !token.scope.split(' ').includes('atproto')) throw new OAuthError('scope_missing');
-  if (!grantsEndorse(token.scope)) throw new OAuthError('scope_narrow');
+  if (!grants(token.scope)) throw new OAuthError('scope_narrow');
   if (typeof token.sub !== 'string' || !isSupportedDid(token.sub) || token.sub !== expectedDid) throw new OAuthError('account_mismatch');
   if (typeof token.access_token !== 'string' || !token.access_token || token.access_token.length > 8192) throw new OAuthError('token_failed');
 }

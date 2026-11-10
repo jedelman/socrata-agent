@@ -1,0 +1,2372 @@
+[
+ {
+  "env": "plain",
+  "label": "GET /",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "c9354caae29788012c041446ace7c548b40fc286dda69e08ca6017e480ab306f",
+   "length": 6761
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "HEAD /",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /index.html",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "c9354caae29788012c041446ace7c548b40fc286dda69e08ca6017e480ab306f",
+   "length": 6761
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /login",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "c9354caae29788012c041446ace7c548b40fc286dda69e08ca6017e480ab306f",
+   "length": 6761
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /requests",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "77e2da05be2066c75c8163152d5ce13fd7854785849d452b5709b24a7b8fd64c",
+   "length": 3565
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /requests/<id>",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /admin",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-security-policy": "frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex"
+  },
+  "body": {
+   "sha256": "c1cc7a890f89e5d1be4e1847ce9ff5c1c09a7aecfefbb73f6aa220e8f2da3ae5",
+   "length": 14977
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /carry-invite",
+  "status": 404,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "text/plain;charset=UTF-8",
+   "referrer-policy": "no-referrer"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset requests-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8943957bad2dfaab347acaba3f626d70dc3fb513f4cbd849de50cf79107b208a",
+   "length": 11477
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset requests.css",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/css; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "4e89c430d6c7620b30442f9fd66c1d02a692ee3710739ba9d897e38bb8fe3c34",
+   "length": 3649
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset chat-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "419284752def6be555555e44c71302a26161573011fb9f89c8a6405b341767fd",
+   "length": 27893
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset chat.css",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/css; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "5b3a676af2ea55bab94b6321c45e662c5739fd76218f044a20415308a231e7c3",
+   "length": 13036
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset endorse-client.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8a1f49ccc6bd58a5e34327a13031a732a21a6130d1414ff70df70955f76ebdc9",
+   "length": 17762
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset endorse-store.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "5a40d34162c309f1ac028b1345a8cad00ab3a0d803c38a9ee5df803ff39c3b16",
+   "length": 3277
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset atproto-identity.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "fa2119d902aea35a6011c65b56b8f3f94e5e0a89fb7b8d84eca5dad8b58e9622",
+   "length": 13544
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset atproto-oauth.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "0cb226ce1a3928e0c146d2d181454c468957f57da99eb14b7424b6087b08aa09",
+   "length": 16026
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset endorse-config.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "1e6336341745a56e92bcc7d42d1814b29d06cfc196d593bf8a9d6fb82f88a629",
+   "length": 5285
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET asset crypto.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "7bfeca67d8b4e255bbb2d39405b15f3b26325f75ae46485a917ed94964b6460e",
+   "length": 2502
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "HEAD asset chat-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET stale asset",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8a1f49ccc6bd58a5e34327a13031a732a21a6130d1414ff70df70955f76ebdc9",
+   "length": 17762
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET new asset questions-page.js",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET new asset questions.css",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET new asset admin-questions.js",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/cities",
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": {
+   "sha256": "ec1f41dea1bb63b46847016b5787b9569bfb7ee73acdb4981b30a425db53e586",
+   "length": 270
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/session",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"invite_required\":false,\"invited\":false,\"waitlist\":false,\"login\":false,\"signed_in\":false,\"account\":null,\"conversations\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/session (invite)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"invite_required\":false,\"invited\":false,\"waitlist\":false,\"login\":false,\"signed_in\":false,\"account\":null,\"conversations\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/requests",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "cache-control": "public, max-age=300",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"requests\":[],\"withdrawn\":[]}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /endorse-client-metadata.json",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET endorsers",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/cases",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": {
+   "sha256": "7cafdbc3ed8d242c19f0a3a0c51d1dc2ed30368b8d67ab86be27e39a942d75d4",
+   "length": 669
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/admin/requests",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/admin/requests (steward)",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/conversations",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/conversation",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST text/plain",
+  "status": 415,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Send JSON (Content-Type: application/json).\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/ask (empty)",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Ask a question.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/ask (no invite)",
+  "status": 503,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site is not configured yet (no model key).\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/ask (invite)",
+  "status": 503,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site is not configured yet (no model key).\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/ask (invite, stream)",
+  "status": 503,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site is not configured yet (no model key).\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/redeem",
+  "status": 404,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site does not use invites.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/waitlist",
+  "status": 404,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site has no waitlist.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/login",
+  "status": 404,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site has no sign-in.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/login/verify",
+  "status": 404,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"This site has no sign-in.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/logout",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "set-cookie": "__Host-siren_user=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+  },
+  "body": "{\"ok\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/requests",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"ok\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST decide",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/bsky/resolve",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/conversations/delete",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /q/abcdefghijklmnop",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/q/abcdefghijklmnop",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/public/session",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /admin/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /api/admin/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "GET /question-client-metadata.json",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/public/ask",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/public/withdraw",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/public/redeem",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "plain",
+  "label": "POST /api/admin/questions/hide",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "474f49ac3285fd2a6db9bac8a6fa299a647a5ef28adf14a7c1f5ee1b9445e568",
+   "length": 8422
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "HEAD /",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /index.html",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "474f49ac3285fd2a6db9bac8a6fa299a647a5ef28adf14a7c1f5ee1b9445e568",
+   "length": 8422
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /login",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "474f49ac3285fd2a6db9bac8a6fa299a647a5ef28adf14a7c1f5ee1b9445e568",
+   "length": 8422
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /requests",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "e59ebfad2659e598a4aa11405f42d60f2ed7667e0f6c3634f209264544a35c24",
+   "length": 3501
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /requests/<id>",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /admin",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-security-policy": "frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex"
+  },
+  "body": {
+   "sha256": "231eda2ac47047a9a164c70c53ecafd8b17a045a6d9c741194e1044a5000483e",
+   "length": 14969
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /carry-invite",
+  "status": 302,
+  "headers": {
+   "cache-control": "no-store",
+   "location": "https://ask-siren.jason-edelman.org/",
+   "referrer-policy": "no-referrer"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset requests-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8943957bad2dfaab347acaba3f626d70dc3fb513f4cbd849de50cf79107b208a",
+   "length": 11477
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset requests.css",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/css; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "4e89c430d6c7620b30442f9fd66c1d02a692ee3710739ba9d897e38bb8fe3c34",
+   "length": 3649
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset chat-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "419284752def6be555555e44c71302a26161573011fb9f89c8a6405b341767fd",
+   "length": 27893
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset chat.css",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/css; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "5b3a676af2ea55bab94b6321c45e662c5739fd76218f044a20415308a231e7c3",
+   "length": 13036
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset endorse-client.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8a1f49ccc6bd58a5e34327a13031a732a21a6130d1414ff70df70955f76ebdc9",
+   "length": 17762
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset endorse-store.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "5a40d34162c309f1ac028b1345a8cad00ab3a0d803c38a9ee5df803ff39c3b16",
+   "length": 3277
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset atproto-identity.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "fa2119d902aea35a6011c65b56b8f3f94e5e0a89fb7b8d84eca5dad8b58e9622",
+   "length": 13544
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset atproto-oauth.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "0cb226ce1a3928e0c146d2d181454c468957f57da99eb14b7424b6087b08aa09",
+   "length": 16026
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset endorse-config.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "1e6336341745a56e92bcc7d42d1814b29d06cfc196d593bf8a9d6fb82f88a629",
+   "length": 5285
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET asset crypto.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "7bfeca67d8b4e255bbb2d39405b15f3b26325f75ae46485a917ed94964b6460e",
+   "length": 2502
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "HEAD asset chat-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET stale asset",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8a1f49ccc6bd58a5e34327a13031a732a21a6130d1414ff70df70955f76ebdc9",
+   "length": 17762
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET new asset questions-page.js",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET new asset questions.css",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET new asset admin-questions.js",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/cities",
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "[{\"id\":\"norfolk\",\"name\":\"Norfolk, VA\",\"portal\":\"https://data.norfolk.gov\",\"block\":true}]",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/session",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"invite_required\":true,\"invited\":false,\"waitlist\":true,\"login\":false,\"signed_in\":false,\"account\":null,\"conversations\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/session (invite)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "set-cookie": "__Host-siren_invite=<signed>; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax"
+  },
+  "body": "{\"invite_required\":true,\"invited\":true,\"waitlist\":true,\"login\":false,\"signed_in\":false,\"account\":null,\"conversations\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/requests",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "cache-control": "public, max-age=300",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"requests\":[],\"withdrawn\":[]}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /endorse-client-metadata.json",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "cache-control": "public, max-age=600",
+   "content-type": "application/json"
+  },
+  "body": {
+   "sha256": "692c79fb052dabedc3bc6308242d37193bab5f8ecee6a2c3802947be30ec7b43",
+   "length": 527
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET endorsers",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/cases",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": {
+   "sha256": "7cafdbc3ed8d242c19f0a3a0c51d1dc2ed30368b8d67ab86be27e39a942d75d4",
+   "length": 669
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/admin/requests",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/admin/requests (steward)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"requests\":[],\"bluesky\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/conversations",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/conversation",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST text/plain",
+  "status": 415,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Send JSON (Content-Type: application/json).\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/ask (empty)",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Ask a question.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/ask (no invite)",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Siren is invite-only for now. Sign in, enter your invite code, or join the waitlist.\",\"gate\":\"invite\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/ask (invite)",
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": {
+   "sha256": "25301eccd729d2b321fdfac7c98055a4fb6177cd7bbddd6d7e92f34b81422bdf",
+   "length": 1971
+  },
+  "urls": [
+   "https://api.anthropic.com/v1/messages"
+  ],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/ask (invite, stream)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store, no-transform",
+   "content-type": "application/x-ndjson; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "10f3d3671c8e6545e47eb2de2f2c9c7d9260cdf767baae5ce1ed6e3318a6db57",
+   "length": 1996
+  },
+  "urls": [
+   "https://api.anthropic.com/v1/messages"
+  ],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/redeem",
+  "status": 403,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"That code didn't work. Check it, or join the waitlist.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/waitlist",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"That email address doesn't look right.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/login",
+  "status": 503,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Email sign-in is not set up on this site yet.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/login/verify",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"That sign-in link is broken. Ask for a new one.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/logout",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "set-cookie": "__Host-siren_user=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+  },
+  "body": "{\"ok\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/requests",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"ok\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST decide",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/bsky/resolve",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/conversations/delete",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /q/abcdefghijklmnop",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/q/abcdefghijklmnop",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/public/session",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /admin/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /api/admin/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "GET /question-client-metadata.json",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/public/ask",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/public/withdraw",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/public/redeem",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "siren",
+  "label": "POST /api/admin/questions/hide",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "474f49ac3285fd2a6db9bac8a6fa299a647a5ef28adf14a7c1f5ee1b9445e568",
+   "length": 8422
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "HEAD /",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /index.html",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "474f49ac3285fd2a6db9bac8a6fa299a647a5ef28adf14a7c1f5ee1b9445e568",
+   "length": 8422
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /login",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=300",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "474f49ac3285fd2a6db9bac8a6fa299a647a5ef28adf14a7c1f5ee1b9445e568",
+   "length": 8422
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /requests",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=60",
+   "content-security-policy": "default-src 'none'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY"
+  },
+  "body": {
+   "sha256": "05638a3a0cafba3d10b674fe958b35533ca9f32a7d4a3455ea9819aa658feb82",
+   "length": 3535
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /requests/<id>",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /admin",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-security-policy": "frame-ancestors 'none'",
+   "content-type": "text/html; charset=utf-8",
+   "x-frame-options": "DENY",
+   "x-robots-tag": "noindex"
+  },
+  "body": {
+   "sha256": "231eda2ac47047a9a164c70c53ecafd8b17a045a6d9c741194e1044a5000483e",
+   "length": 14969
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /carry-invite",
+  "status": 302,
+  "headers": {
+   "cache-control": "no-store",
+   "location": "https://ask-siren.jason-edelman.org/",
+   "referrer-policy": "no-referrer"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset requests-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8943957bad2dfaab347acaba3f626d70dc3fb513f4cbd849de50cf79107b208a",
+   "length": 11477
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset requests.css",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/css; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "4e89c430d6c7620b30442f9fd66c1d02a692ee3710739ba9d897e38bb8fe3c34",
+   "length": 3649
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset chat-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "419284752def6be555555e44c71302a26161573011fb9f89c8a6405b341767fd",
+   "length": 27893
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset chat.css",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/css; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "5b3a676af2ea55bab94b6321c45e662c5739fd76218f044a20415308a231e7c3",
+   "length": 13036
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset endorse-client.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8a1f49ccc6bd58a5e34327a13031a732a21a6130d1414ff70df70955f76ebdc9",
+   "length": 17762
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset endorse-store.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "5a40d34162c309f1ac028b1345a8cad00ab3a0d803c38a9ee5df803ff39c3b16",
+   "length": 3277
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset atproto-identity.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "fa2119d902aea35a6011c65b56b8f3f94e5e0a89fb7b8d84eca5dad8b58e9622",
+   "length": 13544
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset atproto-oauth.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "0cb226ce1a3928e0c146d2d181454c468957f57da99eb14b7424b6087b08aa09",
+   "length": 16026
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset endorse-config.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "1e6336341745a56e92bcc7d42d1814b29d06cfc196d593bf8a9d6fb82f88a629",
+   "length": 5285
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET asset crypto.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "7bfeca67d8b4e255bbb2d39405b15f3b26325f75ae46485a917ed94964b6460e",
+   "length": 2502
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "HEAD asset chat-page.js",
+  "status": 200,
+  "headers": {
+   "cache-control": "public, max-age=31536000, immutable",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": "",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET stale asset",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "text/javascript; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "8a1f49ccc6bd58a5e34327a13031a732a21a6130d1414ff70df70955f76ebdc9",
+   "length": 17762
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET new asset questions-page.js",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET new asset questions.css",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET new asset admin-questions.js",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/cities",
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "[{\"id\":\"norfolk\",\"name\":\"Norfolk, VA\",\"portal\":\"https://data.norfolk.gov\",\"block\":true}]",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/session",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"invite_required\":true,\"invited\":false,\"waitlist\":true,\"login\":false,\"signed_in\":false,\"account\":null,\"conversations\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/session (invite)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "set-cookie": "__Host-siren_invite=<signed>; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax"
+  },
+  "body": "{\"invite_required\":true,\"invited\":true,\"waitlist\":true,\"login\":false,\"signed_in\":false,\"account\":null,\"conversations\":false}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/requests",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "cache-control": "public, max-age=60",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"requests\":[],\"withdrawn\":[]}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /endorse-client-metadata.json",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "cache-control": "public, max-age=600",
+   "content-type": "application/json"
+  },
+  "body": {
+   "sha256": "692c79fb052dabedc3bc6308242d37193bab5f8ecee6a2c3802947be30ec7b43",
+   "length": 527
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET endorsers",
+  "status": 404,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"No request on the public list has that id.\",\"code\":\"not_found\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/cases",
+  "status": 200,
+  "headers": {
+   "access-control-allow-origin": "*",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": {
+   "sha256": "7cafdbc3ed8d242c19f0a3a0c51d1dc2ed30368b8d67ab86be27e39a942d75d4",
+   "length": 669
+  },
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/admin/requests",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/admin/requests (steward)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"requests\":[],\"bluesky\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/conversations",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/conversation",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST text/plain",
+  "status": 415,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Send JSON (Content-Type: application/json).\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/ask (empty)",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Ask a question.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/ask (no invite)",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Siren is invite-only for now. Sign in, enter your invite code, or join the waitlist.\",\"gate\":\"invite\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/ask (invite)",
+  "status": 200,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": {
+   "sha256": "25301eccd729d2b321fdfac7c98055a4fb6177cd7bbddd6d7e92f34b81422bdf",
+   "length": 1971
+  },
+  "urls": [
+   "https://api.anthropic.com/v1/messages"
+  ],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/ask (invite, stream)",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store, no-transform",
+   "content-type": "application/x-ndjson; charset=utf-8",
+   "x-content-type-options": "nosniff"
+  },
+  "body": {
+   "sha256": "10f3d3671c8e6545e47eb2de2f2c9c7d9260cdf767baae5ce1ed6e3318a6db57",
+   "length": 1996
+  },
+  "urls": [
+   "https://api.anthropic.com/v1/messages"
+  ],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/redeem",
+  "status": 403,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"That code didn't work. Check it, or join the waitlist.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/waitlist",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"That email address doesn't look right.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/login",
+  "status": 503,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Email sign-in is not set up on this site yet.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/login/verify",
+  "status": 400,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"That sign-in link is broken. Ask for a new one.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/logout",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "set-cookie": "__Host-siren_user=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+  },
+  "body": "{\"ok\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/requests",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"ok\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST decide",
+  "status": 401,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8",
+   "x-robots-tag": "noindex"
+  },
+  "body": "{\"error\":\"Sign in first.\",\"signin\":true}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/bsky/resolve",
+  "status": 200,
+  "headers": {
+   "cache-control": "no-store",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"did\":\"did:plc:abcdefghijklmnopqrstuvwx\",\"handle\":\"alice.fixture.dev\",\"pds\":\"https://pds.fixture.dev\"}",
+  "urls": [
+   "https://dns.fixture.dev/dns-query",
+   "https://alice.fixture.dev/.well-known/atproto-did",
+   "https://plc.fixture.dev/did:plc:abcdefghijklmnopqrstuvwx"
+  ],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/conversations/delete",
+  "status": 401,
+  "headers": {
+   "content-type": "application/json; charset=utf-8"
+  },
+  "body": "{\"error\":\"Sign in to see your conversations.\"}",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /q/abcdefghijklmnop",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/q/abcdefghijklmnop",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/public/session",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /admin/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /api/admin/questions",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "GET /question-client-metadata.json",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/public/ask",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/public/withdraw",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/public/redeem",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ },
+ {
+  "env": "bsky",
+  "label": "POST /api/admin/questions/hide",
+  "status": 404,
+  "headers": {
+   "content-type": "text/plain;charset=UTF-8"
+  },
+  "body": "Not found",
+  "urls": [],
+  "d1": false
+ }
+]

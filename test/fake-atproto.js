@@ -109,7 +109,10 @@ export function fakeNetwork(overrides = {}) {
       if (state.codesUsed.has(form.code)) return json({ error: 'invalid_grant' }, 400, { 'DPoP-Nonce': 'nonce-tok-2' });
       state.codesUsed.add(form.code);
       state.issued++;
-      return json({ access_token: W.ACCESS, token_type: 'DPoP', scope: state.grantedScope ?? OAUTH_SCOPE, sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
+      // distinctTokens: each sign-in gets its own token, and only the newest works at the PDS.
+      const access = state.distinctTokens ? `${W.ACCESS}-${state.issued}` : W.ACCESS;
+      if (state.distinctTokens) state.liveToken = access;
+      return json({ access_token: access, token_type: 'DPoP', scope: state.grantedScope ?? OAUTH_SCOPE, sub: W.DID, expires_in: 300 }, 200, { 'DPoP-Nonce': 'nonce-tok-2' });
     },
     [`${host(W.ISSUER)}/oauth/revoke`]: async (u, init) => {
       const proof = decodeJwt(init.headers.DPoP);
@@ -133,7 +136,10 @@ export function fakeNetwork(overrides = {}) {
     [`${host(W.PDS)}/xrpc/com.atproto.repo.getRecord`]: (u) => {
       const rec = state.repos.get(u.searchParams.get('repo'))?.get(u.searchParams.get('collection'))?.get(u.searchParams.get('rkey'));
       if (!rec) return json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
-      return json({ uri: `at://${u.searchParams.get('repo')}/${u.searchParams.get('collection')}/${u.searchParams.get('rkey')}`, cid: 'bafyfake', value: rec });
+      const cid = state.cidOf(rec);
+      // As the reference PDS does: asked for a version by CID, any other is "not found".
+      if (u.searchParams.has('cid') && u.searchParams.get('cid') !== cid && !state.ignoreCid) return json({ error: 'RecordNotFound', message: 'Could not locate record' }, 400);
+      return json({ uri: `at://${u.searchParams.get('repo')}/${u.searchParams.get('collection')}/${u.searchParams.get('rkey')}`, cid, value: rec });
     },
     [`${host(W.PDS)}/xrpc/com.atproto.repo.listRecords`]: (u) => {
       const coll = state.repos.get(u.searchParams.get('repo'))?.get(u.searchParams.get('collection')) || new Map();
@@ -166,9 +172,11 @@ export function fakeNetwork(overrides = {}) {
       if (m === 'createRecord') {
         const c = coll()(body.collection);
         if ('validate' in body) return json({ error: 'InvalidRequest', message: 'validate must not be sent' }, 400);
-        if (c.has(body.rkey)) return json({ error: 'InvalidRequest', message: 'Record already exists' }, 400);
-        state.putRecord(W.DID, body.collection, body.rkey, body.record);
-        return json({ uri: `at://${W.DID}/${body.collection}/${body.rkey}`, cid: 'bafyfake' });
+        // No record key given: the PDS mints a TID, as the reference PDS does.
+        const rkey = body.rkey ?? state.nextTid();
+        if (c.has(rkey)) return json({ error: 'InvalidRequest', message: 'Record already exists' }, 400);
+        state.putRecord(W.DID, body.collection, rkey, body.record);
+        return json({ uri: `at://${W.DID}/${body.collection}/${rkey}`, cid: body.rkey === undefined ? state.cidOf(body.record) : 'bafyfake' });
       }
       if (m === 'deleteRecord') {
         coll()(body.collection).delete(body.rkey);
@@ -180,6 +188,18 @@ export function fakeNetwork(overrides = {}) {
     }])),
     ...overrides,
   };
+  // A stand-in CID per record value (bafy + base32 of its JSON's SHA-256
+  // would need async; a stable string from the JSON is enough here), and
+  // TIDs minted in order.
+  state.cidOf = (value) => {
+    let h = 0x811c9dc5;
+    const str = JSON.stringify(value);
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 0x01000193) >>> 0;
+    return `bafyrei${h.toString(32).padStart(7, 'a')}${str.length.toString(32)}`;
+  };
+  let tids = 0;
+  const S32 = '234567abcdefghijklmnopqrstuvwxyz';
+  state.nextTid = () => `3k${[...(++tids).toString(32).padStart(11, '0')].map((c) => S32[parseInt(c, 32)]).join('')}`;
   /** Put a record in a fake repo (and, by default, in Constellation's index). */
   state.putRecord = (did, collection, rkey, value, { index = true } = {}) => {
     if (!state.repos.has(did)) state.repos.set(did, new Map());

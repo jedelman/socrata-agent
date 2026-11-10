@@ -183,7 +183,10 @@ generic mode.
   `Authorization` or `DPoP` header from the page or sets a Bluesky cookie.
   Siren stores no endorsements and nothing about endorsers: counts and lists
   are read live from Constellation, the AppView and each endorser's PDS and
-  cached briefly; nothing Bluesky goes in KV or D1. Constellation is a stated,
+  cached briefly; nothing Bluesky goes in KV or D1. That stays true of
+  endorsements. A public question (the free tier, below) is the one
+  exception: its row holds the asker's DID and handle, because publishing
+  them is what the asker chose. Constellation is a stated,
   untrusted dependency: shapes checked, sizes capped, every listed account
   verified on its own PDS before it's shown, and a count it can't give is
   "unavailable" or the last good one with its time, never 0. Flags (bot
@@ -196,18 +199,69 @@ generic mode.
   decisions freeze the live count, and go through without one if
   Constellation is down. The browser's PAR, token and revoke go only to
   endpoints on the issuer's origin, and record writes only to the PDS named
-  in the re-resolved DID document. The requests pages and the chat page carry
-  a strict CSP with no inline script or style (the steward's `/admin` page
-  doesn't yet); their scripts come from this origin, the chat page's two
-  pinned CDN files, and Cloudflare's Web Analytics beacon (`CF_BEACON` in
-  `index.js`, Jason 2026-11-10); every remote string is escaped. The subject URL is fixed
+  in the re-resolved DID document. The requests pages, the chat page and the
+  free tier's pages carry a strict CSP with no inline script or style (the
+  steward's `/admin` page doesn't yet); their scripts come from this origin,
+  the chat page's two pinned CDN files, and Cloudflare's Web Analytics beacon
+  (`CF_BEACON` in `index.js`, Jason 2026-11-10); every remote string is
+  escaped. The subject URL is fixed
   since the move: changing `PUBLIC_ORIGIN` or `BASE_PATH` once endorsements
-  exist strands them. Never link
-  a Bluesky identity to an invite, email account or conversation. `SIREN_DB`
-  stays bound for the planned board but nothing reads it; migration 0003
-  (unapplied) drops the old endorsement tables. With `BLUESKY_LOGIN` unset,
-  nothing calls Constellation, the AppView, a PDS or D1. Never key anything
-  new under `request:`. `plugins/case-file.js` serves a
+  exist strands them. Never store or log a Bluesky identity beside an
+  invite, a visitor hash, an email account or a conversation. The free tier
+  reads both in one request, for the invite gate, and keeps neither with the
+  other. `SIREN_DB` holds the free tier's public questions and nothing else
+  reads it; migration 0003 (unapplied) drops the old endorsement tables. With
+  `BLUESKY_LOGIN` unset, nothing calls Constellation, the AppView, a PDS or
+  D1. Never key anything new under `request:`.
+  The free tier (`docs/free-tier.md`, behind `PUBLIC_ASK`, off; Jason
+  2026-11-10): Bluesky sign-in plus an invite, and every question and answer
+  is public, on Siren's site only: a row in D1 `SIREN_DB` (`questions.js`,
+  migration 0004, unapplied) and a page at `/q/<id>`, listed at `/questions`.
+  Email sign-in stays the private tier. The browser (the ask client of
+  `endorse-client.js`: its own client_id `/question-client-metadata.json`,
+  redirect `/questions`, and the scope `repo:<QUESTION_NSID>?action=create&action=delete`)
+  writes a question record to the asker's own repo and posts its AT-URI and
+  CID to `POST /api/public/ask` with the invite cookie; `public-ask.js`
+  checks the invite as `/api/ask` does (the cookie only, the same daily
+  count and budget; the email account is never read there), reads the
+  record itself from the PDS the re-resolved DID document names, refuses a
+  replayed (over 10 minutes), future-dated, wrong-collection, wrong-CID or
+  malformed record before any model call, answers the record's text (never
+  the POST body's) with the agent the chat runs, and counts every fetch on
+  the answer's own budget (`ask()` takes it as `budget`). The record is the
+  only proof of who asked; the Worker holds no Bluesky token.
+  `QUESTION_NSID` lives in `worker/endorse-config.js` beside `ENDORSE_NSID`
+  and nowhere else (the same test). Follow-ups are threaded replies (the
+  record's `reply: {root, parent}` strongRefs; the parent and root answered
+  here at those CIDs; 25 questions and depth 10 per thread); the answer gets
+  the chain root to parent as history, as a conversation's turns, with
+  their tool results from the row's internal `tools` column (never served),
+  and never a withdrawn or hidden question's text (earlier questions wrapped
+  in `<thread_question>` as other people's words; the claim and the stored
+  answer both conditional on the parent and root still answered at their
+  CIDs). Withdrawing (the record gone from the asker's PDS) empties the row
+  but its id, day, status and place in the thread, and rewrites references
+  to it as `withdrawn:<id>`. A record deleted in the asker's own account is
+  found by the sweep (a Cron Trigger every ten minutes, `scheduled` in
+  `index.js`, a no-op with `PUBLIC_ASK` off: at most 40 questions unchecked
+  for an hour, counted, behind the breaker, re-verifying handles) and by a
+  page's re-check of its thread; only a clear RecordNotFound withdraws.
+  The steward hides at `/admin/questions` or with `question-hide` /
+  `question-unhide`. The pages (`questions-page.js`, `questions.html`,
+  `admin-questions.js`) carry the strict CSP; answers render through marked
+  and DOMPurify with no style or data attributes, form controls or dialogs
+  (the chat page's `md()` too: answers are model output a public question
+  can steer), and the public page ignores clicks inside an answer; the new
+  pages and their JSON send `X-Robots-Tag: noindex`. With `PUBLIC_ASK`
+  anything but `"true"`, every existing route answers byte for byte as
+  before and nothing new is served (`test/public-ask-off.test.js`, against a
+  snapshot taken before the free tier; only the asset hash, the text of the
+  three client modules it extends and the chat script's sanitizer line
+  differ); set but missing Bluesky sign-in, `SIREN_DB` or invite mode, its
+  routes answer 503. The operator could still match a public question to an
+  invite through exact times kept elsewhere (`redeemed:` keys), and D1 Time
+  Travel keeps withdrawn rows recoverable for 30 days: the spec says so.
+  `plugins/case-file.js` serves a
   case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk

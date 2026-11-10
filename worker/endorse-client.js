@@ -27,13 +27,24 @@
 //
 // Every remote string is untrusted. Error codes map to the fixed sentences
 // in MESSAGES; no remote text reaches the page.
+//
+// The free tier (docs/free-tier.md) adds a second kind of client, 'ask', for
+// the public questions page: its own client_id and redirect (/questions),
+// and the question permission. It writes a question record to the person's
+// own PDS and deletes it; Siren's Worker only ever gets the record's AT-URI
+// and CID, and reads the record itself. One session at a time is kept, as
+// before; it remembers the scope it was granted, and an action its scope
+// doesn't cover asks for a fresh sign-in ('reauth').
 
 import { parseAccountInput, resolveHandle, resolveDidDoc, docHandle, docPds, isSupportedDid, safeFetch } from './atproto-identity.js';
 import {
   clientIds, authServerFor, authServerMetadata, pkce, newDpopKey, pushAuthorization, authorizeUrl, exchangeCode,
-  checkTokenResponse, revokeTokens, dpopPost,
+  checkTokenResponse, revokeTokens, dpopPost, grantsEndorse, grantsQuestion,
 } from './atproto-oauth.js';
-import { ENDORSE_NSID, ENDORSE_ID_RE, endorseSubject, buildEndorsement, endorses } from './endorse-config.js';
+import {
+  ENDORSE_NSID, ENDORSE_ID_RE, endorseSubject, buildEndorsement, endorses,
+  QUESTION_NSID, ASK_SCOPE, ASK_CLIENT_SCOPE, buildQuestion, validQuestion, parseRecordUri, TID_RE,
+} from './endorse-config.js';
 import { randomToken } from './crypto.js';
 
 export const FLOW_MS = 10 * 60e3;
@@ -66,6 +77,9 @@ export const MESSAGES = {
   reauth: 'Your Bluesky sign-in has expired. Sign in again to go on.',
   write_failed: "Your Bluesky server didn't save that. Try again in a minute.",
   not_listed: "That request isn't open for endorsements.",
+  ask_scope_narrow: "Your Bluesky server can't grant the narrow permission Siren needs (to create and delete question records only), so Siren didn't sign you in.",
+  bad_question: 'Ask a question of at most 600 characters.',
+  not_yours: "That question isn't one this account asked.",
 };
 
 export class EndorseError extends Error {
@@ -81,11 +95,25 @@ const codeOf = (err, fallback) => (err?.code && MESSAGES[err.code] ? err.code : 
 /**
  * A client for one page. `origin` is PUBLIC_ORIGIN (the page's own), `base`
  * the path prefix, `store` from endorse-store.js, `resolveFallback(account)`
- * the Worker's resolver (-> { did } or throws EndorseError).
+ * the Worker's resolver (-> { did } or throws EndorseError). `kind` is
+ * 'endorse' (the requests page, the default) or 'ask' (the public questions
+ * page, the free tier).
  */
-export function createClient({ origin, base = '', store, fetchImpl = (...a) => fetch(...a), now = () => Date.now(), resolveFallback, dohUrl, plcUrl }) {
-  const ids = clientIds({ PUBLIC_ORIGIN: origin }, base);
+export function createClient({ origin, base = '', store, fetchImpl = (...a) => fetch(...a), now = () => Date.now(), resolveFallback, dohUrl, plcUrl, kind = 'endorse' }) {
+  const ask = kind === 'ask';
+  const ids = clientIds({ PUBLIC_ORIGIN: origin }, base, { kind: ask ? 'ask' : 'endorse' });
   if (!ids) throw new EndorseError('not_set_up');
+  // The endorse client's id: what a session or flow from before they kept
+  // their own was made with.
+  const endorseId = clientIds({ PUBLIC_ORIGIN: origin }, base).clientId;
+  // The ask client's id and scope, for a sign-in on the requests page that
+  // keeps the question permission a live session holds.
+  const askIds = clientIds({ PUBLIC_ORIGIN: origin }, base, { kind: 'ask' });
+  // The permission this client's own actions need. A session made before
+  // sessions kept their scope was made by the endorse client, which refused
+  // any token without the endorse permission.
+  const grants = ask ? grantsQuestion : grantsEndorse;
+  const granted = (s, check) => (typeof s?.scope === 'string' ? check(s.scope) : check === grantsEndorse);
   const opts = { fetchImpl, ...(dohUrl ? { dohUrl } : {}), ...(plcUrl ? { plcUrl } : {}) };
 
   // Handle or DID -> { did, handle, pds }, in the browser where it can be.
@@ -128,6 +156,21 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     return { did, handle, pds };
   }
 
+  // What a sign-in asks for, and through which client. The ask client: the
+  // question permission, plus the endorsement one only when the live session
+  // for this same account already holds it. The endorse client: its one
+  // scope, as always, unless the live session for this account holds the
+  // question permission (only possible with the free tier on): then both,
+  // through the ask client (which lists this page as a redirect), so
+  // endorsing doesn't take asking away. Always back to this page.
+  async function planFor(did) {
+    const s = await store.getSession();
+    const live = s && s.expires > now() && s.did === did;
+    if (ask) return { clientId: ids.clientId, redirectUri: ids.redirectUri, scope: live && granted(s, grantsEndorse) ? ASK_CLIENT_SCOPE : ASK_SCOPE };
+    if (live && askIds && granted(s, grantsQuestion)) return { clientId: askIds.clientId, redirectUri: ids.redirectUri, scope: ASK_CLIENT_SCOPE };
+    return { clientId: ids.clientId, redirectUri: ids.redirectUri, scope: ids.scope };
+  }
+
   /** Start a sign-in. -> the authorization URL to send the browser to. `after` rides along (e.g. a request id to endorse). */
   async function signIn(account, after = null) {
     const input = parseAccountInput(account);
@@ -139,13 +182,15 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       const state = randomToken(32);
       const { verifier, challenge } = await pkce();
       const key = await newDpopKey();
-      const { requestUri, nonce } = await pushAuthorization({ meta, clientId: ids.clientId, redirectUri: ids.redirectUri, state, challenge, loginHint: input.kind === 'did' ? input.did : input.handle, key, fetchImpl, now: now() });
+      const plan = await planFor(did);
+      const { requestUri, nonce } = await pushAuthorization({ meta, clientId: plan.clientId, redirectUri: plan.redirectUri, state, challenge, loginHint: input.kind === 'did' ? input.did : input.handle, key, fetchImpl, now: now(), scope: plan.scope });
       await store.putFlow({
         state, verifier, did, handle, pds, issuer, key, nonce,
         tokenEndpoint: meta.token_endpoint, revocationEndpoint: meta.revocation_endpoint || null,
         expires: now() + FLOW_MS, after: typeof after === 'string' && after.length <= 64 ? after : null,
+        clientId: plan.clientId, redirectUri: plan.redirectUri,
       });
-      return authorizeUrl(meta, ids.clientId, requestUri);
+      return authorizeUrl(meta, plan.clientId, requestUri);
     } catch (err) {
       throw new EndorseError(codeOf(err, 'as_refused'));
     }
@@ -162,6 +207,12 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     const flow = await store.takeFlow(state);
     await store.purgeFlows(now());
     if (!flow || !(flow.expires > now())) throw new EndorseError('flow_expired');
+    // A flow another page started (each page's code comes back to that
+    // page, so this is a tab mix-up or a forged fragment). A flow from before
+    // flows kept these was the endorse client's, back to the requests page.
+    const flowRedirect = flow.redirectUri || clientIds({ PUBLIC_ORIGIN: origin }, base).redirectUri;
+    const flowClient = flow.clientId || endorseId;
+    if (flowRedirect !== ids.redirectUri || ![ids.clientId, askIds?.clientId].includes(flowClient)) throw new EndorseError('flow_expired');
     // RFC 9207, before reading the error or the code.
     if (params.get('iss') !== flow.issuer) throw new EndorseError('issuer_mismatch');
     const error = params.get('error');
@@ -170,9 +221,9 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     if (typeof code !== 'string' || code.length < 1 || code.length > 2048) throw new EndorseError('as_error');
     let token;
     let nonce = flow.nonce;
-    const revoke = () => revokeTokens({ revocationEndpoint: flow.revocationEndpoint, token, clientId: ids.clientId, key: flow.key, nonce, fetchImpl, now: now() });
+    const revoke = () => revokeTokens({ revocationEndpoint: flow.revocationEndpoint, token, clientId: flowClient, key: flow.key, nonce, fetchImpl, now: now() });
     try {
-      ({ token, nonce } = await exchangeCode({ tokenEndpoint: flow.tokenEndpoint, code, verifier: flow.verifier, clientId: ids.clientId, redirectUri: ids.redirectUri, key: flow.key, nonce, fetchImpl, now: now() }));
+      ({ token, nonce } = await exchangeCode({ tokenEndpoint: flow.tokenEndpoint, code, verifier: flow.verifier, clientId: flowClient, redirectUri: flowRedirect, key: flow.key, nonce, fetchImpl, now: now() }));
     } catch (err) {
       if (err?.token) {
         token = err.token;
@@ -182,10 +233,10 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       throw new EndorseError('token_failed');
     }
     try {
-      checkTokenResponse(token, flow.did);
+      checkTokenResponse(token, flow.did, { grants });
     } catch (err) {
       await revoke();
-      throw new EndorseError(codeOf(err, 'account_mismatch'));
+      throw new EndorseError(ask && err?.code === 'scope_narrow' ? 'ask_scope_narrow' : codeOf(err, 'account_mismatch'));
     }
     // Re-resolve with no cache: the account's PDS must still name this AS.
     let pds;
@@ -201,6 +252,14 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       await revoke();
       throw new EndorseError('did_unresolved');
     }
+    // A session this one replaces that the other client made: its tokens are
+    // revoked first, with the client they belong to, never left live. (A
+    // session from the same client is only ever replaced once its token has
+    // expired, as before the free tier.)
+    const old = await store.getSession();
+    if (old?.accessToken && old.accessToken !== token.access_token && (old.clientId || endorseId) !== flowClient) {
+      await revokeTokens({ revocationEndpoint: old.revocationEndpoint, token: { access_token: old.accessToken, refresh_token: old.refreshToken }, clientId: old.clientId || endorseId, key: old.key, nonce: old.asNonce, fetchImpl, now: now() });
+    }
     const t = now();
     const life = Number.isFinite(token.expires_in) && token.expires_in > 0 ? Math.min(token.expires_in * 1000, SESSION_MS) : 5 * 60e3;
     await store.putSession({
@@ -209,6 +268,9 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
       asNonce: nonce, pdsNonce: null, revocationEndpoint: flow.revocationEndpoint,
       // A refresh token is never used; one sent anyway is revoked on sign out.
       ...(typeof token.refresh_token === 'string' && token.refresh_token ? { refreshToken: token.refresh_token } : {}),
+      // What the session may do, and the client its token belongs to (for
+      // revocation): checked before each action, since both pages share it.
+      scope: token.scope, clientId: flowClient,
     });
     return { handle: flow.handle, did: flow.did, after: flow.after };
   }
@@ -228,6 +290,9 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     const s = await store.getSession();
     if (!s || !(s.expires > now())) throw new EndorseError('signed_out');
     if (!(s.tokenExpires > now())) throw new EndorseError('reauth');
+    // Signed in on the other page, without this page's permission: a fresh
+    // sign-in asks for it.
+    if (!granted(s, grants)) throw new EndorseError('reauth');
     return s;
   }
 
@@ -346,14 +411,51 @@ export function createClient({ origin, base = '', store, fetchImpl = (...a) => f
     return out;
   }
 
+  // ---- The free tier: a question record in the person's own repo ----
+
+  /**
+   * Write a question record (the PDS picks the record key, a TID). `now` is
+   * the time to stamp it with (the page passes Siren's clock, so a browser
+   * whose clock is off doesn't write a record Siren refuses as stale). A
+   * follow-up passes `reply`: { root, parent }, strongRefs ({uri, cid}) to
+   * earlier question records, as Siren's page lists them.
+   * -> { uri, cid }, both checked: this account, this collection, a TID.
+   */
+  async function askQuestion({ text, city, now: at = now(), reply = null }) {
+    if (!ask) throw new EndorseError('not_set_up');
+    const record = buildQuestion({ text, city, now: at, reply });
+    if (!validQuestion(record)) throw new EndorseError('bad_question');
+    const s = await liveSession();
+    const out = await pdsPost(s, 'com.atproto.repo.createRecord', { repo: s.did, collection: QUESTION_NSID, record });
+    const p = parseRecordUri(out.json?.uri);
+    const cid = out.json?.cid;
+    if (out.status !== 200 || !p || p.did !== s.did || p.collection !== QUESTION_NSID || !TID_RE.test(p.rkey)
+      || typeof cid !== 'string' || !/^[a-z0-9]{8,128}$/.test(cid)) throw new EndorseError('write_failed');
+    return { uri: out.json.uri, cid };
+  }
+
+  /** Delete one of this account's question records by its AT-URI. Already gone counts as done. */
+  async function deleteQuestion(uri) {
+    if (!ask) throw new EndorseError('not_set_up');
+    const s = await liveSession();
+    const p = parseRecordUri(uri);
+    if (!p || p.did !== s.did || p.collection !== QUESTION_NSID) throw new EndorseError('not_yours');
+    const out = await pdsPost(s, 'com.atproto.repo.deleteRecord', { repo: s.did, collection: QUESTION_NSID, rkey: p.rkey });
+    if (out.status !== 200) throw new EndorseError('write_failed');
+    return { ok: true };
+  }
+
   /** Revoke the token and forget the session. Never throws. */
   async function signOut() {
     const s = await store.getSession();
     await store.deleteSession();
-    if (s) await revokeTokens({ revocationEndpoint: s.revocationEndpoint, token: { access_token: s.accessToken, refresh_token: s.refreshToken }, clientId: ids.clientId, key: s.key, nonce: s.asNonce, fetchImpl, now: now() });
+    if (s) await revokeTokens({ revocationEndpoint: s.revocationEndpoint, token: { access_token: s.accessToken, refresh_token: s.refreshToken }, clientId: s.clientId || endorseId, key: s.key, nonce: s.asNonce, fetchImpl, now: now() });
   }
 
-  return { signIn, finish, current, endorse, withdraw, removeAll, endorsedIds, signOut, clientId: ids.clientId, redirectUri: ids.redirectUri };
+  return {
+    signIn, finish, current, endorse, withdraw, removeAll, endorsedIds, signOut, clientId: ids.clientId, redirectUri: ids.redirectUri,
+    ...(ask ? { askQuestion, deleteQuestion } : {}),
+  };
 }
 
 /** The Worker's resolver, for handles the browser can't resolve. -> { did }; throws EndorseError. */

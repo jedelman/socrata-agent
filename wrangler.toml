@@ -94,6 +94,15 @@ routes = [
 # script before routes and domains, so doing both at once would have
 # redirected to a host that might not answer yet.
 
+# The free tier's sweep (docs/free-tier.md, "Withdrawing, and the steward"):
+# every ten minutes, worker/index.js scheduled re-checks at most 40 public
+# questions not checked for an hour, and withdraws one whose record is gone
+# from the asker's own PDS; it also clears abandoned claims. With PUBLIC_ASK
+# unset it returns at once: no D1 call, no fetch. (The old endorsement purge
+# cron, retired with the server-side design, is not this.)
+[env.siren.triggers]
+crons = ["*/10 * * * *"]
+
 [env.siren.vars]
 DEPLOYMENT = "siren"
 # Served at the root of its own origin: no path prefix.
@@ -131,6 +140,12 @@ LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jaso
 # CONSTELLATION_URL (default https://constellation.microcosm.blue) switches to
 # a self-hosted instance; APPVIEW_URL (default https://public.api.bsky.app)
 # to another AppView.
+# The free tier (docs/free-tier.md): ask in public with Bluesky and an
+# invite, every question and answer public on this site, in SIREN_DB. Off
+# until a PR adds PUBLIC_ASK = "true" here, after migration 0004 is applied
+# and a live sign-in, ask, follow-up, withdraw and steward hide are tried.
+# It needs BLUESKY_LOGIN on, SIREN_DB and invite mode; with any missing, its
+# routes answer 503.
 # Siren's origin. Sign-in links, annotation ids, the Bluesky client_id and
 # every endorsement subject URL are built from it. Subjects are fixed from
 # here on: changing it after endorsements exist strands them
@@ -143,10 +158,11 @@ id = "d4dfe5ca9b814268a1a1abe052287959"
 
 # The SIREN_DB D1 database. Created 2026-11-09 (ENAM) for the first,
 # server-side endorsement design; migrations 0001 and 0002 applied the same
-# day. Endorsements now live in people's own repos and the Worker never
-# touches this database. Migration 0003 drops the old tables and is not
-# applied yet (rollout step 5 checks they're empty first). Kept bound for the
-# planned public board (D9, default, pending Jason).
+# day. Endorsements now live in people's own repos. Migration 0003 drops the
+# old tables and is not applied yet (rollout step 5 checks they're empty
+# first). Kept bound for the planned public board (D9, default, pending
+# Jason): migration 0004 (not applied) holds the free tier's public
+# questions, the only thing the Worker reads here, with PUBLIC_ASK on.
 # Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
 # That command applies every pending migration, so the next one applied also
