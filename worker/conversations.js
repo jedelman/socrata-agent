@@ -1,8 +1,15 @@
 // Conversations, so Siren can answer follow-ups from what she found, not only
 // from what she said. A conversation belongs to one signed-in account: it is
-// stored under conv:<uid>:<id>, so only that account can read or continue it,
-// and it expires after CONVERSATION_DAYS (default 7). Nothing in it goes into
-// any shared memory; shared findings come only through reviewed case files.
+// stored under conv:<uid>:<id>, so only that account can read or continue it.
+// It is kept until the account deletes it (one, or all of them): Jason,
+// 2026-11-10, "For private conversations let's store indefinitely on behalf of
+// the user, since there's no discovery; deletion is on request." A deployment
+// that sets CONVERSATION_DAYS keeps them that many days instead. Nothing in it
+// goes into any shared memory; shared findings come only through reviewed
+// case files.
+//
+// Each key carries metadata (title, turns, updated, city), so the list reads
+// one page of keys, never every conversation.
 //
 // Each turn keeps the question, the answer, and the tool results behind it
 // (trimmed), which the next question gets back as data. It also keeps the
@@ -12,7 +19,10 @@
 // reopened conversation shows how each answer was found. The model never
 // sees that record; only the person who asked does.
 
-export const MAX_TURNS = 8;
+/** Turns kept in a conversation; the oldest drop past it. */
+export const MAX_TURNS = 50;
+/** Turns the model gets back as history (and whose tool results are kept). */
+export const CONTEXT_TURNS = 8;
 const RESULT_CHARS = 6000; // per tool result kept
 const CONTEXT_CHARS = 40000; // all carried tool results together
 const QUESTION_CHARS = 600;
@@ -20,7 +30,23 @@ const ANSWER_CHARS = 8000;
 const ID = /^[0-9a-f-]{36}$/;
 
 const key = (uid, id) => `conv:${uid}:${id}`;
-const ttl = (days) => Math.round(Math.min(Math.max(Number(days) || 7, 1), 30) * 86400);
+/**
+ * Seconds a conversation is kept, or null for until the account deletes it
+ * (the default). CONVERSATION_DAYS, when a deployment sets it, is a whole
+ * number of days from 1 to 365.
+ */
+export function ttl(days) {
+  if (days == null || days === '' || days === 'keep') return null;
+  const n = Number(days);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(Math.min(Math.max(n, 1), 365) * 86400);
+}
+const METADATA_TITLE = 120;
+/** What the list shows, kept as the key's metadata (KV allows 1,024 bytes). */
+export const conversationMetadata = (conv) => {
+  const last = conv.turns.at(-1);
+  return { title: conv.turns[0].question.slice(0, METADATA_TITLE), turns: conv.turns.length, updated: last.at, city: String(conv.city || '').slice(0, 40) };
+};
 
 export function newConversationId() {
   return crypto.randomUUID();
@@ -73,10 +99,12 @@ export function turnView(t) {
 }
 
 /**
- * Add a turn and save. Tool results are trimmed; the oldest turns drop past
- * MAX_TURNS. `record` is what was shown under the answer (see answerRecord).
+ * Add a turn and save. Tool results are trimmed, and kept only for the
+ * CONTEXT_TURNS newest turns (the only ones fed back); the oldest turns drop
+ * past MAX_TURNS. `record` is what was shown under the answer (see
+ * answerRecord). Kept until deleted unless `days` is set.
  */
-export async function saveTurn(kv, uid, id, conv, { city, question, answer, tools = [], record }, { days = 7, now = Date.now() } = {}) {
+export async function saveTurn(kv, uid, id, conv, { city, question, answer, tools = [], record }, { days, now = Date.now() } = {}) {
   const turns = [...(conv?.turns || []), {
     at: new Date(now).toISOString(),
     question: String(question).slice(0, QUESTION_CHARS),
@@ -84,9 +112,10 @@ export async function saveTurn(kv, uid, id, conv, { city, question, answer, tool
     // note_unanswered keeps only what was noted, never the drafted question.
     tools: tools.map((t) => ({ name: t.name, args: t.name === 'note_unanswered' ? { answered: t.args?.answered, gaps: t.args?.gaps } : t.args, result: clipResult(String(t.content)) })),
     ...(record ? { record: answerRecord(record) } : {}),
-  }].slice(-MAX_TURNS);
+  }].slice(-MAX_TURNS).map((t, i, all) => (i < all.length - CONTEXT_TURNS && t.tools?.length ? { ...t, tools: [] } : t));
   const next = { city, created: conv?.created || new Date(now).toISOString(), turns };
-  await kv.put(key(uid, id), JSON.stringify(next), { expirationTtl: ttl(days) });
+  const seconds = ttl(days);
+  await kv.put(key(uid, id), JSON.stringify(next), { metadata: conversationMetadata(next), ...(seconds ? { expirationTtl: seconds } : {}) });
   return next;
 }
 
@@ -96,7 +125,7 @@ export async function saveTurn(kv, uid, id, conv, { city, question, answer, tool
  * first; older ones lose it once the budget is spent.
  */
 export function historyFrom(conv) {
-  const turns = conv?.turns || [];
+  const turns = (conv?.turns || []).slice(-CONTEXT_TURNS);
   let budget = CONTEXT_CHARS;
   const withData = new Set();
   for (let i = turns.length - 1; i >= 0; i--) {
@@ -120,16 +149,42 @@ export function historyFrom(conv) {
   return { history, carried };
 }
 
-/** Recent conversations for the account, newest first, as titles only. */
-export async function listConversations(kv, uid, limit = 10) {
-  const page = await kv.list({ prefix: `conv:${uid}:` });
-  const out = await Promise.all(page.keys.map(async (k) => {
+/** Every key under the account's prefix, following the list's cursor. */
+async function allKeys(kv, uid) {
+  const keys = [];
+  let cursor;
+  do {
+    const page = await kv.list({ prefix: `conv:${uid}:`, ...(cursor ? { cursor } : {}) });
+    keys.push(...page.keys);
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return keys;
+}
+
+/**
+ * Recent conversations for the account, newest first, as titles only. Read
+ * from the keys' metadata; a conversation saved before metadata existed is
+ * opened once to read its title.
+ */
+export async function listConversations(kv, uid, limit = 20) {
+  const keys = await allKeys(kv, uid);
+  const out = await Promise.all(keys.map(async (k) => {
+    const id = k.name.split(':')[2];
+    const m = k.metadata;
+    if (m && typeof m.title === 'string' && typeof m.updated === 'string') return { id, title: m.title, turns: m.turns, updated: m.updated, city: m.city };
     const conv = await kv.get(k.name, 'json');
     if (!conv?.turns?.length) return null;
-    const last = conv.turns.at(-1);
-    return { id: k.name.split(':')[2], title: conv.turns[0].question.slice(0, 120), turns: conv.turns.length, updated: last.at, city: conv.city };
+    return { id, ...conversationMetadata(conv) };
   }));
   return out.filter(Boolean).sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, limit);
+}
+
+/** Delete every conversation the account has. Returns how many. */
+export async function deleteAllConversations(kv, uid) {
+  if (!uid) return 0;
+  const keys = await allKeys(kv, uid);
+  await Promise.all(keys.map((k) => kv.delete(k.name)));
+  return keys.length;
 }
 
 export async function deleteConversation(kv, uid, id) {

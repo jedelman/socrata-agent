@@ -1,7 +1,7 @@
 // The free tier's flag off (docs/free-tier.md): with PUBLIC_ASK unset, every
 // existing route of the Worker answers byte-identically to the code before
 // the free tier, and the free tier's paths stay 404s. The snapshot
-// (fixtures/public-ask-off-snapshot.json) was taken from b92b124, main plus
+// (fixtures/public-ask-off-snapshot.json) was taken from main at f6f0e9e, main plus
 // the spec, before any free-tier code (fixtures/public-ask-off-scenario.js
 // says how it is normalized: only the asset hash, signed values and trace
 // timings).

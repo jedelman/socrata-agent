@@ -1,5 +1,5 @@
 // Writes public-ask-off-snapshot.json: the flag-off scenario's output. Run it
-// only on the code before the free tier (b92b124); test/public-ask-off.test.js
+// only on the code before the free tier (main before the free tier: f6f0e9e, retaken after #31 merged); test/public-ask-off.test.js
 // compares the code since against it.
 //   node test/fixtures/write-public-ask-off-snapshot.js
 import * as nodeModule from 'node:module';

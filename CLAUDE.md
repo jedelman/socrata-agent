@@ -102,8 +102,13 @@ generic mode.
   subjects, the client_id) come from `PUBLIC_ORIGIN`, never the Host header.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email
   sign-in by magic link (Resend), which binds an invite to an account;
-  `conversations.js` holds each account's conversations (KV, 7 days), whose
-  earlier tool results come back as data for follow-ups. Each turn also keeps
+  `conversations.js` holds each account's conversations (KV), kept until the
+  account deletes one or all of them (Jason, 2026-11-10: "store indefinitely
+  on behalf of the user, since there's no discovery; deletion is on
+  request"; `CONVERSATION_DAYS` sets an expiry for other deployments). Up to
+  50 turns are kept; the last 8 come back to the model, with their tool
+  results as data for follow-ups. Each key's metadata carries the list's
+  title, so listing never opens every conversation. Each turn also keeps
   the record shown under its answer (trace, hand-off, voice check, model,
   steps, cost, suggestions; bounded by `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are

@@ -3,8 +3,8 @@
 // the Worker, through its own fetch handler, in three envs (the default
 // deployment; Siren invite-only; Siren with Bluesky endorsements on and
 // SIREN_DB bound), plus the paths the free tier adds, which must stay 404s.
-// public-ask-off-snapshot.json is this scenario's output from b92b124 (main
-// plus the spec, before any free-tier code).
+// public-ask-off-snapshot.json is this scenario's output from main at f6f0e9e (the
+// code before any free-tier code; retaken after main gained #31).
 //
 // Each entry keeps the status, every header and the body (its text when
 // short, else its SHA-256 and length), the outbound URLs it made and whether

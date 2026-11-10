@@ -16,6 +16,7 @@
 //   node scripts/invites.js endorsements <request id>   (the live Bluesky endorsement count, from Constellation)
 //   node scripts/invites.js question-hide <question id>    (the free tier: take a public question off the list and its page)
 //   node scripts/invites.js question-unhide <question id>  (put a hidden one back)
+//   node scripts/invites.js conversations-keep [--apply] (one-time: drop the 7-day expiry from saved conversations)
 //
 // Once a request or note has been synced to GitHub, declining or deleting it
 // doesn't erase it there: the old title stays in the issue's timeline and old
@@ -55,6 +56,10 @@ import { withStatus, withNoteReview, normalizeRecord, publicId, deletedKey, deci
 import { constellationOrigin, countEndorsers, userAgent } from '../worker/constellation.js';
 import { endorseSubject } from '../worker/endorse-config.js';
 import { publicOrigin } from '../worker/atproto-oauth.js';
+import { conversationMetadata } from '../worker/conversations.js';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -382,6 +387,37 @@ async function main() {
     const changes = (Array.isArray(out) ? out : []).reduce((n, r) => n + (Number(r?.meta?.changes) || 0), 0);
     if (changes !== 1) throw new Error(`No ${from} question has that id (a withdrawn one can't be ${cmd === 'question-hide' ? 'hidden' : 'unhidden'}). Nothing changed.`);
     console.error(cmd === 'question-hide' ? `Hidden: ${id} is off the public list and its page.` : `Unhidden: ${id} is public again.`);
+  } else if (cmd === 'conversations-keep') {
+    // One time (Jason, 2026-11-10: private conversations are kept until the
+    // account deletes them). Conversations saved before that carry a 7-day
+    // expiry; this saves each again with none, and with the list metadata the
+    // Worker now writes. It prints counts only, never a conversation, and
+    // writes only with --apply. The value passes through a private temp file
+    // (mode 600), deleted at once.
+    const keys = JSON.parse(wrangler(['list', '--prefix', 'conv:']) || '[]');
+    const expiring = keys.filter((k) => k.expiration);
+    const apply = flag('apply');
+    let kept = 0;
+    let gone = 0;
+    for (const { name } of expiring) {
+      if (!apply) continue;
+      const raw = getDirect(name);
+      if (raw == null) { gone++; continue; } // expired or deleted since the listing
+      const conv = JSON.parse(raw);
+      if (!conv?.turns?.length) { gone++; continue; }
+      const dir = mkdtempSync(join(tmpdir(), 'siren-conv-'));
+      try {
+        const file = join(dir, 'value.json');
+        writeFileSync(file, raw, { mode: 0o600 });
+        wrangler(['put', name, '--path', file, '--metadata', JSON.stringify(conversationMetadata(conv))]);
+        kept++;
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+    console.error(!expiring.length ? 'No saved conversation has an expiry. Nothing to do.'
+      : apply ? `Kept ${kept} conversation${kept === 1 ? '' : 's'} until deleted${gone ? `; ${gone} had already gone` : ''}.`
+        : `Dry run: ${expiring.length} conversation${expiring.length === 1 ? '' : 's'} still expire${expiring.length === 1 ? 's' : ''}. Run again with --apply to keep them until deleted.`);
   } else if (cmd === 'waitlist-remove') {
     const email = String(argv[1] || '').trim().toLowerCase();
     if (!email.includes('@')) throw new Error('Give the email address to remove.');
@@ -390,7 +426,7 @@ async function main() {
     wrangler(['delete', key]);
     console.error('Removed from the waitlist.');
   } else {
-    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] | endorsements <id> | question-hide <question id> | question-unhide <question id>  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
+    console.error('Usage: node scripts/invites.js create --label "..." [--uses N] | list | revoke <code or hash> | waitlist | waitlist-remove <email> | requests [--status new] | request-accept <id> [--note "..."] | request-decline <id> [--note "..."] | request-fulfilled <id> --by <url> | request-reopen <id> | request-note <id> <note id> approve|delete | request-ids [--apply] | endorsements <id> | question-hide <question id> | question-unhide <question id> | conversations-keep [--apply]  [--no-endorsements] [--env siren] [--local] [--config file] [--dry-run]');
     process.exit(cmd ? 1 : 0);
   }
 }

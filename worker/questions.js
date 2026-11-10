@@ -12,7 +12,7 @@
 // public routes run). Pure: every call takes the D1 binding.
 
 import { newPublicId, PUBLIC_ID_RE } from './requests.js';
-import { MAX_TURNS } from './conversations.js';
+import { CONTEXT_TURNS } from './conversations.js';
 
 /** A public question id: 16 base32 characters, random (the request ids' shape). */
 export const QUESTION_ID_RE = PUBLIC_ID_RE;
@@ -151,7 +151,7 @@ export function chainTo(thread, parent) {
  * next question does (worker/conversations.js historyFrom): each earlier
  * question and answer in the chain, oldest first, its tool results as data.
  * A withdrawn question's text and answer never go in (nor a hidden one's):
- * it is skipped, and a note in its place says so. At most MAX_TURNS turns,
+ * it is skipped, and a note in its place says so. At most CONTEXT_TURNS turns (what a conversation feeds back),
  * the root kept and the nearest ancestors after it, as a conversation is
  * bounded. -> turns for historyFrom.
  */
@@ -182,8 +182,8 @@ export function contextTurns(chain) {
     turns.push({ question: String(r.question ?? '').slice(0, QUESTION_CHARS), answer: String(r.answer ?? '').slice(0, ANSWER_CHARS), tools, at: r.day });
   }
   flush();
-  if (turns.length <= MAX_TURNS) return turns;
-  return [turns[0], { question: `[Siren's note, not a question: ${turns.length - MAX_TURNS} earlier exchanges in this thread are left out here, to keep within the size a conversation may carry.]`, answer: '[Left out.]', tools: [], note: true }, ...turns.slice(-(MAX_TURNS - 2))];
+  if (turns.length <= CONTEXT_TURNS) return turns;
+  return [turns[0], { question: `[Siren's note, not a question: ${turns.length - CONTEXT_TURNS} earlier exchanges in this thread are left out here, to keep within the size a conversation may carry.]`, answer: '[Left out.]', tools: [], note: true }, ...turns.slice(-(CONTEXT_TURNS - 2))];
 }
 
 /** A failed answer deletes its claim; the record stays in the asker's repo for them to delete. */
