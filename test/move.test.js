@@ -17,6 +17,9 @@ import { userAgent } from '../worker/constellation.js';
 import { publicBase } from '../worker/public-list.js';
 import { addRequest, decide, currentId } from '../worker/requests.js';
 import { readyEnv, fakeNetwork } from './fake-atproto.js';
+// Static, not a dynamic import: under Node 24 the text hook below would hand a
+// later import of crypto.js the text version the Worker also imports.
+import { hmac, b64url, enc } from '../worker/crypto.js';
 
 const canHook = typeof nodeModule.registerHooks === 'function';
 const skip = !canHook && 'node:module has no registerHooks';
@@ -242,7 +245,6 @@ test('carry-over refuses what it should: forged, expired, relabelled or malforme
   await refused(await signSession(secret, hash), 'an invite session cookie is not a carry token (its own label)');
   for (const junk of ['', 'x', 'a.b.c', `${payload}.`, `.${sig}`, `${good}.x`, 'é'.repeat(10)]) await refused(junk, `malformed: ${junk}`);
   // A valid token whose expiry reaches far ahead is refused too (it could only be forged).
-  const { hmac, b64url, enc } = await import('../worker/crypto.js');
   const far = b64url(enc.encode(JSON.stringify({ k: hash, t: '/', e: Math.floor(Date.now() / 1000) + 3600 })));
   await refused(`${far}.${b64url(await hmac(secret, `carry-invite:${far}`))}`, 'an expiry beyond the window');
   assert.equal(await readCarryToken(secret, good, Date.now() + (CARRY_SECONDS + 1) * 1000), null, 'it lasts CARRY_SECONDS');

@@ -27,6 +27,7 @@ import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bi
 import { addRequest, raiseResponse, publicRequests, PUBLIC_ID_RE } from './requests.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { hmacHex } from './crypto.js';
+import { movedResponse, httpsResponse, carryInviteResponse, CARRY_PATH } from './moved.js';
 import { handleAdmin } from './admin.js';
 import { cachedPublicList } from './public-list.js';
 import { blueskyReady, handleMetadata, handleResolve } from './bluesky.js';
@@ -35,6 +36,10 @@ import REQUESTS_PAGE from './requests.html';
 // The requests page's module and style, and the browser OAuth client with
 // the shared modules it imports, served as text (with { type: 'text' } is an
 // esbuild import attribute; the same files are imported as code elsewhere).
+// Keep every code import of these files above this block: under Node 24 the
+// tests' text hook (test/worker-requests.test.js) gives a module imported
+// as code after its text import the text version, which has no named
+// exports (seen 2026-11-10 with moved.js and crypto.js; esbuild is fine).
 import PAGE_JS from './requests-page.js' with { type: 'text' };
 import PAGE_CSS from './requests.css' with { type: 'text' };
 // The chat page's script and style, served the same way so it can carry a
@@ -53,7 +58,6 @@ import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 import { toolsFor } from '../src/tools.js';
 import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
-import { movedResponse, httpsResponse, carryInviteResponse, CARRY_PATH } from './moved.js';
 
 // Street names per city, used only to refuse addresses in text that could go
 // public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
