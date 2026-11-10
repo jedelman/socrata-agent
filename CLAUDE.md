@@ -108,7 +108,20 @@ generic mode.
   request"; `CONVERSATION_DAYS` sets an expiry for other deployments). Up to
   50 turns are kept; the last 8 come back to the model, with their tool
   results as data for follow-ups. Each key's metadata carries the list's
-  title, so listing never opens every conversation. Each turn also keeps
+  title, so listing never opens every conversation. The list pages newest
+  updated first (`GET /api/conversations?limit=&cursor=`: 20 a page, 50 at
+  most; the cursor is the last `(updated, id)`, since that order isn't key
+  order). Search (`/api/conversations/search`: the page POSTs `{q}` so the
+  query is never in a URL; `GET ?q=` also works) reads the account's own
+  conversations only, the 300 newest by `updated`, and matches each turn's
+  question and answer as they read on the page (NFKC, case, whitespace,
+  markdown marks dropped), never tool results or records: at most 20
+  matches, three per conversation, with a notice when the 300 bound cut it
+  short. The query and results are never logged, stored or cached
+  (`no-store`; a failure logs one fixed line). Searches are limited to 100
+  per account per UTC day, counted under `search-rate:<day>:<HMAC(day, uid)>`
+  so the counter can't be joined to the account; a search the counter can't
+  record (KV takes one write a second per key) isn't run. Each turn also keeps
   the record shown under its answer (trace, hand-off, voice check, model,
   steps, cost, suggestions; bounded by `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are
