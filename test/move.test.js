@@ -9,9 +9,9 @@ import assert from 'node:assert/strict';
 import * as nodeModule from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { movedFrom, moveTarget, movedResponse } from '../worker/moved.js';
+import { movedFrom, moveTarget, movedResponse, httpsResponse, carryToken, readCarryToken, CARRY_SECONDS } from '../worker/moved.js';
 import { endorseSubject, OAUTH_SCOPE } from '../worker/endorse-config.js';
-import { newCode, inviteKey } from '../worker/invites.js';
+import { newCode, inviteKey, signSession, sha256hex, normalizeCode } from '../worker/invites.js';
 import { main as syncMain, pageUrlFor } from '../scripts/sync-request-issues.js';
 import { userAgent } from '../worker/constellation.js';
 import { publicBase } from '../worker/public-list.js';
@@ -70,8 +70,8 @@ test('wrangler.toml: the custom domain, the old routes kept, BASE_PATH "", the n
   assert.match(siren, /developers\.cloudflare\.com\/workers\/configuration\/routing\/custom-domains\/[\s\S]{0,80}read 2026-11-10/, 'the docs URL and date');
 });
 
-test('MOVED_FROM: one shape only, and no move that would loop', () => {
-  assert.deepEqual(movedFrom({ MOVED_FROM: OLD }), { origin: 'https://jason-edelman.org', prefix: '/ask-siren' });
+test('MOVED_FROM: one shape only, and no move that would loop', async () => {
+  assert.deepEqual(movedFrom({ MOVED_FROM: OLD }), { origin: 'https://jason-edelman.org', host: 'jason-edelman.org', prefix: '/ask-siren' });
   for (const bad of [undefined, '', 'https://jason-edelman.org', 'https://jason-edelman.org/', 'https://jason-edelman.org/ask-siren/', 'http://jason-edelman.org/ask-siren',
     'https://jason-edelman.org:8443/ask-siren', 'https://jason-edelman.org/ask-siren?x', 'https://jason-edelman.org/ask-siren#x', 'https://Jason-Edelman.org/ask-siren', 'https://jason-edelman.org/a b', 'https://u@jason-edelman.org/ask-siren']) {
     assert.equal(movedFrom({ MOVED_FROM: bad }), null, String(bad));
@@ -82,16 +82,16 @@ test('MOVED_FROM: one shape only, and no move that would loop', () => {
   assert.equal(moveTarget({ MOVED_FROM: OLD, PUBLIC_ORIGIN: 'https://jason-edelman.org' }, '/ask-siren'), null, 'the same address');
   assert.equal(moveTarget({ MOVED_FROM: OLD, PUBLIC_ORIGIN: 'https://jason-edelman.org' }, '/ask-siren/v2'), null, 'under the old one');
   assert.ok(moveTarget({ MOVED_FROM: OLD, PUBLIC_ORIGIN: 'https://jason-edelman.org' }, '/siren'), 'a sibling path is fine');
-  // Not on the old origin, or no move configured: nothing to do.
-  assert.equal(movedResponse(new Request(`${NEW}/ask-siren/requests`), { MOVED_FROM: OLD, PUBLIC_ORIGIN: NEW }), null);
-  assert.equal(movedResponse(new Request(`${OLD}/requests`), { PUBLIC_ORIGIN: NEW }), null);
+  // Not on the old host, or no move configured: nothing to do.
+  assert.equal(await movedResponse(new Request(`${NEW}/ask-siren/requests`), { MOVED_FROM: OLD, PUBLIC_ORIGIN: NEW }), null);
+  assert.equal(await movedResponse(new Request(`${OLD}/requests`), { PUBLIC_ORIGIN: NEW }), null);
+  assert.equal(await movedResponse(new Request('https://www.jason-edelman.org/ask-siren/'), { MOVED_FROM: OLD, PUBLIC_ORIGIN: NEW }), null, 'another host');
 });
 
 test('the old address: 301 for GET and HEAD, 308 for the rest, to the same path and query on the new origin, minus /ask-siren', { skip }, async () => {
   const w = await loadWorker();
   const env = sirenEnv();
   const cases = [
-    ['/ask-siren', '/'],
     ['/ask-siren/', '/'],
     ['/ask-siren/index.html', '/index.html'],
     ['/ask-siren/login', '/login'],
@@ -119,12 +119,152 @@ test('the old address: 301 for GET and HEAD, 308 for the rest, to the same path 
   }
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) {
     const init = { method, headers: { 'Content-Type': 'application/json' }, ...(['POST', 'PUT', 'PATCH'].includes(method) ? { body: '{"question":"x"}' } : {}) };
-    for (const [from, to] of [['/ask-siren/api/ask', '/api/ask'], ['/ask-siren/api/login?x=1', '/api/login?x=1'], ['/ask-siren', '/']]) {
+    for (const [from, to] of [['/ask-siren/api/ask', '/api/ask'], ['/ask-siren/api/login?x=1', '/api/login?x=1']]) {
       const res = await w.fetch(new Request(`https://jason-edelman.org${from}`, init), env, ctx);
       assert.equal(res.status, 308, `${method} ${from}`);
       assert.equal(res.headers.get('Location'), `${NEW}${to}`);
     }
   }
+});
+
+test('the old address over http, and the bare /ask-siren: first to https and the slash form on the old host, where the old invite cookie is sent', { skip }, async () => {
+  const w = await loadWorker();
+  const env = sirenEnv();
+  // [url, method, status, Location]
+  const cases = [
+    ['https://jason-edelman.org/ask-siren', 'GET', 301, 'https://jason-edelman.org/ask-siren/'],
+    ['https://jason-edelman.org/ask-siren?q=1', 'HEAD', 301, 'https://jason-edelman.org/ask-siren/?q=1'],
+    ['http://jason-edelman.org/ask-siren', 'GET', 301, 'https://jason-edelman.org/ask-siren/'],
+    ['http://jason-edelman.org/ask-siren/requests?a=1&b=%20', 'GET', 301, 'https://jason-edelman.org/ask-siren/requests?a=1&b=%20'],
+    ['http://jason-edelman.org/ask-siren/api/ask', 'POST', 308, 'https://jason-edelman.org/ask-siren/api/ask'],
+    ['https://jason-edelman.org/ask-siren', 'POST', 308, 'https://jason-edelman.org/ask-siren/'],
+  ];
+  for (const [u, method, status, location] of cases) {
+    const res = await w.fetch(new Request(u, { method, ...(method === 'POST' ? { headers: { 'Content-Type': 'application/json' }, body: '{}' } : {}) }), env, ctx);
+    assert.equal(res.status, status, `${method} ${u}`);
+    assert.equal(res.headers.get('Location'), location, `${method} ${u}`);
+  }
+  // Followed to the end, every one lands on the new origin over https, in at most two hops.
+  for (const u of ['http://jason-edelman.org/ask-siren', 'http://jason-edelman.org/ask-siren/requests?x=1', 'https://jason-edelman.org/ask-siren']) {
+    let at = u;
+    for (let hop = 0; hop < 2 && !at.startsWith(NEW); hop++) at = (await w.fetch(new Request(at), env, ctx)).headers.get('Location');
+    assert.ok(at.startsWith(`${NEW}/`), `${u} -> ${at}`);
+  }
+  // Paths outside /ask-siren on the old host are 404s over http too.
+  assert.equal((await w.fetch(new Request('http://jason-edelman.org/ask-sirens'), env, ctx)).status, 404);
+  assert.equal((await w.fetch(new Request('http://jason-edelman.org/'), env, ctx)).status, 404);
+});
+
+test('plain http on the new host goes to the same path over https; nothing else does', { skip }, async () => {
+  const w = await loadWorker();
+  const env = sirenEnv();
+  for (const [path, method, status] of [['/', 'GET', 301], ['/requests?x=1', 'HEAD', 301], ['/api/ask', 'POST', 308], ['/login', 'GET', 301]]) {
+    const res = await w.fetch(new Request(`http://ask-siren.jason-edelman.org${path}`, { method, ...(method === 'POST' ? { headers: { 'Content-Type': 'application/json' }, body: '{}' } : {}) }), env, ctx);
+    assert.equal(res.status, status, `${method} ${path}`);
+    assert.equal(res.headers.get('Location'), `${NEW}${path}`);
+    assert.equal(res.headers.get('Set-Cookie'), null);
+  }
+  assert.equal(httpsResponse(new Request(`${NEW}/`), env), null, 'https is served');
+  assert.equal(httpsResponse(new Request('http://other.example/'), env), null, 'another host is not ours to send');
+  assert.equal(httpsResponse(new Request('http://127.0.0.1:8787/'), { PUBLIC_ORIGIN: 'http://127.0.0.1:8787' }), null, 'local dev stays on http');
+  assert.equal(httpsResponse(new Request(`http://ask-siren.jason-edelman.org/`), {}), null, 'no PUBLIC_ORIGIN, no redirect');
+});
+
+// An invite redeemed on the old address, held only as its cookie there.
+async function oldInvite(env, record = { label: 'old', max_uses: 1 }) {
+  const code = newCode();
+  await env.LIMITS.put(await inviteKey(code), JSON.stringify(record));
+  const hash = await sha256hex(normalizeCode(code));
+  await env.LIMITS.put(`redeemed:${hash}:first`, '2026-11-01T00:00:00.000Z'); // its one use, spent
+  return { code, hash, cookie: `siren_invite=${await signSession(env.INVITE_SECRET, hash)}` };
+}
+
+test('carry-over: an invite held as a cookie on the old address follows the person to the new host, spending no use', { skip }, async () => {
+  const w = await loadWorker();
+  const env = sirenEnv();
+  const { hash, cookie } = await oldInvite(env);
+  const logged = [];
+  const spies = ['log', 'info', 'warn', 'error', 'debug'].map((k) => [k, console[k]]);
+  for (const [k] of spies) console[k] = (...a) => logged.push(a.join(' '));
+  let token;
+  try {
+    for (const method of ['GET', 'HEAD']) {
+      const first = await w.fetch(new Request(`${OLD}/requests?x=1`, { method, headers: { Cookie: `other=1; ${cookie}` } }), env, ctx);
+      assert.equal(first.status, 302, method);
+      assert.equal(first.headers.get('Cache-Control'), 'no-store');
+      assert.equal(first.headers.get('Referrer-Policy'), 'no-referrer');
+      assert.equal(first.headers.get('Set-Cookie'), null, 'nothing set on the old host');
+      const loc = new URL(first.headers.get('Location'));
+      assert.equal(`${loc.origin}${loc.pathname}`, `${NEW}/carry-invite`);
+      assert.deepEqual([...loc.searchParams.keys()], ['t']);
+      token = loc.searchParams.get('t');
+      assert.deepEqual(await readCarryToken(env.INVITE_SECRET, token), { hash, to: '/requests?x=1' });
+      const carried = await w.fetch(new Request(loc.href, { method }), env, ctx);
+      assert.equal(carried.status, 302);
+      assert.equal(carried.headers.get('Location'), `${NEW}/requests?x=1`, 'on to the page asked for');
+      assert.equal(carried.headers.get('Cache-Control'), 'no-store');
+      assert.equal(carried.headers.get('Referrer-Policy'), 'no-referrer');
+      const set = carried.headers.get('Set-Cookie');
+      assert.match(set, /^__Host-siren_invite=[^;]+; Path=\/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax$/);
+      // The carried cookie works on the new host, though the code has no use left.
+      const session = await (await w.fetch(new Request(`${NEW}/api/session`, { headers: { Cookie: set.split(';')[0] } }), env, ctx)).json();
+      assert.equal(session.invited, true, method);
+    }
+  } finally {
+    for (const [k, f] of spies) console[k] = f;
+  }
+  assert.ok(!logged.some((l) => l.includes(token) || l.includes('carry-invite?t=')), 'the token is never logged');
+  assert.deepEqual([...env.LIMITS.store.keys()].filter((k) => k.startsWith('redeemed:')), [`redeemed:${hash}:first`], 'no use spent');
+});
+
+test('carry-over refuses what it should: forged, expired, relabelled or malformed tokens; a browser that already holds an invite keeps it', { skip }, async () => {
+  const w = await loadWorker();
+  const env = sirenEnv();
+  const { hash, cookie } = await oldInvite(env);
+  const secret = env.INVITE_SECRET;
+  const route = (t, headers = {}) => w.fetch(new Request(`${NEW}/carry-invite?t=${encodeURIComponent(t)}`, { headers }), env, ctx);
+  const refused = async (t, why) => {
+    const res = await route(t);
+    assert.equal(res.status, 302, why);
+    assert.equal(res.headers.get('Location'), `${NEW}/`, `${why}: to the home page`);
+    assert.equal(res.headers.get('Set-Cookie'), null, `${why}: no cookie`);
+    assert.equal(res.headers.get('Cache-Control'), 'no-store');
+    assert.equal(res.headers.get('Referrer-Policy'), 'no-referrer');
+  };
+  const good = await carryToken(secret, hash, '/requests');
+  const [payload, sig] = good.split('.');
+  const mid = Math.floor(sig.length / 2);
+  await refused(`${payload}.${sig.slice(0, mid)}${sig[mid] === 'A' ? 'B' : 'A'}${sig.slice(mid + 1)}`, 'a changed signature');
+  await refused(await carryToken('another-secret-that-is-long-enough', hash, '/requests'), 'another secret');
+  await refused(await carryToken(secret, hash, '/requests', Date.now() - (CARRY_SECONDS + 1) * 1000), 'expired');
+  const other = Buffer.from(JSON.stringify({ k: 'a'.repeat(64), t: '/', e: Math.floor(Date.now() / 1000) + 60 })).toString('base64url');
+  await refused(`${other}.${sig}`, 'a payload swapped under a real signature');
+  await refused(await signSession(secret, hash), 'an invite session cookie is not a carry token (its own label)');
+  for (const junk of ['', 'x', 'a.b.c', `${payload}.`, `.${sig}`, `${good}.x`, 'é'.repeat(10)]) await refused(junk, `malformed: ${junk}`);
+  // A valid token whose expiry reaches far ahead is refused too (it could only be forged).
+  const { hmac, b64url, enc } = await import('../worker/crypto.js');
+  const far = b64url(enc.encode(JSON.stringify({ k: hash, t: '/', e: Math.floor(Date.now() / 1000) + 3600 })));
+  await refused(`${far}.${b64url(await hmac(secret, `carry-invite:${far}`))}`, 'an expiry beyond the window');
+  assert.equal(await readCarryToken(secret, good, Date.now() + (CARRY_SECONDS + 1) * 1000), null, 'it lasts CARRY_SECONDS');
+  assert.ok(CARRY_SECONDS <= 300, 'five minutes at most');
+  // No route without INVITE_SECRET.
+  assert.equal((await w.fetch(new Request(`${NEW}/carry-invite?t=${good}`), sirenEnv({ INVITE_SECRET: undefined }), ctx)).status, 404);
+  // Someone who already holds an invite on the new host keeps their own: a carry link someone sent can't swap it.
+  const mine = `__Host-siren_invite=${await signSession(secret, 'b'.repeat(64))}`;
+  const kept = await route(good, { Cookie: mine });
+  assert.equal(kept.headers.get('Set-Cookie'), null);
+  assert.equal(kept.headers.get('Location'), `${NEW}/requests`);
+  // On the old host, only a valid cookie is carried, and only by a GET or HEAD over https.
+  const plain = await w.fetch(new Request(`${OLD}/`, { headers: { Cookie: 'siren_invite=forged.value' } }), env, ctx);
+  assert.equal(plain.status, 301);
+  assert.equal(plain.headers.get('Location'), `${NEW}/`);
+  const expired = `siren_invite=${await signSession(secret, hash, Date.now() - 31 * 86400e3)}`;
+  assert.equal((await w.fetch(new Request(`${OLD}/`, { headers: { Cookie: expired } }), env, ctx)).status, 301);
+  const posted = await w.fetch(new Request(`${OLD}/api/ask`, { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: '{}' }), env, ctx);
+  assert.equal(posted.status, 308);
+  assert.equal(posted.headers.get('Location'), `${NEW}/api/ask`);
+  // The new names are not carried from the old host: only the cookie it really set there.
+  assert.equal((await w.fetch(new Request(`${OLD}/`, { headers: { Cookie: `__Host-${cookie}` } }), env, ctx)).status, 301);
 });
 
 test('the old address serves nothing else: no page, no KV, no cookie; and the new origin serves normally', { skip }, async () => {
@@ -218,7 +358,7 @@ test('BASE_PATH "": sign-in links, cookies at Path=/ on the new host only, and c
   const verified = await w.fetch(post('/api/login/verify', { token: link.split('#t=')[1] }), env, ctx);
   assert.equal(verified.status, 200);
   const userCookie = verified.headers.get('Set-Cookie');
-  assert.match(userCookie, /^siren_user=[^;]+; Path=\/; Max-Age=\d+; HttpOnly; Secure; SameSite=Lax$/);
+  assert.match(userCookie, /^__Host-siren_user=[^;]+; Path=\/; Max-Age=\d+; HttpOnly; Secure; SameSite=Lax$/);
   assert.ok(!/Domain=/i.test(userCookie), 'host-only: never shared with jason-edelman.org or another subdomain');
   // An invite redeemed without an account: the invite cookie, the same way.
   const code = newCode();
@@ -226,12 +366,13 @@ test('BASE_PATH "": sign-in links, cookies at Path=/ on the new host only, and c
   const redeemed = await w.fetch(post('/api/redeem', { code }), env, ctx);
   assert.equal(redeemed.status, 200);
   const inviteCookie = redeemed.headers.get('Set-Cookie');
-  assert.match(inviteCookie, /^siren_invite=[^;]+; Path=\/; Max-Age=\d+; HttpOnly; Secure; SameSite=Lax$/);
+  assert.match(inviteCookie, /^__Host-siren_invite=[^;]+; Path=\/; Max-Age=\d+; HttpOnly; Secure; SameSite=Lax$/);
   // The session renews it at Path=/ too.
   const session = await w.fetch(new Request(`${NEW}/api/session`, { headers: { Cookie: inviteCookie.split(';')[0] } }), env, ctx);
-  assert.match(session.headers.get('Set-Cookie'), /; Path=\/; /);
+  assert.match(session.headers.get('Set-Cookie'), /^__Host-siren_invite=[^;]+; Path=\/; /);
+  assert.equal((await (await w.fetch(new Request(`${NEW}/api/session`, { headers: { Cookie: inviteCookie.split(';')[0].replace('__Host-', '') } }), env, ctx)).json()).invited, false, 'the old name means nothing on the new host');
   const out = await w.fetch(post('/api/logout', {}), env, ctx);
-  assert.match(out.headers.get('Set-Cookie'), /^siren_user=; Path=\/; Max-Age=0; /);
+  assert.match(out.headers.get('Set-Cookie'), /^__Host-siren_user=; Path=\/; Max-Age=0; /);
   // Case files as Web Annotations: ids on the new origin, whatever host the request came in on.
   const list = await (await w.fetch(new Request(`${NEW}/api/cases`), env, ctx)).json();
   assert.ok(list.cases.length > 0);
@@ -347,6 +488,8 @@ test('the chat script and style: static files with nothing per deployment, no in
   assert.ok(!/\sstyle=/.test(js), 'no style attribute in markup the script writes');
   assert.ok(!/\son[a-z]+=["$]/i.test(js), 'no inline handlers in markup the script writes');
   assert.ok(!/\beval\(|new Function|setTimeout\(\s*['"`]/.test(js), 'nothing that needs unsafe-eval');
+  // Model output loses style attributes in DOMPurify, before the CSP would refuse them with a console error each.
+  assert.match(js, /DOMPurify\.sanitize\(marked\.parse\(s \|\| ''\), \{ FORBID_ATTR: \['style'\] \}\)/);
   // What were inline style attributes are classes now, styled in chat.css.
   assert.match(js, /<code class="ds">/);
   assert.match(js, /<textarea name="need" class="need"/);
@@ -409,6 +552,12 @@ test('the docs: the routine prompt reads the new feed, the stored prompt is flag
   assert.ok(!routine.includes('REQUESTS_URL=https://jason-edelman.org/ask-siren'), 'the copy of the prompt is the new text');
   assert.match(routine, /after the deploy/i);
   assert.match(routine, /keeps working[\s\S]{0,80}redirect/);
+  assert.match(routine, /"Siren: fulfill a source request", also fetches the\nfeed by its old URL/);
+  const readme = read('README.md');
+  assert.match(readme, /"Siren: sync source requests to issues"[\s\S]{0,80}"Siren: fulfill a source request"/);
+  assert.match(readme, /Tabs left open across the deploy must be reloaded/);
+  assert.match(readme, /An invite held only as a cookie comes along/);
+  assert.match(readme, /`__Host-siren_user` and `__Host-siren_invite`/);
   const doc = read('docs/bluesky-endorsements.md');
   assert.match(doc, /The subject is fixed from here on\./);
   assert.match(doc, /\*\*The chat page carries a strict CSP too\*\*/);

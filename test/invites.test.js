@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   newCode, normalizeCode, inviteKey, signSession, verifySession, readCookie, sessionCookie,
-  currentInvite, redeem, waitlistEntry, joinWaitlist, csvField,
+  currentInvite, redeem, waitlistEntry, joinWaitlist, csvField, inviteCookieName,
 } from '../worker/invites.js';
 
 function fakeKV() {
@@ -27,7 +27,8 @@ function fakeKV() {
   };
 }
 const SECRET = 'test-secret-that-is-long-enough';
-const env = { INVITE_REQUIRED: 'true', INVITE_SECRET: SECRET };
+// A deployment under a path (BASE_PATH), where the cookie keeps its plain name.
+const env = { INVITE_REQUIRED: 'true', INVITE_SECRET: SECRET, BASE_PATH: '/ask-siren' };
 const withCookie = (value) => new Request('https://x/ask-siren/api/ask', { headers: { Cookie: `other=1; siren_invite=${value}` } });
 
 async function addInvite(kv, record) {
@@ -73,6 +74,22 @@ test('the cookie is HttpOnly, Secure, SameSite=Lax and scoped to the base path',
   for (const part of ['Path=/ask-siren/', 'HttpOnly', 'Secure', 'SameSite=Lax']) assert.ok(c.includes(part), part);
   assert.equal(readCookie(withCookie('abc.def')), 'abc.def');
   assert.equal(readCookie(new Request('https://x/')), null);
+});
+
+test('at the root of its own origin the cookie is __Host-siren_invite, and only that name counts', async () => {
+  assert.equal(inviteCookieName(''), '__Host-siren_invite');
+  assert.equal(inviteCookieName('/ask-siren'), 'siren_invite');
+  const c = sessionCookie('v', '/');
+  assert.equal(c, '__Host-siren_invite=v; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax', 'Secure, Path=/, no Domain: what __Host- requires');
+  assert.ok(!/Domain=/i.test(c));
+  const kv = fakeKV();
+  const code = await addInvite(kv, { label: 'root' });
+  const root = { INVITE_REQUIRED: 'true', INVITE_SECRET: SECRET };
+  const out = await redeem({ code, env: root, kv, visitor: 'v1' });
+  const at = (cookie) => new Request('https://ask-siren.example/api/ask', { headers: { Cookie: cookie } });
+  assert.equal((await currentInvite(at(`__Host-siren_invite=${out.cookie}`), root, kv)).label, 'root');
+  assert.equal(await currentInvite(at(`siren_invite=${out.cookie}`), root, kv), null, 'the old name is not read at the root');
+  assert.equal(await currentInvite(at(`__Host-siren_invite=${out.cookie}`), env, kv), null, 'nor the new name under a path');
 });
 
 test('redeeming a code signs you in; revoking the invite signs you out', async () => {

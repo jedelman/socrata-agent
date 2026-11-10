@@ -53,7 +53,7 @@ import { toAnnotations } from '../plugins/cases.js';
 import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, newConversationId, turnView } from './conversations.js';
 import { toolsFor } from '../src/tools.js';
 import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
-import { movedResponse } from './moved.js';
+import { movedResponse, httpsResponse, carryInviteResponse, CARRY_PATH } from './moved.js';
 
 // Street names per city, used only to refuse addresses in text that could go
 // public (src/public-text.js); built by scripts/build-gaps.js. Compiled here,
@@ -614,9 +614,11 @@ export default {
     const url = new URL(req.url);
     const base = basePath(env);
     // A deployment that moved (MOVED_FROM, worker/moved.js): its old address
-    // answers only with redirects to the new one. Siren moved from
-    // jason-edelman.org/ask-siren to ask-siren.jason-edelman.org on 2026-11-10.
-    const moved = movedResponse(req, env, base);
+    // answers only with redirects to the new one, carrying a cookie-held
+    // invite along. Siren moved from jason-edelman.org/ask-siren to
+    // ask-siren.jason-edelman.org on 2026-11-10. And plain http on the new
+    // host goes to https, where the Secure session cookies work.
+    const moved = (await movedResponse(req, env, base)) || httpsResponse(req, env);
     if (moved) return moved;
     // Served under a path on someone else's site (BASE_PATH): strip the prefix,
     // and send the bare path to the trailing-slash form so the page's relative
@@ -629,6 +631,8 @@ export default {
       path = path.slice(base.length);
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/' || path === '/index.html' || path === '/login')) return page(env);
+    // An invite carried over from the old address (worker/moved.js).
+    if ((req.method === 'GET' || req.method === 'HEAD') && path === CARRY_PATH) return carryInviteResponse(req, env, base);
     if (req.method === 'GET' && path === '/api/cities') {
       return json(
         allowedCities(env).map((id) => ({ id, name: cities[id].name, portal: cities[id].portal, block: Boolean(cities[id].address) }))

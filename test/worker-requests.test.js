@@ -7,7 +7,9 @@ import assert from 'node:assert/strict';
 import * as nodeModule from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { signUser, userId, USER_COOKIE } from '../worker/accounts.js';
+import { signUser, userId, userCookieName } from '../worker/accounts.js';
+// These envs have no BASE_PATH: the account cookie's root name.
+const USER_COOKIE = userCookieName('');
 import { main as syncMain } from '../scripts/sync-request-issues.js';
 
 const canHook = typeof nodeModule.registerHooks === 'function';

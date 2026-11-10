@@ -62,7 +62,12 @@ generic mode.
   style attribute or handler, and nothing that needs one). Siren is at
   `https://ask-siren.jason-edelman.org`, its own origin (a Workers Custom
   Domain, `BASE_PATH` empty, since 2026-11-10); `moved.js` answers its old
-  address, `jason-edelman.org/ask-siren` (`MOVED_FROM`), with redirects only.
+  address, `jason-edelman.org/ask-siren` (`MOVED_FROM`), over http or https,
+  with redirects only, carrying a cookie-held invite to `/carry-invite` with a
+  two-minute token signed under its own label (no use spent), and sends
+  plain http on the new host to https. At the root the session cookies are
+  `__Host-siren_user` and `__Host-siren_invite` (plain names under a
+  `BASE_PATH`, where `__Host-` can't be used).
   Links the Worker sends out (sign-in emails, annotation ids, endorsement
   subjects, the client_id) come from `PUBLIC_ORIGIN`, never the Host header.
   `invites.js` holds invite codes and the waitlist; `accounts.js` holds email

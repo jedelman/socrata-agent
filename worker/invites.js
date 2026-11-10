@@ -14,6 +14,17 @@ const CODE_CHARS = 10; // about 49 bits
 export const COOKIE = 'siren_invite';
 const COOKIE_DAYS = 30;
 
+/** A deployment's path prefix, as index.js reads BASE_PATH: '' at the root. */
+export const basePathOf = (env) => String(env?.BASE_PATH || '').replace(/\/$/, '');
+/**
+ * The invite cookie's name for a deployment. At the root of its own origin
+ * (Siren, since 2026-11-10) it is __Host-siren_invite: the browser takes it
+ * only when it is Secure, Path=/ and has no Domain, so no other host or
+ * subdomain can set or shadow it. Under a BASE_PATH it stays siren_invite,
+ * at that path, since a __Host- cookie must have Path=/.
+ */
+export const inviteCookieName = (base = '') => (base ? COOKIE : `__Host-${COOKIE}`);
+
 const enc = new TextEncoder();
 const b64url = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64url = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
@@ -102,8 +113,10 @@ export function readCookie(req, name = COOKIE) {
   return null;
 }
 
+/** The Set-Cookie for an invite session at `path` (`${base}/`), under the name for that path. */
 export function sessionCookie(value, path = '/') {
-  return `${COOKIE}=${value}; Path=${path || '/'}; Max-Age=${COOKIE_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax`;
+  const p = path || '/';
+  return `${inviteCookieName(p === '/' ? '' : p)}=${value}; Path=${p}; Max-Age=${COOKIE_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax`;
 }
 
 /**
@@ -112,7 +125,7 @@ export function sessionCookie(value, path = '/') {
  * invite:<hash> revokes the invite at once.
  */
 export async function currentInvite(req, env, kv) {
-  const hash = await verifySession(env.INVITE_SECRET, readCookie(req));
+  const hash = await verifySession(env.INVITE_SECRET, readCookie(req, inviteCookieName(basePathOf(env))));
   if (!hash) return null;
   const record = await kv.get(`invite:${hash}`, 'json');
   if (!record || record.revoked) return null;

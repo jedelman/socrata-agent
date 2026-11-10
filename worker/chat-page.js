@@ -17,7 +17,8 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 // Links come from city data, configs and plugins: allow only web links.
 const link = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '#');
-const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || '')) : `<p>${esc(s)}</p>`);
+// No style attributes: the page's CSP would refuse them anyway, with a console error each.
+const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || ''), { FORBID_ATTR: ['style'] }) : `<p>${esc(s)}</p>`);
 let history = [];
 let cities = [];
 let conversationId = null;

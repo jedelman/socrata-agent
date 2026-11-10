@@ -5,7 +5,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleAdmin } from '../worker/admin.js';
 import { addRequest, decide, requestKey, currentId } from '../worker/requests.js';
-import { signUser, userId, USER_COOKIE } from '../worker/accounts.js';
+import { signUser, userId, userCookieName } from '../worker/accounts.js';
+// These envs have no BASE_PATH: the account cookie's root name.
+const USER_COOKIE = userCookieName('');
 import { readyEnv, SECRET } from './fake-atproto.js';
 
 const ORIGIN = 'https://ask-siren.jason-edelman.org';

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newCode, inviteKey, signSession } from '../worker/invites.js';
-import { userId, signUser, verifyUser, verifyUserInfo, userCookie, currentUser, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured } from '../worker/accounts.js';
+import { userId, signUser, verifyUser, verifyUserInfo, userCookie, clearUserCookie, userCookieName, currentUser, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured } from '../worker/accounts.js';
 import { saveTurn, loadConversation, historyFrom, listConversations, deleteConversation, newConversationId, MAX_TURNS, answerRecord, turnView } from '../worker/conversations.js';
 import { ask } from '../src/agent.js';
 import { getCity } from '../src/cities/index.js';
@@ -99,9 +99,15 @@ test('account cookies reject tampering, expiry, the wrong secret, and invite coo
   // An invite cookie signed with the same secret must not pass as an account.
   const inviteCookie = await signSession(SECRET, 'f'.repeat(64));
   assert.equal(await verifyUser(SECRET, inviteCookie), null);
+  // Under a BASE_PATH: the plain name at that path.
   assert.match(userCookie(c, '/ask-siren/'), /^siren_user=.+; Path=\/ask-siren\/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax$/);
-  const req = new Request('https://x/', { headers: { Cookie: `siren_user=${c}` } });
-  assert.equal(await currentUser(req, env), uid);
+  assert.equal(await currentUser(new Request('https://x/ask-siren/', { headers: { Cookie: `siren_user=${c}` } }), { ...env, BASE_PATH: '/ask-siren' }), uid);
+  // At the root of its own origin: __Host-siren_user (Secure, Path=/, no Domain), and only that name counts.
+  assert.equal(userCookieName(''), '__Host-siren_user');
+  assert.match(userCookie(c, '/'), /^__Host-siren_user=.+; Path=\/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax$/);
+  assert.equal(clearUserCookie('/'), '__Host-siren_user=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax');
+  assert.equal(await currentUser(new Request('https://x/', { headers: { Cookie: `__Host-siren_user=${c}` } }), env), uid);
+  assert.equal(await currentUser(new Request('https://x/', { headers: { Cookie: `siren_user=${c}` } }), env), null, 'the old name is not read at the root');
 });
 
 test('an invite bound to an account works until the invite is revoked', async () => {

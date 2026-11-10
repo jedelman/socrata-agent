@@ -154,13 +154,14 @@ test('no person filter: did, handle or actor parameters change nothing, and noth
   }
   // Across the Worker's code, no route reads a person as a query parameter.
   // The only query parameters any route reads: a conversation id (private to
-  // its account) and the endorser list's cursor.
+  // its account), the endorser list's cursor, and the token that carries an
+  // invite over from Siren's old address (moved.js, signed, two minutes).
   const read = new Set();
   for (const f of readdirSync(new URL('../worker/', import.meta.url)).filter((x) => x.endsWith('.js'))) {
     const src = readFileSync(new URL(`../worker/${f}`, import.meta.url), 'utf8');
     for (const m of src.matchAll(/searchParams\.get(?:All)?\('([^']+)'\)/g)) read.add(`${f}:${m[1]}`);
   }
-  assert.deepEqual([...read].sort(), ['endorsers.js:cursor', 'index.js:id']);
+  assert.deepEqual([...read].sort(), ['endorsers.js:cursor', 'index.js:id', 'moved.js:t']);
 });
 
 test('limits: the visitor limit and the site breaker refuse before any outbound call; pages are cached', async () => {

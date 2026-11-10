@@ -38,6 +38,10 @@ the prompt changes). The stored prompt still reads
 it (the merge step below). Update it after the deploy that ships the move,
 once the new feed answers.
 
+A second scheduled task, "Siren: fulfill a source request", also fetches the
+feed by its old URL; its stored prompt needs the same change after the
+deploy. Its prompt isn't copied in this repo.
+
 Until then the old URL keeps working through the redirect: the old address
 answers 301 to the same path on the new origin, which the script's fetch
 follows. Issue bodies link the new page either way, because the script takes

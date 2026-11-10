@@ -93,9 +93,10 @@ routes = [
 DEPLOYMENT = "siren"
 # Served at the root of its own origin: no path prefix.
 BASE_PATH = ""
-# The old address: every request to it answers 301 (GET, HEAD) or 308 (other
-# methods) to the same path and query here, minus /ask-siren. Sessions there
-# end: their cookies were scoped to jason-edelman.org, Path=/ask-siren/.
+# The old address: every request to it, over http or https, answers 301 (GET,
+# HEAD) or 308 (other methods) to the same path and query here, minus
+# /ask-siren. Email sign-ins there end (their cookie was jason-edelman.org's);
+# an invite held as a cookie there is carried over (worker/moved.js).
 MOVED_FROM = "https://jason-edelman.org/ask-siren"
 MODEL = "claude-sonnet-5-5"
 PER_IP_DAILY = "20"

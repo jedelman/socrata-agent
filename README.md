@@ -173,10 +173,35 @@ blackwater greens, spatterdock gold, a greater-siren mark, and the tagline
 Until 2026-11-10 Siren lived at `jason-edelman.org/ask-siren`. Its old routes
 stay on the Worker, and `MOVED_FROM` makes that address answer only with
 redirects to the same path and query on the new host, minus `/ask-siren`
-(301 for GET and HEAD, 308 for the rest; `worker/moved.js`). Sessions from the
-old address end: their cookies belonged to jason-edelman.org. A deployment
-served under a path on someone else's site sets `BASE_PATH` instead; Siren's
-is empty.
+(301 for GET and HEAD, 308 for the rest; `worker/moved.js`), over http or
+https. Plain http on the new host goes to https. A deployment served under a
+path on someone else's site sets `BASE_PATH` instead; Siren's is empty.
+
+What the move does to people (2026-11-10):
+
+- **Email sign-ins end.** The account cookie belonged to jason-edelman.org.
+  Signing in again on the new host finds the account's invite and
+  conversations as they were (both are kept by account, not by host).
+- **An invite held only as a cookie comes along.** Someone who entered a
+  code without signing in by email has it only as a cookie on the old host,
+  and entering the code again would spend another use (a single-use code
+  has none left). So a visit to the old address with that cookie goes
+  through `<new>/carry-invite`, with a token signed with `INVITE_SECRET` and
+  good for two minutes, which sets the invite on the new host, spends no
+  use, and opens the page asked for. A browser that already holds an invite
+  on the new host keeps its own.
+- **Tabs left open across the deploy must be reloaded.** A page loaded from
+  the old address still posts to it, and those requests now meet a
+  redirect to another origin, which they can't follow; reloading lands on
+  the new host.
+- The cookies are now `__Host-siren_user` and `__Host-siren_invite`:
+  host-only, `Path=/`, `Secure`, so no other host or subdomain can set or
+  shadow them. (Under a `BASE_PATH` they keep their plain names, since a
+  `__Host-` cookie must have `Path=/`.)
+- **Two scheduled tasks read the feed by its old URL** and need their stored
+  prompts updated after the deploy: "Siren: sync source requests to issues"
+  (`docs/request-sync-routine.md`) and "Siren: fulfill a source request".
+  Until then the old URL keeps working through the redirect.
 
 The chat page, like the request pages, is served under a strict
 Content-Security-Policy: no inline script or style (its script and style are
