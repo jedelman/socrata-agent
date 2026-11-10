@@ -227,7 +227,8 @@ not records. Each search costs $10 per 1,000 on top of tokens (Anthropic's
 pricing page, 2026-11-10), and it counts toward `DAILY_BUDGET_USD`. When the
 API pauses a long search turn (`pause_turn`), the agent sends the turn back
 and continues; each continuation is a step and an outbound request like any
-other model call. Siren's list is in `deployments/siren.config.js`: the
+other model call, and the answer is the whole turn's text, from before the
+pause and after it. Siren's list is in `deployments/siren.config.js`: the
 Code of Virginia, state and federal bill pages, the Census Bureau, USGS,
 FEMA's flood maps, NOAA's tides and sea-level sites, Virginia's
 conservation and forestry departments, and VDOT's project pages. The City's

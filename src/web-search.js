@@ -80,6 +80,12 @@ const split = (entry) => {
   return slash < 0 ? { host: entry, path: '' } : { host: entry.slice(0, slash), path: entry.slice(slash) };
 };
 
+// A path entry as a pattern: a prefix match, with each `*` standing for one
+// or more characters within a single path segment, so example.org/*/articles
+// covers /news/articles/… and never /contact. The API's own wildcard rule
+// isn't spelled out; this re-check is the narrower reading.
+const pathPattern = (path) => new RegExp(`^${path.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^/]+')}`);
+
 /** Whether allowed_domains entry `a` already covers entry `b` (subdomains and longer paths included). */
 export function covers(a, b) {
   const x = split(a);
@@ -91,7 +97,7 @@ export function covers(a, b) {
   // it: congress.gov/bill returned www.congress.gov/bill/… pages, and
   // vdot.virginia.gov/projects www.vdot.virginia.gov/projects/… (probed
   // 2026-11-10).
-  return y.path.startsWith(x.path.replace(/\*.*$/, ''));
+  return pathPattern(x.path).test(y.path);
 }
 
 /**
@@ -169,6 +175,17 @@ export function urlAllowed(url, allowedDomains) {
 
 const clip = (s, n) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 const httpUrl = (u) => (typeof u === 'string' && /^https?:\/\//i.test(u) ? u.slice(0, 2000) : null);
+
+// Titles, dates and URLs from web results are written by other sites. In
+// markdown, a title holding `](https://…)`, a backtick or `<` could close the
+// link or code span around it and add a link of its own. These make them
+// inert where code writes them into markdown; the JSON keeps them as sent.
+/** Web text for markdown link text or prose: brackets, parentheses, backticks and angle brackets escaped. */
+export const mdText = (s) => String(s ?? '').replace(/[\\`[\]()<>]/g, '\\$&');
+/** A web URL for a markdown link destination: characters that could end or break it percent-encoded. */
+export const mdUrl = (u) => String(u ?? '').replace(/[\s()[\]<>`]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
+// Inside the trace's code span only a backtick is live: neutralized.
+const codeSafe = (s) => s.replace(/`/g, "'");
 
 /**
  * The web searches a response shows, from its blocks: each server_tool_use
@@ -256,8 +273,9 @@ export async function traceSearches(trace, searches, { allowedDomains, withheld 
         : `"${s.query}" → ${results.length} result${results.length === 1 ? '' : 's'}${listed ? `: ${listed}${inside.length > 10 ? `; and ${inside.length - 10} more` : ''}` : ''}.${outside ? ` ${outside} outside the allowed sites, not handed off.` : ''} ${PROVIDER_NOTE}${how}`;
     const info = {
       tool: WEB_SEARCH_STEP,
-      soql: summary.slice(0, 2000),
-      url: (!withheld && inside[0]?.url) || WEB_SEARCH_DOCS,
+      // The trace's markdown puts this in a code span and the url in a link.
+      soql: codeSafe(summary).slice(0, 2000),
+      url: (!withheld && inside[0] && mdUrl(inside[0].url)) || WEB_SEARCH_DOCS,
       provider: 'anthropic',
       ...(withheld ? { withheld: true } : { query: s.query, results: inside.slice(0, 20) }),
     };
@@ -274,11 +292,23 @@ export async function traceSearches(trace, searches, { allowedDomains, withheld 
 /**
  * Hand-off records for the web pages behind an answer: the results the
  * answer cites, or every result when it cites none. A web page is not a
- * record, so each is kind 'web'.
+ * record, so each is kind 'web'. A page already handed off as a record (a
+ * meeting page the iqm2 adapter read, say) stays the record it is.
  */
 export function handOffWebPages(resources, results, cited) {
+  const key = (u) => {
+    try {
+      return new URL(u).href;
+    } catch {
+      return u;
+    }
+  };
+  const records = new Set([...resources.records.values()].filter((r) => r.kind !== 'web').map((r) => key(r.url)));
   const byUrl = new Map(results.map((r) => [r.url, r]));
   const citedUrls = [...new Set(cited.map((c) => c.url))].filter((u) => byUrl.has(u));
   const pages = citedUrls.length ? citedUrls.map((u) => byUrl.get(u)) : [...byUrl.values()];
-  for (const p of pages) resources.addRecord({ kind: 'web', title: p.title, url: p.url, ...(p.page_age ? { page_age: p.page_age } : {}) });
+  for (const p of pages) {
+    if (records.has(key(p.url))) continue;
+    resources.addRecord({ kind: 'web', title: p.title, url: p.url, ...(p.page_age ? { page_age: p.page_age } : {}) });
+  }
 }

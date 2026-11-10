@@ -74,7 +74,10 @@ generic mode.
   the answer cites, or every result when it cites none) from the API's
   response blocks, never from model text. Priced at $10 per 1,000 searches on
   top of tokens. A paused turn (`pause_turn`) is resumed as its own model
-  call, a step and a counted request. With it off, requests are byte-identical
+  call, a step and a counted request, never with `tool_choice: none` (nor a
+  call after a server tool the API has yet to run); a client tool asked for
+  past the cap isn't run. Web titles and URLs are escaped in markdown, and a
+  web result never replaces a record. With it off, requests are byte-identical
   (`test/fixtures/web-search-off-snapshot.json`).
 - `worker/access.js` verifies Cloudflare Access JWTs for per-person limits.
   Never trust the plain email header.

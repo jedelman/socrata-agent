@@ -2,6 +2,8 @@
 // where the agent stops: dataset pages, full downloads, the exact filtered
 // query as CSV, meeting records, and the people to contact.
 
+import { mdText, mdUrl } from './web-search.js';
+
 export class Resources {
   constructor() {
     this.datasets = new Map(); // id -> { id, name, page, docs, csv, department, queries: [] }
@@ -75,7 +77,8 @@ export class Resources {
     const pages = [...this.records.values()].filter((r) => r.kind === 'web');
     if (pages.length) {
       out.push('**Web pages** (found by web search; pages, not records)');
-      for (const r of pages) out.push(`- [${r.title}](${r.url})${r.page_age ? `, ${r.page_age}` : ''}`);
+      // Their titles and dates come from other sites: made inert in markdown.
+      for (const r of pages) out.push(`- [${mdText(r.title)}](${mdUrl(r.url)})${r.page_age ? `, ${mdText(r.page_age)}` : ''}`);
     }
     const cs = this.sortedContacts();
     if (cs.length) {

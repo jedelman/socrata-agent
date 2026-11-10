@@ -85,8 +85,11 @@ export function budgetNote({ limit, refused }) {
  * shows gets a code-written trace step, and the pages the answer cites (or
  * every result, when it cites none) are handed off as records of kind
  * 'web'. A paused turn (pause_turn) is resumed as its own model call, which
- * counts as a step and against the request budget like any other. With web
- * search off, every request and output is as it was before it.
+ * counts as a step and against the request budget like any other; the answer
+ * is the whole turn's text. A call that resumes server-side work never sends
+ * tool_choice none, and a client tool it asks for past the cap isn't run:
+ * the answer ends as at the step cap. With web search off, every request and
+ * output is as it was before it.
  * `subrequestBudget` caps the outbound requests this answer may make, model
  * calls included (unset: no cap; the Worker sets SUBREQUEST_BUDGET). Tool
  * requests stop short of it, keeping enough for the final answer.
@@ -242,8 +245,11 @@ export async function ask({
       continue;
     }
     if (!out.calls.length || lastStep) {
-      // A paused turn's text is unfinished: never the answer.
-      answer = out.paused ? '' : out.text;
+      // A paused turn's text is unfinished: never the answer. Nor is a
+      // response past the cap that still asks for a client tool (one that
+      // resumed web search's server-side work goes without tool_choice none):
+      // its tools don't run and it ends with the step cap's fallback.
+      answer = out.paused || out.calls.length ? '' : out.text;
       if (answer) answerCitations = out.citations || [];
       if (!answer) {
         fallback = true;

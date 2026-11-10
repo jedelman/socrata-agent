@@ -7,14 +7,15 @@ import assert from 'node:assert/strict';
 import * as nodeModule from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { ask } from '../src/agent.js';
+import { ask, BUDGET_STOP_NOTE } from '../src/agent.js';
 import { systemPrompt } from '../src/prompt.js';
 import { getCity } from '../src/cities/index.js';
 import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { afterFallback, priceUsage, PRICES } from '../src/providers/anthropic.js';
 import {
-  webSearchSettings, checkWebSearchForCity, urlAllowed, searchesIn, WEB_SEARCH_STEP, WEB_SEARCH_USD, WEB_SEARCH_TOOL_TYPE,
+  webSearchSettings, checkWebSearchForCity, urlAllowed, searchesIn, handOffWebPages, WEB_SEARCH_STEP, WEB_SEARCH_USD, WEB_SEARCH_TOOL_TYPE,
 } from '../src/web-search.js';
+import { Resources } from '../src/resources.js';
 import siren from '../deployments/siren.config.js';
 import deployments from '../deployments/index.js';
 import { claudeResponse } from './fake-claude.js';
@@ -125,6 +126,25 @@ test("every deployment's webSearch block validates against its city; Siren's is 
   }
 });
 
+test('a path wildcard stands for one path segment, then the rest is a prefix; / and /* are the whole host', () => {
+  const list = ['example.org/*/articles'];
+  for (const url of ['https://example.org/news/articles', 'https://example.org/news/articles/2026/x', 'https://www.example.org/news/articles/x', 'https://example.org/news/articles-archive']) {
+    assert.ok(urlAllowed(url, list), url);
+  }
+  for (const url of ['https://example.org/', 'https://example.org/contact', 'https://example.org/articles', 'https://example.org/a/b/articles', 'https://example.org//articles', 'https://example.org/news/other/articles']) {
+    assert.ok(!urlAllowed(url, list), url);
+  }
+  assert.ok(urlAllowed('https://example.org/x.y/a(1)/b', ['example.org/*/a(1)']), 'path characters are literal, not a pattern');
+  assert.ok(!urlAllowed('https://example.org/x/a1/b', ['example.org/*/a(1)']));
+  for (const whole of ['example.org/', 'example.org/*']) {
+    assert.ok(urlAllowed('https://example.org/anything/at/all', [whole]), whole);
+    assert.ok(urlAllowed('https://example.org/', [whole]), whole);
+  }
+  // Duplicates between entries: a wildcard entry covers the paths it matches.
+  assert.throws(() => webSearchSettings({ allowedDomains: ['example.org/*/articles', 'example.org/news/articles/2026'], maxUses: 1 }), /already covered by example\.org\/\*\/articles/);
+  assert.ok(webSearchSettings({ allowedDomains: ['example.org/*/articles', 'example.org/contact'], maxUses: 1 }));
+});
+
 // --- Requests ---------------------------------------------------------------
 
 test('with web search off, every request and the answer are byte-identical to main (snapshot from a286524)', async () => {
@@ -184,15 +204,15 @@ test('pause_turn: the paused turn goes back as is, no user message; the resume i
   assert.equal(second.tool_choice, undefined, 'tools still allowed: the step cap is not reached');
   assert.equal(out.steps, 1, 'the resume counts as a step');
   assert.equal(out.requestBudget.model, 2, 'and as a request');
-  assert.equal(out.answer, "A page on www.norfolk.gov says street trees are the City's.");
+  assert.equal(out.answer, "Let me look that up. A page on www.norfolk.gov says street trees are the City's.", 'the whole turn, the paused part first');
   assert.ok(near(out.cost, 2 * HAIKU_CALL + WEB_SEARCH_USD), String(out.cost));
 });
 
-test('pause_turn: a resume that is the last step must answer (tool_choice none); a turn that keeps pausing ends honestly at the step cap', async () => {
+test('pause_turn: a resume that is the last step goes without tool_choice none and still answers; a turn that keeps pausing ends honestly at the step cap', async () => {
   const paused = (i) => msg([search(`srvtoolu_${i}`, `q${i}`), result(`srvtoolu_${i}`, [])], 'pause_turn', usage({ server_tool_use: { web_search_requests: 1 } }));
   const one = mockApi([paused(1), msg([{ type: 'text', text: 'I found no page about it.' }], 'end_turn')]);
   const a = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: one.fetchImpl, webSearch: WS, maxSteps: 1 });
-  assert.deepEqual(one.requests[1].body.tool_choice, { type: 'none' });
+  assert.equal(one.requests[1].body.tool_choice, undefined, 'how tool_choice none meets a paused turn is undocumented: not sent');
   assert.equal(a.answer, 'I found no page about it.');
 
   const always = mockApi([paused(1), paused(2), paused(3), paused(4)]);
@@ -210,10 +230,97 @@ test('pause_turn resumes stop at the request budget like any model call', async 
   // <= 11); after it (1 used), 1 + 4 + 1 + 6 > 11, so the resume must answer.
   const out = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl, webSearch: WS, subrequestBudget: 11 });
   assert.equal(requests.length, 2);
-  assert.deepEqual(requests[1].body.tool_choice, { type: 'none' });
+  assert.equal(requests[1].body.tool_choice, undefined, 'a resume goes without tool_choice none');
   assert.match(out.answer, /request limit/);
   assert.equal(out.requestBudget.model, 2);
   assert.ok(out.requestBudget.used <= 11);
+});
+
+test('text and citations written before a pause are kept: the answer and the hand-off read the whole turn, in order', async () => {
+  const paused = msg([
+    search('srvtoolu_t1', 'Norfolk tree ordinance'),
+    result('srvtoolu_t1', [['https://www.norfolk.gov/trees', 'Street trees'], ['https://www.norfolk.gov/parks', 'Parks']]),
+    { type: 'text', text: 'A page on www.norfolk.gov says street trees are the City\'s.', citations: [cite('https://www.norfolk.gov/trees', 'Street trees')] },
+  ], 'pause_turn', usage({ server_tool_use: { web_search_requests: 1 } }));
+  const done = msg([
+    search('srvtoolu_t2', 'Virginia Code tree removal'),
+    result('srvtoolu_t2', [['https://law.lis.virginia.gov/vacode/15.2-961/', '§ 15.2-961'], ['https://law.lis.virginia.gov/vacode/', 'Code of Virginia']]),
+    { type: 'text', text: ' A page on law.lis.virginia.gov says localities may require replacement trees.', citations: [cite('https://law.lis.virginia.gov/vacode/15.2-961/', '§ 15.2-961')] },
+  ], 'end_turn', usage({ server_tool_use: { web_search_requests: 1 } }));
+  const { fetchImpl } = mockApi([paused, done]);
+  const out = await ask({ question: 'Who owns street trees?', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl, webSearch: WS });
+  assert.equal(out.answer, "A page on www.norfolk.gov says street trees are the City's. A page on law.lis.virginia.gov says localities may require replacement trees.");
+  // Both cited pages, in order; the uncited results are not handed off.
+  assert.deepEqual(out.resources.records.map((r) => r.url), ['https://www.norfolk.gov/trees', 'https://law.lis.virginia.gov/vacode/15.2-961/']);
+  assert.ok(out.resources.records.every((r) => r.kind === 'web'));
+});
+
+// A deferred server tool: with dynamic filtering, the model can call
+// code_execution alongside a client tool, and the API stops (tool_use) with
+// the code not yet run. The follow-up may hold only tool_result blocks.
+const codeCall = { type: 'server_tool_use', id: 'srvtoolu_code', name: 'code_execution', input: { code: 'r = await web_search({"query": "Norfolk zoning"})' } };
+const codeDone = { type: 'code_execution_tool_result', tool_use_id: 'srvtoolu_code', content: { type: 'code_execution_result', stdout: '', stderr: '', return_code: 0, content: [] } };
+const clientCall = (id = 'toolu_d') => ({ type: 'tool_use', id, name: 'search_datasets', input: { query: 'zoning' } });
+
+test('a deferred server tool with the step or budget note: the note goes inside the last tool_result, never as a text block', async () => {
+  const tail = (req) => req.body.messages.at(-1).content;
+  // maxSteps 1: the note is the step cap's.
+  const steps = mockApi([msg([codeCall, clientCall()], 'tool_use'), msg([codeDone, { type: 'text', text: 'I found no zoning dataset.' }], 'end_turn')]);
+  const a = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: steps.fetchImpl, webSearch: WS, maxSteps: 1 });
+  assert.deepEqual(steps.requests[1].body.messages.at(-2).content.map((b) => b.type), ['server_tool_use', 'tool_use']);
+  assert.deepEqual(tail(steps.requests[1]).map((b) => b.type), ['tool_result'], 'nothing but tool_result blocks');
+  const [r] = tail(steps.requests[1]);
+  assert.equal(r.tool_use_id, 'toolu_d');
+  assert.deepEqual(r.content.map((c) => c.type), ['text', 'text']);
+  assert.equal(r.content[1].text, 'You have used all your tool steps. Answer now from what you found.');
+  assert.equal(r.content[0].text, a.toolResults[0].content, 'the tool result itself comes first');
+  assert.equal(a.answer, 'I found no zoning dataset.');
+
+  // subrequestBudget 12: after the call (1) and the catalog search (2),
+  // 2 + 4 + 1 + 6 > 12, so the note is the budget's.
+  const budget = mockApi([msg([codeCall, clientCall()], 'tool_use'), msg([codeDone, { type: 'text', text: 'I found no zoning dataset.' }], 'end_turn')]);
+  await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: budget.fetchImpl, webSearch: WS, subrequestBudget: 12 });
+  assert.deepEqual(tail(budget.requests[1]).map((b) => b.type), ['tool_result']);
+  assert.equal(tail(budget.requests[1])[0].content.at(-1).text, BUDGET_STOP_NOTE);
+
+  // With no server tool waiting, the note stays its own text block, as before.
+  const plain = mockApi([msg([clientCall()], 'tool_use'), msg([{ type: 'text', text: 'I found no zoning dataset.' }], 'end_turn')]);
+  await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: plain.fetchImpl, webSearch: WS, maxSteps: 1 });
+  assert.deepEqual(tail(plain.requests[1]).map((b) => b.type), ['tool_result', 'text']);
+  assert.equal(typeof tail(plain.requests[1])[0].content, 'string');
+});
+
+test('past the cap, a call that resumes server-side work goes without tool_choice none; a client tool it asks for is not run and the answer ends with the fallback', async () => {
+  const notRun = (out, n) => assert.equal(out.toolResults.length, n, 'no client tool ran past the cap');
+  // A paused turn resumed at the last step asks for a client tool.
+  const paused = msg([{ type: 'text', text: 'Let me check. ' }, search('srvtoolu_q', 'q'), result('srvtoolu_q', [])], 'pause_turn', usage({ server_tool_use: { web_search_requests: 1 } }));
+  const a = mockApi([paused, msg([{ type: 'text', text: 'I will look in the datasets.' }, clientCall()], 'tool_use')]);
+  const outA = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: a.fetchImpl, webSearch: WS, maxSteps: 1 });
+  assert.equal(a.requests.length, 2);
+  assert.equal(a.requests[1].body.tool_choice, undefined);
+  assert.match(outA.answer, /^I ran out of steps/);
+  notRun(outA, 0);
+  assert.equal(outA.voice.ok, true);
+
+  // The same when the request budget, not the step cap, ends the loop.
+  const b = mockApi([paused, msg([clientCall()], 'tool_use')]);
+  const outB = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: b.fetchImpl, webSearch: WS, subrequestBudget: 11 });
+  assert.equal(b.requests[1].body.tool_choice, undefined);
+  assert.match(outB.answer, /request limit/);
+  notRun(outB, 0);
+
+  // After a deferred server tool, the last step goes without tool_choice none too.
+  const c = mockApi([msg([codeCall, clientCall('toolu_1')], 'tool_use'), msg([codeDone, clientCall('toolu_2')], 'tool_use')]);
+  const outC = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: c.fetchImpl, webSearch: WS, maxSteps: 1 });
+  assert.equal(c.requests.length, 2);
+  assert.equal(c.requests[1].body.tool_choice, undefined);
+  assert.match(outC.answer, /^I ran out of steps/);
+  notRun(outC, 1);
+
+  // With nothing pending, the last step still sends tool_choice none.
+  const d = mockApi([msg([clientCall()], 'tool_use'), msg([{ type: 'text', text: 'I found no zoning dataset.' }], 'end_turn')]);
+  await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl: d.fetchImpl, webSearch: WS, maxSteps: 1 });
+  assert.deepEqual(d.requests[1].body.tool_choice, { type: 'none' });
 });
 
 // --- Trace and hand-off -----------------------------------------------------
@@ -323,6 +430,58 @@ test('searchesIn ignores other server tools and keeps unknown shapes from crashi
   assert.deepEqual(searchesIn([{ type: 'server_tool_use', id: 's1', name: 'web_fetch', input: { url: 'https://x' } }, { type: 'web_fetch_tool_result', tool_use_id: 's1', content: {} }], pending), []);
   assert.deepEqual(searchesIn([null, { type: 'web_search_tool_result', tool_use_id: 'nope', content: [] }], pending), [{ id: 'nope', query: '(query not in the response)', caller: null, results: [] }], 'a result with no call seen still ran');
   assert.deepEqual(searchesIn(undefined), []);
+});
+
+test('a web result never replaces a record already handed off (an iqm2 meeting page, say)', () => {
+  const resources = new Resources();
+  const meeting = { kind: 'meeting', title: 'City Council Formal Session, 2026-10-28', url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4321' };
+  resources.addRecord(meeting);
+  const results = [
+    { url: 'https://NorfolkCityVA.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4321', title: 'Meeting page (from the web)' },
+    { url: meeting.url, title: 'Meeting page (from the web)' },
+    { url: 'https://www.norfolk.gov/council', title: 'City Council' },
+  ];
+  handOffWebPages(resources, results, [{ url: meeting.url }, { url: 'https://www.norfolk.gov/council' }]);
+  assert.deepEqual(resources.toJSON().records, [meeting, { kind: 'web', title: 'City Council', url: 'https://www.norfolk.gov/council' }]);
+  // Citing only the record hands off no other result.
+  const only = new Resources();
+  only.addRecord(meeting);
+  handOffWebPages(only, results, [{ url: meeting.url }]);
+  assert.deepEqual(only.toJSON().records, [meeting]);
+  // With no citations, every result but the record's page.
+  const none = new Resources();
+  none.addRecord(meeting);
+  handOffWebPages(none, results, []);
+  assert.deepEqual(none.toJSON().records.map((r) => r.kind), ['meeting', 'web']);
+});
+
+test("web titles, dates and URLs are inert in the markdown: no link or code span from another site's page", async () => {
+  const title = 'Fees](https://evil.example) `x` <https://evil.example> [y](https://evil.example)';
+  const url = 'https://www.norfolk.gov/fees)[click](https://evil.example';
+  const reply = msg([
+    search('srvtoolu_x', 'fee `schedule`'),
+    result('srvtoolu_x', [[url, title, 'May 1, 2026 [z](https://evil.example)']]),
+    { type: 'text', text: 'A page on www.norfolk.gov lists the fees.', citations: [cite(url, title)] },
+  ], 'end_turn', usage({ server_tool_use: { web_search_requests: 1 } }));
+  const { fetchImpl } = mockApi([reply]);
+  const out = await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl, webSearch: WS });
+  // The JSON keeps what the API sent.
+  assert.deepEqual(out.resources.records, [{ kind: 'web', title, url, page_age: 'May 1, 2026 [z](https://evil.example)' }]);
+  // Resources: the title, date and URL can't close the link or open another.
+  const line = out.markdown.resources.split('\n').find((l) => l.startsWith('- ['));
+  assert.equal(line, '- [Fees\\]\\(https://evil.example\\) \\`x\\` \\<https://evil.example\\> \\[y\\]\\(https://evil.example\\)](https://www.norfolk.gov/fees%29%5Bclick%5D%28https://evil.example), May 1, 2026 \\[z\\]\\(https://evil.example\\)');
+  assert.ok(!/[^\\][[\]()<>`]/.test(line.slice(3, line.indexOf('](https://www.norfolk.gov/fees'))), 'every bracket, parenthesis, backtick and angle bracket in the title is escaped');
+  // Trace: one code span per line (no backtick from the query or the title), and the source link can't be broken.
+  const [step] = out.markdown.trace.split(/\n(?=\d+\. )/).filter((b) => b.includes('web search (run by Anthropic)'));
+  const [, what, tail] = step.split('\n');
+  assert.equal((what.match(/`/g) || []).length, 2, what);
+  assert.ok(what.includes("\"fee 'schedule'\"") && what.includes("Fees](https://evil.example) 'x'"), what);
+  assert.ok(tail.endsWith('[source](https://www.norfolk.gov/fees%29%5Bclick%5D%28https://evil.example)'), tail);
+  assert.equal(out.trace.find((s) => s.tool === WEB_SEARCH_STEP).results[0].title, title, 'the trace JSON keeps the title');
+  // Records render as they always have.
+  const r = new Resources();
+  r.addRecord({ kind: 'meeting', title: 'Council (draft) [2026]', url: 'https://example.iqm2.com/x?ID=1' });
+  assert.equal(r.toMarkdown(), '**Public records**\n- [Council (draft) [2026]](https://example.iqm2.com/x?ID=1)');
 });
 
 // --- Pricing ------------------------------------------------------------------

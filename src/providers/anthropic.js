@@ -167,6 +167,12 @@ function pairedServerTools(blocks) {
   return paired;
 }
 
+/** Whether `blocks` hold a server tool call with no result: one the API runs at the start of the next request. */
+function unpairedServerTool(blocks) {
+  const done = new Set(blocks.filter(isServerToolResult).map((b) => b.tool_use_id));
+  return blocks.some((b) => b.type === 'server_tool_use' && !done.has(b.id));
+}
+
 /**
  * With server-side fallbacks, a stream keeps what a declining model wrote
  * before the switch, then a `fallback` block, then the fallback model's turn
@@ -210,7 +216,11 @@ export function partialUsage(message) {
  * `complete()` returns { text, calls: [{ id, name, args }], cost, refusal,
  * searches, citations }, with `paused: true` when the API paused the turn
  * (pause_turn: append the assistant turn and call again, with no new user
- * message). `searches` are the web searches the response's blocks show ran
+ * message). A resumed response's `text` and `citations` are the whole
+ * turn's, the paused parts first. A call that resumes server-side work (a
+ * paused turn, or a server tool left to run) never sends tool_choice none,
+ * so past the agent's cap it can still return `calls`, which the agent
+ * doesn't run. `searches` are the web searches the response's blocks show ran
  * (src/web-search.js searchesIn; from every attempt complete() made, a
  * cut-off one included); `citations` the web citations on the text kept.
  * `webSearch` (checked settings from src/web-search.js) declares the web
@@ -290,7 +300,15 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
 
     appendToolResults(results, note) {
       const content = results.map((r) => ({ type: 'tool_result', tool_use_id: r.id, content: r.content, ...(r.isError ? { is_error: true } : {}) }));
-      if (note) content.push({ type: 'text', text: note });
+      if (note && content.length && unpairedServerTool(assistantTurn(messages.length - 1))) {
+        // The turn holds a server tool the API has yet to run (with dynamic
+        // filtering, code execution called alongside a client tool): the
+        // follow-up "must contain nothing except tool_result blocks" (server
+        // tools docs, "Mixing server tools and client tools"; a text block is
+        // a 400), so the note goes inside the last result.
+        const r = content.at(-1);
+        r.content = [...(r.content ? [{ type: 'text', text: String(r.content) }] : []), { type: 'text', text: note }];
+      } else if (note) content.push({ type: 'text', text: note });
       messages.push({ role: 'user', content });
     },
 
@@ -299,7 +317,24 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
     },
   };
 
+  // The blocks of the assistant turn that ends at messages[end]: consecutive
+  // assistant messages are one turn, resumed after pause_turn.
+  function assistantTurn(end) {
+    const blocks = [];
+    for (let i = end; i >= 0 && messages[i].role === 'assistant'; i--) {
+      if (Array.isArray(messages[i].content)) blocks.unshift(...messages[i].content);
+    }
+    return blocks;
+  }
+
   async function call(allowTools, maxTokensNow) {
+    // A paused turn resumed (the conversation ends with it), or a server tool
+    // the API runs at the start of this request (the turn before the tool
+    // results left one without its result). Both happen only with server
+    // tools. The turn so far is what a resumed response continues.
+    const paused = messages.at(-1)?.role === 'assistant';
+    const resumedTurn = paused ? assistantTurn(messages.length - 1) : [];
+    const resumes = paused || unpairedServerTool(assistantTurn(messages.length - 2));
     const params = {
       model,
       max_tokens: maxTokensNow,
@@ -310,8 +345,12 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
       cache_control: { type: 'ephemeral' },
       ...(tools.length ? { tools } : {}),
       // Tools stay declared (history may contain tool_use blocks); "none"
-      // makes the model answer in text.
-      ...(tools.length && !allowTools ? { tool_choice: { type: 'none' } } : {}),
+      // makes the model answer in text. A call that resumes server-side work
+      // never sends it: the docs don't say how it meets a pending server
+      // tool. If such a call asks for a client tool when tools aren't
+      // allowed, the calls go back and the agent ends the answer without
+      // running them, as at its step cap.
+      ...(tools.length && !allowTools && !resumes ? { tool_choice: { type: 'none' } } : {}),
       ...(effort ? { output_config: { effort } } : {}),
       // Adaptive is these models' default; asking for the summary is what
       // makes the thinking readable (its display is otherwise "omitted").
@@ -381,15 +420,22 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
     }
     const content = afterFallback(res.content);
     last = { role: 'assistant', content };
-    const text = content.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    // A resumed response holds only what came after the pause: the text and
+    // citations are the whole turn's, the paused parts first, in order, read
+    // as one unpaused response would be.
+    const turn = resumedTurn.length ? [...resumedTurn, ...content] : content;
+    const text = turn.filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    const citations = citationsIn(turn);
     // The API paused its server-side loop mid-turn: the turn goes back as is
     // and is resumed by calling again, with no new user message (server
     // tools docs, "The server-side loop and pause_turn", read 2026-11-10).
-    if (res.stop_reason === 'pause_turn') return { text, calls: [], cost, refusal: null, paused: true, searches, citations: citationsIn(content) };
-    // Run tools only when the model stopped to call them.
-    const calls = allowTools && res.stop_reason === 'tool_use'
+    if (res.stop_reason === 'pause_turn') return { text, calls: [], cost, refusal: null, paused: true, searches, citations };
+    // Run tools only when the model stopped to call them. A call that
+    // resumed server-side work could ask for them past the agent's cap (it
+    // went without tool_choice none): they go back, and the agent doesn't run them.
+    const calls = (allowTools || resumes) && res.stop_reason === 'tool_use'
       ? content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} }))
       : [];
-    return { text, calls, cost, refusal: null, searches, citations: citationsIn(content) };
+    return { text, calls, cost, refusal: null, searches, citations };
   }
 }
