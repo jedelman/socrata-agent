@@ -204,6 +204,14 @@ What the move does to people (2026-11-10):
   (`docs/request-sync-routine.md`) and "Siren: fulfill a source request".
   Until then the old URL keeps working through the redirect.
 
+Signed in with an invite, "Your conversations" on the chat page lists an
+account's conversations newest first, 20 at a time with **Show more**, and
+searches them: the questions and answers of the account's own 300 most
+recently updated conversations (never the tool results behind them), up to
+20 matches with a snippet each, opening the conversation at the matching
+turn. The search text is sent in a POST body, never logged, stored or cached,
+and each account may search 100 times a day.
+
 The chat page, like the request pages, is served under a strict
 Content-Security-Policy: no inline script or style (its script and style are
 `worker/chat-page.js` and `worker/chat.css`, served under

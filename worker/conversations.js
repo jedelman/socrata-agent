@@ -9,7 +9,18 @@
 // case files.
 //
 // Each key carries metadata (title, turns, updated, city), so the list reads
-// one page of keys, never every conversation.
+// the account's keys, never its conversations. The list pages newest-updated
+// first, PAGE_DEFAULT at a time (PAGE_MAX at most), behind an opaque cursor
+// that holds the last (updated, id) shown: the order isn't key order, so a KV
+// list cursor can't stand in for it.
+//
+// Search (Jason, 2026-11-10: "do we have a way to browse and search previous
+// conversations?") reads the account's own conversations only, at most the
+// SEARCH_SCAN newest by updated, and matches each turn's question and answer
+// text, never the tool results or the record. The query and the results are
+// never logged, stored or cached: they pass through searchConversations and
+// out in the response. Searches are counted per account per day
+// (chargeSearch) under a key that can't be joined to the account.
 //
 // Each turn keeps the question, the answer, and the tool results behind it
 // (trimmed), which the next question gets back as data. It also keeps the
@@ -18,6 +29,8 @@
 // gaps on the gap statements shown), so a
 // reopened conversation shows how each answer was found. The model never
 // sees that record; only the person who asked does.
+
+import { boundary, hmacHex } from './crypto.js';
 
 /** Turns kept in a conversation; the oldest drop past it. */
 export const MAX_TURNS = 50;
@@ -161,22 +174,247 @@ async function allKeys(kv, uid) {
   return keys;
 }
 
+/** The order the list and search use: newest updated first, then by id, so ties have one order. */
+const newestFirst = (a, b) => (a.updated > b.updated ? -1 : a.updated < b.updated ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /**
- * Recent conversations for the account, newest first, as titles only. Read
- * from the keys' metadata; a conversation saved before metadata existed is
- * opened once to read its title.
+ * Every conversation the account has, as list entries, in newestFirst order.
+ * Read from the keys' metadata; a conversation saved before metadata existed
+ * is opened once to read its title.
  */
-export async function listConversations(kv, uid, limit = 20) {
+async function conversationIndex(kv, uid) {
   const keys = await allKeys(kv, uid);
   const out = await Promise.all(keys.map(async (k) => {
-    const id = k.name.split(':')[2];
+    const id = k.name.slice(`conv:${uid}:`.length);
     const m = k.metadata;
     if (m && typeof m.title === 'string' && typeof m.updated === 'string') return { id, title: m.title, turns: m.turns, updated: m.updated, city: m.city };
     const conv = await kv.get(k.name, 'json');
     if (!conv?.turns?.length) return null;
     return { id, ...conversationMetadata(conv) };
   }));
-  return out.filter(Boolean).sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, limit);
+  return out.filter(Boolean).sort(newestFirst);
+}
+
+/** Recent conversations for the account, newest first, as titles only. */
+export async function listConversations(kv, uid, limit = PAGE_DEFAULT) {
+  return (await conversationIndex(kv, uid)).slice(0, limit);
+}
+
+/** Conversations on one page of the list: the default, and the most a page may ask for. */
+export const PAGE_DEFAULT = 20;
+export const PAGE_MAX = 50;
+const UPDATED = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
+
+/** A page size from ?limit=: a whole number, at most PAGE_MAX; anything else is the default. */
+export function pageSize(limit) {
+  if (typeof limit !== 'string' || !/^\d{1,4}$/.test(limit)) return PAGE_DEFAULT;
+  const n = Number(limit);
+  return n < 1 ? PAGE_DEFAULT : Math.min(n, PAGE_MAX);
+}
+
+const b64urlOf = (s) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+/** The cursor after an entry: its (updated, id), opaque to the page. */
+export function encodeCursor({ updated, id }) {
+  return b64urlOf(`${updated}|${id}`);
+}
+/** { updated, id } from a cursor, or null for anything this code didn't make. */
+export function decodeCursor(cursor) {
+  if (typeof cursor !== 'string' || !/^[A-Za-z0-9_-]{8,120}$/.test(cursor)) return null;
+  let text;
+  try {
+    text = atob(cursor.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(cursor.length / 4) * 4, '='));
+  } catch {
+    return null;
+  }
+  const parts = text.split('|');
+  if (parts.length !== 2 || !UPDATED.test(parts[0]) || !ID.test(parts[1])) return null;
+  return { updated: parts[0], id: parts[1] };
+}
+
+/**
+ * One page of the account's conversations, newest updated first:
+ * { conversations, next }, where next is the cursor for the page after, or
+ * null at the end. Pages follow the order, not the keys: a conversation
+ * deleted or continued between pages moves nothing else, and none is listed
+ * twice. Returns null for a cursor this code didn't make.
+ */
+export async function pageConversations(kv, uid, { limit, cursor } = {}) {
+  const n = pageSize(limit);
+  let after = null;
+  if (cursor != null && cursor !== '') {
+    after = decodeCursor(cursor);
+    if (!after) return null;
+  }
+  const all = await conversationIndex(kv, uid);
+  const start = after ? all.findIndex((c) => newestFirst(c, after) > 0) : 0;
+  if (start < 0) return { conversations: [], next: null };
+  const conversations = all.slice(start, start + n);
+  return { conversations, next: start + n < all.length ? encodeCursor(conversations.at(-1)) : null };
+}
+
+// ---- Search ----
+
+/** Conversations a search reads at most: the newest by updated. */
+export const SEARCH_SCAN = 300;
+/** Matches a search returns at most, newest first. */
+export const SEARCH_RESULTS = 20;
+/** Matching turns shown per conversation, so one long conversation can't fill the list. */
+export const SEARCH_PER_CONVERSATION = 3;
+/** Query length, in characters, after folding. */
+export const SEARCH_MIN = 2;
+export const SEARCH_MAX = 100;
+/** Searches an account may run per UTC day. */
+export const SEARCH_DAILY = 100;
+const SNIPPET = 160;
+const READ_BATCH = 25; // conversations read at once
+
+// How text is compared. Answers are markdown, so the text is first put as it
+// reads on the page: a link's text in place of the link, no emphasis or code
+// marks, no heading or quote markers, table pipes as spaces and table rules
+// gone. Then NFKC, whitespace runs as one space, trimmed (the readable form),
+// then lowercased. Lowercasing a code point at a time and whole strings agree
+// except for Greek final sigma, so ς folds to σ. The query folds the same
+// way as the text, and a hit in the folded text maps back to the readable
+// form a character at a time.
+// Every pattern here is linear in its input (bounded, or one character class).
+const LINK = /!?\[([^\]\n]{0,300})\]\([^)\s]{0,2000}(?:\s+"[^"\n]{0,300}")?\)/g;
+const TABLE_RULE = /^[ \t|:\r-]+$/;
+const LINE_MARK = /^[ \t]*(?:#{1,6}[ \t]+|>+[ \t]?)/;
+function unmark(s) {
+  return String(s ?? '').replace(LINK, '$1').split('\n')
+    .map((line) => (TABLE_RULE.test(line) && line.includes('---') ? '' : line.replace(LINE_MARK, '')))
+    .join('\n')
+    .replace(/[*`]+/g, '')
+    .replace(/\|/g, ' ');
+}
+const readable = (s) => unmark(s).normalize('NFKC').replace(/\s+/g, ' ').trim();
+const lower = (s) => s.toLowerCase().replace(/ς/g, 'σ');
+export const foldText = (s) => lower(readable(s));
+
+/**
+ * The search query, folded, or an error that never repeats it. 2 to 100
+ * characters once folded; a longer string isn't folded at all.
+ */
+export function searchQuery(q) {
+  const tooLong = `Search for ${SEARCH_MAX} characters or fewer.`;
+  if (typeof q !== 'string') return { error: `Search for at least ${SEARCH_MIN} characters.` };
+  if (q.length > SEARCH_MAX * 10) return { error: tooLong };
+  const folded = foldText(q);
+  const n = [...folded].length;
+  if (n < SEARCH_MIN) return { error: `Search for at least ${SEARCH_MIN} characters.` };
+  if (n > SEARCH_MAX) return { error: tooLong };
+  return { folded };
+}
+
+/** Where folded[p, p + len) came from in the readable text, as [start, end). */
+function readableRange(text, p, len) {
+  let f = 0;
+  let start = -1;
+  for (let i = 0; i < text.length;) {
+    const w = text.codePointAt(i) > 0xffff ? 2 : 1;
+    const fl = lower(text.slice(i, i + w)).length;
+    if (start < 0 && f + fl > p) start = i;
+    if (f + fl >= p + len) return [start, i + w];
+    f += fl;
+    i += w;
+  }
+  return [Math.max(start, 0), text.length];
+}
+
+/**
+ * About SNIPPET characters of the readable text around the hit [start, end),
+ * cut at spaces where it can be, with the hit's place in it: { snippet, mark }.
+ */
+function snippetOf(text, start, end) {
+  const room = Math.max(0, SNIPPET - (end - start));
+  let from = Math.max(0, start - Math.floor(room / 2));
+  let to = Math.min(text.length, end + room - (start - from));
+  from = Math.max(0, Math.min(from, start, to - SNIPPET));
+  if (from > 0) {
+    const sp = text.indexOf(' ', from);
+    if (sp >= 0 && sp < start && sp - from < 24) from = sp + 1;
+    else if (/[\udc00-\udfff]/.test(text[from])) from++;
+  }
+  if (to < text.length) {
+    const sp = text.lastIndexOf(' ', to);
+    if (sp >= end && to - sp < 24) to = sp;
+    else if (/[\ud800-\udbff]/.test(text[to - 1])) to--;
+  }
+  const lead = `${from > 0 ? '…' : ''}${text.slice(from, start)}`;
+  const hit = text.slice(start, end);
+  return { snippet: `${lead}${hit}${text.slice(end, to)}${to < text.length ? '…' : ''}`, mark: [lead.length, lead.length + hit.length] };
+}
+
+/** The turns of one conversation the query hits, newest first: one per turn, question before answer. */
+function hitsIn(conv, folded) {
+  const out = [];
+  const turns = Array.isArray(conv?.turns) ? conv.turns : [];
+  for (let i = turns.length - 1; i >= 0 && out.length < SEARCH_PER_CONVERSATION; i--) {
+    for (const field of ['question', 'answer']) {
+      const text = readable(turns[i]?.[field]);
+      const p = lower(text).indexOf(folded);
+      if (p < 0) continue;
+      const [start, end] = readableRange(text, p, folded.length);
+      out.push({ turn: i, field, ...snippetOf(text, start, end) });
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Search the account's own conversations for `folded` (from searchQuery):
+ * the SEARCH_SCAN newest by updated, read a batch at a time, stopping once
+ * there are more matches than SEARCH_RESULTS. Each match is { id, title,
+ * updated, turn, field, snippet, mark }: turn is the index in the
+ * conversation's turns, mark the hit's [start, end) in the snippet. `more`
+ * says matches were left out past the limit; `bounded`, with a notice, says
+ * older conversations weren't read.
+ */
+export async function searchConversations(kv, uid, folded, { scan = SEARCH_SCAN, results = SEARCH_RESULTS } = {}) {
+  const all = await conversationIndex(kv, uid);
+  const pool = all.slice(0, scan);
+  const matches = [];
+  let more = false;
+  let searched = 0;
+  for (let i = 0; i < pool.length && !more; i += READ_BATCH) {
+    const batch = pool.slice(i, i + READ_BATCH);
+    const convs = await Promise.all(batch.map((c) => kv.get(key(uid, c.id), 'json')));
+    for (let j = 0; j < batch.length && !more; j++) {
+      searched++;
+      for (const hit of hitsIn(convs[j], folded)) {
+        if (matches.length === results) {
+          more = true;
+          break;
+        }
+        matches.push({ id: batch[j].id, title: batch[j].title, updated: batch[j].updated, ...hit });
+      }
+    }
+  }
+  const bounded = !more && all.length > pool.length;
+  return { matches, searched, more, bounded, ...(bounded ? { notice: `Searched your ${pool.length} newest conversations.` } : {}) };
+}
+
+/**
+ * Count one search for the account today: 'ok' if it's within SEARCH_DAILY;
+ * 'limit' past it (nothing written); 'busy' if the count couldn't be written,
+ * which is what KV does to a second write to one key within a second, so a
+ * search that can't be counted isn't run. The key is search-rate:<day>:<HMAC
+ * of the day and the account>, so it can't be joined to the account's other
+ * keys, or to its own counters on other days; every key of a day expires at
+ * the same boundary, two days on.
+ */
+export async function chargeSearch(kv, secret, uid, { now = Date.now(), daily = SEARCH_DAILY } = {}) {
+  const day = new Date(now).toISOString().slice(0, 10);
+  const k = `search-rate:${day}:${await hmacHex(secret, `search-rate:${day}:${uid}`, 32)}`;
+  const used = Number((await kv.get(k)) || 0);
+  if (used >= daily) return 'limit';
+  try {
+    await kv.put(k, String(used + 1), { expiration: boundary(now, 'day', 2) });
+  } catch {
+    return 'busy';
+  }
+  return 'ok';
 }
 
 /** Delete every conversation the account has. Returns how many. */

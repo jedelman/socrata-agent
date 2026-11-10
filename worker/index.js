@@ -38,6 +38,12 @@ import {
   publicAskOn, publicAskReady, notReady, NOINDEX, handlePublicAsk, handlePublicWithdraw, handleQuestions, handleQuestion,
   questionPageState, handlePublicSession, handlePublicRedeem, handleQuestionMetadata, handleAdminQuestions, sweepQuestions, publicAskSetupError,
 } from './public-ask.js';
+// Conversations import crypto.js, which is also served as text below: so
+// they are imported here, above the text block (see its comment).
+import {
+  loadConversation, saveTurn, historyFrom, pageConversations, deleteConversation, deleteAllConversations, newConversationId, turnView,
+  searchQuery, searchConversations, chargeSearch, SEARCH_DAILY,
+} from './conversations.js';
 import REQUESTS_PAGE from './requests.html';
 import QUESTIONS_PAGE from './questions.html';
 import ADMIN_QUESTIONS_PAGE from './admin-questions.html';
@@ -68,7 +74,6 @@ import CRYPTO_JS from './crypto.js' with { type: 'text' };
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
-import { loadConversation, saveTurn, historyFrom, listConversations, deleteConversation, deleteAllConversations, newConversationId, turnView } from './conversations.js';
 import { toolsFor } from '../src/tools.js';
 import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
 
@@ -476,13 +481,39 @@ async function handleRequest(req, env) {
 }
 
 async function handleConversations(req, env, path) {
+  // Private to the account, every answer here: never stored by a cache.
+  const headers = { 'Cache-Control': 'no-store' };
   const kv = env.LIMITS;
   const uid = kv && inviteOnly(env) ? await currentUser(req, env) : null;
-  if (!uid || !(await memberInvite(kv, uid))) return json({ error: 'Sign in to see your conversations.' }, 401);
-  const headers = { 'Cache-Control': 'no-store' };
-  if (req.method === 'GET' && path === '/api/conversations') return json({ conversations: await listConversations(kv, uid) }, 200, headers);
+  if (!uid || !(await memberInvite(kv, uid))) return json({ error: 'Sign in to see your conversations.' }, 401, headers);
+  const url = new URL(req.url);
+  if (req.method === 'GET' && path === '/api/conversations') {
+    const page = await pageConversations(kv, uid, { limit: url.searchParams.get('limit'), cursor: url.searchParams.get('cursor') });
+    if (!page) return json({ error: 'That page of your conversations is out of date. Start again from the newest.' }, 400, headers);
+    return json(page, 200, headers);
+  }
+  if (path === '/api/conversations/search') {
+    // GET ?q= as an API, or POST {"q": ...}, which the page uses so the query
+    // never sits in a URL. The query goes only to searchConversations: it is
+    // never logged, stored, cached or repeated in an error.
+    const q = req.method === 'POST' ? (await readJson(req))?.q : url.searchParams.get('q');
+    const query = searchQuery(q);
+    if (query.error) return json({ error: query.error }, 400, headers);
+    try {
+      const charged = await chargeSearch(kv, env.INVITE_SECRET, uid);
+      if (charged === 'limit') {
+        return json({ error: `You've searched your conversations ${SEARCH_DAILY} times today, the limit. It resets at midnight UTC.`, limit: 'search' }, 429, headers);
+      }
+      if (charged !== 'ok') return json({ error: 'One search at a time: try again in a moment.', limit: 'busy' }, 429, headers);
+      return json(await searchConversations(kv, uid, query.folded), 200, headers);
+    } catch {
+      // A fixed line: never the query, the results, or the error (whose text could carry either).
+      console.error('conversation search failed');
+      return json({ error: "Your conversations couldn't be searched just now. Try again in a minute." }, 503, headers);
+    }
+  }
   if (req.method === 'GET' && path === '/api/conversation') {
-    const conv = await loadConversation(kv, uid, new URL(req.url).searchParams.get('id'));
+    const conv = await loadConversation(kv, uid, url.searchParams.get('id'));
     if (!conv) return json({ error: 'That conversation is gone (it was deleted) or was never yours.' }, 404, headers);
     return json({ city: conv.city, turns: conv.turns.map(turnView) }, 200, headers);
   }
@@ -497,7 +528,7 @@ async function handleConversations(req, env, path) {
     if (body?.confirm !== 'delete all') return json({ error: 'Send { "confirm": "delete all" } to delete every conversation.' }, 400, headers);
     return json({ ok: true, deleted: await deleteAllConversations(kv, uid) }, 200, headers);
   }
-  return json({ error: 'Not found' }, 404);
+  return json({ error: 'Not found' }, 404, headers);
 }
 
 async function handleWaitlist(req, env) {
@@ -858,7 +889,7 @@ export default {
     // The pages' scripts and styles, and the browser client, as text.
     const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
     if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]] && (!ASK_ASSETS.has(asset[2]) || publicAskOn(env))) return assetResponse(asset[1], asset[2]);
-    if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation')) return handleConversations(req, env, path);
+    if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation' || path === '/api/conversations/search')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
@@ -869,7 +900,7 @@ export default {
     if (req.method === 'POST' && path === '/api/bsky/resolve') return handleResolve(req, env);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
-    if (req.method === 'POST' && (path === '/api/conversations/delete' || path === '/api/conversations/delete-all')) return handleConversations(req, env, path);
+    if (req.method === 'POST' && (path === '/api/conversations/delete' || path === '/api/conversations/delete-all' || path === '/api/conversations/search')) return handleConversations(req, env, path);
     // The free tier (docs/free-tier.md): with PUBLIC_ASK anything but "true",
     // none of this is reached and every one of these paths is the 404 below.
     if (publicAskOn(env)) {
