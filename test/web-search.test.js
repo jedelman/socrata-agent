@@ -13,7 +13,7 @@ import { getCity } from '../src/cities/index.js';
 import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { afterFallback, priceUsage, PRICES } from '../src/providers/anthropic.js';
 import {
-  webSearchSettings, checkWebSearchForCity, urlAllowed, searchesIn, handOffWebPages, WEB_SEARCH_STEP, WEB_SEARCH_USD, WEB_SEARCH_TOOL_TYPE,
+  webSearchSettings, checkWebSearchForCity, urlAllowed, searchesIn, handOffWebPages, WEB_SEARCH_STEP, WEB_SEARCH_USD, WEB_SEARCH_TOOL_TYPE, WEB_SEARCH_DOCS,
 } from '../src/web-search.js';
 import { Resources } from '../src/resources.js';
 import siren from '../deployments/siren.config.js';
@@ -646,4 +646,57 @@ test("Siren's list reaches no page found naming private people (probed 2026-11-1
   ];
   for (const url of refused) assert.ok(!urlAllowed(url, list), url);
   assert.ok(!list.includes('virginia.gov') && !list.includes('lis.virginia.gov'));
+});
+
+// --- The chat page ------------------------------------------------------------
+
+// The page's renderers, run as the page runs them (worker/chat-page.js is a
+// browser script, so the functions are taken from its text).
+const pageRenderers = () => {
+  const ui = readFileSync(new URL('../worker/chat-page.js', import.meta.url), 'utf8');
+  const line = (mark) => {
+    const i = ui.indexOf(mark);
+    assert.ok(i >= 0, mark);
+    return ui.slice(i, ui.indexOf('\n', i));
+  };
+  const block = (mark) => {
+    const i = ui.indexOf(mark);
+    assert.ok(i >= 0, mark);
+    return ui.slice(i, ui.indexOf('\n}\n', i) + 2);
+  };
+  const src = [line('const esc = '), line('const link = '), block('function renderResources(r) {'), block('// A web search step'), block('function renderTrace(t) {')].join('\n');
+  return { ui, ...new Function(`${src}\nreturn { renderResources, renderTrace };`)() };
+};
+
+test('page: web pages get their own section, apart from records, with the date the search gave', () => {
+  const { renderResources } = pageRenderers();
+  const html = renderResources({ records: [
+    { title: 'City Council meeting', url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=1' },
+    { kind: 'web', title: 'Flood maps <b>', url: 'https://msc.fema.gov/portal', page_age: 'March 3, 2026' },
+  ] });
+  assert.match(html, /Public records <small>\(1\)<\/small>/);
+  assert.match(html, /Web pages <small>\(1\)<\/small>/);
+  assert.ok(html.indexOf('City Council meeting') < html.indexOf('Web pages'), 'the record is listed under records');
+  assert.ok(html.indexOf('Flood maps &lt;b&gt;') > html.indexOf('Web pages'), 'the page is listed under web pages, escaped');
+  assert.ok(html.includes('<small>March 3, 2026</small>'));
+  assert.ok(html.includes('A web page is not a record'));
+  const recordsOnly = renderResources({ records: [{ title: 'City Council meeting', url: 'https://norfolkcityva.iqm2.com/' }] });
+  assert.ok(!recordsOnly.includes('Web pages'), 'with search off, the section never shows');
+  assert.ok(!renderResources({ records: [{ kind: 'web', title: 'A page', url: 'https://msc.fema.gov/' }] }).includes('Public records'));
+});
+
+test('page: web searches are counted and linked as searches, not as queries to re-run', () => {
+  const { ui, renderTrace } = pageRenderers();
+  assert.ok(ui.includes(`const WEB_STEP = '${WEB_SEARCH_STEP}';`), 'the page names the step exactly as src/web-search.js does');
+  const html = renderTrace([
+    { tool: 'query_dataset', soql: 'SELECT count(*)', ok: true, rows: 3, ms: 10, url: 'https://data.norfolk.gov/resource/x.json' },
+    { tool: WEB_SEARCH_STEP, soql: '"flood zone" → 2 results', ok: true, rows: 2, ms: 900, url: 'https://msc.fema.gov/portal' },
+    { tool: WEB_SEARCH_STEP, soql: '"x"', ok: false, error: 'search error', rows: null, ms: 5, url: WEB_SEARCH_DOCS },
+  ]);
+  assert.match(html, /\(1 query, 2 web searches\)/);
+  assert.equal((html.match(/run it yourself/g) || []).length, 1, 'only the query can be re-run');
+  assert.match(html, /2 results · 900 ms · <a href="https:\/\/msc\.fema\.gov\/portal"[^>]*>first page found<\/a>/);
+  assert.match(html, /failed: search error · 5 ms · <a href="https:\/\/platform\.claude\.com\/[^"]*"[^>]*>how web search works<\/a>/);
+  assert.match(renderTrace([{ tool: WEB_SEARCH_STEP, ok: true, rows: 1, ms: 1, url: 'https://msc.fema.gov/' }]), /\(1 web search\)/);
+  assert.match(renderTrace([{ tool: 'query_dataset', ok: true, rows: 1, ms: 1, url: 'https://x.gov/' }, { tool: 'query_dataset', refused: true, ok: false, error: 'budget', ms: 0, url: 'https://x.gov/' }]), /\(1 query, 1 not sent\)/, 'without search, the count reads as before');
 });

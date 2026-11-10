@@ -114,8 +114,10 @@ MAX_TOKENS = "1200"
 # WORKING_NOTES = "off"
 # Web search runs where the deployment sets webSearch (Siren does:
 # deployments/siren.config.js). The Anthropic organization must allow web
-# search in the Console. Uncomment to turn it off at once.
-# WEB_SEARCH = "off"
+# search in the Console; if it doesn't, every request that declares the tool
+# is refused (a 400) and every answer fails. Off until Jason confirms the
+# Console setting (2026-11-10); delete this line to turn it on.
+WEB_SEARCH = "off"
 INVITE_REQUIRED = "true"
 PER_INVITE_DAILY = "30"
 PER_USER_DAILY = "30"
