@@ -159,14 +159,96 @@ function newConversation() {
   $('#conv-state').textContent = 'New conversation';
   $('#conv-forget').hidden = true;
 }
+// "Your conversations": one page at a time, newest first (the server's cursor
+// says where the next page starts), or search results in its place.
+let recentNext = null;
+let searching = false;
+// A page of the list (test/conversation-search.test.js runs this as the page does).
+function renderRecent(list) {
+  return (list || []).map((c) => {
+    const n = Number(c.turns) || 0;
+    return `<li><button type="button" data-id="${esc(c.id)}">${esc(c.title)}</button> <small>${n} question${n === 1 ? '' : 's'} · ${esc(String(c.updated ?? '').slice(0, 10))}</small></li>`;
+  }).join('');
+}
+// Search matches: title, day and the snippet, every part escaped, the hit
+// in an escaped <mark> (the server says where it is in the snippet).
+function renderMatches(list) {
+  return (list || []).map((m) => {
+    const s = String(m.snippet ?? '');
+    const [a, b] = Array.isArray(m.mark) ? m.mark : [];
+    const marked = Number.isInteger(a) && Number.isInteger(b) && a >= 0 && a < b && b <= s.length
+      ? `${esc(s.slice(0, a))}<mark>${esc(s.slice(a, b))}</mark>${esc(s.slice(b))}`
+      : esc(s);
+    const turn = Number.isInteger(m.turn) && m.turn >= 0 ? m.turn : '';
+    return `<li><button type="button" data-id="${esc(m.id)}" data-turn="${turn}">${esc(m.title)}</button> <small>${esc(String(m.updated ?? '').slice(0, 10))} · in ${m.field === 'answer' ? 'an answer' : 'a question'}</small><br><span class="snippet">${marked}</span></li>`;
+  }).join('');
+}
+function showList() {
+  searching = false;
+  $('#conv-results').hidden = true;
+  $('#conv-results').innerHTML = '';
+  $('#conv-search-msg').textContent = '';
+  $('#conv-clear').hidden = true;
+  $('#conv-list').hidden = false;
+  $('#conv-more').hidden = !recentNext;
+}
 async function loadRecent() {
-  if (!session.conversations) return;
+  if (!session.conversations) {
+    // Signed out: nothing of the account's stays on the page.
+    recentNext = null;
+    $('#conv-recent').hidden = true;
+    $('#conv-list').innerHTML = '';
+    $('#conv-q').value = '';
+    showList();
+    return;
+  }
   try {
-    const { conversations = [] } = await (await fetch('api/conversations', { cache: 'no-store' })).json();
+    const { conversations = [], next = null } = await (await fetch('api/conversations', { cache: 'no-store' })).json();
     $('#conv-recent').hidden = !conversations.length;
-    $('#conv-list').innerHTML = conversations.map((c) => `<li><button type="button" data-id="${esc(c.id)}">${esc(c.title)}</button> <small>${c.turns} question${c.turns === 1 ? '' : 's'} · ${esc(String(c.updated).slice(0, 10))}</small></li>`).join('');
+    $('#conv-list').innerHTML = renderRecent(conversations);
+    recentNext = next;
+    $('#conv-more').hidden = searching || !recentNext;
   } catch {}
 }
+$('#conv-more').addEventListener('click', async () => {
+  if (!recentNext) return;
+  const more = $('#conv-more');
+  more.disabled = true;
+  try {
+    const res = await fetch(`api/conversations?cursor=${encodeURIComponent(recentNext)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (res.ok) {
+      $('#conv-list').insertAdjacentHTML('beforeend', renderRecent(data.conversations));
+      recentNext = data.next || null;
+    } else {
+      // An old cursor: start again from the newest.
+      await loadRecent();
+    }
+  } catch {} finally {
+    more.disabled = false;
+    more.hidden = searching || !recentNext;
+  }
+});
+// The query goes in a POST body, never in a URL, and the box keeps no history.
+$('#conv-search').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = $('#conv-search-msg');
+  msg.textContent = 'Searching…';
+  try {
+    const { res, data } = await postJson('api/conversations/search', { q: $('#conv-q').value });
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong. Try again.'; return; }
+    const matches = Array.isArray(data.matches) ? data.matches : [];
+    searching = true;
+    $('#conv-list').hidden = true;
+    $('#conv-more').hidden = true;
+    $('#conv-clear').hidden = false;
+    $('#conv-results').innerHTML = renderMatches(matches);
+    $('#conv-results').hidden = !matches.length;
+    const n = matches.length;
+    msg.textContent = [n ? `${n} match${n === 1 ? '' : 'es'}${data.more ? ', the newest shown' : ''}.` : 'No matches.', data.notice || ''].filter(Boolean).join(' ');
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
+$('#conv-clear').addEventListener('click', () => { $('#conv-q').value = ''; showList(); });
 async function loadSession() {
   try {
     session = await (await fetch('api/session', { cache: 'no-store' })).json();
@@ -202,25 +284,31 @@ $('#login').addEventListener('submit', async (e) => {
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
 $('#conv-new').addEventListener('click', () => { newConversation(); $('#q').focus(); });
+// Search results can name a conversation just forgotten: forgetting clears them.
 $('#conv-forget').addEventListener('click', async () => {
   if (!conversationId) return;
   await postJson('api/conversations/delete', { id: conversationId }).catch(() => {});
   newConversation();
+  showList();
   loadRecent();
 });
 $('#conv-forget-all').addEventListener('click', async () => {
   if (!window.confirm('Forget all your conversations? This deletes them for good.')) return;
   await postJson('api/conversations/delete-all', { confirm: 'delete all' }).catch(() => {});
   newConversation();
+  $('#conv-q').value = '';
+  showList();
   loadRecent();
 });
-$('#conv-list').addEventListener('click', async (e) => {
-  const id = e.target.closest('button')?.dataset.id;
-  if (!id) return;
+// Opens a saved conversation; from a search match, at the matching turn.
+async function openConversation(id, turnIndex) {
   try {
     const res = await fetch(`api/conversation?id=${encodeURIComponent(id)}`, { cache: 'no-store' });
     const data = await res.json();
-    if (!res.ok) return;
+    if (!res.ok) {
+      if (searching) $('#conv-search-msg').textContent = data.error || 'That conversation could not be opened.';
+      return;
+    }
     newConversation();
     conversationId = id;
     if (data.city && cities.some((c) => c.id === data.city)) $('#city').value = data.city;
@@ -233,7 +321,22 @@ $('#conv-list').addEventListener('click', async (e) => {
     $('#conv-state').textContent = `Continuing: ${data.turns[0]?.question.slice(0, 60) || ''}`;
     $('#conv-forget').hidden = false;
     $('#conv-recent').open = false;
+    const found = turnIndex == null ? null : $('#log').children[turnIndex];
+    if (found) {
+      found.classList.add('found');
+      found.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   } catch {}
+}
+$('#conv-list').addEventListener('click', (e) => {
+  const id = e.target.closest('button')?.dataset.id;
+  if (id) openConversation(id, null);
+});
+$('#conv-results').addEventListener('click', (e) => {
+  const button = e.target.closest('button');
+  if (!button?.dataset.id) return;
+  const turn = Number.parseInt(button.dataset.turn, 10);
+  openConversation(button.dataset.id, Number.isInteger(turn) ? turn : null);
 });
 $('#signout').addEventListener('click', async () => {
   await postJson('api/logout', {}).catch(() => {});
