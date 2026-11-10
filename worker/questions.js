@@ -164,6 +164,24 @@ export async function threadCounts(db, rootUris) {
   return new Map((results || []).map((r) => [r.root_uri, { answered: Number(r.answered) || 0, total: Number(r.total) || 0 }]));
 }
 
+/** At most this many AT-URIs in one heldByUris statement (D1 binds at most 100 parameters). */
+export const HELD_BATCH = 50;
+
+/**
+ * Of these AT-URIs, the questions a deletion can take down (answering,
+ * answered or hidden), one statement, read only: [{ id, question_uri,
+ * status }]. For worker/question-watcher.js, which looks up the deletions
+ * Jetstream reports in batches and writes nothing for a URI not held here.
+ */
+export async function heldByUris(db, uris) {
+  const list = [...new Set((Array.isArray(uris) ? uris : []).filter((u) => typeof u === 'string' && u))].slice(0, HELD_BATCH);
+  if (!list.length) return [];
+  const { results } = await db.prepare(
+    `SELECT id, question_uri, status FROM public_questions WHERE question_uri IN (${list.map(() => '?').join(', ')}) AND status IN ('answering', 'answered', 'hidden')`,
+  ).bind(...list).all();
+  return results || [];
+}
+
 /** Answered or hidden questions not checked since `before`, oldest check first: the sweep's batch. */
 export async function staleRows(db, { before, limit }) {
   return (await db.prepare(`SELECT ${COLS} FROM public_questions WHERE status IN ('answered', 'hidden') AND checked_ms < ? ORDER BY checked_ms, seq LIMIT ?`).bind(before, limit).all())?.results || [];

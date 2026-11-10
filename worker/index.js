@@ -38,6 +38,12 @@ import {
   publicAskOn, publicAskReady, notReady, NOINDEX, handlePublicAsk, handlePublicWithdraw, handleQuestions, handleQuestion,
   questionPageState, handlePublicSession, handlePublicRedeem, handleQuestionMetadata, handleAdminQuestions, sweepQuestions, publicAskSetupError,
 } from './public-ask.js';
+// The free tier's instant takedowns (docs/free-tier.md, "Deletions as they
+// happen"): the Durable Object class that watches Jetstream, exported from
+// this entry so the QUESTION_WATCHER binding finds it, and the cron's ping
+// that starts it. Nothing reaches it with PUBLIC_ASK off.
+import { pingQuestionWatcher } from './question-watcher.js';
+export { QuestionWatcher } from './question-watcher.js';
 import REQUESTS_PAGE from './requests.html';
 import QUESTIONS_PAGE from './questions.html';
 import ADMIN_QUESTIONS_PAGE from './admin-questions.html';
@@ -882,16 +888,22 @@ export default {
   // The Cron Trigger ([env.siren.triggers], every ten minutes): the free
   // tier's sweep, which re-checks public questions so a record deleted in
   // the asker's own account comes off the site, and clears abandoned claims
-  // (public-ask.js sweepQuestions). With PUBLIC_ASK anything but "true" it
-  // returns at once: no D1 call, no fetch. On but not ready, it logs why
-  // (names only) and does nothing else.
+  // (public-ask.js sweepQuestions); and a ping to the Jetstream watcher
+  // (question-watcher.js), which takes such a record down as soon as it's
+  // deleted, so it starts after a deploy or an eviction (the sweep stays as
+  // the backstop). With PUBLIC_ASK anything but "true" it returns at once:
+  // no D1 call, no fetch, and the watcher is never reached. On but not
+  // ready, it logs why (names only) and does nothing else.
   async scheduled(event, env, ctx) {
     if (!publicAskOn(env)) return;
     if (!publicAskReady(env)) {
       console.error('public sweep:', publicAskSetupError(env));
       return;
     }
-    const run = sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200)));
+    const run = Promise.all([
+      sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200))),
+      pingQuestionWatcher(env).catch((err) => console.error('question watcher: ping failed', String(err?.message || err).slice(0, 200))),
+    ]);
     if (ctx?.waitUntil) ctx.waitUntil(run);
     else await run;
   },

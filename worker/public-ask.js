@@ -295,6 +295,26 @@ async function recheck(env, row, { budget, now }) {
   return state;
 }
 
+/**
+ * A deletion reported by someone other than the asker (Jetstream, through
+ * worker/question-watcher.js), confirmed by the rule withdrawal uses and
+ * acted on through the same code path: the DID re-resolved, getRecord asked
+ * of the PDS its document names, and the question withdrawn (withdrawQuestion:
+ * the row emptied, references rewritten to 'withdrawn:<id>') only on a clear
+ * RecordNotFound. The report itself is never trusted: a forged or replayed
+ * event finds the record present, or can't check, and changes nothing (no
+ * D1 write). `row` is { id, question_uri } as D1 holds it; each fetch goes
+ * through `budget` (src/request-budget.js). -> 'gone' (withdrawn),
+ * 'present' or 'unknown'.
+ */
+export async function takedownIfGone(env, row, budget) {
+  const p = parseRecordUri(row?.question_uri);
+  if (!p || p.collection !== QUESTION_NSID || !isSupportedDid(p.did) || !QUESTION_ID_RE.test(String(row?.id))) return 'unknown';
+  const { state } = await recordState(env, p, budget.tool);
+  if (state === 'gone') await withdrawQuestion(env.SIREN_DB, row.id);
+  return state;
+}
+
 // The full upstream error goes to the operator's log only; askers get the gist.
 function askErrorBody(err) {
   const status = String(err?.message || '').match(/^(Anthropic|OpenRouter) (\d{3}|error)/);
