@@ -47,7 +47,9 @@ test('the NSID string appears in exactly one source file', () => {
 
 test('the subject URL is canonical: one shape, from PUBLIC_ORIGIN only', () => {
   const id = 'abcdefghijklmnop';
-  assert.equal(endorseSubject('https://jason-edelman.org', '/ask-siren', id), `https://jason-edelman.org/ask-siren/requests/${id}`);
+  // Siren's subjects since 2026-11-10: its own origin, no base path.
+  assert.equal(endorseSubject('https://ask-siren.jason-edelman.org', '', id), `https://ask-siren.jason-edelman.org/requests/${id}`);
+  assert.equal(endorseSubject('https://example.org', '/ask-siren', id), `https://example.org/ask-siren/requests/${id}`);
   assert.equal(endorseSubject('http://127.0.0.1:8787', '', id), `http://127.0.0.1:8787/requests/${id}`);
   for (const [origin, base, i] of [
     ['https://Jason-Edelman.org', '/ask-siren', id],
@@ -58,9 +60,14 @@ test('the subject URL is canonical: one shape, from PUBLIC_ORIGIN only', () => {
     ['https://jason-edelman.org', '/ask-siren', 'abcdefabcdef'],
     ['https://jason-edelman.org', '/ask-siren', `${id}/`],
     ['https://jason-edelman.org', '/ask-siren?x', id],
+    ['https://ask-siren.jason-edelman.org', '/', id],
+    ['https://ask-siren.jason-edelman.org/', '', id],
+    ['https://ask-siren.jason-edelman.org', undefined, id],
   ]) assert.equal(endorseSubject(origin, base, i), null, `${origin} ${base} ${i}`);
-  const u = new URL(endorseSubject('https://jason-edelman.org', '/ask-siren', id));
-  assert.equal(u.href, endorseSubject('https://jason-edelman.org', '/ask-siren', id), 'already normalized');
+  for (const [origin, base] of [['https://ask-siren.jason-edelman.org', ''], ['https://example.org', '/ask-siren']]) {
+    const u = new URL(endorseSubject(origin, base, id));
+    assert.equal(u.href, endorseSubject(origin, base, id), 'already normalized');
+  }
 });
 
 // A small validator for the Lexicon's own shapes, so the builder is checked
@@ -83,7 +90,7 @@ function checkLexicon(value, def, defs) {
 }
 
 test('the record builder validates against the Lexicon; hostile records do not', () => {
-  const subject = endorseSubject('https://jason-edelman.org', '/ask-siren', 'abcdefghijklmnop');
+  const subject = endorseSubject('https://ask-siren.jason-edelman.org', '', 'abcdefghijklmnop');
   const long = '👩‍👩‍👧‍👦'.repeat(250);
   const rec = buildEndorsement({ subject, id: 'abcdefghijklmnop', title: `Tree inventory\u0000 ${long}`, now: Date.parse('2026-11-09T12:00:00Z') });
   assert.equal(rec.$type, ENDORSE_NSID);

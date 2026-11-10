@@ -10,7 +10,7 @@
 //      reaches a server log or a Referer header, and a mail scanner that
 //      prefetches links can't spend it (it would have to run the page and
 //      press nothing; the POST happens in script).
-//   3. Verify deletes the token and sets a signed siren_user cookie holding
+//   3. Verify deletes the token and sets a signed account cookie holding
 //      the user id: HMAC(INVITE_SECRET, email), so KV keys never reveal an
 //      address and a stolen KV dump can't be reversed with a word list.
 //      The cookie also carries a masked address (n•••@example.org) that the
@@ -27,10 +27,17 @@
 // Addresses are never stored for sign-in: only sent to Resend, the mail
 // provider, so it can deliver the link.
 
-import { sha256hex, readCookie, normalizeEmail } from './invites.js';
+import { sha256hex, readCookie, normalizeEmail, basePathOf } from './invites.js';
 import { boundary, hmacHex } from './crypto.js';
 
 export const USER_COOKIE = 'siren_user';
+/**
+ * The account cookie's name for a deployment: __Host-siren_user at the root
+ * of its own origin (Secure, Path=/, no Domain), siren_user under a BASE_PATH
+ * (see invites.js inviteCookieName).
+ */
+export const userCookieName = (base = '') => (base ? USER_COOKIE : `__Host-${USER_COOKIE}`);
+const nameAt = (path) => userCookieName(!path || path === '/' ? '' : path);
 const USER_DAYS = 30;
 const TOKEN_MINUTES = 15;
 
@@ -91,17 +98,17 @@ export async function verifyUserInfo(secret, value, now = Date.now()) {
 }
 
 export function userCookie(value, path = '/') {
-  return `${USER_COOKIE}=${value}; Path=${path || '/'}; Max-Age=${USER_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax`;
+  return `${nameAt(path)}=${value}; Path=${path || '/'}; Max-Age=${USER_DAYS * 86400}; HttpOnly; Secure; SameSite=Lax`;
 }
 export function clearUserCookie(path = '/') {
-  return `${USER_COOKIE}=; Path=${path || '/'}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+  return `${nameAt(path)}=; Path=${path || '/'}; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export async function currentUser(req, env) {
-  return verifyUser(env.INVITE_SECRET, readCookie(req, USER_COOKIE));
+  return verifyUser(env.INVITE_SECRET, readCookie(req, userCookieName(basePathOf(env))));
 }
 export async function currentUserInfo(req, env) {
-  return verifyUserInfo(env.INVITE_SECRET, readCookie(req, USER_COOKIE));
+  return verifyUserInfo(env.INVITE_SECRET, readCookie(req, userCookieName(basePathOf(env))));
 }
 
 /** Email sign-in is available only when its secret and sender are set. */

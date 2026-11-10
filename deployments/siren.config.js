@@ -1,4 +1,4 @@
-// Siren: the public deployment at jason-edelman.org/ask-siren.
+// Siren: the public deployment at https://ask-siren.jason-edelman.org/.
 // Named for three things at once: Norfolk's mermaids, the greater siren
 // (Siren lacertina, a salamander of Virginia's coastal plain swamps, per the
 // Virginia Department of Wildlife Resources), and the alarm.

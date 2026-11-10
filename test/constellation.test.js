@@ -9,9 +9,9 @@ import { addRequest, decide, currentId, requestKey, publicId } from '../worker/r
 import { endorseSubject, ENDORSE_SOURCE, buildEndorsement, ENDORSE_NSID } from '../worker/endorse-config.js';
 import { W, json, fakeNetwork, fakeCache, fakeLimiter, readyEnv } from './fake-atproto.js';
 
-const BASE = '/ask-siren';
+const BASE = '';
 const C = 'constellation.fixture.dev/xrpc/blue.microcosm.links.getBacklinkDids';
-const subj = (id) => endorseSubject('https://jason-edelman.org', BASE, id);
+const subj = (id) => endorseSubject('https://ask-siren.jason-edelman.org', BASE, id);
 const DIDS = Array.from({ length: 30 }, (_, i) => `did:plc:${String.fromCharCode(97 + (i % 26)).repeat(23)}${'234567'[i % 6]}`);
 
 test('the instance is the public one unless CONSTELLATION_URL is a bare https origin', () => {
@@ -25,14 +25,14 @@ test('the instance is the public one unless CONSTELLATION_URL is a bare https or
 test('getBacklinkDids: the subject, source, limit and User-Agent go out; distinct accounts come back', async () => {
   const net = fakeNetwork();
   net.state.backlinks.set(subj('abcdefghijklmnop'), DIDS.slice(0, 3));
-  const out = await backlinkDids({ origin: W.CONSTELLATION, subject: subj('abcdefghijklmnop'), limit: 25, fetchImpl: net.fetch, ua: 'Siren (+https://jason-edelman.org/ask-siren/)' });
+  const out = await backlinkDids({ origin: W.CONSTELLATION, subject: subj('abcdefghijklmnop'), limit: 25, fetchImpl: net.fetch, ua: 'Siren (+https://ask-siren.jason-edelman.org/)' });
   assert.deepEqual(out, { total: 3, dids: DIDS.slice(0, 3), cursor: null });
   const call = new URL(net.calls[0].url);
   assert.equal(call.searchParams.get('subject'), subj('abcdefghijklmnop'));
   assert.equal(call.searchParams.get('source'), ENDORSE_SOURCE);
   assert.equal(call.searchParams.get('limit'), '25');
   assert.equal(call.searchParams.get('did'), null, 'never filtered by person');
-  assert.equal(net.calls[0].headers['User-Agent'], 'Siren (+https://jason-edelman.org/ask-siren/)');
+  assert.equal(net.calls[0].headers['User-Agent'], 'Siren (+https://ask-siren.jason-edelman.org/)');
   assert.ok(!/@/.test(net.calls[0].headers['User-Agent']), 'no personal contact (D5)');
   assert.equal(await countEndorsers({ origin: W.CONSTELLATION, subject: subj('abcdefghijklmnop'), fetchImpl: net.fetch }), 3);
 });
@@ -157,12 +157,12 @@ test('a fulfilled request shows the count frozen at its decision and its live co
 test('the counted list is cached for 60 seconds per location', async () => {
   const { env, net } = await world({ n: 1 });
   const cache = fakeCache();
-  const args = { env, kv: env.LIMITS, origin: 'https://jason-edelman.org', base: BASE, cache, fetchImpl: net.fetch };
+  const args = { env, kv: env.LIMITS, origin: 'https://ask-siren.jason-edelman.org', base: BASE, cache, fetchImpl: net.fetch };
   await cachedPublicList(args);
   const n = net.calls.length;
   await cachedPublicList(args);
   assert.equal(net.calls.length, n, 'served from the cache');
-  const hit = await cache.match(new Request('https://jason-edelman.org/ask-siren/__cache/public-requests-v2'));
+  const hit = await cache.match(new Request('https://ask-siren.jason-edelman.org/__cache/public-requests-v2'));
   assert.equal(hit.headers.get('Cache-Control'), 'public, max-age=60');
 });
 

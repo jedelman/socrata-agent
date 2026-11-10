@@ -306,7 +306,7 @@ test('POST /api/requests gives the count only when the request is public', async
   await decide(kv, { id: r.id, status: 'declined' });
   assert.deepEqual(raiseResponse(await addRequest({ body: { source: 'Zoning map layers' }, kv, visitor: 'y' })), { ok: true });
   const { readFileSync } = await import('node:fs');
-  const ui = readFileSync(new URL('../worker/ui.html', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../worker/chat-page.js', import.meta.url), 'utf8');
   assert.match(ui, /typeof data\.count === 'number' && data\.count > 1/, 'the page shows a count only when given one');
   const index = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
   assert.match(index, /json\(raiseResponse\(out\)/);

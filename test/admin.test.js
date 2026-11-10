@@ -5,10 +5,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleAdmin } from '../worker/admin.js';
 import { addRequest, decide, requestKey, currentId } from '../worker/requests.js';
-import { signUser, userId, USER_COOKIE } from '../worker/accounts.js';
+import { signUser, userId, userCookieName } from '../worker/accounts.js';
+// These envs have no BASE_PATH: the account cookie's root name.
+const USER_COOKIE = userCookieName('');
 import { readyEnv, SECRET } from './fake-atproto.js';
 
-const ORIGIN = 'https://jason-edelman.org';
+const ORIGIN = 'https://ask-siren.jason-edelman.org';
 const STEWARD = 'steward@example.org';
 
 async function world(over = {}) {
@@ -22,7 +24,7 @@ async function world(over = {}) {
 
 async function call(w, path, body, deps = {}) {
   const waits = [];
-  const req = new Request(`${ORIGIN}/ask-siren${path}`, {
+  const req = new Request(`${ORIGIN}${path}`, {
     method: body ? 'POST' : 'GET',
     headers: { Cookie: w.cookie, ...(body ? { 'Content-Type': 'application/json', Origin: ORIGIN } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -54,7 +56,7 @@ const DIDS = ['did:plc:aaaaaaaaaaaaaaaaaaaaaaaa', 'did:plc:bbbbbbbbbbbbbbbbbbbbb
 test('admin: a decision freezes the live Constellation count into the request', async () => {
   const w = await world();
   const net = fakeNetwork();
-  net.state.backlinks.set(endorseSubject(ORIGIN, '/ask-siren', w.id), DIDS);
+  net.state.backlinks.set(endorseSubject(ORIGIN, '', w.id), DIDS);
   const listed = await call(w, '/api/admin/requests', null, { fetchImpl: net.fetch, cache: fakeCache() });
   assert.equal(listed.body.requests.find((r) => r.id === w.id).endorsements, 2);
   const out = await call(w, '/api/admin/requests/decide', { id: w.id, status: 'declined' }, { fetchImpl: net.fetch, cache: null });

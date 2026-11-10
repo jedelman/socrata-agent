@@ -43,13 +43,12 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put IP_SALT            # any random string
 #   npx wrangler secret put SOCRATA_APP_TOKEN  # optional
 
-# Siren: the public deployment at jason-edelman.org/ask-siren.
+# Siren: the public deployment at https://ask-siren.jason-edelman.org/ (its
+# own origin since 2026-11-10; before that, jason-edelman.org/ask-siren).
 # Deploys: Workers Builds (the Cloudflare dashboard's Git connection on the
 # "siren" Worker) runs `npm ci && npm test`, then `npx wrangler deploy --env
 # siren`, on every push to main. Preview builds are off: a preview would share
 # this Worker's secrets and KV on a public workers.dev URL.
-# A route runs before the site's Custom Domain, so only this path reaches this
-# Worker; the rest of jason-edelman.org is untouched.
 #   npx wrangler kv namespace create LIMITS --env siren   # paste the id below
 #   npx wrangler secret put OPENROUTER_API_KEY --env siren
 #   npx wrangler secret put IP_SALT --env siren
@@ -67,14 +66,43 @@ MAX_TOKENS = "1200"
 [env.siren]
 name = "siren"
 account_id = "543fde7feabd0af945bfae926ceea7ad"
+# The Custom Domain: the Worker is the origin for the whole hostname, and
+# deploying creates its DNS record and certificate (the zone is in this
+# account; "You cannot create a Custom Domain on a hostname with an existing
+# CNAME DNS record", and ask-siren had no public record on 2026-11-10).
+# Adding a Custom Domain or route needs Workers Routes edit on the zone
+# (developers.cloudflare.com/workers/authorization/workers/), which the token
+# Workers Builds creates by default has, for every zone in the account.
+# https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
+# (last updated 2026-09-29, read 2026-11-10).
+# The old routes stay, so the old address keeps answering, with redirects
+# only (MOVED_FROM below, worker/moved.js). Routes run before the root
+# site's Custom Domain on jason-edelman.org: "Routes can fetch() Custom
+# Domains and take precedence if configured on the same hostname"
+# (https://developers.cloudflare.com/workers/configuration/routing/routes/,
+# last updated 2026-10-18, read 2026-11-10). So only /ask-siren and
+# /ask-siren/* reach this Worker there; the rest of jason-edelman.org is
+# untouched. With routes set, workers_dev is inferred false.
 routes = [
+  { pattern = "ask-siren.jason-edelman.org", custom_domain = true },
   { pattern = "jason-edelman.org/ask-siren", zone_name = "jason-edelman.org" },
   { pattern = "jason-edelman.org/ask-siren/*", zone_name = "jason-edelman.org" },
 ]
+# The move ran in two deploys (Jason, 2026-11-10): #26 attached the Custom
+# Domain alone, confirmed live (200, certificate for the new name), before
+# this file turned the old path into redirects. Wrangler publishes the
+# script before routes and domains, so doing both at once would have
+# redirected to a host that might not answer yet.
 
 [env.siren.vars]
 DEPLOYMENT = "siren"
-BASE_PATH = "/ask-siren"
+# Served at the root of its own origin: no path prefix.
+BASE_PATH = ""
+# The old address: every request to it, over http or https, answers 301 (GET,
+# HEAD) or 308 (other methods) to the same path and query here, minus
+# /ask-siren. Email sign-ins there end (their cookie was jason-edelman.org's);
+# an invite held as a cookie there is carried over (worker/moved.js).
+MOVED_FROM = "https://jason-edelman.org/ask-siren"
 MODEL = "claude-sonnet-5-5"
 PER_IP_DAILY = "20"
 DAILY_BUDGET_USD = "2"
@@ -100,7 +128,11 @@ LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jaso
 # CONSTELLATION_URL (default https://constellation.microcosm.blue) switches to
 # a self-hosted instance; APPVIEW_URL (default https://public.api.bsky.app)
 # to another AppView.
-PUBLIC_ORIGIN = "https://jason-edelman.org"
+# Siren's origin. Sign-in links, annotation ids, the Bluesky client_id and
+# every endorsement subject URL are built from it. Subjects are fixed from
+# here on: changing it after endorsements exist strands them
+# (docs/bluesky-endorsements.md, "The record").
+PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"

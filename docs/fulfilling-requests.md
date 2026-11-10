@@ -2,8 +2,9 @@
 
 When the agent can't answer a question from the records it reaches, it names
 the source that would, and people can ask for it. A steward reviews each
-request; accepted ones appear on the public list (`/ask-siren/requests` for
-Siren) and, after the nightly sync, as GitHub issues labeled
+request; accepted ones appear on the public list
+(`https://ask-siren.jason-edelman.org/requests` for Siren) and, after the
+nightly sync, as GitHub issues labeled
 [`source-request`](https://github.com/jedelman/socrata-agent/issues?q=label%3Asource-request).
 The notes people write about what they wanted to know are reviewed too, one
 by one: a note appears on the list and in the issue only after the steward

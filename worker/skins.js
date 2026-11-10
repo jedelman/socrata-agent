@@ -1,6 +1,6 @@
 // Visual skins for the web app, chosen by a deployment's `ui.skin`. The page
 // stays the same; a skin swaps the mark, the favicon, the display font and the
-// palette (see [data-skin] in ui.html). The default skin is plain.
+// palette (see [data-skin] in chat.css). The default skin is plain.
 
 // The greater siren (Siren lacertina): an eel-bodied salamander of Virginia's
 // coastal-plain swamps, with feathery external gills and front legs only.
@@ -28,12 +28,17 @@ const PLAIN_FAVICON =
     `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='#1f5f4a'/><path d='M8 22V12l8-5 8 5v10h-5v-6h-6v6z' fill='white'/></svg>`
   );
 
+// `csp` names the servers a skin's markup loads from, added to the chat
+// page's Content-Security-Policy (index.js chatCsp): `style` for stylesheets,
+// `font` for font files. A skin that loads from anywhere else must say so here,
+// or the browser refuses it.
 export const skins = {
-  plain: { mark: '', fonts: '', favicon: PLAIN_FAVICON },
+  plain: { mark: '', fonts: '', favicon: PLAIN_FAVICON, csp: {} },
   siren: {
     mark: SIREN_MARK,
     fonts:
       '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&display=swap" rel="stylesheet">',
     favicon: SIREN_FAVICON,
+    csp: { style: ['https://fonts.googleapis.com'], font: ['https://fonts.gstatic.com'] },
   },
 };

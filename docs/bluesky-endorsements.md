@@ -1,6 +1,7 @@
 # Bluesky endorsements on the public request list
 
-The public list of source requests (`/ask-siren/requests` for Siren) can be
+The public list of source requests (`https://ask-siren.jason-edelman.org/requests`
+for Siren) can be
 endorsed by anyone with a Bluesky account. An endorsement says "I want this
 source added too". It helps the steward choose what to add next. It is not a
 vote.
@@ -80,11 +81,20 @@ The Lexicon ships in `lexicons/org/jason-edelman/siren/endorsement.json`:
   it: the OAuth scope, the Constellation source, the record builder. A test
   fails if the string appears in any other source file.
 - **The subject** is the request's own page,
-  `https://jason-edelman.org/ask-siren/requests/<id>`, built by one function
-  (`endorseSubject`): from `PUBLIC_ORIGIN`, never the Host header; lowercase;
-  no trailing slash, query or fragment. Constellation matches it exactly (a
-  trailing slash is a different target), so nothing else may build it. The
-  page answers 404 for an id that isn't on the public list.
+  `https://ask-siren.jason-edelman.org/requests/<id>`, built by one function
+  (`endorseSubject`): from `PUBLIC_ORIGIN` and `BASE_PATH`, never the Host
+  header; lowercase; no trailing slash, query or fragment. Constellation
+  matches it exactly (a trailing slash is a different target), so nothing
+  else may build it. The page answers 404 for an id that isn't on the public
+  list.
+- **The subject is fixed from here on.** It moved once, on 2026-11-10, with
+  Siren itself (from `https://jason-edelman.org/ask-siren/requests/<id>`),
+  before any endorsement existed, so the move cost nothing. Changing
+  `PUBLIC_ORIGIN` or `BASE_PATH` once records exist would strand them: they
+  would point at the old subject, and Constellation matches the subject
+  string exactly, so a redirect carries nothing over. A later move is a
+  migration like the NSID's ("Moving the NSID": count both subjects for a
+  window, and let people move their own records).
 - **The record key is the request id**, so one account has at most one
   record per request from Siren's page, "have I endorsed this?" is one
   unauthenticated read, and a delete is idempotent. Siren never uses
@@ -381,12 +391,17 @@ Deleting a Bluesky account removes it from Constellation's index.
 
 ## Where the endorsing page runs
 
-Siren lives at `jason-edelman.org/ask-siren`, the **same origin** as Jason's
-root site (D4: stay on the shared origin, default, pending Jason). IndexedDB
-and every script on `https://jason-edelman.org/*` share that origin, so a
-script on the root site could read the session and use the token. The narrow
-scope bounds the damage to creating or deleting that person's Siren
-endorsements while the token lives. Both requests pages are served with:
+Siren has its own origin, `https://ask-siren.jason-edelman.org` (D4, settled
+by Jason, 2026-11-10: "let's move to ask-siren.jason-edelman.org"). Until
+then it lived at `jason-edelman.org/ask-siren`, on the same origin as Jason's
+root site. That address now answers only with redirects to the same path and
+query on the new origin, minus `/ask-siren` (301 for GET and HEAD, 308
+otherwise; `MOVED_FROM`, `worker/moved.js`). IndexedDB, cookies and a CSP's
+`'self'` are per origin, so no script on `jason-edelman.org` or on any other
+subdomain can read the endorsement session or use its token, and each page's
+policy covers Siren's files alone.
+
+Both requests pages are served with:
 
 ```
 default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https:;
@@ -394,29 +409,48 @@ img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
 ```
 
 with no inline script, style or handler. `connect-src https:` is needed
-because the browser talks to whatever PDS each person uses. The root site is
-static today; anything that adds third-party script to it widens this.
+because the browser talks to whatever PDS each person uses.
 
-**Siren's own chat page is the nearer risk.** The chat page (`worker/ui.html`,
-served at `<base>/`) is on the same origin, renders model output, and has no
-strict CSP (it carries none today). A script that got onto that page, through
-a rendering bug or injected output, would run on the same origin as the
-endorsing pages and could read the endorsement session from IndexedDB and use
-the token. The narrow scope limits it to creating or deleting that person's
-Siren endorsements while the token lives; it can't post, follow or touch
-anything else in their account. **Recommendation, before the flag goes on:**
-move the endorsing pages to their own subdomain (below), or give `ui.html` a
-strict CSP like the requests pages' (its inline script moved out, as was done
-here).
+**The chat page carries a strict CSP too** (since 2026-11-10; before that it
+had none). The chat page (`worker/ui.html`, served at `<base>/`) renders
+model output on the same origin as the endorsing pages, so a script that got
+onto it, through a rendering bug or injected output, could have read the
+endorsement session. It is now served with (for the Siren skin):
 
-**What a subdomain would buy.** Moving the endorsing pages to their own
-origin, such as `siren.jason-edelman.org`, would give the session its own
-IndexedDB and its own `'self'`, so nothing on the root site could reach the
-token, and the CSP would cover only Siren's own files. The cost: a new
-client_id URL (the old one stays cached on servers), a redirect from the
-current requests URL, and subject URLs fixed before launch (they can't move
-later without the NSID-style migration). If Jason wants it, do it before the
-flag flips.
+```
+default-src 'none';
+script-src 'self' https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js;
+style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;
+connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+```
+
+Its script and style moved out of the page into `worker/chat-page.js` and
+`worker/chat.css`, served under `<base>/assets/<hash>/` the way the requests
+page's are, and the page has no inline script, style attribute or handler.
+The two scripts from the CDN are allowed by their exact URLs, not the whole
+CDN, and keep their subresource integrity. The fonts are the Siren skin's: a
+skin names the servers it loads from in `worker/skins.js`, and the plain skin
+adds none. `connect-src 'self'`: the chat page talks to nothing but Siren.
+`img-src data:` is for the favicon and the masthead's wave. Model output is
+still rendered through marked and DOMPurify; under this policy, markup that
+gets past them can't run script or load anything from elsewhere, and a
+`style` attribute in it is ignored.
+
+**What's left.** The steward's page, `<base>/admin`, still has inline script
+and style, with only `frame-ancestors 'none'` for a policy. It escapes every
+string it renders and is useful only to a signed-in steward, but it is on
+the same origin; moving its script out under the same kind of policy is the
+next step here. And whatever the policy, a script that got onto any Siren
+page could use a live session: the narrow scope limits that to creating or
+deleting the person's Siren endorsements while the token lives.
+
+**What the move changed for endorsing.** The client_id is now
+`https://ask-siren.jason-edelman.org/endorse-client-metadata.json`, the
+redirect URI `https://ask-siren.jason-edelman.org/requests`, and the subjects
+`https://ask-siren.jason-edelman.org/requests/<id>`. None of the old ones was
+ever used (the flag was off and no endorsement existed), so no server holds
+a session or a record for them. The subjects are fixed from here on ("The
+record").
 
 ## Configuration
 
@@ -486,7 +520,7 @@ so dropped rows stay restorable that long.
 | Constellation miscounting (missed events, a stale index) | Counts are distinct accounts; endorser pages verify each record on its own PDS and drop stale ones | Counts themselves aren't verified; only listed pages are |
 | A server that doesn't grant the narrow scope | The granted scope is checked; the token is revoked; a plain message | Its users can't endorse unless Jason allows `transition:generic` (D3) |
 | A PDS or AS without CORS | A plain message; the resolver fallback covers handle lookup | Some self-hosted users can't endorse from the web page |
-| Token theft by XSS, or by another script on the shared origin (the chat page, `ui.html`, renders model output with no strict CSP) | The CSP, no inline script, the narrow scope, a non-extractable key, a 24 h cap, sign out revokes | While the token lives, an attacker can create or delete that person's Siren endorsements; a subdomain removes the shared-origin part (D4) |
+| Token theft by XSS on Siren's origin | Siren's own origin, apart from jason-edelman.org's other pages (D4); strict CSPs with no inline script on the requests pages and the chat page, which renders model output; the narrow scope, a non-extractable key, a 24 h cap, sign out revokes | While the token lives, a script that got onto a Siren page can create or delete that person's Siren endorsements; `/admin` has no strict CSP yet |
 | Sybil and bot endorsing | A public list with flags; counts break ties only | Many established accounts held by one person still count, and everyone can see them |
 | Harassment of endorsers, now that handles are listed | That's the point of public-first, and the copy says so plainly before sign-in. Jason accepted this risk (2026-11-09): "I'm counting on Bluesky's T&S team, because it beats publishing people's emails." Flags and the steward's ability to decline a request are the only extra mechanisms | Endorsing is a public act |
 | Records for unlisted ids, or crafted fields | Only listed ids are queried; record text isn't displayed; dates parsed and bounded | |
@@ -502,8 +536,9 @@ so dropped rows stay restorable that long.
    `node scripts/bsky-probe.js --account <handle>` reports any legacy id
    still on the public list.
 2. **Publish the Lexicon** and the `_lexicon` TXT ("Publishing the Lexicon").
-3. **Deploy with the flag off** and check the metadata URL: 200, JSON,
-   `client_id` equal to the URL, the scope equal to the constant
+3. **Deploy with the flag off** and check the metadata URL,
+   `https://ask-siren.jason-edelman.org/endorse-client-metadata.json`: 200,
+   JSON, `client_id` equal to the URL, the scope equal to the constant
    (`scripts/bsky-probe.js` checks all three and sends one PAR).
 4. **A live probe with a real bsky.social account,** from a local
    `wrangler dev` with the flag on (see "Local development") or a preview
@@ -543,7 +578,7 @@ none; the same interface runs in memory in the tests).
    `npx wrangler dev --env siren --ip 127.0.0.1 --port 8787 --local-upstream 127.0.0.1:8787 --upstream-protocol http`.
    Without `--local-upstream`, wrangler rewrites `request.url` to the env's
    route origin.
-3. Open `http://127.0.0.1:8787/ask-siren/requests`, not `localhost`: the
+3. Open `http://127.0.0.1:8787/requests`, not `localhost`: the
    authorization server sends you back to `127.0.0.1`, and IndexedDB is per
    origin.
 4. With a loopback origin, the client is the atproto localhost client:
@@ -563,14 +598,13 @@ endorsing in the browser only; Bluesky's bot self-label plus account age;
 flag, never exclude; public-first; the paid tier keeps the private chat;
 endorsing needs only a Bluesky sign-in. D1 (publish from
 `did:plc:zz4wcje4a2nbbtc7pdoth3f2`), D12 (random ids now) and the harassment
-risk are settled too.
+risk are settled too. D4 was settled on 2026-11-10: Siren moved to its own
+origin, `ask-siren.jason-edelman.org` ("Where the endorsing page runs").
 
 Built as **default, pending Jason**:
 
 - **D2** No refresh token; a 24-hour session cap.
 - **D3** No `transition:generic` fallback; a clear message instead.
-- **D4** Stay on the shared origin with the CSP above (a subdomain's
-  benefits are in "Where the endorsing page runs").
 - **D5** Constellation's User-Agent names the project and its public URL
   only, no personal contact.
 - **D6** Count every account.

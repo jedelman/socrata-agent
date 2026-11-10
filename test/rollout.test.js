@@ -44,14 +44,20 @@ test('the doc\'s rollout names commands that exist, in order', () => {
   assert.match(read('scripts/bsky-probe.js'), /legacy ids/);
   assert.match(doc, /did=did:plc:zz4wcje4a2nbbtc7pdoth3f2/);
   assert.match(doc, /_lexicon\.siren\.jason-edelman\.org/);
-  // The chat page shares the origin without a strict CSP: the doc says so, and what to do first.
-  assert.match(doc, /`worker\/ui\.html`[\s\S]{0,200}no\s+strict CSP/);
-  assert.match(doc, /Recommendation, before the flag goes on:/);
+  // Siren has its own origin, and the chat page carries a strict CSP: the doc says so (D4, settled).
+  assert.match(doc, /Siren has its own origin, `https:\/\/ask-siren\.jason-edelman\.org` \(D4, settled/);
+  assert.match(doc, /\*\*The chat page carries a strict CSP too\*\*/);
+  assert.doesNotMatch(doc, /Recommendation, before the flag goes on:/);
+  assert.doesNotMatch(doc, /no strict CSP \(it carries none today\)/);
 });
 
 test('every decision built as a default is marked pending Jason, in the doc and in code', () => {
   const doc = read('docs/bluesky-endorsements.md');
-  for (const d of ['D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D13']) assert.match(doc, new RegExp(`\\*\\*${d}\\*\\*`), d);
+  for (const d of ['D2', 'D3', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D13']) assert.match(doc, new RegExp(`\\*\\*${d}\\*\\*`), d);
   const code = ['worker/endorse-client.js', 'worker/atproto-oauth.js', 'worker/index.js', 'worker/constellation.js', 'worker/endorse-config.js', 'worker/admin.js', 'worker/requests.js', 'worker/bluesky.js', 'worker/public-list.js', 'worker/endorsers.js', 'wrangler.toml'].map(read).join('\n');
-  for (const d of ['D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D13']) assert.match(code, new RegExp(`\\(${d}[,:][^)]*?default,[\\s*#/-]*pending[\\s*#/-]*Jason`), d);
+  for (const d of ['D2', 'D3', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D13']) assert.match(code, new RegExp(`\\(${d}[,:][^)]*?default,[\\s*#/-]*pending[\\s*#/-]*Jason`), d);
+  // D4 is settled (Jason, 2026-11-10: Siren's own origin): no longer listed as pending anywhere.
+  assert.doesNotMatch(doc, /\*\*D4\*\*/);
+  assert.doesNotMatch(code, /\(D4[,:][^)]*?pending/);
+  assert.match(code, /D4, settled by Jason, 2026-11-10/);
 });

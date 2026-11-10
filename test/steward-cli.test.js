@@ -59,7 +59,7 @@ globalThis.fetch = async (url) => {
 };
 `;
 
-const flagOn = (toml) => toml.replace('PUBLIC_ORIGIN = "https://jason-edelman.org"', 'PUBLIC_ORIGIN = "https://jason-edelman.org"\nBLUESKY_LOGIN = "true"');
+const flagOn = (toml) => toml.replace('PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"', 'PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"\nBLUESKY_LOGIN = "true"');
 const RANDOM_ID = 'abcdefghijklmnop';
 
 async function setup(t, toml, extraEnv = {}, { devVars, legacy = false } = {}) {
@@ -117,7 +117,7 @@ test('the flag on: a decision freezes the live Constellation count', { skip: SKI
   assert.match(out.out, /4 endorsements frozen/);
   const [url] = s.fetches();
   assert.equal(new URL(url).origin, 'https://constellation.microcosm.blue');
-  assert.equal(new URL(url).searchParams.get('subject'), `https://jason-edelman.org/ask-siren/requests/${RANDOM_ID}`);
+  assert.equal(new URL(url).searchParams.get('subject'), `https://ask-siren.jason-edelman.org/requests/${RANDOM_ID}`);
 });
 
 test('the flag on and Constellation down: decided anyway, unfrozen, and said (D10)', { skip: SKIP }, async (t) => {
@@ -165,7 +165,7 @@ test('endorsements <id> prints the live count and the public list link', { skip:
   const out = s.run('endorsements', s.id);
   assert.equal(out.code, 0, out.out);
   assert.match(out.out, new RegExp(`${RANDOM_ID}\\s+7\\s+Test source`));
-  assert.match(out.out, new RegExp(`https://jason-edelman.org/ask-siren/requests/${RANDOM_ID}`));
+  assert.ok(out.out.includes(`https://ask-siren.jason-edelman.org/requests/${RANDOM_ID}`), out.out);
 });
 
 test('a re-decision with Constellation down leaves no stale frozen count; a frozen 0 is written', { skip: SKIP }, async (t) => {

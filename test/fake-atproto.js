@@ -310,8 +310,8 @@ export const SECRET = 'test-secret-that-is-long-enough';
 export function readyEnv(over = {}) {
   return {
     BLUESKY_LOGIN: 'true',
-    PUBLIC_ORIGIN: 'https://jason-edelman.org',
-    BASE_PATH: '/ask-siren',
+    PUBLIC_ORIGIN: 'https://ask-siren.jason-edelman.org',
+    BASE_PATH: '',
     INVITE_SECRET: SECRET,
     IP_SALT: 'salt-for-tests',
     LIMITS: fakeKV(),
