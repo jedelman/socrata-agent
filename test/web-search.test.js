@@ -120,6 +120,7 @@ test("every deployment's webSearch block validates against its city; Siren's is 
     'https://msc.fema.gov/portal', 'https://tidesandcurrents.noaa.gov/x', 'https://www.congress.gov/bill/119th-congress/house-bill/8474',
     'https://www.vdot.virginia.gov/projects/hampton-roads-district/', 'https://www.dcr.virginia.gov/dam-safety-and-floodplains/', 'https://data.census.gov/table',
     'https://www.norfolk.gov/FormCenter/MarCom-48/Film-Permit-Application-361', 'https://www.norfolk.gov/CivicSend/ViewMessage/message?id=21232',
+    'https://www.norfolk.gov/DocumentCenter/View/1474/Building-Permit-Form-PDF', // Jason, 2026-11-10: the PDF forms are worth the staff reports
   ];
   for (const url of allowed) assert.ok(urlAllowed(url, s.allowedDomains), url);
   for (const url of ['https://data.norfolk.gov/resource/cab7-wvn5.json', 'https://air.norfolk.gov/', 'https://evilnorfolk.gov/', 'https://www.norfolk.gov.evil.example/', 'https://example.iqm2.com/', 'https://www.nrha.org/', 'javascript:alert(1)', 'not a url']) {
@@ -638,8 +639,6 @@ test("Siren's list reaches no page found naming private people (probed 2026-11-1
   const refused = [
     'https://www.norfolk.gov/CivicAlerts.aspx?AID=1', 'https://www.norfolk.gov/m/newsflash/Home/Detail/1',
     'https://www.norfolk.gov/CivicAlerts.aspx?CID=1', 'https://www.norfolk.gov/1234/Police', 'https://www.norfolk.gov/',
-    // Planning staff reports name the applicant beside the address; off until Jason decides.
-    'https://www.norfolk.gov/DocumentCenter/View/107596/R-02-Conditional-Use-Permit---Prestige-Hand-Car-Wash',
     'https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=1&ID=1',
     'https://vsp.virginia.gov/sex-offender-registry/', 'https://rga.lis.virginia.gov/Published/2024/SD2/PDF',
     'https://townhall.virginia.gov/L/viewcomments.cfm?commentid=1', 'https://downloads.regulations.gov/x/attachment_1.pdf',

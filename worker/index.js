@@ -517,7 +517,20 @@ function assetResponse(hash, name) {
  * so 'self' is Siren alone (D4, settled by Jason, 2026-11-10: the subdomain;
  * docs/bluesky-endorsements.md, "Where the endorsing page runs").
  */
-const REQUESTS_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+/**
+ * Cloudflare Web Analytics' beacon, which the zone injects into every page
+ * (Jason, 2026-11-10: "Allow. We'll need it."). Cloudflare's FAQ names the
+ * script; the injected copy loads from a versioned path under it
+ * (/beacon.min.js/v<hash>, seen blocked 2026-11-10), and a CSP path without
+ * a trailing slash matches only itself, so both forms are listed: the file,
+ * and the paths under it, not the whole host. It reports to this origin's
+ * /cdn-cgi/rum (automatic injection), which connect-src 'self' covers.
+ * https://developers.cloudflare.com/web-analytics/faq/ (read 2026-11-10).
+ * Cloudflare already serves these pages and could change them in transit,
+ * so trusting its beacon adds no party to the trust base.
+ */
+const CF_BEACON = ['https://static.cloudflareinsights.com/beacon.min.js', 'https://static.cloudflareinsights.com/beacon.min.js/'];
+const REQUESTS_CSP = `default-src 'none'; script-src 'self' ${CF_BEACON.join(' ')}; style-src 'self'; connect-src 'self' https:; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
 
 /**
  * The chat page's scripts from elsewhere: exactly these two files, pinned
@@ -530,7 +543,8 @@ const CHAT_SCRIPTS = [
 
 /**
  * The chat page's policy, as strict as the requests pages' (D4): no inline
- * script or style; scripts from this origin and the two files above; styles
+ * script or style; scripts from this origin, the two files above and
+ * Cloudflare's analytics beacon (CF_BEACON); styles
  * and fonts from this origin and whatever the skin names (worker/skins.js);
  * fetches to this origin only (the page talks to nothing else); images from
  * this origin and data: URLs (the favicon and the masthead's wave); nothing
@@ -543,7 +557,7 @@ function chatCsp(skin) {
   const font = skin?.csp?.font;
   return [
     "default-src 'none'",
-    `script-src 'self' ${CHAT_SCRIPTS.join(' ')}`,
+    `script-src 'self' ${[...CHAT_SCRIPTS, ...CF_BEACON].join(' ')}`,
     `style-src 'self'${extra(skin?.csp?.style)}`,
     ...(Array.isArray(font) && font.length ? [`font-src ${font.join(' ')}`] : []),
     "connect-src 'self'",
