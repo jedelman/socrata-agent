@@ -13,7 +13,8 @@
 // legacy id.
 //
 //   node scripts/bsky-probe.js --account alice.bsky.social
-//   node scripts/bsky-probe.js --account did:plc:... --origin https://jason-edelman.org --base /ask-siren
+//   node scripts/bsky-probe.js --account did:plc:... --origin https://example.org --base /siren
+//     (the defaults are Siren's: https://ask-siren.jason-edelman.org, no base)
 //
 // Run it after the client metadata is live (PUBLIC_ORIGIN deployed, flag off)
 // and before setting BLUESKY_LOGIN. Expect PAR 201. If the AS rejects the
@@ -33,10 +34,10 @@ const opt = (name, fallback) => {
 async function main() {
   const input = parseAccountInput(opt('account', ''));
   if (!input) throw new Error('Give --account <handle or did>, for example --account alice.bsky.social');
-  const env = { PUBLIC_ORIGIN: opt('origin', 'https://jason-edelman.org') };
-  const base = opt('base', '/ask-siren');
+  const env = { PUBLIC_ORIGIN: opt('origin', 'https://ask-siren.jason-edelman.org') };
+  const base = opt('base', '');
   const ids = clientIds(env, base);
-  if (!ids) throw new Error('--origin must be https://host (no port, no path) or http://127.0.0.1:<port>, and --base a path like /ask-siren.');
+  if (!ids) throw new Error('--origin must be https://host (no port, no path) or http://127.0.0.1:<port>, and --base empty or a path like /siren.');
   const opts = { fetchImpl: fetch, dohUrl: opt('doh', 'https://cloudflare-dns.com/dns-query'), plcUrl: opt('plc', 'https://plc.directory'), signal: AbortSignal.timeout(20000) };
 
   console.log(`client_id     ${ids.clientId}`);

@@ -203,7 +203,7 @@ test('botText refuses stale, non-open, over-long and failing text', () => {
 });
 
 test('botText: every built gap posts with a realistic link, dropping the demand line when it runs over', () => {
-  const link = 'https://jason-edelman.org/ask-siren/requests#g1';
+  const link = 'https://ask-siren.jason-edelman.org/requests#g1';
   for (const g of BUILT.gaps) {
     const today = g.measured;
     const plain = botText(g, null, { today, link, streets: NORFOLK_STREETS });

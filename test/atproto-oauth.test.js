@@ -112,7 +112,7 @@ test('DPoP proofs are ES256 JWTs that verify with their own public key; the priv
 });
 
 const PAR_ARGS = async (net) => ({
-  meta: asMeta(), clientId: 'https://jason-edelman.org/ask-siren/endorse-client-metadata.json', redirectUri: 'https://jason-edelman.org/ask-siren/requests',
+  meta: asMeta(), clientId: 'https://ask-siren.jason-edelman.org/endorse-client-metadata.json', redirectUri: 'https://ask-siren.jason-edelman.org/requests',
   state: 'state-1', challenge: 'chal-1', loginHint: W.HANDLE, key: await newDpopKey(), fetchImpl: net.fetch,
 });
 
@@ -199,11 +199,18 @@ test('the token request carries the verifier and nonce; a missing final nonce fa
 });
 
 test('client metadata: a new client_id URL, the narrow scope, the requests page as redirect, no refresh grant', () => {
-  const env = { PUBLIC_ORIGIN: 'https://jason-edelman.org' };
-  const ids = clientIds(env, '/ask-siren');
+  // Siren: its own origin, at the root (2026-11-10).
+  const env = { PUBLIC_ORIGIN: 'https://ask-siren.jason-edelman.org' };
+  const ids = clientIds(env, '');
   const m = clientMetadata({ ...ids, appName: 'Siren' });
-  assert.equal(m.client_id, 'https://jason-edelman.org/ask-siren/endorse-client-metadata.json');
-  assert.deepEqual(m.redirect_uris, ['https://jason-edelman.org/ask-siren/requests']);
+  assert.equal(m.client_id, 'https://ask-siren.jason-edelman.org/endorse-client-metadata.json');
+  assert.deepEqual(m.redirect_uris, ['https://ask-siren.jason-edelman.org/requests']);
+  assert.equal(m.client_uri, 'https://ask-siren.jason-edelman.org/');
+  // A deployment under a path still works.
+  const under = clientIds({ PUBLIC_ORIGIN: 'https://example.org' }, '/ask-siren');
+  assert.equal(under.clientId, 'https://example.org/ask-siren/endorse-client-metadata.json');
+  assert.equal(under.redirectUri, 'https://example.org/ask-siren/requests');
+  assert.equal(under.clientUri, 'https://example.org/ask-siren/');
   assert.equal(m.scope, OAUTH_SCOPE, 'the scope is the constant');
   assert.equal(m.token_endpoint_auth_method, 'none');
   assert.equal(m.dpop_bound_access_tokens, true);
