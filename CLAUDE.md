@@ -368,7 +368,14 @@ generic mode.
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each
   dataset's own list (a traced query) and only the City's spelling reaches
-  fixed SoQL; a miss returns the closest names. Caveats are quoted from the
+  fixed SoQL; a miss returns the closest names. `capital_projects` with
+  `project` looks a project up by words from its name (rarer words weigh
+  more; a word in a quarter of the names never matches alone) and returns
+  every line of it across departments and funds with the project's total
+  (Jason, 2026-11-11: the largest-projects list showed only MacArthur's $57M
+  City Manager line of $72M). `find_legislation` puts items with every word
+  first, then items with at least half (marked `matched`), whole words or
+  their start, rarer words first, ties to the latest meeting. Caveats are quoted from the
   live metadata or computed from the queries.
 - `plugins/city-news.js` (`city_news`) reads the City's own announcements
   from its News Flash and Alert Center RSS feeds (`www.norfolk.gov/rss.aspx`).
