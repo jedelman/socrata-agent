@@ -3,7 +3,10 @@
 // the free tier, and the free tier's paths stay 404s. The snapshot
 // (fixtures/public-ask-off-snapshot.json) was taken from main at f6f0e9e, main plus
 // the spec, before any free-tier code, and retaken on f6f0e9e plus
-// conversation browsing and search, which isn't free-tier code
+// conversation browsing and search, which isn't free-tier code, and again
+// with the answer-links change's diff to chat-page.js and chat.css (links
+// checked against the hand-off, follow-up offers, the stacked request card;
+// only those two assets' bodies moved, in all three envs)
 // (fixtures/public-ask-off-scenario.js says how it is normalized: only the
 // asset hash, signed values and trace timings).
 //

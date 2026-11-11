@@ -7,11 +7,14 @@
 // branch, still without gaps) when it was merged in, which added only the
 // answer's requestBudget.
 
-import { PARTIAL_PROMPT } from '../../src/prompt.js';
+import { PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE } from '../../src/prompt.js';
 
 // Base-prompt lines added since the snapshot, for every deployment, gaps on
 // or off: stripped before comparing, so the comparison still covers the rest.
-export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT]);
+export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE]);
+// Core tools added since the snapshot: left out of the tool lists the same way.
+export const CORE_TOOLS_ADDED_SINCE_SNAPSHOT = Object.freeze(['offer_followup']);
+const coreAtSnapshot = (tools) => (Array.isArray(tools) ? tools.filter((t) => !CORE_TOOLS_ADDED_SINCE_SNAPSHOT.includes(t.function?.name)) : tools);
 const stripAdded = (s) => PROMPT_ADDED_SINCE_SNAPSHOT.reduce((t, x) => t.split(x).join(''), s);
 
 const call = (id, name, args) => ({ id, type: 'function', function: { name, arguments: JSON.stringify(args) } });
@@ -42,10 +45,10 @@ export async function gapsOffScenario({ ask, toolsFor, systemPrompt, getCity }) 
     JSON.stringify(
       {
         systemPrompt: systemPrompt(norfolk, '2026-11-06'),
-        tools: toolsFor(norfolk),
+        tools: coreAtSnapshot(toolsFor(norfolk)),
         ask: out,
         // The system prompt holds today's date; it's compared above with a fixed date.
-        requests: bodies.map((b) => ({ ...b, messages: b.messages.map((m) => (m.role === 'system' ? { ...m, content: '(system prompt)' } : m)) })),
+        requests: bodies.map((b) => ({ ...b, ...('tools' in b ? { tools: coreAtSnapshot(b.tools) } : {}), messages: b.messages.map((m) => (m.role === 'system' ? { ...m, content: '(system prompt)' } : m)) })),
       },
       zero
     )

@@ -540,3 +540,27 @@ test("the page's script renders the list and a thread, and the follow-up button 
   assert.equal(one.el('reply-text').textContent, 'Following up on: Which were approved?');
   assert.equal(one.el('city').disabled, true, "a follow-up is about its thread's city");
 });
+
+test("the page's script: an answer's offer to read a source next fills the ask box with its question, in that question's thread", { skip }, async () => {
+  const w = await loadWorker();
+  const e = env({ APPVIEW_URL: 'https://appview.invalid' });
+  const db = e.SIREN_DB.db;
+  const ins = db.prepare("INSERT INTO public_questions (id, question_uri, question_cid, did, handle, city, question, answer, record, status, day, checked_ms, root_uri, parent_uri, depth) VALUES (?, ?, 'bafyreiaaaaaaaa', ?, ?, 'norfolk', ?, ?, ?, 'answered', '2026-11-10', ?, NULL, NULL, 0)");
+  const legi = 'https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=7337';
+  const record = { resources: { records: [{ kind: 'legislation', title: 'ORD 48-512', url: legi }] }, followups: [{ question: 'What does the kennel ordinance say?', source_title: 'ORD 48-512 <b>', url: legi }] };
+  ins.run('dddddddddddddddd', `at://${W.DID}/${QUESTION_NSID}/3kaaaaaaaaaa9`, W.DID, 'alice.example', 'What about the kennel?', `I found [an ordinance](${legi}).`, JSON.stringify(record), Date.now());
+  const one = await runPage(w, e, '/q/dddddddddddddddd');
+  let html;
+  try {
+    html = one.el('list').innerHTML;
+    await one.el('list').listeners.click({ target: { closest: (sel) => (sel === 'button[data-offer]' ? { dataset: { offer: 'dddddddddddddddd', n: '0' } } : null) } });
+  } finally {
+    one.restore();
+  }
+  assert.deepEqual(one.missing, []);
+  assert.match(html, /<button type="button" class="offer" data-offer="dddddddddddddddd" data-n="0" title="What does the kennel ordinance say\?">Would you like me to look into that\?<\/button> <small><a href="https:\/\/norfolkcityva\.iqm2\.com\/Citizens\/Detail_LegiFile\.aspx\?ID=7337" target="_blank" rel="noopener noreferrer">ORD 48-512 &lt;b&gt;<\/a><\/small>/);
+  assert.equal(one.el('q').value, 'What does the kennel ordinance say?', 'the question is in the box, for the asker to read and ask');
+  assert.equal(one.el('ask').hidden, false);
+  assert.equal(one.el('ask-title').textContent, 'Ask a follow-up');
+  assert.equal(one.el('reply-text').textContent, 'Following up on: What about the kennel?');
+});

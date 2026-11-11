@@ -29,6 +29,16 @@ the answer once. If it still fails, the answer is flagged.
 The trace is written by code as each request runs. The model never writes it, so
 it can't make one up.
 
+The answer links the words a fact comes from to its source, inline. Code keeps
+a link only when its URL is one the answer handed off (a record, a web page it
+found, a dataset page or CSV, a contact, a deployment link); any other link
+becomes plain text, bare URLs included, and images are dropped
+(`src/answer-links.js`). The lists under the answer stay. When the answer
+mentions a source it hasn't read but its tools can open, the page shows a
+**Would you like me to look into that?** button that asks a follow-up for it
+(`offer_followup`); a source it can't reach gets the **Ask for this source**
+card instead (`suggest_data_source`).
+
 ## Three ways to use it
 
 ### 1. The web app (for everyone)

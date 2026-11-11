@@ -21,6 +21,51 @@ const link = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '#');
 // No data attributes, no form controls or dialogs, and named properties
 // sanitized: model output can't pose as one of the page's own controls.
 const md = (s) => (window.marked && window.DOMPurify ? DOMPurify.sanitize(marked.parse(s || ''), { FORBID_ATTR: ['style'], ALLOW_DATA_ATTR: false, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'option', 'dialog'] }) : `<p>${esc(s)}</p>`);
+// ---- answer links (test/answer-links.test.js runs these) ----
+// The answer's own links: src/answer-links.js keeps only those to what the
+// answer handed off, and the page checks again as it renders. A link whose
+// URL isn't in this answer's hand-off loses its href; the rest open in a new
+// tab with rel="noopener noreferrer". normUrl is src/answer-links.js's
+// normalizeUrl; handoffLinks its handoffUrls, plus each URL as marked writes
+// it into an href.
+const normUrl = (u) => {
+  const s = String(u ?? '').trim();
+  const cut = s.search(/[?#]/);
+  const head = cut < 0 ? s : s.slice(0, cut);
+  return (head.endsWith('/') && !head.endsWith('//') ? head.slice(0, -1) : head) + (cut < 0 ? '' : s.slice(cut));
+};
+function handoffLinks(r) {
+  const set = new Set();
+  const add = (u) => {
+    if (typeof u !== 'string' || !/^https?:\/\//i.test(u.trim())) return;
+    set.add(normUrl(u));
+    try { set.add(normUrl(encodeURI(u.trim()).replace(/%25/g, '%'))); } catch {}
+  };
+  for (const x of r?.records || []) add(x?.url);
+  for (const d of r?.datasets || []) { add(d?.page); add(d?.csv); add(d?.docs); for (const q of d?.queries || []) add(q); }
+  for (const c of r?.contacts || []) { add(c?.url); if (typeof c?.email === 'string' && c.email.trim()) set.add(`mailto:${c.email.trim()}`); }
+  for (const l of r?.links || []) add(l?.url);
+  return set;
+}
+// Any element's href (an SVG link's xlink:href too) is checked; links that
+// stay open in a new tab.
+function checkLink(node, allowed) {
+  if (typeof node?.hasAttribute !== 'function') return;
+  for (const name of ['href', 'xlink:href']) {
+    if (!node.hasAttribute(name)) continue;
+    const href = node.getAttribute(name) || '';
+    if (!allowed.has(normUrl(href))) node.removeAttribute(name);
+    else if (name === 'href' && String(node.nodeName).toUpperCase() === 'A' && /^https?:/i.test(href)) { node.setAttribute('target', '_blank'); node.setAttribute('rel', 'noopener noreferrer'); }
+  }
+}
+// ---- end answer links ----
+// The hand-off of the answer being rendered, while md() runs for it.
+let renderingLinks = null;
+if (window.DOMPurify && DOMPurify.addHook) DOMPurify.addHook('afterSanitizeAttributes', (node) => { if (renderingLinks) checkLink(node, renderingLinks); });
+function answerMd(answer, resources) {
+  renderingLinks = handoffLinks(resources);
+  try { return md(answer); } finally { renderingLinks = null; }
+}
 let history = [];
 let cities = [];
 let conversationId = null;
@@ -68,11 +113,20 @@ function renderResources(r) {
   }
   return parts.join('');
 }
+// Sources the answer mentions and Siren can read next (offer_followup). The
+// button asks the question as the next message in this conversation; the
+// title links the source.
+function renderFollowups(list) {
+  if (!Array.isArray(list) || !list.length) return '';
+  return `<div class="followups">${list.map((f) => `<p class="followup"><button type="button" class="followup-ask" data-question="${esc(f.question)}" title="${esc(f.question)}">Would you like me to look into that?</button> <small>${f.url ? `<a href="${link(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.source_title || f.url)}</a>` : esc(f.source_title)}</small></p>`).join('')}</div>`;
+}
 // Sources Siren said would answer what she couldn't. The person sees exactly
-// what will be sent, can edit it, and sends it with one button.
+// what will be sent, can edit it, and sends it with one button: a stacked
+// card, heading, why, the source, the note at full width with the public
+// notice under it, then the button and its status.
 function renderSuggestions(list) {
   if (!list?.length) return '';
-  return list.map((s, i) => `<form class="suggest gate" data-i="${i}"><h3>Ask for this source to be added</h3><p>${esc(s.why)}</p><p><strong>${esc(s.source)}</strong>${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">link</a>` : ''}</p><label class="fine">What you wanted to know. Requests are public: once reviewed, this note may appear on the <a href="requests" target="_blank" rel="noopener">source request list</a> and on GitHub. Edit it, and leave out your address and name.<textarea name="need" class="need" maxlength="300">${esc(s.need)}</textarea></label><input type="hidden" name="source" value="${esc(s.source)}"><input type="hidden" name="url" value="${esc(s.url || '')}"><button class="ask" type="submit">Request this source</button> <span class="msg" role="status"></span></form>`).join('');
+  return list.map((s, i) => `<form class="suggest" data-i="${i}"><h3>Ask for this source</h3><p class="why">${esc(s.why)}</p><p class="source"><strong>${esc(s.source)}</strong>${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">link</a>` : ''}</p><label class="note">What you wanted to know<textarea name="need" class="need" maxlength="300">${esc(s.need)}</textarea></label><p class="fine">Requests are public: once reviewed, this note may appear on the <a href="requests" target="_blank" rel="noopener">source request list</a> and on GitHub. Edit it, and leave out your address and name.</p><input type="hidden" name="source" value="${esc(s.source)}"><input type="hidden" name="url" value="${esc(s.url || '')}"><div class="row"><button class="ask" type="submit">Request this source</button><span class="msg" role="status"></span></div></form>`).join('');
 }
 $('#log').addEventListener('submit', async (e) => {
   const f = e.target.closest('form.suggest');
@@ -89,6 +143,20 @@ $('#log').addEventListener('submit', async (e) => {
     f.querySelector('button').disabled = true;
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
+// A follow-up offer: its question goes as the next message in this
+// conversation, exactly as if typed, once. Model output can't make one: an
+// answer's markup keeps no buttons or data attributes.
+function followupClick(e) {
+  const b = e.target.closest('button.followup-ask');
+  if (!b || b.disabled) return;
+  const question = String(b.dataset.question || '').trim();
+  // An answer on its way, or a dropped one that may still be saved, comes first.
+  if (!question || hold || $('#go').disabled) return;
+  b.disabled = true;
+  $('#q').value = question;
+  $('#f').requestSubmit();
+}
+$('#log').addEventListener('click', followupClick);
 // What the records couldn't answer (docs/gaps.md §8.5). Only with gaps on;
 // code-written text, escaped, never through md(). A reopened answer's record
 // keeps only {gap, statement, measured} per gap (worker/conversations.js), so
@@ -103,15 +171,15 @@ function renderGaps(g) {
   return `<details class="gaps"${open ? ' open' : ''}><summary>What I couldn't answer from the records I read <small>(${n})</small></summary><ul class="plain">${g.shown.map((x) => `<li>${x.label ? `<span class="role">${esc(x.label)}</span> ` : ''}${x.title ? `<strong>${esc(x.title)}</strong><br>` : ''}${esc(x.statement)}<br><small>measured ${esc(x.measured)}${stale(x.measured) ? ' · due for a re-check' : ''}${x.notice ? ` · ${esc(x.notice)}` : ''}</small>${x.absence ? `<br><small>${esc(x.absence)}</small>` : ''}</li>`).join('')}${g.more ? `<li><small>${esc(g.more)} more in the gap catalog</small></li>` : ''}</ul></details>`;
 }
 // One answer with what was found behind it: the voice notice, what the
-// records couldn't answer (gaps on only), suggested
-// sources, the hand-off, the trace and the model line. The same for a live
+// records couldn't answer (gaps on only), offers to read a source next,
+// suggested sources, the hand-off, the trace and the model line. The same for a live
 // answer and for one reopened from a saved conversation (`at` set); turns
 // saved before records were kept show the answer alone.
 function renderAnswer(answer, r, at) {
   const when = at ? `${esc(String(at).slice(0, 16).replace('T', ' '))} UTC` : '';
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
-  return `<div class="answer">${md(answer)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
+  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderFollowups(r.followups)}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
 }
 // A web search step (web search on). Its tool name is WEB_SEARCH_STEP in
 // src/web-search.js (test/web-search.test.js keeps the two the same). The

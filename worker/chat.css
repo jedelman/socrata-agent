@@ -182,3 +182,27 @@ html[data-skin="siren"] {
 ol.trace code.ds { display: inline; }
 form.suggest textarea.need { width: 100%; margin-top: 4px; }
 button.textbtn { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+/* Under an answer: offers to read a source Siren can open (offer_followup),
+   then requests for one she can't (suggest_data_source), as stacked cards. */
+.a .answer a:not([href]) { color: inherit; text-decoration: none; }
+.followups { display: grid; gap: 8px; margin: 14px 0 4px; }
+.followup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; }
+.followup button { font: inherit; font-size: .93rem; font-weight: 600; line-height: 1.3; color: var(--accent); background: var(--soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.followup button:hover:not(:disabled) { border-color: var(--accent); }
+.followup button:disabled { opacity: .55; cursor: default; }
+.followup small { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; min-width: 0; }
+.followup small a { color: inherit; }
+form.suggest { display: block; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px 12px; margin: 14px 0 4px; }
+form.suggest h3 { margin: 0 0 4px; font-size: 1rem; line-height: 1.3; }
+form.suggest p { margin: 4px 0; }
+form.suggest .why { color: var(--muted); font-size: .93rem; }
+form.suggest .source { overflow-wrap: anywhere; }
+form.suggest label.note { display: block; margin-top: 12px; font-size: .9rem; font-weight: 600; }
+form.suggest textarea { display: block; font-weight: 400; font-size: .95rem; min-height: 64px; padding: 8px 10px; border-radius: 8px; background: var(--surface); }
+form.suggest .fine { color: var(--muted); font-size: .84rem; margin: 6px 0 0; }
+form.suggest .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+form.suggest button.ask { padding: 8px 16px; font-size: .93rem; }
+form.suggest .msg { font-size: .9rem; color: var(--muted); }
+form.suggest .msg.ok { color: var(--accent); }
+[data-skin="siren"] form.suggest h3 { font-family: var(--display); font-weight: 600; }

@@ -19,7 +19,9 @@ import { Resources } from '../src/resources.js';
 import siren from '../deployments/siren.config.js';
 import deployments from '../deployments/index.js';
 import { claudeResponse } from './fake-claude.js';
-import { webSearchOffScenario, ADDED_SINCE_SNAPSHOT } from './fixtures/web-search-off-scenario.js';
+import { webSearchOffScenario, ADDED_SINCE_SNAPSHOT, CORE_TOOLS_ADDED_SINCE_SNAPSHOT } from './fixtures/web-search-off-scenario.js';
+import { CORE_TOOLS_ADDED_SINCE_SNAPSHOT as GAPS_CORE_ADDED } from './fixtures/gaps-off-scenario.js';
+import { toolsFor } from '../src/tools.js';
 
 const KEY = 'sk-ant-test-secret-key-do-not-leak';
 const norfolk = getCity('norfolk');
@@ -164,6 +166,15 @@ test('the snapshot scenario leaves out only tools that joined Siren after it, wi
   }
 });
 
+test('the snapshot scenarios leave out only core tools that joined every deployment after them', () => {
+  assert.deepEqual(GAPS_CORE_ADDED, CORE_TOOLS_ADDED_SINCE_SNAPSHOT);
+  const core = toolsFor(norfolk).map((t) => t.function.name);
+  for (const name of CORE_TOOLS_ADDED_SINCE_SNAPSHOT) {
+    assert.ok(core.includes(name), `${name} is a core tool`);
+    assert.ok(!siren.plugins.some((p) => p.name === name), `${name} is not a plugin`);
+  }
+});
+
 test('with web search on, the request declares the tool with the allowlist, and the prompt says how to use it', async () => {
   const { fetchImpl, requests } = mockApi([msg([{ type: 'text', text: 'I found it.' }], 'end_turn')]);
   await ask({ question: 'q', city: norfolk, apiKey: KEY, model: 'claude-sonnet-5-5', fetchImpl, webSearch: WS });
@@ -213,7 +224,8 @@ test('pause_turn: the paused turn goes back as is, no user message; the resume i
   assert.equal(second.tool_choice, undefined, 'tools still allowed: the step cap is not reached');
   assert.equal(out.steps, 1, 'the resume counts as a step');
   assert.equal(out.requestBudget.model, 2, 'and as a request');
-  assert.equal(out.answer, "Let me look that up. A page on www.norfolk.gov says street trees are the City's.", 'the whole turn, the paused part first');
+  // The bare "www." is escaped so the page won't link it (src/answer-links.js); it reads the same.
+  assert.equal(out.answer, "Let me look that up. A page on www\\.norfolk.gov says street trees are the City's.", 'the whole turn, the paused part first');
   assert.ok(near(out.cost, 2 * HAIKU_CALL + WEB_SEARCH_USD), String(out.cost));
 });
 
@@ -258,7 +270,7 @@ test('text and citations written before a pause are kept: the answer and the han
   ], 'end_turn', usage({ server_tool_use: { web_search_requests: 1 } }));
   const { fetchImpl } = mockApi([paused, done]);
   const out = await ask({ question: 'Who owns street trees?', city: norfolk, apiKey: KEY, model: 'claude-haiku-5-5', fetchImpl, webSearch: WS });
-  assert.equal(out.answer, "A page on www.norfolk.gov says street trees are the City's. A page on law.lis.virginia.gov says localities may require replacement trees.");
+  assert.equal(out.answer, "A page on www\\.norfolk.gov says street trees are the City's. A page on law.lis.virginia.gov says localities may require replacement trees.");
   // Both cited pages, in order; the uncited results are not handed off.
   assert.deepEqual(out.resources.records.map((r) => r.url), ['https://www.norfolk.gov/trees', 'https://law.lis.virginia.gov/vacode/15.2-961/']);
   assert.ok(out.resources.records.every((r) => r.kind === 'web'));
