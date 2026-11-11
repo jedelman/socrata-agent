@@ -7,9 +7,10 @@ import { theRecord } from './cases.js';
 import trees from '../data/cases/norfolk-trees.json' with { type: 'json' };
 import litter from '../data/cases/norfolk-litter.json' with { type: 'json' };
 import zoning from '../data/cases/norfolk-zoning-restaurant-ghent.json' with { type: 'json' };
+import macarthur from '../data/cases/norfolk-macarthur-center.json' with { type: 'json' };
 
 // Every file in data/cases/ belongs here; test/plugins.test.js checks it.
-export const CASES = { [trees.id]: trees, [litter.id]: litter, [zoning.id]: zoning };
+export const CASES = { [trees.id]: trees, [litter.id]: litter, [zoning.id]: zoning, [macarthur.id]: macarthur };
 
 export default definePlugin({
   name: 'case_file',

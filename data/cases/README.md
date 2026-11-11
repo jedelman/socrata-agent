@@ -7,6 +7,16 @@ Each finding is one claim with its source URL, the exact quote that supports
 it, a stance (`confirms`, `weakens`, `context`, `who_decides`, `rules`), who
 found it (`found_by`), and the date the quote was last checked (`checked`).
 
+A case file's top-level `reviewed` date says when someone last looked for new
+developments on its topic, and `pending` lists what is reported but not yet
+confirmed in an official record, sources not yet read, and open questions.
+Sources are documents people can read (the City's pages and PDFs, Council
+legislation, state code, news), never a Socrata API or dataset URL: the plugin
+context refuses those, and `test/plugins.test.js` fails on one. A scheduled
+Claude Code routine compiles new case files and updates existing ones, one
+draft pull request at a time (`docs/case-file-routine.md`); open an issue
+labeled `case-file` with a question to ask for one.
+
 Durable findings. When the verifier writes (`--write`), each passing finding
 also records:
 - `checked_via`: whether the live page or an archived snapshot proved the quote;

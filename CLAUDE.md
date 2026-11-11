@@ -369,6 +369,14 @@ generic mode.
   and opens a PR (cloud sessions can't reach web.archive.org).
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
+  Sources are documents, never a Socrata API or dataset URL (the plugin
+  context refuses them, so `case_file` would throw; `test/plugins.test.js`
+  checks every source). A scheduled routine, "Siren: compile and update case
+  files" (twice a week, one draft PR at most; prompt copied in
+  `docs/case-file-routine.md`; Jason, 2026-11-11), works from each file's
+  `pending` list and `reviewed` date and from open `case-file` issues. The
+  snapshot tests leave out case files added after them
+  (`test/fixtures/cases-at-snapshot.js`), so a new case file needs no retake.
 - `data/documents/*.json` are Norfolk's ordinances (the Zoning Ordinance so
   far) and adopted budget books (the Department Budgets part, FY 2024 to
   2027) from the City's own PDFs, split into sections by `src/documents.js`.
