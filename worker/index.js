@@ -896,7 +896,7 @@ export default {
       path = path.slice(base.length);
     }
     // Spans from the Claude API's OpenTelemetry export (otlp.js), before the
-    // JSON-only rule below; with OTLP_TOKEN unset this path is the 404.
+    // JSON-only rule below; with it off, this path answers as any unknown one.
     if (path === OTLP_PATH && otlpOn(env)) return handleOtlp(req, env);
     if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/' || path === '/index.html' || path === '/login')) return page(env);
     // An invite carried over from the old address (worker/moved.js).

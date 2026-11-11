@@ -224,15 +224,19 @@ generic mode.
   `otlp.js` is the collector for the Claude API's OpenTelemetry export of
   Siren's API workspace (Jason, 2026-11-11: "the Siren workspace refers to
   the Claude API we're running her on"; `docs/telemetry.md` has the Console
-  steps): `POST /otlp/v1/traces`, only while the `OTLP_TOKEN` secret (32+
-  characters) is set, else that path answers as any unknown one. Cloudflare
-  takes no OTLP in, so Siren decodes the protobuf herself (gzip, 4 MB sent,
-  16 MB inflated, 2,000 lines a delivery) and logs one `claude.span` line per
-  span with a fixed list of attributes, each shape-checked (model, tokens,
-  stop reason, service tier, error type, tool name, request id, timing),
-  never a prompt, response, tool input or result, organization, workspace or
-  user id, or URL. The destination is to be "Metadata only"; if content ever
-  arrives it's never read, and the summary line says `content_arrived`. The
+  steps): `POST /otlp/v1/traces`, only while `TELEMETRY` is on and the
+  `OTLP_TOKEN` secret (32+ characters) is set, else that path answers as any
+  unknown one. Cloudflare takes no OTLP in, so Siren decodes the protobuf
+  herself (4 MB gzipped or 16 MB plain as sent, 16 MB inflated, 1,000 spans
+  built a delivery) and logs one `claude.span` line per span with a fixed
+  list of attributes, each shape-checked (model, tokens, stop reason, service
+  tier, error type, tool name, request id, timing), never a prompt, response,
+  tool input or result, organization, workspace or user id, URL, status
+  message, event or link; a name that isn't an API method or a prefix and a
+  tool name is logged as `[unrecognized]`. Cloudflare keeps 256 KB of log
+  data a request, so the summary line leads and span lines stop at 200 KB.
+  The destination is to be "Metadata only"; if content ever arrives it's
+  never read, and the summary (or a too-large refusal) says `content_arrived`. The
   token comes in `x-otlp-token`, never `Authorization` (no route reads one).
   `OTLP_WORKSPACE` keeps other workspaces' spans out. With `TELEMETRY` on,
   each answer's model calls send one random W3C `traceparent`

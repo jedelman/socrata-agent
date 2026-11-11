@@ -10,7 +10,7 @@ import * as nodeModule from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
-import { handleOtlp, decodeTraces, spanEvent, otlpOn, OTLP_PATH, TOKEN_HEADER, MAX_BODY, MAX_LOGGED } from '../worker/otlp.js';
+import { handleOtlp, decodeTraces, spanEvent, otlpOn, OTLP_PATH, TOKEN_HEADER, MAX_BODY, MAX_INFLATED, LOG_BUDGET, MAX_SPANS, OTHER_NAME } from '../worker/otlp.js';
 import { newTrace, traceArgs, answerEvent } from '../worker/telemetry.js';
 import { guardedFetch, TRACEPARENT_RE } from '../src/providers/anthropic.js';
 import { ask } from '../src/agent.js';
@@ -48,17 +48,20 @@ const anyValue = (v) =>
         : Number.isInteger(v) ? vi(3, v)
           : fixed(4, 'setFloat64', v);
 const kv = (k, v) => [...ld(1, str(k)), ...ld(2, anyValue(v))];
-function span({ trace = 'ab'.repeat(16), id = 'cd'.repeat(8), parent = '', name, kind = 2, start = 1762880000000000000n, end = 1762880001234567000n, attrs = {}, status = 1 }) {
+function span({ trace = 'ab'.repeat(16), id = 'cd'.repeat(8), parent = '', name, kind = 2, start = 1762880000000000000n, end = 1762880001234567000n, attrs = {}, status = 1, statusMessage = '', traceState = '', events = [], links = [] }) {
   return [
-    ...ld(1, bytesOf(trace)), ...ld(2, bytesOf(id)), ...(parent ? ld(4, bytesOf(parent)) : []), ...ld(5, str(name)), ...vi(6, kind),
+    ...ld(1, bytesOf(trace)), ...ld(2, bytesOf(id)), ...(traceState ? ld(3, str(traceState)) : []), ...(parent ? ld(4, bytesOf(parent)) : []), ...ld(5, str(name)), ...vi(6, kind),
     ...fixed(7, 'setBigUint64', start), ...fixed(8, 'setBigUint64', end),
     ...Object.entries(attrs).flatMap(([k, v]) => ld(9, kv(k, v))),
-    ...ld(15, vi(3, status)),
+    // Event { time 1, name 2, attributes 3 }; Link { trace_id 1, span_id 2, trace_state 3, attributes 4 }.
+    ...events.flatMap((e) => ld(11, [...fixed(1, 'setBigUint64', start), ...ld(2, str(e.name)), ...Object.entries(e.attrs || {}).flatMap(([k, v]) => ld(3, kv(k, v)))])),
+    ...links.flatMap((l) => ld(13, [...ld(1, bytesOf(l.trace)), ...ld(2, bytesOf(l.span)), ...ld(3, str(l.state || '')), ...Object.entries(l.attrs || {}).flatMap(([k, v]) => ld(4, kv(k, v)))])),
+    ...ld(15, [...(statusMessage ? ld(2, str(statusMessage)) : []), ...vi(3, status)]),
   ];
 }
-function request(spans, resource = { 'service.name': 'claude-platform' }) {
+function request(spans, resource = { 'service.name': 'claude-platform' }, scopeAttrs = {}) {
   const res = Object.entries(resource).flatMap(([k, v]) => ld(1, kv(k, v)));
-  const scope = ld(1, ld(1, str('com.anthropic.claude-platform')));
+  const scope = ld(1, [...ld(1, str('com.anthropic.claude-platform')), ...Object.entries(scopeAttrs).flatMap(([k, v]) => ld(3, kv(k, v)))]);
   return Uint8Array.from(ld(1, [...ld(1, res), ...ld(2, [...scope, ...spans.flatMap((s) => ld(2, span(s)))])]));
 }
 
@@ -87,7 +90,8 @@ const post = (body, { token = TOKEN, gzip = true, type = 'application/x-protobuf
     headers: { 'content-type': type, ...(gzip ? { 'content-encoding': 'gzip' } : {}), ...(token ? { [TOKEN_HEADER]: token } : {}), 'user-agent': 'Claude-Platform', ...headers },
     body: gzip ? gzipSync(body) : body,
   });
-async function deliver(req, env = { OTLP_TOKEN: TOKEN }) {
+const ON = { TELEMETRY: 'true', OTLP_TOKEN: TOKEN };
+async function deliver(req, env = ON) {
   const logged = [];
   const res = await handleOtlp(req, env, (line) => logged.push(JSON.parse(line)));
   return { res, logged };
@@ -132,19 +136,20 @@ async function loadWorker() {
   return worker;
 }
 
-test('off without a token of 32 characters or more: the path answers as any unknown path does', { skip: noHooks }, async () => {
+test('off without TELEMETRY, or without a token of 32 characters or more: the path answers as any unknown path does', { skip: noHooks }, async () => {
   assert.equal(otlpOn({}), false);
-  assert.equal(otlpOn({ OTLP_TOKEN: 'short' }), false);
-  assert.equal(otlpOn({ OTLP_TOKEN: TOKEN }), true);
+  assert.equal(otlpOn({ TELEMETRY: 'true', OTLP_TOKEN: 'short' }), false);
+  assert.equal(otlpOn({ OTLP_TOKEN: TOKEN }), false, 'removing TELEMETRY stops it too');
+  assert.equal(otlpOn(ON), true);
   const worker = await loadWorker();
   const body = request([CREATE]);
-  for (const env of [{}, { OTLP_TOKEN: 'short' }]) {
+  for (const env of [{}, { TELEMETRY: 'true', OTLP_TOKEN: 'short' }, { OTLP_TOKEN: TOKEN }]) {
     const at = await worker.fetch(post(body), env, {});
     const elsewhere = await worker.fetch(new Request('https://ask-siren.example/otlp/v1/other', { method: 'POST', headers: { 'content-type': 'application/x-protobuf' }, body: gzipSync(body) }), env, {});
     assert.equal(at.status, elsewhere.status);
     assert.equal(await at.text(), await elsewhere.text());
   }
-  const on = await worker.fetch(post(body), { OTLP_TOKEN: TOKEN }, {});
+  const on = await worker.fetch(post(body), ON, {});
   assert.equal(on.status, 200);
 });
 
@@ -166,7 +171,7 @@ test('Full content arrives: none of it reaches a log, and the summary says it ar
   assert.equal(res.status, 200);
   const all = JSON.stringify(logged);
   for (const leak of ['Jane', 'Smith', '810', 'Union', 'Siren', 'You are', 'lives', 'query', 'org-123', WS, 'u-42']) assert.ok(!all.includes(leak), leak);
-  assert.deepEqual(logged.at(-1), { event: 'claude.otlp', v: 1, spans: 1, logged: 1, content_arrived: true });
+  assert.deepEqual(logged[0], { event: 'claude.otlp', v: 1, spans: 1, logged: 1, content_arrived: true }, 'the summary first');
 });
 
 test('a value of the wrong shape is dropped, not logged', async () => {
@@ -197,8 +202,12 @@ test('refusals: not protobuf, not POST, an unknown encoding, bad gzip, malformed
   const malformed = await deliver(post(Uint8Array.from([0x0a, 0x40, 0x01])));
   assert.equal(malformed.res.status, 400);
   assert.deepEqual(malformed.logged, [{ event: 'claude.otlp', v: 1, refused: 'malformed' }]);
-  const big = await deliver(post(new Uint8Array(MAX_BODY + 1), { gzip: false }));
+  // Uncompressed past the inflated limit; and gzipped bytes past the sent limit, refused before inflating.
+  const big = await deliver(post(new Uint8Array(MAX_INFLATED + 1), { gzip: false }));
   assert.equal(big.res.status, 413);
+  assert.deepEqual(big.logged, [{ event: 'claude.otlp', v: 1, refused: 'too large' }]);
+  const bigZipped = await deliver(new Request(`https://x${OTLP_PATH}`, { method: 'POST', headers: { 'content-type': 'application/x-protobuf', 'content-encoding': 'gzip', [TOKEN_HEADER]: TOKEN }, body: new Uint8Array(MAX_BODY + 1) }));
+  assert.equal(bigZipped.res.status, 413);
   // A small gzip that inflates past the limit.
   const bomb = await deliver(post(new Uint8Array(17 * 1024 * 1024)));
   assert.equal(bomb.res.status, 413);
@@ -207,19 +216,100 @@ test('refusals: not protobuf, not POST, an unknown encoding, bad gzip, malformed
 test('OTLP_WORKSPACE: only those workspaces reach a log, and the Console test span always does', async () => {
   const other = { ...CREATE, id: '34'.repeat(8), attrs: { ...CREATE.attrs, 'anthropic.workspace.id': 'wrkspc_scout' } };
   const testSpan = { name: 'anthropic.test', id: '56'.repeat(8), attrs: {} };
-  const { logged } = await deliver(post(request([CREATE, other, testSpan])), { OTLP_TOKEN: TOKEN, OTLP_WORKSPACE: WS });
-  assert.deepEqual(logged.map((l) => l.name ?? l.event), ['anthropic.messages.create', 'anthropic.test', 'claude.otlp']);
-  assert.equal(logged.at(-1).other_workspace, 1);
+  const { logged } = await deliver(post(request([CREATE, other, testSpan])), { ...ON, OTLP_WORKSPACE: WS });
+  assert.deepEqual(logged.map((l) => l.name ?? l.event), ['claude.otlp', 'anthropic.messages.create', 'anthropic.test'], 'the summary first');
+  assert.equal(logged[0].other_workspace, 1);
   // A workspace given on the resource counts too.
-  const onResource = await deliver(post(request([{ ...CREATE, attrs: { 'gen_ai.operation.name': 'chat' } }], { 'anthropic.workspace.id': WS })), { OTLP_TOKEN: TOKEN, OTLP_WORKSPACE: WS });
+  const onResource = await deliver(post(request([{ ...CREATE, attrs: { 'gen_ai.operation.name': 'chat' } }], { 'anthropic.workspace.id': WS })), { ...ON, OTLP_WORKSPACE: WS });
   assert.equal(onResource.logged.length, 1);
 });
 
-test(`at most ${MAX_LOGGED} lines a delivery; the rest are counted`, async () => {
-  const many = Array.from({ length: MAX_LOGGED + 5 }, (_, i) => ({ name: 'anthropic.model_request', kind: 1, id: i.toString(16).padStart(16, '0'), attrs: {} }));
-  const { logged } = await deliver(post(request(many)));
-  assert.equal(logged.filter((l) => l.event === 'claude.span').length, MAX_LOGGED);
-  assert.equal(logged.at(-1).not_logged, 5);
+test(`span lines stop at ${LOG_BUDGET} bytes (Cloudflare keeps 256 KB a request); the summary leads and counts the rest`, async () => {
+  const many = Array.from({ length: 600 }, (_, i) => ({ ...CREATE, id: i.toString(16).padStart(16, '0') }));
+  const { res, logged } = await deliver(post(request(many)));
+  assert.equal(res.status, 200);
+  assert.equal(logged[0].event, 'claude.otlp');
+  const spanLines = logged.filter((l) => l.event === 'claude.span');
+  const size = spanLines.reduce((n, l) => n + JSON.stringify(l).length, 0);
+  assert.ok(size <= LOG_BUDGET, `${size} bytes`);
+  assert.ok(spanLines.length > 100 && spanLines.length < 600);
+  assert.equal(logged[0].logged, spanLines.length);
+  assert.equal(logged[0].not_logged, 600 - spanLines.length);
+  assert.ok(JSON.stringify(logged).length < 256 * 1024);
+});
+
+test(`at most ${MAX_SPANS} spans are built a delivery; empty spans by the million only count`, async () => {
+  const empties = 2_000_000;
+  // One ResourceSpans, one ScopeSpans, two million zero-length spans (field 2).
+  const scopeBody = new Uint8Array(empties * 2);
+  for (let i = 0; i < empties; i++) scopeBody[2 * i] = 0x12;
+  const wrap = (no, inner) => Uint8Array.from([...tag(no, 2), ...varint(inner.length), ...inner]);
+  const body = wrap(1, wrap(2, scopeBody));
+  const spans = decodeTraces(body);
+  assert.equal(spans.length, MAX_SPANS);
+  assert.equal(spans.extra, empties - MAX_SPANS);
+  const { res, logged } = await deliver(post(body));
+  assert.equal(res.status, 200);
+  assert.equal(logged[0].spans, empties);
+  assert.equal(logged[0].not_logged, empties - logged[0].logged);
+});
+
+test('keys named like built-in object methods are attributes like any other: dropped, never a crash', async () => {
+  const odd = { ...CREATE, attrs: { toString: 'x', constructor: 'y', __proto__x: 'z', hasOwnProperty: 'w', valueOf: 1, 'gen_ai.request.model': 'claude-sonnet-5-5' } };
+  const { res, logged } = await deliver(post(request([odd])));
+  assert.equal(res.status, 200);
+  assert.deepEqual(logged[0].attrs, { 'gen_ai.request.model': 'claude-sonnet-5-5' });
+});
+
+test("a span's name is an API method or a prefix and a tool name; anything else is a fixed marker", async () => {
+  const names = ['anthropic.messages.create', 'anthropic.model_request', 'anthropic.tool_use web_search', 'anthropic.mcp_tool_use list_issues', 'anthropic.test'];
+  const odd = ['anthropic.tool_use Jane Smith 810 Union St asked about rezoning', 'Jane Smith', 'anthropic.tool_use <script>', 'anthropic.custom_tool_use ' + 'x'.repeat(65), ''];
+  const { logged } = await deliver(post(request([...names, ...odd].map((name, i) => ({ name, id: (i + 1).toString(16).padStart(16, '0'), attrs: {} })))));
+  assert.deepEqual(logged.map((l) => l.name), [...names, ...odd.map(() => OTHER_NAME)]);
+});
+
+test('nothing else in a span reaches a line: status message, events, links, trace state, scope or resource attributes', async () => {
+  const leaky = {
+    ...CREATE, statusMessage: 'Jane Smith 810 Union St', traceState: 'jane=810union',
+    events: [{ name: 'exception Jane Smith', attrs: { 'exception.message': '810 Union St' } }],
+    links: [{ trace: '99'.repeat(16), span: '88'.repeat(8), state: 'jane=smith', attrs: { who: 'Jane Smith' } }],
+  };
+  const { logged } = await deliver(post(request([leaky], { 'service.name': 'claude-platform', 'host.name': 'Jane Smith', 'anthropic.organization.id': 'org-123' }, { owner: 'Jane Smith 810 Union St' })));
+  const all = JSON.stringify(logged);
+  for (const leak of ['Jane', 'Smith', '810', 'Union', 'org-123', '9999', '8888']) assert.ok(!all.includes(leak), leak);
+  assert.deepEqual(Object.keys(logged[0]).sort(), ['attrs', 'event', 'kind', 'ms', 'name', 'parent', 'span', 'start', 'status', 'trace', 'v']);
+});
+
+test('sizes: Content-Length over the cap is refused before reading; uncompressed bodies get the inflated limit', async () => {
+  const early = await deliver(post(request([CREATE]), { headers: { 'content-length': String(MAX_BODY + 1) } }));
+  assert.equal(early.res.status, 413);
+  assert.deepEqual(early.logged, [{ event: 'claude.otlp', v: 1, refused: 'too large' }]);
+  // 5 MB of valid spans, sent uncompressed (as after a 4xx the API stops compressing for a day).
+  const filler = 'x'.repeat(5000);
+  const bigSpans = Array.from({ length: 1100 }, (_, i) => ({ ...CREATE, id: i.toString(16).padStart(16, '0'), attrs: { ...CREATE.attrs, 'service.note': filler } }));
+  const body = request(bigSpans);
+  assert.ok(body.length > MAX_BODY && body.length < MAX_INFLATED, String(body.length));
+  const plain = await deliver(post(body, { gzip: false }));
+  assert.equal(plain.res.status, 200);
+});
+
+test('Full content too large to decode: refused, and the refusal still says content arrived', async () => {
+  const huge = 'y'.repeat(800 * 1024);
+  const heavy = Array.from({ length: 22 }, (_, i) => ({ ...CONTENT, id: (i + 1).toString(16).padStart(16, '0'), attrs: { ...CONTENT.attrs, 'gen_ai.input.messages': huge } }));
+  const body = request(heavy);
+  assert.ok(body.length > MAX_INFLATED);
+  for (const gzip of [true, false]) {
+    const { res, logged } = await deliver(post(body, { gzip }));
+    assert.equal(res.status, 413);
+    assert.deepEqual(logged, [{ event: 'claude.otlp', v: 1, refused: 'too large', content_arrived: true }]);
+  }
+});
+
+test("the free tier's answer carries the same trace to ask() and to its line", () => {
+  const src = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
+  assert.match(src, /function publicAskDeps\(req, env, base\) \{\n  const \{ config: deployment \} = getDeployment\(env\);\n[^\n]*\n  const trace = newTrace\(env\);/);
+  assert.match(src, /\.\.\.publicResearch\(cityId\), \.\.\.traceArgs\(trace\) \}\)\.then\(loggedAnswer\(env, 'public', cityId, trace\)\)/);
+  assert.match(src, /const loggedAnswer = \(env, tier, cityId, trace = null, started = Date\.now\(\)\) => \(out\) => \{\n  logAnswer\(env, out, \{ [^}]*trace: trace\?\.id \}\);/);
 });
 
 test('a trace per answer: off without telemetry; a sampled W3C traceparent with it', () => {

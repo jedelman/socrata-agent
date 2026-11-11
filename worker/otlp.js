@@ -21,17 +21,29 @@
 // delivery's summary line says content arrived so the steward can switch it
 // back.
 //
-// With OTLP_TOKEN unset (or shorter than 32 characters) the route doesn't
-// exist: the path answers as every unknown path does.
+// With TELEMETRY off, or OTLP_TOKEN unset (or shorter than 32 characters),
+// the route doesn't exist: the path answers as every unknown path does.
+//
+// Cloudflare keeps at most 256 KB of log data per request and drops the rest
+// (developers.cloudflare.com/workers/platform/limits/#log-size, read
+// 2026-11-11), so a delivery's summary line, when it has one, goes first, and
+// span lines stop at LOG_BUDGET bytes.
+
+import { telemetryOn } from './telemetry.js';
 
 export const OTLP_PATH = '/otlp/v1/traces';
 export const TOKEN_HEADER = 'x-otlp-token';
 export const MIN_TOKEN = 32;
+// As sent: 4 MB gzipped; an uncompressed delivery (the API stops compressing
+// for about a day after a 400, 406, 415 or 422) up to the inflated limit.
 export const MAX_BODY = 4 * 1024 * 1024;
 export const MAX_INFLATED = 16 * 1024 * 1024;
-export const MAX_LOGGED = 2000;
+// Bytes of span lines a delivery may log, under Cloudflare's 256 KB.
+export const LOG_BUDGET = 200 * 1024;
+// Spans decoded a delivery; any beyond are counted, never built.
+export const MAX_SPANS = 1000;
 
-export const otlpOn = (env) => typeof env?.OTLP_TOKEN === 'string' && env.OTLP_TOKEN.length >= MIN_TOKEN;
+export const otlpOn = (env) => telemetryOn(env) && typeof env?.OTLP_TOKEN === 'string' && env.OTLP_TOKEN.length >= MIN_TOKEN;
 
 // The attributes a line may carry, each with the shape its value must have.
 const NUM = 'number';
@@ -63,10 +75,15 @@ const KEEP = {
 };
 // Attributes that hold content (the span reference's "Content" badge). Their
 // values are never read; their keys only mark the delivery as carrying it.
+// (Read 2026-11-11 at platform.claude.com/docs/en/api/opentelemetry/spans.)
 const CONTENT = new Set([
   'gen_ai.system_instructions', 'gen_ai.input.messages', 'gen_ai.output.messages', 'gen_ai.request.stop_sequences',
-  'gen_ai.tool.call.arguments', 'anthropic.tool_result.content', 'anthropic.content.truncated',
+  'gen_ai.tool.call.arguments', 'anthropic.tool_result.content', 'anthropic.session.outcome_evaluation.explanation',
+  'anthropic.content.truncated',
 ]);
+// The bytes of those keys, to tell a delivery refused as too large that it
+// carried content.
+const CONTENT_MARKERS = ['gen_ai.input.messages', 'gen_ai.output.messages', 'gen_ai.system_instructions', 'anthropic.tool_result.content'];
 const WORKSPACE = 'anthropic.workspace.id';
 const KINDS = ['unspecified', 'internal', 'server', 'client', 'producer', 'consumer'];
 const STATUS = ['unset', 'ok', 'error'];
@@ -152,7 +169,7 @@ function keyValue(buf, wanted) {
   return { key, value: raw && wanted(key) ? scalar(raw) : undefined };
 }
 
-const wantedKey = (key) => key in KEEP || key === WORKSPACE;
+const wantedKey = (key) => Object.hasOwn(KEEP, key) || key === WORKSPACE;
 
 function span(buf) {
   const s = { attrs: {}, content: false, workspace: null };
@@ -176,9 +193,13 @@ function span(buf) {
   return s;
 }
 
-/** Every span in an ExportTraceServiceRequest, with its resource's workspace id. */
-export function decodeTraces(buf) {
+/**
+ * The spans in an ExportTraceServiceRequest, each with its resource's
+ * workspace id: at most `max` built; any beyond are only counted (`extra`).
+ */
+export function decodeTraces(buf, max = MAX_SPANS) {
   const spans = [];
+  let extra = 0;
   for (const rs of fields(buf)) {
     if (rs.no !== 1 || rs.wire !== 2) continue;
     let workspace = null;
@@ -191,22 +212,33 @@ export function decodeTraces(buf) {
           if (key === WORKSPACE && typeof value === 'string') workspace = value;
         }
       } else if (f.no === 2 && f.wire === 2) {
-        for (const ss of fields(f.value)) if (ss.no === 2 && ss.wire === 2) inner.push(span(ss.value));
+        for (const ss of fields(f.value)) {
+          if (ss.no !== 2 || ss.wire !== 2) continue;
+          if (spans.length + inner.length < max) inner.push(span(ss.value));
+          else extra += 1;
+        }
       }
     }
     for (const s of inner) spans.push({ ...s, workspace: s.workspace || workspace });
   }
+  spans.extra = extra;
   return spans;
 }
 
 // ---------------------------------------------------------------------------
 // A span's line.
 
-const cleanName = (name) => String(name || '').replace(/[^A-Za-z0-9_. -]/g, '?').slice(0, 100);
+// A span's name is the API method or a fixed prefix and a tool name
+// ("anthropic.messages.create", "anthropic.tool_use web_search"); anything
+// else is logged as a fixed marker, never as its text.
+const NAME_RE = /^anthropic\.[a-z_.]{1,60}( [A-Za-z0-9_.-]{1,64})?$/;
+export const OTHER_NAME = '[unrecognized]';
+const cleanName = (name) => (typeof name === 'string' && NAME_RE.test(name) ? name : OTHER_NAME);
 
 export function spanEvent(s) {
   const attrs = {};
   for (const [key, value] of Object.entries(s.attrs)) {
+    if (!Object.hasOwn(KEEP, key)) continue;
     const shape = KEEP[key];
     if (shape === NUM ? Number.isFinite(value) : shape === 'boolean' ? typeof value === 'boolean' : typeof value === 'string' && shape.test(value)) attrs[key] = value;
   }
@@ -241,20 +273,7 @@ async function sameToken(given, expected) {
   return diff === 0;
 }
 
-async function readCapped(stream, cap) {
-  const reader = stream.getReader();
-  const chunks = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > cap) {
-      await reader.cancel().catch(() => {});
-      return null;
-    }
-    chunks.push(value);
-  }
+const concat = (chunks, size) => {
   const out = new Uint8Array(size);
   let at = 0;
   for (const c of chunks) {
@@ -262,7 +281,34 @@ async function readCapped(stream, cap) {
     at += c.byteLength;
   }
   return out;
+};
+
+/** A stream's bytes up to `cap`: { bytes, over }, with what was read so far when it ran over. */
+async function readCapped(stream, cap) {
+  const reader = stream.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (size + value.byteLength > cap) {
+      chunks.push(value.subarray(0, cap - size));
+      size = cap;
+      await reader.cancel().catch(() => {});
+      return { bytes: concat(chunks, size), over: true };
+    }
+    chunks.push(value);
+    size += value.byteLength;
+  }
+  return { bytes: concat(chunks, size), over: false };
 }
+
+// Whether bytes hold a content attribute's key (a delivery too large to decode).
+const latin1 = new TextDecoder('latin1');
+const carriesContent = (bytes) => {
+  const t = latin1.decode(bytes);
+  return CONTENT_MARKERS.some((m) => t.includes(m));
+};
 
 const plain = (status, body) => new Response(body, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
 const workspaces = (env) => new Set(String(env.OTLP_WORKSPACE || '').split(',').map((w) => w.trim()).filter(Boolean));
@@ -276,35 +322,40 @@ export async function handleOtlp(req, env, log = console.log) {
   const encoding = (req.headers.get('content-encoding') || 'identity').toLowerCase();
   if (encoding !== 'gzip' && encoding !== 'identity') return plain(415, 'gzip or no encoding');
   if (!req.body) return plain(400, 'empty');
-  const tooLarge = () => {
-    log(JSON.stringify({ event: 'claude.otlp', v: 1, refused: 'too large' }));
+  // A refusal for size says whether what was read carried content, since
+  // Full content is the likely reason a delivery is that large.
+  const tooLarge = (bytes) => {
+    log(JSON.stringify({ event: 'claude.otlp', v: 1, refused: 'too large', ...(bytes && carriesContent(bytes) ? { content_arrived: true } : {}) }));
     return plain(413, 'too large');
   };
-  if (Number(req.headers.get('content-length') || 0) > MAX_BODY) return tooLarge();
-  const raw = await readCapped(req.body, MAX_BODY);
-  if (!raw) return tooLarge();
+  const sentCap = encoding === 'gzip' ? MAX_BODY : MAX_INFLATED;
+  if (Number(req.headers.get('content-length') || 0) > sentCap) return tooLarge(null);
+  const raw = await readCapped(req.body, sentCap);
   let body = raw;
-  if (encoding === 'gzip') {
+  if (encoding === 'gzip' && !raw.over) {
     try {
-      body = await readCapped(new Response(raw).body.pipeThrough(new DecompressionStream('gzip')), MAX_INFLATED);
+      body = await readCapped(new Response(raw.bytes).body.pipeThrough(new DecompressionStream('gzip')), MAX_INFLATED);
     } catch {
       return plain(400, 'bad gzip');
     }
-    if (!body) return tooLarge();
   }
+  if (body.over) return tooLarge(encoding === 'gzip' && raw.over ? null : body.bytes);
   let spans;
   try {
-    spans = decodeTraces(body);
+    spans = decodeTraces(body.bytes);
   } catch (err) {
     if (!(err instanceof Malformed)) throw err;
     log(JSON.stringify({ event: 'claude.otlp', v: 1, refused: 'malformed' }));
     return plain(400, 'malformed');
   }
   // With OTLP_WORKSPACE set, only those workspaces' spans (and the Console's
-  // test span, which belongs to none) reach a log.
+  // test span, which belongs to none) reach a log. Lines are built first, so
+  // the summary can lead: Cloudflare drops what comes after 256 KB.
   const only = workspaces(env);
-  let logged = 0;
+  const lines = [];
+  let bytes = 0;
   let otherWorkspace = 0;
+  let overBudget = 0;
   let content = false;
   for (const s of spans) {
     content ||= s.content;
@@ -312,14 +363,19 @@ export async function handleOtlp(req, env, log = console.log) {
       otherWorkspace += 1;
       continue;
     }
-    if (logged >= MAX_LOGGED) continue;
-    log(JSON.stringify(spanEvent(s)));
-    logged += 1;
+    const line = JSON.stringify(spanEvent(s));
+    if (bytes + line.length > LOG_BUDGET) {
+      overBudget += 1;
+      continue;
+    }
+    lines.push(line);
+    bytes += line.length;
   }
-  const over = Math.max(0, spans.length - otherWorkspace - logged);
-  if (content || otherWorkspace || over) {
-    log(JSON.stringify({ event: 'claude.otlp', v: 1, spans: spans.length, logged, ...(otherWorkspace ? { other_workspace: otherWorkspace } : {}), ...(over ? { not_logged: over } : {}), ...(content ? { content_arrived: true } : {}) }));
+  const notLogged = overBudget + spans.extra;
+  if (content || otherWorkspace || notLogged) {
+    log(JSON.stringify({ event: 'claude.otlp', v: 1, spans: spans.length + spans.extra, logged: lines.length, ...(otherWorkspace ? { other_workspace: otherWorkspace } : {}), ...(notLogged ? { not_logged: notLogged } : {}), ...(content ? { content_arrived: true } : {}) }));
   }
+  for (const line of lines) log(line);
   // An empty ExportTraceServiceResponse.
   return new Response(new Uint8Array(0), { status: 200, headers: { 'Content-Type': 'application/x-protobuf', 'Cache-Control': 'no-store' } });
 }

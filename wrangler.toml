@@ -211,8 +211,9 @@ PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
 # With it on, each answer's model calls also carry one trace id (a W3C
 # traceparent), and with the OTLP_TOKEN secret set, the spans the Claude API
 # exports for Siren's workspace are logged beside the answer lines, metadata
-# only (worker/otlp.js, docs/telemetry.md). OTLP_WORKSPACE, once Jason gives
-# the workspace id, keeps any other workspace's spans out.
+# only (worker/otlp.js, docs/telemetry.md); removing TELEMETRY stops those
+# too. OTLP_WORKSPACE, once Jason gives the workspace id, keeps any other
+# workspace's spans out.
 TELEMETRY = "true"
 
 # Workers Logs (OpenTelemetry-compatible, kept 7 days; persisted logs count
