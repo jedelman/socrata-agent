@@ -55,7 +55,8 @@ import {
 // own imports), like every shared module.
 import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearchOn, handleShare, handleResearchList, handleAdminResearch } from './research.js';
 import { researchScopesFor } from '../src/agent.js';
-import { logAnswer, telemetryOn, TELEMETRY_NOTE } from './telemetry.js';
+import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs } from './telemetry.js';
+import { OTLP_PATH, otlpOn, handleOtlp } from './otlp.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
 import QUESTIONS_PAGE from './questions.html';
@@ -263,12 +264,15 @@ async function handleAsk(req, env, ctx) {
   // Built inside each path's try, as before, so a failure here is an error body.
   const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId), ...research });
   const started = Date.now();
+  // With telemetry on, the answer's model calls carry one trace id (a W3C
+  // traceparent), so the API's spans for them (otlp.js) join its line.
+  const trace = newTrace(env);
   // The response body, and the conversation save (started, not awaited).
   // With shared research on, the body names the saved turn (`at`), so the
   // page can offer to share its sources.
   const finish = (out) => {
     // One telemetry line per answer (worker/telemetry.js), with TELEMETRY on.
-    logAnswer(env, out, { tier: uid ? 'member' : 'invite', ms: Date.now() - started, city: cityId, streets: STREETS[cityId] });
+    logAnswer(env, out, { tier: uid ? 'member' : 'invite', ms: Date.now() - started, city: cityId, streets: STREETS[cityId], trace: trace?.id });
     const { toolResults, ...answer } = out;
     const now = Date.now();
     const save = conversationId
@@ -301,7 +305,7 @@ async function handleAsk(req, env, ctx) {
         // The tools this answer declares: a tool line names only one of these.
         const scopes = researchScopesFor(priorResearch);
         const known = new Set(toolsFor(args.city, plugins, { ...(gapsOn ? { gaps: GAPS[cityId] } : {}), ...(scopes.length ? { priorResearch: { scopes } } : {}) }).map((t) => t.function.name));
-        const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true }));
+        const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true, ...traceArgs(trace) }));
         if (save) await save;
         send({ type: 'final', body });
       } catch (err) {
@@ -314,7 +318,7 @@ async function handleAsk(req, env, ctx) {
   }
 
   try {
-    const { save, body } = finish(await ask({ ...askArgs(), onCost }));
+    const { save, body } = finish(await ask({ ...askArgs(), onCost, ...traceArgs(trace) }));
     if (save) {
       if (ctx?.waitUntil) ctx.waitUntil(save);
       else await save;
@@ -363,13 +367,15 @@ function answerArgs(env, req, cityId) {
 // started. A follow-up carries its thread's chain, as a private
 // conversation carries its earlier turns.
 // Logs a public answer's telemetry line (worker/telemetry.js) and passes the answer on.
-const loggedAnswer = (env, tier, cityId, started = Date.now()) => (out) => {
-  logAnswer(env, out, { tier, ms: Date.now() - started, city: cityId, streets: STREETS[cityId] });
+const loggedAnswer = (env, tier, cityId, trace = null, started = Date.now()) => (out) => {
+  logAnswer(env, out, { tier, ms: Date.now() - started, city: cityId, streets: STREETS[cityId], trace: trace?.id });
   return out;
 };
 
 function publicAskDeps(req, env, base) {
   const { config: deployment } = getDeployment(env);
+  // One public ask, one answer: its model calls share a trace id (telemetry.js).
+  const trace = newTrace(env);
   const model = env.MODEL || deployment.model;
   // Research memory for a public answer: public answers and shared sources,
   // never an account's (ask() refuses 'account' on a public thread too), and
@@ -385,7 +391,7 @@ function publicAskDeps(req, env, base) {
     subrequestBudget: askLimits(env, providerOf(model)).subrequestBudget,
     // A follow-up brings its thread's chain as history and carried results,
     // marked as a public thread's.
-    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost, ...publicResearch(cityId) }).then(loggedAnswer(env, 'public', cityId)),
+    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost, ...publicResearch(cityId), ...traceArgs(trace) }).then(loggedAnswer(env, 'public', cityId, trace)),
   };
 }
 
@@ -889,6 +895,9 @@ export default {
       if (!path.startsWith(`${base}/`)) return new Response('Not found', { status: 404 });
       path = path.slice(base.length);
     }
+    // Spans from the Claude API's OpenTelemetry export (otlp.js), before the
+    // JSON-only rule below; with it off, this path answers as any unknown one.
+    if (path === OTLP_PATH && otlpOn(env)) return handleOtlp(req, env);
     if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/' || path === '/index.html' || path === '/login')) return page(env);
     // An invite carried over from the old address (worker/moved.js).
     if ((req.method === 'GET' || req.method === 'HEAD') && path === CARRY_PATH) return carryInviteResponse(req, env, base);

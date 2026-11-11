@@ -56,6 +56,7 @@ MAX_TOKENS = "1200"
 #   npx wrangler secret put ANTHROPIC_API_KEY --env siren   # if MODEL is a claude-* id
 #   npx wrangler secret put RESEND_API_KEY --env siren   # email sign-in (resend.com)
 #   npx wrangler secret put ADMIN_EMAILS --env siren     # steward emails for <base>/admin, comma-separated
+#   npx wrangler secret put OTLP_TOKEN --env siren       # the Claude API's OpenTelemetry export (docs/telemetry.md), 32+ characters
 # Email sign-in also needs LOGIN_FROM below, an address on a domain verified
 # in Resend. Until both are set, the page offers invite codes only.
 #   npx wrangler deploy --env siren
@@ -207,6 +208,12 @@ PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
 # files read, and topic words checked against the City's own budget and
 # zoning books), never the question, the answer, an account, an IP or an
 # address. The chat page's footer says so. Remove to stop.
+# With it on, each answer's model calls also carry one trace id (a W3C
+# traceparent), and with the OTLP_TOKEN secret set, the spans the Claude API
+# exports for Siren's workspace are logged beside the answer lines, metadata
+# only (worker/otlp.js, docs/telemetry.md); removing TELEMETRY stops those
+# too. OTLP_WORKSPACE, once Jason gives the workspace id, keeps any other
+# workspace's spans out.
 TELEMETRY = "true"
 
 # Workers Logs (OpenTelemetry-compatible, kept 7 days; persisted logs count
