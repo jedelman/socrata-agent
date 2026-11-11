@@ -194,16 +194,34 @@ export async function blockReport(ctx, input) {
   return { address: a, contacts: found.contacts, datasets, legislation };
 }
 
+// Items with every word come first; then items with at least half of them
+// (at least one), so a name the City spells two ways ("MacArthur Mall",
+// "MacArthur Center") still turns up; rarer words count for more. A word in a
+// tenth or more of all items (Ordinance, Street) can't match an item on its
+// own. Ties go to the most recent meeting. A partial match says which words
+// it holds.
 export function searchLegislation(index, text, limit = 15) {
   if (!index?.items) return [];
-  const words = normalizeAddress(text).split(' ').filter((w) => w.length > 2);
+  const words = [...new Set(normalizeAddress(text).split(' ').filter((w) => w.length > 2))];
   if (!words.length) return [];
-  return index.items
-    .map((it) => {
-      const hay = it.text.toUpperCase();
-      return { it, score: words.filter((w) => hay.includes(w)).length };
-    })
-    .filter((x) => x.score === words.length)
+  const need = Math.max(1, Math.ceil(words.length / 2));
+  // Whole words, or their start ("RENTAL" finds "Rentals", "MALL" doesn't find "Small").
+  const scored = index.items.map((it) => {
+    const tokens = it.text.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+    return { it, hit: words.filter((w) => tokens.some((t) => t.startsWith(w))) };
+  });
+  const df = new Map(words.map((w) => [w, scored.filter((x) => x.hit.includes(w)).length]));
+  const common = new Set(words.filter((w) => df.get(w) >= Math.max(2, index.items.length / 10)));
+  const weight = (hit) => hit.reduce((a, w) => a + 1 / df.get(w), 0);
+  const latest = (it) => (it.meetings || []).reduce((d, m) => (m.date > d ? m.date : d), '');
+  return scored
+    .filter(({ hit }) => hit.length === words.length || (hit.length >= need && hit.some((w) => !common.has(w))))
+    .sort((a, b) => b.hit.length - a.hit.length || weight(b.hit) - weight(a.hit) || latest(b.it).localeCompare(latest(a.it)))
     .slice(0, limit)
-    .map(({ it }) => ({ id: it.id, title: it.text, meetings: it.meetings.slice(0, 4) }));
+    .map(({ it, hit }) => ({
+      id: it.id,
+      title: it.text,
+      meetings: it.meetings.slice(0, 4),
+      ...(hit.length < words.length ? { matched: `${hit.length} of ${words.length} words: ${hit.join(', ').toLowerCase()}` } : {}),
+    }));
 }

@@ -47,7 +47,39 @@ export function shorten(s, n = DESCRIPTION_CHARS) {
   return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), n - 20)).trim()} …`;
 }
 
+// Words that say nothing about which project is meant.
+const STOP = new Set(['the', 'and', 'for', 'of', 'a', 'an', 'in', 'at', 'to', 'on', 'with', 'project', 'projects', 'plan', 'cip', 'capital']);
+const words = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !STOP.has(w));
+export const MAX_PROJECTS = 5;
+const PROJECT_DESCRIPTION_CHARS = 900;
+
+/**
+ * Projects whose names hold the words asked for, from the plan's own list of
+ * names: those with every word first, then those with at least one, ranked by
+ * how many they hold. A word that's in a quarter or more of the names (Improve,
+ * Construct) can't match a project on its own. Returns the City's spellings
+ * only, so nothing the model typed reaches the SoQL.
+ */
+export function matchProjects(query, names) {
+  const want = [...new Set(words(query))];
+  const list = [...new Set(names.filter((x) => typeof x === 'string' && x))];
+  if (!want.length || !list.length) return { matches: [], words: want };
+  const have = new Map(list.map((n) => [n, new Set(words(n))]));
+  const df = new Map(want.map((w) => [w, list.filter((n) => have.get(n).has(w)).length]));
+  const common = new Set(want.filter((w) => df.get(w) >= Math.max(3, list.length / 4)));
+  // Rarer words count for more: "MacArthur Center" finds the MacArthur projects before every "... Center".
+  const weight = (hit) => hit.reduce((a, w) => a + 1 / df.get(w), 0);
+  const all = list
+    .map((name) => ({ name, hit: want.filter((w) => have.get(name).has(w)) }))
+    .filter(({ hit }) => hit.length === want.length || hit.some((w) => !common.has(w)))
+    .sort((a, b) => (b.hit.length === want.length) - (a.hit.length === want.length) || weight(b.hit) - weight(a.hit) || a.name.localeCompare(b.name));
+  return { matches: all.slice(0, MAX_PROJECTS), more: Math.max(0, all.length - MAX_PROJECTS), words: want };
+}
+
 export const SOQL = {
+  projectNames: (plan) => `SELECT ${plan.project[0]} AS p, count(*) AS n GROUP BY ${plan.project[0]} ORDER BY ${plan.project[0]} LIMIT 500`,
+  projectLines: (plan, names, s) =>
+    `SELECT project_id, department, ${plan.project.join(', ')}, description, location, ward, latitude, longitude, ${amountColumn(plan)}${plan.firstYear ? `, ${plan.firstYear}` : ''} WHERE ${[`${plan.project[0]} IN (${names.map(soqlString).join(', ')})`, ...SOQL.filter(s)].join(' AND ')} ORDER BY ${plan.project[0]}, ${amountColumn(plan)} DESC, project_id LIMIT 60`,
   names: 'SELECT department AS d, ward AS w, count(*) AS n GROUP BY department, ward ORDER BY department, ward LIMIT 500',
   filter: ({ ward, department }) => [...(ward != null ? [`ward = ${Number(ward)}`] : []), ...(department ? [`department = ${soqlString(department)}`] : [])],
   sums: (plan) => `count(*) AS n${hasSubprojects(plan) ? ', count(distinct project_id) AS p' : ''}, sum(${amountColumn(plan)}) AS total${plan.firstYear ? `, sum(${plan.firstYear}) AS first` : ''}`,
@@ -62,13 +94,14 @@ export default definePlugin({
   name: 'capital_projects',
   cities: ['norfolk'],
   description:
-    "Projects in one of Norfolk's adopted Capital Improvement Plans (the latest by default; the result lists the other plans registered): buildings, roads, water, sewer, stormwater, parks and other infrastructure, with each project's adopted amounts as the plan's own columns label them (five-year and first-year where the plan gives both), its department, ward and location as published. Filter by ward (an integer the plan uses) and/or department (matched against the plan's own names; on a miss it returns the closest). Gives totals by department and by ward, the largest projects, and how many projects have no ward or no location. Use for questions about planned construction, capital spending in a ward, or a department's capital projects. For operating budgets use budget_for.",
+    "Projects in one of Norfolk's adopted Capital Improvement Plans (the latest by default; the result lists the other plans registered): buildings, roads, water, sewer, stormwater, parks and other infrastructure, with each project's adopted amounts as the plan's own columns label them (five-year and first-year where the plan gives both), its department, ward and location as published. Filter by ward (an integer the plan uses) and/or department (matched against the plan's own names; on a miss it returns the closest). Gives totals by department and by ward, the largest projects, and how many projects have no ward or no location. With project (words from a project's name, such as \"MacArthur\" or \"Chrysler Hall\"), it looks the project up instead: every line of each matching project, across departments and funds, with its full description and the project's total. Use for questions about planned construction, a named project, capital spending in a ward, or a department's capital projects. For operating budgets use budget_for.",
   parameters: {
     type: 'object',
     properties: {
       plan_year: { type: 'integer', description: 'The adopted plan, by its first fiscal year, e.g. 2026. Leave out for the latest; the result lists the plans registered.' },
       ward: { type: 'integer', description: 'A City Council ward number, e.g. 2.' },
       department: { type: 'string', description: 'A department as the plan names it, e.g. "Public Works" or "Parks and Recreation".' },
+      project: { type: 'string', description: 'Words from a project\'s name, e.g. "MacArthur" or "Chrysler Hall". Matched against the plan\'s own project names; the result says which words each match holds.' },
     },
     additionalProperties: false,
   },
@@ -81,6 +114,7 @@ export default definePlugin({
     if (!plan) return { error: `I found no adopted Capital Improvement Plan for FY${args.plan_year} on the portal; the plans registered are ${years.map((y) => `FY${y}`).join(', ')}.` };
     if (args.ward != null && !Number.isInteger(args.ward)) return { error: 'ward must be a whole number, e.g. 2.' };
     if (args.department != null && (typeof args.department !== 'string' || args.department.length > 120)) return { error: 'department must be a name of at most 120 characters.' };
+    if (args.project != null && (typeof args.project !== 'string' || args.project.length > 120)) return { error: 'project must be words of at most 120 characters.' };
     const opts = (tool) => ({ tool, name: plan.name });
 
     try {
@@ -97,6 +131,8 @@ export default definePlugin({
         if (m.miss) return { error: `I found no department matching "${args.department}" in the FY${plan.year} plan.`, closest_departments: m.closest, hint: 'Ask again with one of these names.' };
         s.department = m.name;
       }
+
+      if (args.project?.trim()) return await projectLookup(ctx, plan, plans, meta, s, args.project, opts);
 
       const [totals, byDept, byWard, top] = await Promise.all([
         ctx.socrata.query(plan.id, SOQL.totals(plan, s), opts(`CIP FY${plan.year}: totals`)),
@@ -167,3 +203,57 @@ export default definePlugin({
     }
   },
 });
+
+// A named project: every line of each matching project (one per department or
+// fund), the full description, and the project's total across its lines. The
+// City splits one project across funds (MacArthur's redevelopment is a City
+// Manager line, a Water Fund line and a Wastewater Fund line), so the largest-
+// projects list alone shows only its biggest line.
+async function projectLookup(ctx, plan, plans, meta, s, project, opts) {
+  const names = await ctx.socrata.query(plan.id, SOQL.projectNames(plan), opts(`CIP FY${plan.year}: project names`));
+  const m = matchProjects(project, names.map((r) => r.p));
+  const firstKey = `FY${plan.year}_usd`;
+  const sumCol = amountColumn(plan);
+  const totalKey = plan.total ? `${plan.span}_usd` : `${sumCol}_usd`;
+  const planInfo = { fiscal_year: plan.year, covers: plan.span, dataset: meta.name, published_by: meta.department, rows_last_updated: meta.updated?.slice(0, 10) || null };
+  const others = `Other plans: ${plans.filter((p) => p !== plan).map((p) => `FY${p.year}`).join(', ')}. A project can appear in more than one plan, so don't add plans together.`;
+  if (!m.matches.length) {
+    return { plan: planInfo, project_asked: project, matches: [], note: `I found no project in the FY${plan.year} plan whose name holds ${m.words.length ? m.words.map((w) => `"${w}"`).join(' or ') : 'those words'}. Try other words from its name, or another plan year.`, about_the_data: [others] };
+  }
+  const rows = await ctx.socrata.query(plan.id, SOQL.projectLines(plan, m.matches.map((x) => x.name), s), opts(`CIP FY${plan.year}: lines of the matching projects`));
+  const byName = new Map(m.matches.map((x) => [x.name, []]));
+  for (const r of rows) byName.get(r[plan.project[0]])?.push(r);
+  const projects = m.matches.map(({ name, hit }) => {
+    const lines = byName.get(name) || [];
+    return {
+      name,
+      matched_words: hit.length === m.words.length ? 'all' : `${hit.length} of ${m.words.length}: ${hit.join(', ')}`,
+      total: { [totalKey]: lines.reduce((a, r) => a + usd(r[sumCol]), 0), ...(plan.firstYear ? { [firstKey]: lines.reduce((a, r) => a + usd(r[plan.firstYear]), 0) } : {}), lines: lines.length },
+      lines: lines.map((r) => ({
+        project_id: r.project_id ?? null,
+        department: r.department,
+        ...(plan.project.length > 1 ? { subproject: plan.project.slice(1).map((f) => r[f]).filter(Boolean).join(': ') || null } : {}),
+        ...(plan.firstYear ? { [firstKey]: usd(r[plan.firstYear]) } : {}),
+        [totalKey]: usd(r[sumCol]),
+        ward: r.ward == null ? null : Number(r.ward),
+        location: r.location || null,
+        description: shorten(r.description, PROJECT_DESCRIPTION_CHARS),
+      })),
+    };
+  });
+  return JSON.parse(JSON.stringify({
+    plan: planInfo,
+    project_asked: project,
+    ...(Object.keys(s).length ? { filter: s } : {}),
+    matches: projects,
+    ...(m.more ? { more_matches: `and ${m.more} more projects whose names hold some of these words; use more specific words to narrow it` } : {}),
+    about_the_data: [
+      ...QUOTES.map((q) => fromDescription(meta, q)),
+      `A project's total adds up its lines in this plan (one per department or fund). Projects with every word asked for come first; matched_words says which words a looser match holds, so check the name and description before treating it as the project asked about.`,
+      `Descriptions longer than about ${PROJECT_DESCRIPTION_CHARS} characters are shortened (marked …); the full text is on the dataset page and in the CSV.`,
+      "The dataset doesn't name its funds (the fund column holds a number only), and doesn't say how much of a project has been spent; it records what was adopted, not what was built.",
+      'Amounts are rounded to whole dollars.',
+      others,
+    ],
+  }));
+}

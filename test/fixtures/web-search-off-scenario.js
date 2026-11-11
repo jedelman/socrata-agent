@@ -12,6 +12,7 @@
 // still covers everything else. Add a tool's name here when it joins Siren.
 import { PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE } from '../../src/prompt.js';
 import { stripAddedCases, enumAtSnapshot } from './cases-at-snapshot.js';
+import { readFileSync } from 'node:fs';
 
 export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news']);
 // Base-prompt lines added since the snapshot (each joins every deployment's
@@ -22,6 +23,15 @@ export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT, LINK_L
 // of the requests' tool lists before comparing. Add a name when one joins.
 export const CORE_TOOLS_ADDED_SINCE_SNAPSHOT = Object.freeze(['offer_followup']);
 const stripAdded = (s) => PROMPT_ADDED_SINCE_SNAPSHOT.reduce((t, x) => t.split(x).join(''), s);
+// Siren plugin tools whose own definition (description or parameters) changed
+// since the snapshot: compared at the definition the snapshot recorded, so the
+// rest of every request is still compared byte for byte. Each one's new
+// definition is tested in its own test file. Add a name when one changes.
+export const PLUGIN_TOOLS_CHANGED_SINCE_SNAPSHOT = Object.freeze(['capital_projects']);
+export const SNAPSHOT_TOOLS = new Map(
+  JSON.parse(readFileSync(new URL('./web-search-off-snapshot.json', import.meta.url), 'utf8')).requests[0].body.tools.map((t) => [t.name, t]),
+);
+const atSnapshot = (t) => (PLUGIN_TOOLS_CHANGED_SINCE_SNAPSHOT.includes(t.name) ? SNAPSHOT_TOOLS.get(t.name) : t);
 
 function sirenAtSnapshot(siren) {
   const added = (text) => ADDED_SINCE_SNAPSHOT.some((name) => text.includes(name));
@@ -54,7 +64,7 @@ export async function webSearchOffScenario({ ask, systemPrompt, getCity, applyCo
     if (u.startsWith('https://api.anthropic.com/v1/messages')) {
       const i = requests.length;
       const body = JSON.parse(init.body);
-      if (Array.isArray(body.tools)) body.tools = body.tools.filter((t) => !CORE_TOOLS_ADDED_SINCE_SNAPSHOT.includes(t.name));
+      if (Array.isArray(body.tools)) body.tools = body.tools.filter((t) => !CORE_TOOLS_ADDED_SINCE_SNAPSHOT.includes(t.name)).map(atSnapshot);
       requests.push({ beta: new Headers(init.headers).get('anthropic-beta'), body });
       return claudeResponse(init, replies[Math.min(i, replies.length - 1)]);
     }
