@@ -174,7 +174,7 @@ generic mode.
   `PRIOR_RESEARCH = "true"`; `"off"` turns the tool off everywhere), `public`
   (answered free-tier questions passing the public-text checks, with
   `PUBLIC_ASK`; the day, the `/q/<id>` link and the sources only, never the
-  question's text), `shared` (D1 `shared_sources`, migration 0005, unapplied,
+  question's text), `shared` (D1 `shared_sources`, migration 0005, applied 2026-11-11,
   keyed by `sourceKey`, behind `SHARED_RESEARCH`; with it off its paths are
   404s and the session and answer body carry nothing new). With every flag
   off, a member's request to the model is what it was before. A public
@@ -291,13 +291,13 @@ generic mode.
   invite, a visitor hash, an email account or a conversation. The free tier
   reads both in one request, for the invite gate, and keeps neither with the
   other. `SIREN_DB` holds the free tier's public questions and nothing else
-  reads it; migration 0003 (unapplied) drops the old endorsement tables. With
+  reads it; migration 0003 dropped the old endorsement tables (applied 2026-11-11). With
   `BLUESKY_LOGIN` unset, nothing calls Constellation, the AppView, a PDS or
   D1. Never key anything new under `request:`.
   The free tier (`docs/free-tier.md`, behind `PUBLIC_ASK`, off; Jason
   2026-11-10): Bluesky sign-in plus an invite, and every question and answer
   is public, on Siren's site only: a row in D1 `SIREN_DB` (`questions.js`,
-  migration 0004, unapplied) and a page at `/q/<id>`, listed at `/questions`.
+  migration 0004, applied 2026-11-11) and a page at `/q/<id>`, listed at `/questions`.
   Email sign-in stays the private tier. The browser (the ask client of
   `endorse-client.js`: its own client_id `/question-client-metadata.json`,
   redirect `/questions`, and the scope `repo:<QUESTION_NSID>?action=create&action=delete`)
