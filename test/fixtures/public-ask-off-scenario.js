@@ -20,6 +20,7 @@ import { createHash } from 'node:crypto';
 import { signSession } from '../../worker/invites.js';
 import { signUser, userId } from '../../worker/accounts.js';
 import { claudeResponse } from '../fake-claude.js';
+import { casesListAtSnapshot } from './cases-at-snapshot.js';
 
 const SECRET = 'test-secret-that-is-long-enough';
 const ORIGIN = 'https://ask-siren.jason-edelman.org';
@@ -157,7 +158,8 @@ export async function publicAskOffScenario({ worker, extraEnv = {} }) {
         const text = init.method === 'HEAD' ? '' : await res.text();
         await Promise.all(waits.splice(0));
         if (!hash) hash = (/\/assets\/([0-9a-f]{16})\//.exec(text) || [])[1] || '';
-        const body = normalize(text, hash);
+        // Case files added since the snapshot are left out of the list (cases-at-snapshot.js).
+        const body = normalize(path === '/api/cases' ? casesListAtSnapshot(text) : text, hash);
         const hdrs = {};
         for (const [k, v] of [...res.headers.entries()].sort()) hdrs[k] = normalize(v, hash);
         out.push({

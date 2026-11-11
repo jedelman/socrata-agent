@@ -12,9 +12,10 @@ generic mode.
   the check to make an answer pass. A question the records can't settle (a
   plan, an intention, what will happen) but that the tools found something
   about is answered with what was found, led by exactly "I can't say that for
-  sure, but here's what I found:" and closed with an offer to summarize that
-  carries "AI can make mistakes" (Jason, 2026-11-10; `PARTIAL_LEAD`,
-  `SUMMARY_OFFER`, `SUMMARY_CAVEAT` in `src/prompt.js`, pinned by
+  sure, but here's what I found:", followed by a summary given without asking
+  ("What this might add up to:") and closed with "AI can make mistakes"
+  (Jason, 2026-11-10 and 11-11; `PARTIAL_LEAD`, `SUMMARY_LEAD`,
+  `SUMMARY_CAVEAT` in `src/prompt.js`, pinned by
   `test/prompt-partial.test.js`). An answer links the words a fact comes
   from, inline (`LINK_LINE`), and code keeps a link only when its URL is in
   that answer's own hand-off (`src/answer-links.js`, run in `ask()` after any
@@ -402,6 +403,14 @@ generic mode.
   and opens a PR (cloud sessions can't reach web.archive.org).
   `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
+  Sources are documents, never a Socrata API or dataset URL (the plugin
+  context refuses them, so `case_file` would throw; `test/plugins.test.js`
+  checks every source). A scheduled routine, "Siren: compile and update case
+  files" (twice a week, one draft PR at most; prompt copied in
+  `docs/case-file-routine.md`; Jason, 2026-11-11), works from each file's
+  `pending` list and `reviewed` date and from open `case-file` issues. The
+  snapshot tests leave out case files added after them
+  (`test/fixtures/cases-at-snapshot.js`), so a new case file needs no retake.
 - `data/documents/*.json` are Norfolk's ordinances (the Zoning Ordinance so
   far) and adopted budget books (the Department Budgets part, FY 2024 to
   2027) from the City's own PDFs, split into sections by `src/documents.js`.

@@ -1,0 +1,557 @@
+{
+  "id": "norfolk-macarthur-center",
+  "title": "What's the plan for the MacArthur Center site, and how settled is it?",
+  "summary": "What the City has said and done about the former MacArthur Center mall at 300 Monticello Avenue. The City owns the site (bought in 2023), hired HG80 as master developer (2025), closed the mall on June 27, 2026, and describes a mixed-use district of market-rate housing, hotel rooms, street-level retail and restored streets, opening in 2030 by its own timeline. The adopted FY2027 capital plan lists $72 million over five years; its FY2027 and FY2028 money is for demolition and infrastructure. What isn't settled: as of July 2026 the development agreement with Hg80 was still being negotiated, demolition had moved to late 2027 or early 2028, and the housing form and a grocery tenant were not final. City Council approves the agreements, and state law requires a public hearing before the City disposes of the land. Siren's legislation index (Council meetings through October 22, 2026) holds no ordinance approving an agreement with Hg80.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "reviewed": "2026-11-11",
+  "findings": [
+    {
+      "id": "city-vision",
+      "stance": "confirms",
+      "claim": "The City describes the plan as a mixed-use district: market-rate housing, more hotel rooms, street-level retail, and neighborhood streets connected by open spaces.",
+      "source": {
+        "title": "City of Norfolk: MacArthur Center, Project Overview",
+        "url": "https://www.norfolk.gov/6702"
+      },
+      "quote": "with a mixed-use approach to include new market-rate residential units, additional hotel rooms, street-level retail and a network of neighborhood streets connected by open spaces.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihffcw5suf26zfh6kg3anexjakh2dlaqxp45cjfi3fuighrz2tz64",
+        "bytes": 104928,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "with a mixed-use approach to include new market-rate residential units, additional hotel rooms, street-level retail and a network of neighborhood streets connected by open spaces.",
+        "prefix": "position the site for its next phase, ",
+        "suffix": " This vision reflects adopted downtown"
+      }
+    },
+    {
+      "id": "street-grid",
+      "stance": "confirms",
+      "claim": "The City says the redevelopment will restore the downtown street grid, reconnecting downtown neighborhoods with pedestrian-friendly streets and public spaces.",
+      "source": {
+        "title": "City of Norfolk: MacArthur Center (Design Vision)",
+        "url": "https://www.norfolk.gov/6267/MacArthur-Center"
+      },
+      "quote": "Reconnect downtown neighborhoods by restoring the street grid that includes a dynamic network of pedestrian-friendly streets and public spaces.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig3tj3alqiqh42w75fmvujdrjxalu3rgt2lvw5zpl46bovbqs3scu",
+        "bytes": 101533,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Reconnect downtown neighborhoods by restoring the street grid that includes a dynamic network of pedestrian-friendly streets and public spaces.",
+        "prefix": "spaces and community-oriented spaces. ",
+        "suffix": " Include a new mixed-used district with"
+      }
+    },
+    {
+      "id": "city-timeline",
+      "stance": "confirms",
+      "claim": "The City's own timeline: the mall closed on June 27, 2026, and the redevelopment opens in 2030.",
+      "source": {
+        "title": "City of Norfolk: MacArthur Center (Background & History)",
+        "url": "https://www.norfolk.gov/6267/MacArthur-Center"
+      },
+      "quote": "2026 : MacArthur Center closes on June 27, 2026. 2030 : Redevelopment opens.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig3tj3alqiqh42w75fmvujdrjxalu3rgt2lvw5zpl46bovbqs3scu",
+        "bytes": 101533,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "2026 : MacArthur Center closes on June 27, 2026. 2030 : Redevelopment opens.",
+        "prefix": "the master developer on the project. ",
+        "suffix": " Downtown Plan 2030 The Downtown Plan"
+      }
+    },
+    {
+      "id": "hg80",
+      "stance": "confirms",
+      "claim": "The City hired the firm HG80 as master developer for the site.",
+      "source": {
+        "title": "MacArthur Center: Updated Plan White Paper (City of Norfolk, 2025)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/114752/MacArthur-Center---Updated-Plan-White-Paper_06022025"
+      },
+      "quote": "The City of Norfolk has hired the firm HG80 as the master developer for the MacArthur Center site",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig5vfsicrmoxb5bywabezrnyyy3nlxb3m2qdv3wx3j45dlyox7bba",
+        "bytes": 1776005,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The City of Norfolk has hired the firm HG80 as the master developer for the MacArthur Center site",
+        "prefix": "partnership, and strategic investment. ",
+        "suffix": " to help lead the initiatives for this"
+      }
+    },
+    {
+      "id": "cip-demolition",
+      "stance": "confirms",
+      "claim": "The adopted FY2027-2031 Capital Improvement Plan says the FY2027 and FY2028 money for the site is planned for demolishing the mall and installing infrastructure, including water and wastewater utilities.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan: Redevelop MacArthur Mall Site (Adopted FY 2027 Budget Document, 14 Capital Improvement Plan, p. 495)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "FY 2027 and FY 2028 funds are planned to support the demolition of the mall and installation of critical infrastructure including water and wastewater utilities.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "FY 2027 and FY 2028 funds are planned to support the demolition of the mall and installation of critical infrastructure including water and wastewater utilities.",
+        "prefix": "scheduled to close by June 30, 2026. ",
+        "suffix": " Demolition is anticipated to begin"
+      }
+    },
+    {
+      "id": "cip-total",
+      "stance": "confirms",
+      "claim": "The adopted FY2027-2031 Capital Improvement Plan budgets $72,000,000 for redeveloping the site: $57,000,000 general capital, $10,000,000 water utility and $5,000,000 wastewater utility; by year, $6,700,000 in FY2027, $41,100,000 in FY2028, $8,800,000 in FY2029 and $15,400,000 in FY2030.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan: Redevelop MacArthur Mall Site (Adopted FY 2027 Budget Document, 14 Capital Improvement Plan, p. 495)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "General Capital $0 $6,700,000 $26,100,000 $8,800,000 $15,400,000 $0 $57,000,000 Wastewater Utility $0 $0 $5,000,000 $0 $0 $0 $5,000,000 Water Utility $0 $0 $10,000,000 $0 $0 $0 $10,000,000 Total $0 $6,700,000 $41,100,000 $8,800,000 $15,400,000 $0 $72,000,000",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "General Capital $0 $6,700,000 $26,100,000 $8,800,000 $15,400,000 $0 $57,000,000 Wastewater Utility $0 $0 $5,000,000 $0 $0 $0 $5,000,000 Water Utility $0 $0 $10,000,000 $0 $0 $0 $10,000,000 Total $0 $6,700,000 $41,100,000 $8,800,000 $15,400,000 $0 $72,000,000",
+        "prefix": "FY 2028 FY 2029 FY 2030 FY 2031 Total ",
+        "suffix": " Description: This project is to"
+      }
+    },
+    {
+      "id": "agreement-not-final",
+      "stance": "weakens",
+      "claim": "As of WHRO's July 20, 2026 report, the City and Hg80 were still negotiating final terms, planning to bring a design and development agreement to City Council in early fall.",
+      "source": {
+        "title": "WHRO: \"MacArthur Center redevelopment aims to reconnect downtown streets, attract a grocery store back to downtown\" (July 20, 2026)",
+        "url": "https://www.whro.org/local-government/2026-07-20/260720-macarthur-redev-saunders"
+      },
+      "quote": "The city and Hg80 are negotiating final terms through July and August, with plans to bring a design and development agreement before Norfolk City Council in early fall",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiavenessfastsvazpf4thbcj5d5gojpezvir3qshwmtbhkenqltjy",
+        "bytes": 168702,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The city and Hg80 are negotiating final terms through July and August, with plans to bring a design and development agreement before Norfolk City Council in early fall",
+        "prefix": "space in the project,\" Williams said. ",
+        "suffix": ", Williams said. Williams said"
+      }
+    },
+    {
+      "id": "demolition-slipped",
+      "stance": "weakens",
+      "claim": "WHRO reported that full-scale demolition, once planned for late 2026, was expected between late 2027 and early 2028, after about 18 months of design and permitting that follow the master developer agreement.",
+      "source": {
+        "title": "WHRO: \"MacArthur Center redevelopment aims to reconnect downtown streets, attract a grocery store back to downtown\" (July 20, 2026)",
+        "url": "https://www.whro.org/local-government/2026-07-20/260720-macarthur-redev-saunders"
+      },
+      "quote": "full-scale structural demolition, previously planned to start later this year, is now expected to begin sometime between late 2027 and early 2028, following roughly 18 months of design and permitting work after the master developer agreement is finalized.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiavenessfastsvazpf4thbcj5d5gojpezvir3qshwmtbhkenqltjy",
+        "bytes": 168702,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "full-scale structural demolition, previously planned to start later this year, is now expected to begin sometime between late 2027 and early 2028, following roughly 18 months of design and permitting work after the master developer agreement is finalized.",
+        "prefix": "fall, Williams said. Williams said ",
+        "suffix": " Interior demolition, including"
+      }
+    },
+    {
+      "id": "no-definitive-plan",
+      "stance": "weakens",
+      "claim": "When Council adopted the capital plan in May 2026, a council member and neighborhood advocates criticized it for committing major funding to the mall site without a definitive development plan.",
+      "source": {
+        "title": "WHRO: \"Norfolk City Council approves capital budget with rec center funding after public pushback\" (May 20, 2026)",
+        "url": "https://www.whro.org/local-government/2026-05-20/052026-cipapproved-saunders"
+      },
+      "quote": "Both Smigiel and neighborhood advocates said that the plan was an example of downtown tunnel vision. They criticized the council for locking down massive funding for the mall property without a definitive development plan in place.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig4rnhnggd7g2ncgi24ef7lwid3y3zmfjjiip6ymugirl7janprwe",
+        "bytes": 161689,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Both Smigiel and neighborhood advocates said that the plan was an example of downtown tunnel vision. They criticized the council for locking down massive funding for the mall property without a definitive development plan in place.",
+        "prefix": "the downtown MacArthur Center site. ",
+        "suffix": " Even as community advocates celebrated"
+      }
+    },
+    {
+      "id": "housing-form",
+      "stance": "context",
+      "claim": "WHRO reported that the housing will likely be market-rate multifamily, with its exact form still being finalized.",
+      "source": {
+        "title": "WHRO: \"MacArthur Center redevelopment aims to reconnect downtown streets, attract a grocery store back to downtown\" (July 20, 2026)",
+        "url": "https://www.whro.org/local-government/2026-07-20/260720-macarthur-redev-saunders"
+      },
+      "quote": "the site will include additional housing, likely market-rate multifamily units, though the exact form is still being finalized.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiavenessfastsvazpf4thbcj5d5gojpezvir3qshwmtbhkenqltjy",
+        "bytes": 168702,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "the site will include additional housing, likely market-rate multifamily units, though the exact form is still being finalized.",
+        "prefix": "about the project. Williams said ",
+        "suffix": " He ruled out single-family homes,"
+      }
+    },
+    {
+      "id": "grocery",
+      "stance": "context",
+      "claim": "WHRO reported that a grocery store is the City's top retail priority for the site, with no brand confirmed.",
+      "source": {
+        "title": "WHRO: \"MacArthur Center redevelopment aims to reconnect downtown streets, attract a grocery store back to downtown\" (July 20, 2026)",
+        "url": "https://www.whro.org/local-government/2026-07-20/260720-macarthur-redev-saunders"
+      },
+      "quote": "A grocery store remains the city's top retail priority for the site, Williams said, but no brand has been confirmed.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiavenessfastsvazpf4thbcj5d5gojpezvir3qshwmtbhkenqltjy",
+        "bytes": 168702,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A grocery store remains the city's top retail priority for the site, Williams said, but no brand has been confirmed.",
+        "prefix": "development, we'll have market rate.\" ",
+        "suffix": " \"We have had good conversations with"
+      }
+    },
+    {
+      "id": "de-malling",
+      "stance": "context",
+      "claim": "The City says the focus of its Downtown Plan 2030 was \"de-malling\" MacArthur Center.",
+      "source": {
+        "title": "City of Norfolk: MacArthur Center (Downtown Plan 2030)",
+        "url": "https://www.norfolk.gov/6267/MacArthur-Center"
+      },
+      "quote": "The focus of this plan was \"de-malling\" MacArthur Center.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig3tj3alqiqh42w75fmvujdrjxalu3rgt2lvw5zpl46bovbqs3scu",
+        "bytes": 101533,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The focus of this plan was \"de-malling\" MacArthur Center.",
+        "prefix": "opportunities for small businesses ",
+        "suffix": " While MacArthur Center was highly"
+      }
+    },
+    {
+      "id": "city-owns-site",
+      "stance": "context",
+      "claim": "The City Attorney's letter on buying MacArthur Center's ground lease told Council that, with it, the City and NRHA would own the mall, land and improvements.",
+      "source": {
+        "title": "City R-01: City Acquisition of Ground Lease for MacArthur Center Mall (Council item, listed on the City's MacArthur Center page as 06.07.23)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115044/City-R-01-City-Acquisition-of-Ground-Lease-for-MacArthur-Center-Mall_060723"
+      },
+      "quote": "If this acquisition is approved, the City/NRHA would own the mall, land and improvements.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiaccc33e2x62ko2cm5aq7dqxrjb6nw7owt557zcrmfxx54dgmsheq",
+        "bytes": 270747,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "If this acquisition is approved, the City/NRHA would own the mall, land and improvements.",
+        "prefix": "and the City owns the parking garages. ",
+        "suffix": " The purchase is subject to the leases"
+      }
+    },
+    {
+      "id": "purchase-appropriation",
+      "stance": "context",
+      "claim": "The ordinance for that purchase appropriated $18,000,000 in total, to buy and run the mall.",
+      "source": {
+        "title": "City R-01: City Acquisition of Ground Lease for MacArthur Center Mall (Council item, listed on the City's MacArthur Center page as 06.07.23)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115044/City-R-01-City-Acquisition-of-Ground-Lease-for-MacArthur-Center-Mall_060723"
+      },
+      "quote": "Immediately, the City will operate the mall and this ordinance appropriates the funds to acquire and operate. The total appropriation is $18,000,000.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiaccc33e2x62ko2cm5aq7dqxrjb6nw7owt557zcrmfxx54dgmsheq",
+        "bytes": 270747,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Immediately, the City will operate the mall and this ordinance appropriates the funds to acquire and operate. The total appropriation is $18,000,000.",
+        "prefix": "reconfigure and redevelop this area. ",
+        "suffix": " The recommendation is that the Council"
+      }
+    },
+    {
+      "id": "nrha-conveyed-land",
+      "stance": "context",
+      "claim": "Council authorized the City to accept NRHA's conveyance of the land under the mall (the underlying fee at 300 Monticello Avenue).",
+      "source": {
+        "title": "Ordinance No. 49271 (City Council, July 11, 2023): accepting the conveyance of 300 Monticello Avenue from NRHA",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4365"
+      },
+      "quote": "authorizes the City to accept the conveyance of the underlying fee in the parcel of property located at 300 Monticello Avenue (MacArthur Center mall site)",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihtooesvycfuyetmucrdylyr2wql6pkm73ohviarkngujitv2cxb4",
+        "bytes": 34324,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "authorizes the City to accept the conveyance of the underlying fee in the parcel of property located at 300 Monticello Avenue (MacArthur Center mall site)",
+        "prefix": "Description: This docke t item ",
+        "suffix": " and authorizes the City Manager to"
+      }
+    },
+    {
+      "id": "dillards",
+      "stance": "context",
+      "claim": "The Dillard's store was bought through the Economic Development Authority, which the City reimbursed, with the leasehold and building transferred to the City.",
+      "source": {
+        "title": "Ordinance No. 49302 (City Council, August 29, 2023): up to $4,100,000 for the purchase of the Dillard's store",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4410"
+      },
+      "quote": "The City is reimbursing the Economic Development Authority for that purchase and the leasehold and building will be transferred to the City.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidjfx4vhux5owdf4htohoblauec4hrot7jpnjb6lpg6j2kge5jmuy",
+        "bytes": 31955,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The City is reimbursing the Economic Development Authority for that purchase and the leasehold and building will be transferred to the City.",
+        "prefix": "and building from Dillard's. &#xa0; ",
+        "suffix": " &#xa0; We anticipate closing by the"
+      }
+    },
+    {
+      "id": "city-operated",
+      "stance": "context",
+      "claim": "The adopted FY2025 budget funded the mall's annual operations through Economic Development's Real Estate Development Program, noting that the City took over daily operations in FY2023.",
+      "source": {
+        "title": "Adopted FY 2025 Budget Document, Department Budgets: Economic Development",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/88686/08-Department-Budgets"
+      },
+      "quote": "Technical adjustment to the Real Estate Development Program to fund the annual operations of the MacArthur Mall. The city took over daily operations for the MacArthur Mall in FY 2023.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibmbyayoe7xu6onux6cn35lcwii273osakifcyigiaff3oj27u27a",
+        "bytes": 1884469,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Technical adjustment to the Real Estate Development Program to fund the annual operations of the MacArthur Mall. The city took over daily operations for the MacArthur Mall in FY 2023.",
+        "prefix": "Mall operations 5,848,184 0.0 ",
+        "suffix": " This funding will provide daily"
+      }
+    },
+    {
+      "id": "tenant-leases",
+      "stance": "context",
+      "claim": "Before the closing, the City told Council it was addressing existing leases: one tenant's rent was abated (up to $236,040) in exchange for releasing the City from paying its relocation costs.",
+      "source": {
+        "title": "Ordinance No. 50170 (City Council, October 28, 2025): first amendment to a MacArthur Center lease",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5545"
+      },
+      "quote": "The City is working towards the redevelopment of MacArthur Center and is taking steps to address existing lease obligations in the mall. The proposed amendment provides for the abatement of Tenant's monthly base rent, up to a maximum total amount of $236,040.00 in exchange for Tenant's agreement to release the City's obligation to pay for relocation costs",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreietxmsbafwhpfidzffdjlhwdl5nhmtyil7uphl5kg5wstxf4r2r7q",
+        "bytes": 34167,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The City is working towards the redevelopment of MacArthur Center and is taking steps to address existing lease obligations in the mall. The proposed amendment provides for the abatement of Tenant's monthly base rent, up to a maximum total amount of $236,040.00 in exchange for Tenant's agreement to release the City's obligation to pay for relocation costs",
+        "prefix": "&#xa0; IV. &#xa0;&#xa0; Analysis: ",
+        "suffix": " when the City proceeds with"
+      }
+    },
+    {
+      "id": "hm-fee",
+      "stance": "context",
+      "claim": "To end H&M's lease early, the City agreed to pay the tenant $1,500,000 as an early termination fee.",
+      "source": {
+        "title": "Ordinance No. 50282 (City Council, February 10, 2026): H&M lease amendment and termination",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5677"
+      },
+      "quote": "The City shall provide $1,500,000 to the tenant as an \"Early Termination Fee\".",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicm6zep363mfwlbvvpoyk5bak3zjtdw5w7tvu6s7x2ofafzak6ngy",
+        "bytes": 34360,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The City shall provide $1,500,000 to the tenant as an \"Early Termination Fee\".",
+        "prefix": "Financial Impact: ",
+        "suffix": " &#xa0; VI. &#xa0;&#xa0; Environmental:"
+      }
+    },
+    {
+      "id": "council-vote-hm",
+      "stance": "who_decides",
+      "claim": "City Council approved the H&M lease termination by ordinance, 6 to 2.",
+      "source": {
+        "title": "Ordinance No. 50282 (City Council, February 10, 2026): H&M lease amendment and termination",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5677"
+      },
+      "quote": "RESULT: ADOPTED [6 TO 2]",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicm6zep363mfwlbvvpoyk5bak3zjtdw5w7tvu6s7x2ofafzak6ngy",
+        "bytes": 34360,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "RESULT: ADOPTED [6 TO 2]",
+        "prefix": "PM City Council Formal Session Draft ",
+        "suffix": " AYES: Kenneth Cooper Alexander, Carlos"
+      }
+    },
+    {
+      "id": "disposal-hearing",
+      "stance": "rules",
+      "claim": "Virginia law bars a locality from selling, leasing or otherwise disposing of its real property until its governing body has held a public hearing on that disposal.",
+      "source": {
+        "title": "Code of Virginia § 15.2-1800(B)",
+        "url": "https://law.lis.virginia.gov/vacode/title15.2/chapter18/section15.2-1800/"
+      },
+      "quote": "provided that no such real property, whether improved or unimproved, shall be disposed of until the governing body has held a public hearing concerning such disposal.",
+      "found_by": "Claude Code, in a session with Jason Edelman (Siren operator)",
+      "checked": "2026-11-11",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidwwnozzy5jzs3vnwbmf6bb7xccjwz63ays6hqnk6xci3l6qhfa74",
+        "bytes": 33940,
+        "read": "2026-11-11",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "provided that no such real property, whether improved or unimproved, shall be disposed of until the governing body has held a public hearing concerning such disposal.",
+        "prefix": "from the subjacent land surface, ",
+        "suffix": " However, the holding of a public"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Watch City Council agendas for the design and development agreement with Hg80: it is the decision that sets what gets built and when.",
+      "finding": "agreement-not-final"
+    },
+    {
+      "text": "A sale or lease of the site to a developer needs a public hearing first; that hearing is the formal chance to speak on the terms.",
+      "finding": "disposal-hearing"
+    }
+  ],
+  "records_to_request": [
+    "The City's agreement retaining HG80 as master developer for the MacArthur Center site, with any amendments and the scope of services.",
+    "The design and development agreement (or purchase and development agreement) with Hg80, or the term sheet, once provided to City Council.",
+    "The cost estimate and schedule behind the FY2027 and FY2028 capital funds for Redevelop MacArthur Mall Site (projects 02MAC, WMAC and WWMAC).",
+    "MacArthur Center's operating, security and maintenance costs by month since the City took over operations in FY2023, including since the June 27, 2026 closing."
+  ],
+  "pending": [
+    "A third-party recap (NorfolkTV via Govly) of Council's September 29, 2026 work session says staff were drafting a purchase and development agreement for Council in November or December; not yet confirmed in Council's own records.",
+    "The 2025 studies on the City's MacArthur Center page (redevelopment feasibility, due diligence, market study, retail research, apartment feasibility appraisal, grocery study) are not yet read for findings.",
+    "Reported 2023 purchase prices differ (WHRO in June 2023: $11 million; the City's appropriation: $18,000,000 to acquire and operate). Only the appropriation is a finding.",
+    "The FY2026 budget cut $3,988,000 of mall operating expenses \"that the consultant is paying currently\"; who the consultant is and why it pays them isn't clear from the budget book."
+  ]
+}

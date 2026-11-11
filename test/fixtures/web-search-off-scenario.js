@@ -11,6 +11,7 @@
 // prompt lines that name them, are left out, so the comparison with a286524
 // still covers everything else. Add a tool's name here when it joins Siren.
 import { PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE } from '../../src/prompt.js';
+import { stripAddedCases, enumAtSnapshot } from './cases-at-snapshot.js';
 
 export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news']);
 // Base-prompt lines added since the snapshot (each joins every deployment's
@@ -66,6 +67,7 @@ export async function webSearchOffScenario({ ask, systemPrompt, getCity, applyCo
     fetchImpl, thinkingEvents: true, onEvent: (e) => events.push(e), ...extra,
   });
   // The prompt holds the date: any date reads "(today)".
-  const zero = (k, v) => (k === 'ms' ? 0 : typeof v === 'string' ? stripAdded(v).replace(/ · \d+ ms · /g, ' · 0 ms · ').replace(/Today is \d{4}-\d{2}-\d{2}\./g, 'Today is (today).') : v);
+  // Case files added since the snapshot are left out of case_file's description and enum.
+  const zero = (k, v) => (k === 'ms' ? 0 : k === 'enum' ? enumAtSnapshot(v) : typeof v === 'string' ? stripAddedCases(stripAdded(v)).replace(/ · \d+ ms · /g, ' · 0 ms · ').replace(/Today is \d{4}-\d{2}-\d{2}\./g, 'Today is (today).') : v);
   return JSON.parse(JSON.stringify({ systemPrompt: systemPrompt(city, '2026-11-10'), requests, events, ask: out }, zero));
 }
