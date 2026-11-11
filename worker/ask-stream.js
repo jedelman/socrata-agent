@@ -46,6 +46,7 @@ export const TOOL_LABELS = Object.freeze({
   upcoming_meetings: 'Checking upcoming public meetings',
   suggest_data_source: 'Noting a source that would answer this',
   note_unanswered: "Noting what the records I read can't answer",
+  offer_followup: 'Offering to look into a source next',
   water_on_my_block: 'Reading flooding and stormwater records for the address',
   sponge_site_screen: 'Screening city sites for stormwater projects',
   trees_on_my_block: 'Reading street-tree records',

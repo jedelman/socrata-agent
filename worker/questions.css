@@ -55,3 +55,10 @@ ol.trace code.ds { display: inline; }
 .chip { display: inline-block; font-size: .78rem; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--accent); margin-right: 6px; }
 .chip.hidden, .chip.withdrawn { color: var(--warn); }
 footer { margin-top: 36px; color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); padding-top: 14px; }
+.answer a:not([href]) { color: inherit; text-decoration: none; }
+.followups { display: grid; gap: 8px; margin: 12px 0 4px; }
+.followup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; }
+.followup button { font: inherit; font-size: .9rem; font-weight: 600; line-height: 1.3; color: var(--accent); background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+.followup button:hover { border-color: var(--accent); }
+.followup small { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; min-width: 0; }
+.followup small a { color: inherit; }

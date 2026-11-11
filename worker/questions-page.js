@@ -34,10 +34,109 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export const PURIFY = Object.freeze({ FORBID_ATTR: ['style'], ALLOW_DATA_ATTR: false, SANITIZE_NAMED_PROPS: true, FORBID_TAGS: ['form', 'input', 'button', 'select', 'textarea', 'option', 'dialog'] });
 
-/** The answer's markdown as the chat page renders it, or escaped text where marked or DOMPurify is missing. */
-export function md(s) {
+/** src/answer-links.js's normalizeUrl: trimmed, one trailing slash off the path, nothing else touched. */
+export const normUrl = (u) => {
+  const s = String(u ?? '').trim();
+  const cut = s.search(/[?#]/);
+  const head = cut < 0 ? s : s.slice(0, cut);
+  return (head.endsWith('/') && !head.endsWith('//') ? head.slice(0, -1) : head) + (cut < 0 ? '' : s.slice(cut));
+};
+
+/** src/answer-links.js's handoffUrls, plus each URL as marked writes it into an href. */
+export function handoffLinks(r) {
+  const set = new Set();
+  const add = (u) => {
+    if (typeof u !== 'string' || !/^https?:\/\//i.test(u.trim())) return;
+    set.add(normUrl(u));
+    try {
+      set.add(normUrl(encodeURI(u.trim()).replace(/%25/g, '%')));
+    } catch {
+      // a malformed URL keeps its first form only
+    }
+  };
+  for (const x of (Array.isArray(r?.records) ? r.records : [])) add(x?.url);
+  for (const d of (Array.isArray(r?.datasets) ? r.datasets : [])) {
+    add(d?.page);
+    add(d?.csv);
+    add(d?.docs);
+    for (const q of (Array.isArray(d?.queries) ? d.queries : [])) add(q);
+  }
+  for (const c of (Array.isArray(r?.contacts) ? r.contacts : [])) {
+    add(c?.url);
+    if (typeof c?.email === 'string' && c.email.trim()) set.add(`mailto:${c.email.trim()}`);
+  }
+  for (const l of (Array.isArray(r?.links) ? r.links : [])) add(l?.url);
+  return set;
+}
+
+/**
+ * The page's own check on an answer's links, as DOMPurify hands it each
+ * element (src/answer-links.js already kept only links to the hand-off): a
+ * link whose URL isn't in `allowed` loses its href; the rest open in a new
+ * tab with rel="noopener noreferrer".
+ */
+export function checkLink(node, allowed) {
+  if (typeof node?.hasAttribute !== 'function') return;
+  // Any element's href (an SVG link's xlink:href too) is checked.
+  for (const name of ['href', 'xlink:href']) {
+    if (!node.hasAttribute(name)) continue;
+    const href = node.getAttribute(name) || '';
+    if (!allowed.has(normUrl(href))) node.removeAttribute(name);
+    else if (name === 'href' && String(node.nodeName).toUpperCase() === 'A' && /^https?:/i.test(href)) {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+  }
+}
+
+let renderingLinks = null;
+const hooked = new WeakSet();
+
+/**
+ * The answer's markdown as the chat page renders it, or escaped text where
+ * marked or DOMPurify is missing. `resources` is the answer's hand-off: its
+ * links are the only ones the answer keeps.
+ */
+export function md(s, resources) {
   const g = typeof globalThis !== 'undefined' ? globalThis : {};
-  return g.marked && g.DOMPurify ? g.DOMPurify.sanitize(g.marked.parse(String(s || '')), { ...PURIFY, FORBID_ATTR: [...PURIFY.FORBID_ATTR], FORBID_TAGS: [...PURIFY.FORBID_TAGS] }) : `<p>${esc(s)}</p>`;
+  if (!(g.marked && g.DOMPurify)) return `<p>${esc(s)}</p>`;
+  if (typeof g.DOMPurify.addHook === 'function' && !hooked.has(g.DOMPurify)) {
+    hooked.add(g.DOMPurify);
+    g.DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+      if (renderingLinks) checkLink(node, renderingLinks);
+    });
+  }
+  renderingLinks = handoffLinks(resources);
+  try {
+    return g.DOMPurify.sanitize(g.marked.parse(String(s || '')), { ...PURIFY, FORBID_ATTR: [...PURIFY.FORBID_ATTR], FORBID_TAGS: [...PURIFY.FORBID_TAGS] });
+  } finally {
+    renderingLinks = null;
+  }
+}
+
+/** The follow-up button's label, exactly (src/followups.js's FOLLOWUP_LABEL). */
+export const FOLLOWUP_LABEL = 'Would you like me to look into that?';
+
+/**
+ * Sources the answer offers to read next (offer_followup), each a button
+ * with the source's title beside it. `offer`: the question's id, set only
+ * when its thread takes a follow-up; with none, nothing is shown.
+ */
+export function followupsHtml(list, { offer = '' } = {}) {
+  if (!Array.isArray(list) || !list.length || !ID_RE.test(String(offer))) return '';
+  return `<div class="followups">${list.slice(0, 2).map((f, i) => `<p class="followup"><button type="button" class="offer" data-offer="${esc(offer)}" data-n="${i}" title="${esc(f?.question)}">${FOLLOWUP_LABEL}</button> <small>${f?.url ? `<a href="${link(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.source_title || f.url)}</a>` : esc(f?.source_title)}</small></p>`).join('')}</div>`;
+}
+
+/**
+ * What a follow-up offer puts in the ask box: the thread to reply in and the
+ * question, or null when the question takes no follow-up or has no such
+ * offer. The asker still signs in, reads it, and asks it in public.
+ */
+export function followupOffer(q, n) {
+  const f = Array.isArray(q?.record?.followups) ? q.record.followups[Number(n)] : null;
+  const text = typeof f?.question === 'string' ? f.question.trim().slice(0, 600) : '';
+  if (!q?.followup || !ID_RE.test(String(q.id)) || !text) return null;
+  return { replyTo: { id: q.id, question: q.question, city: q.city, followup: q.followup }, text };
 }
 
 /** The line beside the ask button once signed in (docs/free-tier.md, exact copy). */
@@ -99,14 +198,19 @@ export function traceHtml(t) {
   return `<details><summary>How I found this <small>(${counts.join(', ')})</small></summary><ol class="trace">${t.map(traceStep).join('')}</ol></details>`;
 }
 
-/** An answer with what was found behind it: the voice notice, suggested sources (as text), the hand-off, the trace, the model line. */
-export function answerHtml(answer, r = {}, { render = md } = {}) {
+/**
+ * An answer with what was found behind it: the voice notice, offers to read
+ * a source next (`offer`: the question's id when its thread takes a
+ * follow-up), suggested sources (as text), the hand-off, the trace, the
+ * model line.
+ */
+export function answerHtml(answer, r = {}, { render = md, offer = '' } = {}) {
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${plural(Number(r.steps) || 0, 'step')}${rb && Number.isFinite(rb.used) ? ` · ${plural(rb.used, 'request')}${rb.limit ? ` of ${esc(rb.limit)}` : ''}` : ''}` : '';
   const sugg = Array.isArray(r.suggestions) && r.suggestions.length
     ? `<p class="meta">Sources that would answer more: ${r.suggestions.map((s) => esc(s.source)).join('; ')}.</p>`
     : '';
-  return `<div class="answer">${render(answer)}</div>${r.voice && !r.voice.ok ? '<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>' : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${sugg}${resourcesHtml(r.resources || {})}${traceHtml(r.trace)}${how ? `<p class="meta">${how}</p>` : ''}`;
+  return `<div class="answer">${render(answer, r.resources)}</div>${r.voice && !r.voice.ok ? '<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>' : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${followupsHtml(r.followups, { offer })}${sugg}${resourcesHtml(r.resources || {})}${traceHtml(r.trace)}${how ? `<p class="meta">${how}</p>` : ''}`;
 }
 
 /** The flags shown next to an asker: shown, never used to leave anyone out. */
@@ -153,7 +257,7 @@ export function entryHtml(q, { base = '', mine = false, cityName = (c) => c, ren
   return `<li class="q${current ? ' current' : ''}" id="q-${esc(id)}">
     <div class="by"><a href="${profile}" target="_blank" rel="noopener">${who}</a>${flagsHtml(q.flags)}<span class="small">${when ? ` · ${when}` : ''}${q.city ? ` · ${esc(cityName(q.city))}` : ''}${replies}</span></div>
     <p class="question">${esc(q.question)}</p>
-    <div class="a">${answerHtml(q.answer, q.record || {}, { render })}</div>
+    <div class="a">${answerHtml(q.answer, q.record || {}, { render, offer: q.followup ? id : '' })}</div>
     ${actions ? `<p class="actions">${actions}</p>` : ''}
     ${children ? `<ol class="replies">${children}</ol>` : ''}
   </li>`;
@@ -449,6 +553,19 @@ async function main() {
   $('list').addEventListener('click', async (e) => {
     // Nothing inside an answer acts: answers are model output.
     if (e.target.closest('.answer')) return undefined;
+    // An offer to read a source next: the question goes in the ask box, in
+    // this question's thread, for the asker to read and ask.
+    const o = e.target.closest('button[data-offer]');
+    if (o) {
+      const offer = followupOffer([...questions, ...thread].find((x) => x.id === o.dataset.offer), o.dataset.n);
+      if (!offer) return undefined;
+      replyTo = offer.replyTo;
+      $('q').value = offer.text;
+      renderPanel();
+      $('ask').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      (session ? $('q') : $('bsky-account')).focus();
+      return undefined;
+    }
     const f = e.target.closest('button[data-followup]');
     if (f) {
       const q = [...questions, ...thread].find((x) => x.id === f.dataset.followup);

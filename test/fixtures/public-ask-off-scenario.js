@@ -6,7 +6,9 @@
 // public-ask-off-snapshot.json is this scenario's output from main at f6f0e9e (the
 // code before any free-tier code; retaken after main gained #31), with
 // conversation browsing and search applied to it (retaken 2026-11-10 on
-// f6f0e9e plus that change's worker files: still no free-tier code).
+// f6f0e9e plus that change's worker files: still no free-tier code), then
+// with the answer-links change's diff to chat-page.js and chat.css (retaken
+// 2026-11-11 the same way, identical on Node 22 and 24).
 //
 // Each entry keeps the status, every header and the body (its text when
 // short, else its SHA-256 and length), the outbound URLs it made and whether

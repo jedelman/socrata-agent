@@ -5,13 +5,15 @@ import { blockReport, lookupAddress, searchLegislation } from './block.js';
 import { soqlString, ACCESS } from './socrata.js';
 import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
 import { NOTE_UNANSWERED_TOOL, noteUnanswered } from './gaps/answer.js';
+import { offerFollowup, FOLLOWUP_LABEL, MAX_FOLLOWUPS, FOLLOWUP_QUESTION_CHARS } from './followups.js';
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
   function: { name, description, parameters: { type: 'object', properties, required, additionalProperties: false } },
 });
 
-// opts.gaps (a built gap file) adds note_unanswered after suggest_data_source.
+// opts.gaps (a built gap file) adds note_unanswered after suggest_data_source;
+// offer_followup comes after both.
 export function toolsFor(city, plugins = [], opts = {}) {
   const tools = [
     T('search_datasets', `Search ${city.name}'s open data catalog by keyword. Returns dataset ids, names and descriptions.`, {
@@ -58,6 +60,13 @@ export function toolsFor(city, plugins = [], opts = {}) {
     }, ['need', 'source', 'why'])
   );
   if (opts.gaps) tools.push(NOTE_UNANSWERED_TOOL(opts.gaps));
+  tools.push(
+    T('offer_followup', `When your answer mentions a source you haven't read but your tools returned (a record, legislation or meeting page, a document section, a dataset page, a web page your search found), offer to read it: the person sees a button under your answer reading "${FOLLOWUP_LABEL}" that asks your question for them. Only for a source a tool result in this conversation showed; for one your tools can't reach, call suggest_data_source instead. At most ${MAX_FOLLOWUPS} per answer.`, {
+      question: { type: 'string', description: `The question the button asks, as the person would ask it, under ${FOLLOWUP_QUESTION_CHARS} characters, e.g. "What does the Planning Commission staff report on this rezoning say?" No address, names, contact details or links.` },
+      source_title: { type: 'string', description: 'The source by name, as the tool result showed it.' },
+      url: { type: 'string', description: "The source's url, exactly as a tool result in this conversation showed it." },
+    }, ['question', 'source_title', 'url'])
+  );
   const core = new Set(tools.map((t) => t.function.name));
   for (const def of pluginToolDefs(plugins, city)) {
     if (core.has(def.function.name)) throw new Error(`Plugin "${def.function.name}" would replace a core tool.`);
@@ -83,6 +92,8 @@ export async function runTool(ctx, name, args) {
       ctx.suggestions.push({ need: clip(args.need, 300), source: clip(args.source, 200), why: clip(args.why, 300), ...(/^https:\/\//i.test(url) ? { url } : {}) });
       return { noted: true, note: 'The person will see this suggestion with a button to request it. In your answer, say plainly what you could not find and that they can ask for this source to be added.' };
     }
+    case 'offer_followup':
+      return offerFollowup(ctx, args);
     case 'note_unanswered':
       // Gated in code: with gaps off this is an unknown tool, whatever the model emits.
       if (!ctx.gaps) throw new Error(`Unknown tool ${name}`);

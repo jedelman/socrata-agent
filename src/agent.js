@@ -17,6 +17,8 @@ import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
 import { requestBudget } from './request-budget.js';
 import { webSearchSettings, checkWebSearchForCity, traceSearches, handOffWebPages } from './web-search.js';
+import { filterAnswerLinks, handoffUrls } from './answer-links.js';
+import { finalFollowups } from './followups.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
 const RESULT_CHARS = 16000;
@@ -52,7 +54,7 @@ export function createContext({ city, indexes = {}, appToken, fetchImpl, plugins
     },
     summary: () => budget.summary(),
   });
-  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, requests, suggestions: [] };
+  return { city, indexes, trace, resources, socrata, iqm2, http, plugins, requests, suggestions: [], followups: [] };
 }
 
 // What the model is told, and what the person reads, when an answer's
@@ -119,7 +121,10 @@ export function budgetNote({ limit, refused }) {
  *       partway and another model continues the step: the thinking sent so far
  *       in that step came from the model that declined
  * Returns { answer, trace, resources, voice, cost, model, steps, requestBudget },
- * plus { gaps, unanswered, fallback } when gaps are on.
+ * plus { gaps, unanswered, fallback } when gaps are on, `followups` (sources
+ * offered with offer_followup) when there are any, and `answerLinks` ({ kept,
+ * dropped } counts) when the answer had links. The answer's links are only
+ * ever to URLs this answer handed off (src/answer-links.js).
  */
 export async function ask({
   question,
@@ -215,6 +220,8 @@ export async function ask({
   // Web search: the results that may be handed off, and the citations on
   // the text that became the answer.
   const webResults = [];
+  // offer_followup may offer a page search returned before it's handed off.
+  ctx.webResults = webResults;
   let answerCitations = [];
   // Every search a response shows gets a trace step, written from its blocks.
   const traceWeb = async (out) => {
@@ -371,6 +378,17 @@ export async function ask({
     gapOut = { shown: m.shown.map((x) => gapItem(x, ctx)), more: m.more, measured: gaps.data.built, noted: unanswered.length > 0 };
   }
 
+  // Links in the answer's own words: kept only to what this answer handed
+  // off (src/answer-links.js), after any rewrite and once the web pages are
+  // handed off. Follow-up offers keep only sources still in the hand-off.
+  const handedOff = ctx.resources.toJSON();
+  const linked = filterAnswerLinks(answer, handoffUrls(handedOff));
+  // Words a link held apart can meet once it's gone: the check reads the
+  // answer as it will be shown.
+  if (linked.text !== answer && !refusal) violations = check(linked.text);
+  answer = linked.text;
+  const followups = finalFollowups(ctx.followups, handedOff);
+
   const used = budget.summary();
   const reached = budgetStopped || used.refused > 0;
   return {
@@ -383,6 +401,11 @@ export async function ask({
     steps,
     toolResults,
     suggestions: ctx.suggestions,
+    // Sources the answer mentions and Siren can read next (offer_followup),
+    // and how many links in the answer's text were kept and taken out; each
+    // only when there is one, so an answer without them reads as before.
+    ...(followups.length ? { followups } : {}),
+    ...(linked.kept || linked.dropped ? { answerLinks: { kept: linked.kept, dropped: linked.dropped } } : {}),
     // For the answer record: how many outbound requests this answer made, and
     // in plain words when its budget ended the search.
     requestBudget: { ...used, reached, ...(reached ? { note: budgetNote(used) } : {}) },

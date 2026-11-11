@@ -15,7 +15,28 @@ generic mode.
   sure, but here's what I found:" and closed with an offer to summarize that
   carries "AI can make mistakes" (Jason, 2026-11-10; `PARTIAL_LEAD`,
   `SUMMARY_OFFER`, `SUMMARY_CAVEAT` in `src/prompt.js`, pinned by
-  `test/prompt-partial.test.js`).
+  `test/prompt-partial.test.js`). An answer links the words a fact comes
+  from, inline (`LINK_LINE`), and code keeps a link only when its URL is in
+  that answer's own hand-off (`src/answer-links.js`, run in `ask()` after any
+  voice rewrite and the web hand-off: trimmed, one trailing slash off, query
+  and case untouched; anything else becomes its text, bare URLs and emails
+  included, images dropped, raw `<a>`/`<img>` removed, code spans left alone
+  where marked is sure they're code). The record keeps how many links were
+  kept and dropped (`answerLinks`, capped at 999), never the dropped URLs.
+  The chat page and the public page check every rendered link against the
+  hand-off again (a DOMPurify `afterSanitizeAttributes` hook: unknown links
+  lose their href, the rest get `target="_blank" rel="noopener noreferrer"`).
+  Siren never says she didn't read a source (Jason, 2026-11-10): for one her
+  tools returned she calls `offer_followup` (`src/followups.js`; `FOLLOWUP_LINE`
+  beside `SUGGEST_LINE`, which stays byte-identical), and the answer gets a
+  button reading exactly "Would you like me to look into that?" that asks her
+  question (at most 2, 200 characters, voice- and public-text-checked; only a
+  hand-off record or dataset page, or a web page her search returned and the
+  answer hands off; never a contact, CSV or deployment link). On the chat
+  page the button sends it as the next message; on the public page it fills
+  that question's follow-up box, and the asker still signs and asks. For one she
+  can't reach, the tool says to call `suggest_data_source`, whose card stays
+  the not-available path.
 - **The trace is written by code.** Every outbound request goes through
   `Trace.record` (`src/trace.js`). Never let model output become the trace.
 - **Hand-off.** Every dataset touched is registered in `Resources` with page,
@@ -67,7 +88,10 @@ generic mode.
     serves `claude-*` models through the Messages API (pinned to
     api.anthropic.com; prices in its `PRICES` table; a model with no price is
     refused) and `providers/openrouter.js` serves everything else; `tools.js` holds tool schemas and
-    executors; `block.js` is the block report and legislation matching;
+    executors (core tools: the dataset tools, the address and meeting tools,
+    `suggest_data_source`, `note_unanswered` with gaps on, `offer_followup`);
+    `answer-links.js` holds the answer's links to its hand-off and
+    `followups.js` the follow-up offers; `block.js` is the block report and legislation matching;
     `socrata.js` is the SODA client; `adapters/iqm2.js` parses Norfolk's
     meeting portal; `cities/` holds the profiles.
 - `src/plugins.js` defines plugin tools and deployment configs. Plugins get a
@@ -129,7 +153,8 @@ generic mode.
   so the counter can't be joined to the account; a search the counter can't
   record (KV takes one write a second per key) isn't run. Each turn also keeps
   the record shown under its answer (trace, hand-off, voice check, model,
-  steps, cost, suggestions; bounded by `answerRecord`), so a reopened
+  steps, cost, suggestions, follow-up offers, link counts; bounded by
+  `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are
   private to their account and never feed the case files.
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
@@ -295,8 +320,9 @@ generic mode.
   pages and their JSON send `X-Robots-Tag: noindex`. With `PUBLIC_ASK`
   anything but `"true"`, every existing route answers byte for byte as
   before and nothing new is served (`test/public-ask-off.test.js`, against a
-  snapshot taken before the free tier; only the asset hash, the text of the
-  three client modules it extends and the chat script's sanitizer line
+  snapshot taken before the free tier, retaken with each later change to the
+  chat page's files applied to that base; only the asset hash, the text of
+  the three client modules it extends and the chat script's sanitizer line
   differ); set but missing Bluesky sign-in, `SIREN_DB` or invite mode, its
   routes answer 503. The operator could still match a public question to an
   invite through exact times kept elsewhere (`redeemed:` keys), and D1 Time

@@ -10,13 +10,16 @@
 // Siren as it was at the snapshot: tools added to Siren since then, and the
 // prompt lines that name them, are left out, so the comparison with a286524
 // still covers everything else. Add a tool's name here when it joins Siren.
-import { PARTIAL_PROMPT } from '../../src/prompt.js';
+import { PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE } from '../../src/prompt.js';
 
 export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news']);
 // Base-prompt lines added since the snapshot (each joins every deployment's
 // prompt, so it can't be left out by tool): stripped from the prompt and the
 // requests before comparing. Add the exported text here when one joins.
-export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT]);
+export const PROMPT_ADDED_SINCE_SNAPSHOT = Object.freeze([PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE]);
+// Core tools added since the snapshot (every deployment gets them): left out
+// of the requests' tool lists before comparing. Add a name when one joins.
+export const CORE_TOOLS_ADDED_SINCE_SNAPSHOT = Object.freeze(['offer_followup']);
 const stripAdded = (s) => PROMPT_ADDED_SINCE_SNAPSHOT.reduce((t, x) => t.split(x).join(''), s);
 
 function sirenAtSnapshot(siren) {
@@ -49,7 +52,9 @@ export async function webSearchOffScenario({ ask, systemPrompt, getCity, applyCo
     const u = String(url);
     if (u.startsWith('https://api.anthropic.com/v1/messages')) {
       const i = requests.length;
-      requests.push({ beta: new Headers(init.headers).get('anthropic-beta'), body: JSON.parse(init.body) });
+      const body = JSON.parse(init.body);
+      if (Array.isArray(body.tools)) body.tools = body.tools.filter((t) => !CORE_TOOLS_ADDED_SINCE_SNAPSHOT.includes(t.name));
+      requests.push({ beta: new Headers(init.headers).get('anthropic-beta'), body });
       return claudeResponse(init, replies[Math.min(i, replies.length - 1)]);
     }
     if (u.includes('/api/catalog/')) return new Response(JSON.stringify({ results: [], resultSetSize: 0 }));
