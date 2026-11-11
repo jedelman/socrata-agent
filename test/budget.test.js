@@ -15,7 +15,7 @@ import { getCity } from '../src/cities/index.js';
 import { toolsFor } from '../src/tools.js';
 import { applyConfig } from '../src/plugins.js';
 import budgetFor, { matchName, nameKey, closest, checkYears, fiscalYearOf, perfValue, fromDescription, fromColumn, pivot, sumByYear, negativeGroups, reorgNotes, SOQL, MAX_CHARS } from '../plugins/budget-for.js';
-import capitalProjects, { SOQL as CIP_SOQL, shorten } from '../plugins/capital-projects.js';
+import capitalProjects, { SOQL as CIP_SOQL, shorten, matchProjects } from '../plugins/capital-projects.js';
 import siren from '../deployments/siren.config.js';
 
 const norfolk = getCity('norfolk');
@@ -395,6 +395,62 @@ test('capital_projects rejects what it cannot match, before any data query', asy
   }
   const { result } = await run(capitalProjects, { department: 'Parks & Rec' });
   assert.ok(result.closest_departments.includes('Parks and Recreation'));
+});
+
+// Jason, 2026-11-11, asking why Siren missed MacArthur: the largest-projects
+// list showed only the City Manager line ($57M) of a project the City splits
+// across three funds ($72M). A project lookup returns every line.
+const CIP_NAMES = ['Redevelop MacArthur Mall Site', 'Renovate & Expand Jean MacArthur Research Center', 'Improve Police Operations Center', 'Conceptualize East Side Recreation Center', 'Improve Cemeteries Infrastructure', 'Improve Cultural Facilities', 'Construct Maury High School', 'Renovate Chrysler Hall'];
+const MAC = (department, amount, first) => ({ project_id: department.slice(0, 3), department, project_name: 'Redevelop MacArthur Mall Site', description: 'This project is to redevelop the site of the MacArthur Mall. FY 2027 and FY 2028 funds are planned to support the demolition of the mall.', location: '300 Monticello Ave, Norfolk, VA 23510', ward: '2', amount, amount_fy_27: first });
+function cipRespond(url) {
+  const m = url.match(/\/resource\/(6tqj-4az3)\.json\?\$query=(.*)$/);
+  const q = m && decodeURIComponent(m[2]);
+  if (q?.includes('GROUP BY project_name')) return CIP_NAMES.map((p) => ({ p, n: '1' }));
+  if (q?.includes('project_name IN (')) return q.includes("'Redevelop MacArthur Mall Site'") ? [MAC('City Manager', '57000000', '6700000'), MAC('Utilities - Water Fund', '10000000', '0'), MAC('Utilities - Wastewater Fund', '5000000', '0')] : [];
+  return respond(url);
+}
+
+test('matchProjects: every word first, rarer words outrank common ones, generic words never match alone', () => {
+  const top = (q) => matchProjects(q, CIP_NAMES).matches.map((x) => x.name);
+  assert.deepEqual(top('MacArthur Mall'), ['Redevelop MacArthur Mall Site', 'Renovate & Expand Jean MacArthur Research Center']);
+  // "MacArthur Center": the research center has both words; the mall site, with the rarer word, beats every other "... Center".
+  assert.deepEqual(top('MacArthur Center').slice(0, 2), ['Renovate & Expand Jean MacArthur Research Center', 'Redevelop MacArthur Mall Site']);
+  // "Improve" is in a quarter or more of the names: it matches only where it is all that was asked.
+  assert.ok(!top('Improve Chrysler').includes('Improve Cemeteries Infrastructure'));
+  assert.deepEqual(top('chrysler hall'), ['Renovate Chrysler Hall']);
+  assert.deepEqual(top('the project plan'), []);
+  assert.deepEqual(top("zzz' OR '1'='1"), []);
+});
+
+test('capital_projects by project: every line across funds, the project total, and only the City\'s spelling in the SoQL', async () => {
+  const { result, requests } = await run(capitalProjects, { project: 'macarthur mall' }, cipRespond);
+  const qs = queries(requests);
+  assert.equal(qs[0], CIP_SOQL.names);
+  assert.ok(qs.includes(CIP_SOQL.projectNames({ project: ['project_name'] })));
+  const lines = qs.find((q) => q.includes('project_name IN ('));
+  assert.match(lines, /project_name IN \('Redevelop MacArthur Mall Site', 'Renovate & Expand Jean MacArthur Research Center'\)/);
+  assert.ok(!lines.toLowerCase().includes('macarthur mall\''), 'the words asked never reach the SoQL themselves');
+  const mac = result.matches[0];
+  assert.equal(mac.name, 'Redevelop MacArthur Mall Site');
+  assert.equal(mac.matched_words, 'all');
+  assert.deepEqual(mac.total, { 'FY2027-FY2031_usd': 72000000, FY2027_usd: 6700000, lines: 3 });
+  assert.deepEqual(mac.lines.map((l) => l.department), ['City Manager', 'Utilities - Water Fund', 'Utilities - Wastewater Fund']);
+  assert.match(mac.lines[0].description, /demolition of the mall\.$/);
+  assert.match(result.matches[1].matched_words, /^1 of 2: macarthur$/);
+  assert.match(result.about_the_data.join('\n'), /adds up its lines/);
+  assert.equal(result.largest_projects, undefined);
+});
+
+test('capital_projects by project: a miss says so, and bad input is refused before any data query', async () => {
+  const miss = await run(capitalProjects, { project: 'qqq zzz' }, cipRespond);
+  assert.deepEqual(miss.result.matches, []);
+  assert.match(miss.result.note, /I found no project in the FY2027 plan whose name holds "qqq" or "zzz"/);
+  assert.ok(!queries(miss.requests).some((q) => q.includes(' IN (')));
+  for (const project of [42, 'x'.repeat(121)]) {
+    const { result, requests } = await run(capitalProjects, { project }, cipRespond);
+    assert.match(result.error, /project must be words/);
+    assert.equal(queries(requests).length, 0);
+  }
 });
 
 test('capital_projects FY2024: its own columns, an amount labelled by its column, and subproject lines', async () => {

@@ -159,6 +159,17 @@ test('with web search off, every request and the answer are byte-identical to ma
   assert.deepEqual(await webSearchOffScenario({ ...deps, extra: { webSearch: undefined } }), snapshot);
 });
 
+test('the snapshot scenario swaps in old definitions only for Siren plugin tools that really changed', async () => {
+  const { PLUGIN_TOOLS_CHANGED_SINCE_SNAPSHOT, SNAPSHOT_TOOLS } = await import('./fixtures/web-search-off-scenario.js');
+  for (const name of PLUGIN_TOOLS_CHANGED_SINCE_SNAPSHOT) {
+    const plugin = siren.plugins.find((p) => p.name === name);
+    assert.ok(plugin, `${name} is a Siren plugin`);
+    const old = SNAPSHOT_TOOLS.get(name);
+    assert.ok(old, `${name} is in the snapshot`);
+    assert.notDeepEqual({ description: plugin.description, parameters: plugin.parameters }, { description: old.description, parameters: old.input_schema }, `${name} changed since the snapshot`);
+  }
+});
+
 test('the snapshot scenario leaves out only tools that joined Siren after it, with their prompt lines', () => {
   for (const name of ADDED_SINCE_SNAPSHOT) {
     assert.ok(siren.plugins.some((p) => p.name === name), `${name} is a Siren plugin`);
