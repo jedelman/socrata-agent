@@ -55,6 +55,7 @@ import {
 // own imports), like every shared module.
 import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearchOn, handleShare, handleResearchList, handleAdminResearch } from './research.js';
 import { researchScopesFor } from '../src/agent.js';
+import { logAnswer, telemetryOn, TELEMETRY_NOTE } from './telemetry.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
 import QUESTIONS_PAGE from './questions.html';
@@ -261,10 +262,13 @@ async function handleAsk(req, env, ctx) {
   const research = priorResearch ? { priorResearch } : {};
   // Built inside each path's try, as before, so a failure here is an error body.
   const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId), ...research });
+  const started = Date.now();
   // The response body, and the conversation save (started, not awaited).
   // With shared research on, the body names the saved turn (`at`), so the
   // page can offer to share its sources.
   const finish = (out) => {
+    // One telemetry line per answer (worker/telemetry.js), with TELEMETRY on.
+    logAnswer(env, out, { tier: uid ? 'member' : 'invite', ms: Date.now() - started, city: cityId, streets: STREETS[cityId] });
     const { toolResults, ...answer } = out;
     const now = Date.now();
     const save = conversationId
@@ -358,6 +362,12 @@ function answerArgs(env, req, cityId) {
 // record's text, for its city, counting on the budget the record's check
 // started. A follow-up carries its thread's chain, as a private
 // conversation carries its earlier turns.
+// Logs a public answer's telemetry line (worker/telemetry.js) and passes the answer on.
+const loggedAnswer = (env, tier, cityId, started = Date.now()) => (out) => {
+  logAnswer(env, out, { tier, ms: Date.now() - started, city: cityId, streets: STREETS[cityId] });
+  return out;
+};
+
 function publicAskDeps(req, env, base) {
   const { config: deployment } = getDeployment(env);
   const model = env.MODEL || deployment.model;
@@ -375,7 +385,7 @@ function publicAskDeps(req, env, base) {
     subrequestBudget: askLimits(env, providerOf(model)).subrequestBudget,
     // A follow-up brings its thread's chain as history and carried results,
     // marked as a public thread's.
-    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost, ...publicResearch(cityId) }),
+    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost, ...publicResearch(cityId) }).then(loggedAnswer(env, 'public', cityId)),
   };
 }
 
@@ -744,7 +754,7 @@ async function questionsPage(req, env, base, focus) {
     FOCUS: esc(focus),
     LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
     // Where questions go beyond this Worker, as on the chat page.
-    DATA_NOTE: ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '',
+    DATA_NOTE: (ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '') + (telemetryOn(env) ? `<p>${esc(TELEMETRY_NOTE(APP_NAME_OF(env, config)))}</p>` : ''),
   };
   return new Response(QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m)), {
     headers: { ...PAGE_HEADERS(QUESTIONS_CSP), 'Cache-Control': 'public, max-age=60' },
@@ -807,7 +817,7 @@ function page(env) {
     FOOTER_NOTE: esc(ui.footerNote),
     // Where questions go beyond this Worker (the model's provider, and what
     // it keeps), when the deployment states it.
-    DATA_NOTE: ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '',
+    DATA_NOTE: (ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '') + (telemetryOn(env) ? `<p>${esc(TELEMETRY_NOTE(APP_NAME_OF(env, config)))}</p>` : ''),
     BADGE: esc(ui.badge),
     OPERATOR: esc(ui.operator ? `${APP_NAME_OF(env, config)} is run by ${ui.operator}. ` : ''),
     MARK: skin.mark,

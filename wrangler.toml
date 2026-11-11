@@ -201,6 +201,29 @@ SHARED_RESEARCH = "true"
 # here on: changing it after endorsements exist strands them
 # (docs/bluesky-endorsements.md, "The record").
 PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
+# Telemetry (worker/telemetry.js; Jason, 2026-11-11: "set up otel logging to
+# Cloudflare now that we have workers Paid"): one structured line per answer
+# in Workers Logs (the tools it used, steps, time, cost, partial or not, case
+# files read, and topic words checked against the City's own budget and
+# zoning books), never the question, the answer, an account, an IP or an
+# address. The chat page's footer says so. Remove to stop.
+TELEMETRY = "true"
+
+# Workers Logs (OpenTelemetry-compatible, kept 7 days; persisted logs count
+# toward Cloudflare Observability usage from 2026-12-01). On for console
+# output only: Siren's own lines (the telemetry above, and the fixed error
+# lines). Invocation logs stay off, because they record each request's URL
+# and headers: sign-in and carry-invite tokens, a GET search's words,
+# cookies. Traces stay off too: they record outbound request URLs, and a
+# block report's Socrata queries carry the address someone looked up.
+# https://developers.cloudflare.com/workers/observability/logs/workers-logs/
+# (read 2026-11-11).
+[env.siren.observability]
+enabled = true
+
+[env.siren.observability.logs]
+invocation_logs = false
+head_sampling_rate = 1
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"

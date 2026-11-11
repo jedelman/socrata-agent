@@ -200,6 +200,19 @@ generic mode.
   once (whether or not shared research is still on), and re-sharing, by any
   spelling, never revives it. A path segment of digits only is read as a
   page id, not a house number (`/6267/MacArthur-Center` carries over).
+  `telemetry.js` writes one JSON line per answer to Workers Logs with
+  `TELEMETRY = "true"` (Jason, 2026-11-11: "set up otel logging to
+  Cloudflare now that we have workers Paid"): tier, model, steps, time,
+  cost, tool counts, partial or not, case files read, follow-ups, dropped
+  links, and up to 8 topic words, taken only from topic tools' arguments
+  (prior research, capital project, legislation, budget book, ordinance,
+  City news), only when that text passes the public-text checks, and only
+  words found in the adopted budget books and Zoning Ordinance (so a
+  surname never gets through). Never the question, the answer, an account,
+  invite, conversation, IP or address; the footer says so when it's on.
+  `[env.siren.observability]` keeps console output only: invocation logs
+  (request URLs and headers: tokens, a GET search's words, cookies) and
+  traces (outbound URLs: the addresses people look up) stay off.
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
