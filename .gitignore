@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 .dev.vars
 .wrangler/
 # Waitlist exports hold people's email addresses.
