@@ -496,7 +496,7 @@ before the flag.
 
 The `SIREN_DB` database was made for the first, server-side design. Nothing
 in the Worker touches it now. Migration `0003_endorsements_move_to_repos.sql`
-drops its tables and is **not applied** (Rollout, step 5). The binding stays
+dropped its tables (applied 2026-11-11 after the check in Rollout, step 5). The binding stays
 for the planned public board (D9, default, pending Jason). D1 Time Travel
 keeps 30 days of history on Workers Paid
 (https://developers.cloudflare.com/d1/platform/limits/, checked 2026-11-06),
@@ -561,6 +561,10 @@ so dropped rows stay restorable that long.
    `npx wrangler d1 execute SIREN_DB --env siren --remote --command "SELECT (SELECT count(*) FROM endorsements), (SELECT count(*) FROM bsky_rate_counts), (SELECT count(*) FROM siren_d1_budget)"`,
    record the result here, then apply `0003`:
    `npx wrangler d1 migrations apply SIREN_DB --env siren --remote`.
+   **Done 2026-11-11:** 0 rows in `endorsements`, `endorsement_counts`,
+   `bsky_rate_counts` and `siren_d1_budget` (`bsky_flows_used` never
+   existed); 0003, 0004 and 0005 applied through the D1 query API and
+   recorded in `d1_migrations`.
 6. **Flip the flag:** a PR adding `BLUESKY_LOGIN = "true"` under
    `[env.siren.vars]`.
 7. Date every platform number in this doc.
@@ -620,7 +624,7 @@ Built as **default, pending Jason**:
 - **D7** Fulfilled requests show the frozen count and the live count.
 - **D8** Keep the flag name `BLUESKY_LOGIN`.
 - **D9** Keep the `SIREN_DB` binding for the planned board; migration 0003
-  drops the old tables, unapplied.
+  dropped the old tables (applied 2026-11-11).
 - **D10** Allow deciding while Constellation is down, without a frozen count.
 - **D11** The public Constellation instance for now.
 - **D13** Moderation labels that flag: spam, inauthentic, engagement-farming,

@@ -102,7 +102,13 @@ generic mode.
     `answer-links.js` holds the answer's links to its hand-off and
     `followups.js` the follow-up offers; `block.js` is the block report and legislation matching;
     `socrata.js` is the SODA client; `adapters/iqm2.js` parses Norfolk's
-    meeting portal; `cities/` holds the profiles.
+    meeting portal (`get_legislation` also returns `cover_letter`, from the
+    City's Council Transmittal Letter on the same page: Request, Description,
+    Analysis and Financial Impact, or an older letter's body, each cut at
+    1,200 characters; never the Applicant section or Payment of Taxes; an
+    applicant that isn't plainly an organization is withheld wherever named,
+    as is a name after a courtesy title; Jason, 2026-11-11); `cities/` holds
+    the profiles.
 - `src/plugins.js` defines plugin tools and deployment configs. Plugins get a
   traced context (`ctx.socrata`, `ctx.http`, `ctx.lookupAddress`), never a raw
   fetch; `test/conformance.js` enforces it. Configs can add but not remove
@@ -182,7 +188,7 @@ generic mode.
   `PRIOR_RESEARCH = "true"`; `"off"` turns the tool off everywhere), `public`
   (answered free-tier questions passing the public-text checks, with
   `PUBLIC_ASK`; the day, the `/q/<id>` link and the sources only, never the
-  question's text), `shared` (D1 `shared_sources`, migration 0005, unapplied,
+  question's text), `shared` (D1 `shared_sources`, migration 0005, applied 2026-11-11,
   keyed by `sourceKey`, behind `SHARED_RESEARCH`; with it off its paths are
   404s and the session and answer body carry nothing new). With every flag
   off, a member's request to the model is what it was before. A public
@@ -202,6 +208,19 @@ generic mode.
   once (whether or not shared research is still on), and re-sharing, by any
   spelling, never revives it. A path segment of digits only is read as a
   page id, not a house number (`/6267/MacArthur-Center` carries over).
+  `telemetry.js` writes one JSON line per answer to Workers Logs with
+  `TELEMETRY = "true"` (Jason, 2026-11-11: "set up otel logging to
+  Cloudflare now that we have workers Paid"): tier, model, steps, time,
+  cost, tool counts, partial or not, case files read, follow-ups, dropped
+  links, and up to 8 topic words, taken only from topic tools' arguments
+  (prior research, capital project, legislation, budget book, ordinance,
+  City news), only when that text passes the public-text checks, and only
+  words found in the adopted budget books and Zoning Ordinance (so a
+  surname never gets through). Never the question, the answer, an account,
+  invite, conversation, IP or address; the footer says so when it's on.
+  `[env.siren.observability]` keeps console output only: invocation logs
+  (request URLs and headers: tokens, a GET search's words, cookies) and
+  traces (outbound URLs: the addresses people look up) stay off.
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
@@ -299,13 +318,13 @@ generic mode.
   invite, a visitor hash, an email account or a conversation. The free tier
   reads both in one request, for the invite gate, and keeps neither with the
   other. `SIREN_DB` holds the free tier's public questions and nothing else
-  reads it; migration 0003 (unapplied) drops the old endorsement tables. With
+  reads it; migration 0003 dropped the old endorsement tables (applied 2026-11-11). With
   `BLUESKY_LOGIN` unset, nothing calls Constellation, the AppView, a PDS or
   D1. Never key anything new under `request:`.
   The free tier (`docs/free-tier.md`, behind `PUBLIC_ASK`, off; Jason
   2026-11-10): Bluesky sign-in plus an invite, and every question and answer
   is public, on Siren's site only: a row in D1 `SIREN_DB` (`questions.js`,
-  migration 0004, unapplied) and a page at `/q/<id>`, listed at `/questions`.
+  migration 0004, applied 2026-11-11) and a page at `/q/<id>`, listed at `/questions`.
   Email sign-in stays the private tier. The browser (the ask client of
   `endorse-client.js`: its own client_id `/question-client-metadata.json`,
   redirect `/questions`, and the scope `repo:<QUESTION_NSID>?action=create&action=delete`)

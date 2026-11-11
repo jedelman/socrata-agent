@@ -192,12 +192,38 @@ LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jaso
 # PUBLIC_ASK; sources people share from their answers ("Share these
 # sources") need SHARED_RESEARCH = "true", added by a PR after migration
 # 0005 is applied. PRIOR_RESEARCH = "off" turns the tool off everywhere.
-# PRIOR_RESEARCH = "true"
+# Both on for Siren (Jason, 2026-11-11, "Yep"; migration 0005 applied the
+# same day).
+PRIOR_RESEARCH = "true"
+SHARED_RESEARCH = "true"
 # Siren's origin. Sign-in links, annotation ids, the Bluesky client_id and
 # every endorsement subject URL are built from it. Subjects are fixed from
 # here on: changing it after endorsements exist strands them
 # (docs/bluesky-endorsements.md, "The record").
 PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
+# Telemetry (worker/telemetry.js; Jason, 2026-11-11: "set up otel logging to
+# Cloudflare now that we have workers Paid"): one structured line per answer
+# in Workers Logs (the tools it used, steps, time, cost, partial or not, case
+# files read, and topic words checked against the City's own budget and
+# zoning books), never the question, the answer, an account, an IP or an
+# address. The chat page's footer says so. Remove to stop.
+TELEMETRY = "true"
+
+# Workers Logs (OpenTelemetry-compatible, kept 7 days; persisted logs count
+# toward Cloudflare Observability usage from 2026-12-01). On for console
+# output only: Siren's own lines (the telemetry above, and the fixed error
+# lines). Invocation logs stay off, because they record each request's URL
+# and headers: sign-in and carry-invite tokens, a GET search's words,
+# cookies. Traces stay off too: they record outbound request URLs, and a
+# block report's Socrata queries carry the address someone looked up.
+# https://developers.cloudflare.com/workers/observability/logs/workers-logs/
+# (read 2026-11-11).
+[env.siren.observability]
+enabled = true
+
+[env.siren.observability.logs]
+invocation_logs = false
+head_sampling_rate = 1
 
 [[env.siren.kv_namespaces]]
 binding = "LIMITS"
@@ -205,18 +231,15 @@ id = "d4dfe5ca9b814268a1a1abe052287959"
 
 # The SIREN_DB D1 database. Created 2026-11-09 (ENAM) for the first,
 # server-side endorsement design; migrations 0001 and 0002 applied the same
-# day. Endorsements now live in people's own repos. Migration 0003 drops the
-# old tables and is not applied yet (rollout step 5 checks they're empty
-# first). Kept bound for the planned public board (D9, default, pending
-# Jason): migration 0004 (not applied) holds the free tier's public
-# questions, the only thing the Worker reads here, with PUBLIC_ASK on.
-# Migration 0005 (not applied) holds shared research's sources, read only
-# with SHARED_RESEARCH on.
+# day. Endorsements now live in people's own repos. On 2026-11-11 the old
+# tables were checked empty (0 rows in endorsements, endorsement_counts,
+# bsky_rate_counts and siren_d1_budget), then 0003 (dropping them), 0004 (the
+# free tier's public questions, read with PUBLIC_ASK on) and 0005 (shared
+# research's sources) were applied through the D1 query API and recorded in
+# d1_migrations, so wrangler counts all five applied. Kept bound for the
+# planned public board (D9, default, pending Jason).
 # Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
-# That command applies every pending migration, so the next one applied also
-# applies 0003 and drops the old tables: check they're empty first
-# (docs/bluesky-endorsements.md, Rollout, step 5).
 [[env.siren.d1_databases]]
 binding = "SIREN_DB"
 database_name = "siren"

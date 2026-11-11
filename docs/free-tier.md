@@ -2,8 +2,8 @@
 
 Status: built 2026-11-10, behind `PUBLIC_ASK` (off by default; unset in
 `wrangler.toml`), with instant takedowns the same day ("Deletions as they
-happen"). Migration 0004 is not applied, and the question Lexicon is not
-published: both are rollout steps ("Flags and rollout"). Where the build
+happen"). Migration 0004 was applied 2026-11-11; the question Lexicon is not
+published: that is a rollout step ("Flags and rollout"). Where the build
 made a call this spec didn't settle, "Built as" says which.
 
 ## Jason's decisions (2026-11-10)
