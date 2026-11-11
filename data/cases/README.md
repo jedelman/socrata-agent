@@ -11,8 +11,10 @@ A case file's top-level `reviewed` date says when someone last looked for new
 developments on its topic, and `pending` lists what is reported but not yet
 confirmed in an official record, sources not yet read, and open questions.
 Sources are documents people can read (the City's pages and PDFs, Council
-legislation, state code, news), never a Socrata API or dataset URL: the plugin
-context refuses those, and `test/plugins.test.js` fails on one. A scheduled
+legislation, state code, news), never a Socrata API or dataset URL. A name
+quoted in a news article may be quoted, attributed to the outlet (Jason,
+2026-11-11); from any other source, never name a private person. The plugin
+context refuses Socrata URLs, and `test/plugins.test.js` fails on one. A scheduled
 Claude Code routine compiles new case files and updates existing ones, one
 draft pull request at a time (`docs/case-file-routine.md`); open an issue
 labeled `case-file` with a question to ask for one.

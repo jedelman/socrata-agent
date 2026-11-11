@@ -133,7 +133,31 @@ export default {
       // lists: nothing (letters to owners within 300 ft are mentioned, not
       // listed).
       'www.norfolk.gov/DocumentCenter',
+      // The City's own project pages, one page at a time (Jason, 2026-11-11:
+      // "Yep. Have the routine vet them."). Each is a page id with its slug,
+      // so the prefix matches that page and nothing else; the case-file
+      // routine proposes more after the same vetting (docs/case-file-routine.md).
+      // Read 2026-11-11: the MacArthur Center redevelopment overview, timeline,
+      // design vision and document list; they name only the Mayor, in office.
+      'www.norfolk.gov/6267/MacArthur-Center',
+      'www.norfolk.gov/6702/Project-Overview',
+      // News, by section only (Jason, 2026-11-11: "If a name is quoted in a
+      // news article it's public info and OK to quote. News orgs have vetting
+      // and fact checking liabilities that we can gate on."). A whole news
+      // site isn't listed: WHRO and Virginia Business both carry crime and
+      // court stories naming people, which would let a search look someone
+      // up (the people-finding line in CLAUDE.md). Probed 2026-11-11 with
+      // Anthropic's web search: whro.org whole returned arrest and shooting
+      // stories; whro.org/local-government returned none for "arrested
+      // charged police shooting" and Council coverage for "Norfolk City
+      // Council vote". The case-file routine proposes other sections after
+      // the same probe.
+      'whro.org/local-government',
     ],
+    // Which allowedDomains entries are news sections: the prompt gives them
+    // their own rules (attribute to the outlet with the date; names the
+    // article quotes may be quoted).
+    newsDomains: ['whro.org/local-government'],
     maxUses: 3,
   },
   contacts: [],
