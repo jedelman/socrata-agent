@@ -372,3 +372,29 @@ test('every case file is served by case_file, and every plugin is in Siren', asy
     assert.ok(served.has(mod.default.name), `plugins/${f} (${mod.default.name}) is not in deployments/siren.config.js`);
   }
 });
+
+// A case file's sources go into the hand-off through the plugin context, which
+// refuses Socrata hosts and API paths (dataset links come only through
+// ctx.socrata, so the dataset policy applies). A case file citing one would
+// make case_file throw for every question about it; cite the City's published
+// document instead (the CIP's PDF, not the CIP dataset).
+test('every case-file source passes the plugin URL guard, and every finding has the fields theRecord needs', async () => {
+  const { CASES } = await import('../plugins/case-file.js');
+  const { guardPluginUrl } = await import('../src/plugins.js');
+  const { getCity } = await import('../src/cities/index.js');
+  const norfolk = getCity('norfolk');
+  const stances = new Set(['confirms', 'weakens', 'context', 'who_decides', 'rules']);
+  for (const doc of Object.values(CASES)) {
+    const ids = new Set();
+    for (const f of doc.findings) {
+      assert.doesNotThrow(() => guardPluginUrl(norfolk, f.source.url), `${doc.id}/${f.id}: ${f.source.url}`);
+      assert.ok(stances.has(f.stance), `${doc.id}/${f.id}: stance ${f.stance}`);
+      // An unverified finding may still lack its quote (theRecord serves it as "not yet verified").
+      for (const k of ['id', 'claim', 'found_by', ...(f.unverified ? [] : ['quote'])]) assert.ok(typeof f[k] === 'string' && f[k], `${doc.id}/${f.id}: ${k}`);
+      assert.ok(f.source.title, `${doc.id}/${f.id}: source title`);
+      assert.ok(!ids.has(f.id), `${doc.id}: duplicate finding id ${f.id}`);
+      ids.add(f.id);
+    }
+    for (const h of doc.what_would_help || []) assert.ok(!h.finding || ids.has(h.finding), `${doc.id}: what_would_help names ${h.finding}`);
+  }
+});
