@@ -108,8 +108,8 @@ export function covers(a, b) {
 export function webSearchSettings(block) {
   if (block == null) return null;
   if (typeof block !== 'object' || Array.isArray(block)) throw new Error('webSearch must be an object: { allowedDomains: [...], maxUses }.');
-  const unknown = Object.keys(block).filter((k) => k !== 'allowedDomains' && k !== 'maxUses');
-  if (unknown.length) throw new Error(`webSearch takes only allowedDomains and maxUses (got ${unknown.join(', ')}). It is an allowlist; there is no blocklist form.`);
+  const unknown = Object.keys(block).filter((k) => k !== 'allowedDomains' && k !== 'maxUses' && k !== 'newsDomains');
+  if (unknown.length) throw new Error(`webSearch takes only allowedDomains, maxUses and newsDomains (got ${unknown.join(', ')}). It is an allowlist; there is no blocklist form.`);
   const list = block.allowedDomains;
   if (!Array.isArray(list) || !list.length) throw new Error('webSearch.allowedDomains must list at least one domain: web search runs only behind an allowlist.');
   if (list.length > MAX_ALLOWED_DOMAINS) throw new Error(`webSearch.allowedDomains lists ${list.length} domains; keep it to ${MAX_ALLOWED_DOMAINS} or fewer.`);
@@ -126,7 +126,16 @@ export function webSearchSettings(block) {
   );
   const maxUses = block.maxUses;
   if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > MAX_USES_CAP) throw new Error(`webSearch.maxUses must be a whole number from 1 to ${MAX_USES_CAP}.`);
-  return Object.freeze({ allowedDomains: Object.freeze([...list]), maxUses });
+  // News sections (Jason, 2026-11-11): reporting by news organizations, whose
+  // own editing and liability are the gate. Each is also an allowedDomains
+  // entry (the API's list is one list); the prompt tells Siren how to use them.
+  const news = block.newsDomains;
+  if (news != null) {
+    if (!Array.isArray(news) || !news.length) throw new Error('webSearch.newsDomains, when given, must list at least one allowedDomains entry.');
+    for (const n of news) if (!list.includes(n)) throw new Error(`webSearch.newsDomains entry ${JSON.stringify(n)} must also be an allowedDomains entry, spelled the same.`);
+    if (new Set(news).size !== news.length) throw new Error('webSearch.newsDomains lists an entry twice.');
+  }
+  return Object.freeze({ allowedDomains: Object.freeze([...list]), maxUses, ...(news ? { newsDomains: Object.freeze([...news]) } : {}) });
 }
 
 /**

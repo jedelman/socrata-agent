@@ -8,7 +8,7 @@ import * as nodeModule from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ask, BUDGET_STOP_NOTE } from '../src/agent.js';
-import { systemPrompt } from '../src/prompt.js';
+import { systemPrompt, NEWS_LINE } from '../src/prompt.js';
 import { getCity } from '../src/cities/index.js';
 import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { afterFallback, priceUsage, PRICES } from '../src/providers/anthropic.js';
@@ -90,7 +90,12 @@ test('webSearch config: bad domains, lists and limits are refused with a reason'
   bad(['example.com/blog', 'example.com/blog/2026'], /already covered/);
   for (const maxUses of [0, 11, 2.5, '3', null]) bad(['fema.gov'], /maxUses/, maxUses);
   assert.throws(() => webSearchSettings({ allowedDomains: ['fema.gov'] }), /maxUses/, 'maxUses is required: a deployment states its bound');
-  assert.throws(() => webSearchSettings({ allowedDomains: ['fema.gov'], maxUses: 3, blockedDomains: ['x.com'] }), /only allowedDomains and maxUses.*no blocklist/);
+  assert.throws(() => webSearchSettings({ allowedDomains: ['fema.gov'], maxUses: 3, blockedDomains: ['x.com'] }), /only allowedDomains, maxUses and newsDomains.*no blocklist/);
+  // newsDomains: each one an allowedDomains entry, spelled the same, listed once.
+  assert.throws(() => webSearchSettings({ allowedDomains: ['fema.gov'], maxUses: 3, newsDomains: ['whro.org/local-government'] }), /must also be an allowedDomains entry/);
+  assert.throws(() => webSearchSettings({ allowedDomains: ['fema.gov', 'whro.org/local-government'], maxUses: 3, newsDomains: [] }), /at least one/);
+  assert.throws(() => webSearchSettings({ allowedDomains: ['fema.gov', 'whro.org/local-government'], maxUses: 3, newsDomains: ['whro.org/local-government', 'whro.org/local-government'] }), /twice/);
+  assert.deepEqual(webSearchSettings({ allowedDomains: ['fema.gov', 'whro.org/local-government'], maxUses: 3, newsDomains: ['whro.org/local-government'] }).newsDomains, ['whro.org/local-government']);
   assert.throws(() => webSearchSettings(['fema.gov']), /must be an object/);
   assert.throws(() => webSearchSettings('fema.gov'), /must be an object/);
 });
@@ -114,8 +119,15 @@ test("every deployment's webSearch block validates against its city; Siren's is 
   }
   const s = webSearchConfig(siren, applyConfig(norfolk, siren));
   assert.equal(s.maxUses, 3);
-  // Official public sites: .gov hosts, some by path.
-  assert.ok(s.allowedDomains.every((d) => /^[^/]+\.gov(\/|$)/.test(d)), s.allowedDomains.join(' '));
+  // Official public sites: .gov hosts, some by path; and news sections, listed in newsDomains
+  // (Jason, 2026-11-11), each by a path that holds local government reporting only.
+  const news = s.newsDomains || [];
+  assert.ok(s.allowedDomains.filter((d) => !news.includes(d)).every((d) => /^[^/]+\.gov(\/|$)/.test(d)), s.allowedDomains.join(' '));
+  assert.deepEqual(news, ['whro.org/local-government']);
+  assert.ok(news.every((d) => d.includes('/')), 'a news site is listed by section, never whole: whole sites carry crime pages that name people');
+  // The City's own project pages, one page at a time (Jason, 2026-11-11: "Yep. Have the routine vet them.").
+  for (const url of ['https://www.norfolk.gov/6267/MacArthur-Center', 'https://www.norfolk.gov/6702/Project-Overview', 'https://www.whro.org/local-government/2026-07-20/260720-macarthur-redev-saunders']) assert.ok(urlAllowed(url, s.allowedDomains), url);
+  for (const url of ['https://www.norfolk.gov/CivicAlerts.aspx?AID=10022', 'https://www.norfolk.gov/6268/Other-Page', 'https://www.whro.org/local-news/2022-09-23/x', 'https://www.whro.org/2026-02-19/arrest']) assert.ok(!urlAllowed(url, s.allowedDomains), url);
   assert.ok(!s.allowedDomains.some((d) => d.includes('nrha.org')), 'nrha.org is not the housing authority');
   const allowed = [
     'https://law.lis.virginia.gov/vacode/title15.2/', 'https://lis.virginia.gov/bill-details/20261/HB549/text/CHAP0626',
@@ -741,4 +753,17 @@ test("the page says where questions go when the deployment states it (Siren: Ant
   assert.ok(html.includes('<p>Each question, and what Siren finds for it, goes to Anthropic, whose model writes the answer. Anthropic keeps them for 30 days and may review them for safety and security.</p>'), 'Siren states it');
   const plain = await get({});
   assert.ok(!plain.includes('Anthropic keeps') && !plain.includes('{{DATA_NOTE}}'), 'a deployment without a note shows none');
+});
+
+test('news sections get their own prompt line, apart from the official sites; without them the prompt is as before', () => {
+  const news = webSearchSettings({ allowedDomains: ['law.lis.virginia.gov', 'whro.org/local-government'], maxUses: 3, newsDomains: ['whro.org/local-government'] });
+  const p = systemPrompt(norfolk, '2026-11-11', { webSearch: news });
+  assert.ok(p.includes('limited to these official sites: law.lis.virginia.gov.'), 'a news section is not an official site');
+  assert.ok(p.includes(NEWS_LINE(['whro.org/local-government'])));
+  assert.match(NEWS_LINE(['x']), /attribute it to the outlet with the article's date/);
+  assert.match(NEWS_LINE(['x']), /You may quote a name the article itself quotes/);
+  assert.match(NEWS_LINE(['x']), /Never use news to look up a person/);
+  const plain = systemPrompt(norfolk, '2026-11-11', { webSearch: webSearchSettings({ allowedDomains: ['law.lis.virginia.gov'], maxUses: 3 }) });
+  assert.ok(!plain.includes('news organizations'));
+  assert.ok(plain.includes('limited to these official sites: law.lis.virginia.gov.'));
 });

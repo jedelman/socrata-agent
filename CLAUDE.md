@@ -74,6 +74,14 @@ generic mode.
   are listed; the last holds Planning staff reports naming land-use
   applicants, which Jason accepted for the PDF forms (2026-11-10), and the
   prompt asks Siren not to repeat a private person's name from a page.
+  The City's project pages are listed one page at a time
+  (`www.norfolk.gov/<id>/<Page-Name>`, vetted for private names; MacArthur's
+  two since 2026-11-11), and news by section only, in `newsDomains`
+  (`whro.org/local-government`; whole news sites carry crime stories that
+  name people). Jason, 2026-11-11: a name quoted in a news article may be
+  quoted, attributed to the outlet; the prompt's `NEWS_LINE` says so and
+  forbids using news to look anyone up. The case-file routine vets and
+  proposes new pages and sections in its draft PRs.
 - **Request budget.** Every fetch on an answer goes through its one counting
   fetch (`src/request-budget.js`, `SUBREQUEST_BUDGET`, default 120 on Workers Paid;
   45 if ever on Free's 50); don't give a tool, plugin or provider a fetch that skips it.
@@ -417,7 +425,9 @@ generic mode.
   checks every source). A scheduled routine, "Siren: compile and update case
   files" (twice a week, one draft PR at most; prompt copied in
   `docs/case-file-routine.md`; Jason, 2026-11-11), works from each file's
-  `pending` list and `reviewed` date and from open `case-file` issues. The
+  `pending` list and `reviewed` date, open `case-file` issues, and topics it
+  finds itself in public signals (shared research, source requests, coming
+  Council decisions, City and WHRO news). The
   snapshot tests leave out case files added after them
   (`test/fixtures/cases-at-snapshot.js`), so a new case file needs no retake.
 - `data/documents/*.json` are Norfolk's ordinances (the Zoning Ordinance so
