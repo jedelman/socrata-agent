@@ -34,6 +34,8 @@ export const QUERY_MIN = 2;
 export const QUERY_MAX = 100;
 /** Terms a query is cut to, at most. */
 export const MAX_TERMS = 6;
+/** Searches one answer may run: each reads up to 100 conversations and two D1 queries. */
+export const MAX_CALLS = 2;
 
 /** What each scope is called in a tool result and in the trace. */
 export const SCOPE_LABELS = Object.freeze({
@@ -169,6 +171,8 @@ export async function priorResearch(ctx, args = {}) {
   const scopes = RESEARCH_SCOPES.filter((s) => (pr.scopes || []).includes(s));
   const parsed = researchTerms(args.query, { cityName: ctx.city?.name });
   if (parsed.error) return { error: parsed.error };
+  ctx.priorCalls = (ctx.priorCalls || 0) + 1;
+  if (ctx.priorCalls > MAX_CALLS) return { error: `Earlier research was already searched ${MAX_CALLS} times for this answer. Use what it returned, and your other tools.` };
   const today = new Date().toISOString().slice(0, 10);
   let found = {};
   await ctx.trace.record(

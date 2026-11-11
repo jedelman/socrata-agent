@@ -21,7 +21,8 @@ on with its own tools, or gives the day the source was read ("as of
 `prior_research` (`src/prior-research.js`) takes `{query}`: a few keywords naming
 a place, project or topic. The words become terms (three letters or more, no
 stop words, not the city's own name, six at most). A match needs at least half
-of them. Every result is labelled with its scope:
+of them. An answer may search at most twice. Every result is labelled with
+its scope:
 
 | Scope | What it reads | When it's on |
 |---|---|---|

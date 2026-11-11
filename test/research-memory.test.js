@@ -193,6 +193,12 @@ test('a public thread: no account scope, no words in the trace; nothing found sa
   const step = out.trace.find((t) => /earlier research/.test(t.tool));
   assert.equal(step.soql, undefined);
   assert.deepEqual(JSON.parse(out.toolResults[0].content), { searched: ['public'], results: [], note: NOTHING_FOUND });
+  // At most MAX_CALLS searches an answer: the third is refused before any read.
+  const many = scripted([{ tools: [['prior_research', { query: 'MacArthur' }], ['prior_research', { query: 'MacArthur mall' }], ['prior_research', { query: 'MacArthur center' }]] }, { text: 'ok' }]);
+  asked.length = 0;
+  const m = await ask({ question: 'q', city: norfolk, apiKey: 'k', fetchImpl: many.fetchImpl, priorResearch: pr });
+  assert.equal(asked.length, 2);
+  assert.match(JSON.parse(m.toolResults[2].content).error, /already searched 2 times/);
   // Without the Worker's search the tool isn't declared, and a call to it is an error, whatever the model sends.
   const off = scripted([{ tools: [['prior_research', { query: 'MacArthur' }]] }, { text: 'ok' }]);
   const o = await ask({ question: 'q', city: norfolk, apiKey: 'k', fetchImpl: off.fetchImpl });
