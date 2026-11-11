@@ -19,8 +19,18 @@ import { requestBudget } from './request-budget.js';
 import { webSearchSettings, checkWebSearchForCity, traceSearches, handOffWebPages } from './web-search.js';
 import { filterAnswerLinks, handoffUrls } from './answer-links.js';
 import { finalFollowups } from './followups.js';
+import { RESEARCH_SCOPES } from './prior-research.js';
 
 export const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
+
+/**
+ * The research scopes an answer may search: those `priorResearch` names
+ * (with a search function), never 'account' on a public thread.
+ */
+export function researchScopesFor(priorResearch, publicThread = false) {
+  if (!priorResearch || typeof priorResearch.search !== 'function') return [];
+  return RESEARCH_SCOPES.filter((s) => (priorResearch.scopes || []).includes(s) && !(publicThread && s === 'account'));
+}
 const RESULT_CHARS = 16000;
 
 /** Which API serves a model: "claude-..." ids go to Anthropic directly, the rest to OpenRouter. */
@@ -106,6 +116,11 @@ export function budgetNote({ limit, refused }) {
  * free tier reads the asker's question record through it); the answer then
  * counts on it, and `subrequestBudget` and `fetchImpl` are not used. Unset,
  * the answer starts its own, as before.
+ * `priorResearch` (off by default) is the Worker's research memory: {
+ * scopes, search(terms, { scopes }), private } (src/prior-research.js,
+ * worker/research.js). It declares the prior_research tool and its prompt
+ * line; a public thread never gets the 'account' scope, and the trace shows
+ * the words searched only when `private` is set. Off, everything is as before.
  * `onEvent` hears the answer's progress, each event with `step`, the model
  * call it belongs to (counted from 0; a step's tools follow its thinking):
  *   { type: 'thinking', step, text }  a delta of the model's summarized
@@ -149,6 +164,7 @@ export async function ask({
   webSearch = null,
   budget: given = null,
   publicThread = false,
+  priorResearch = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // Checked whatever the model, so a bad list fails here; declared only for
@@ -203,12 +219,17 @@ export async function ask({
   // Tool requests stop while enough is left for the model calls that finish
   // the answer: the final answer at its worst, and one voice rewrite call.
   budget.setReserve(perComplete + perCall);
-  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}) };
+  // Research memory (src/prior-research.js): the Worker's search over the
+  // scopes this answer may read. A public thread never reads an account's.
+  const researchScopes = researchScopesFor(priorResearch, publicThread);
+  if (researchScopes.length) ctx.priorResearch = { scopes: researchScopes, search: priorResearch.search, private: !publicThread && priorResearch.private === true };
+  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}), ...(researchScopes.length ? { priorResearch: true } : {}) };
+  const toolOpts = { ...(gapsOn ? { gaps: gaps.data } : {}), ...(researchScopes.length ? { priorResearch: { scopes: researchScopes } } : {}) };
   llm.init({
     systemPrompt: Object.keys(promptOpts).length ? systemPrompt(city, today, promptOpts) : systemPrompt(city, today),
     history,
     question,
-    toolDefs: gapsOn ? toolsFor(city, plugins, { gaps: gaps.data }) : toolsFor(city, plugins),
+    toolDefs: Object.keys(toolOpts).length ? toolsFor(city, plugins, toolOpts) : toolsFor(city, plugins),
   });
   let cost = 0;
   let answer = '';

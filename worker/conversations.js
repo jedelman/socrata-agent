@@ -5,8 +5,10 @@
 // 2026-11-10, "For private conversations let's store indefinitely on behalf of
 // the user, since there's no discovery; deletion is on request." A deployment
 // that sets CONVERSATION_DAYS keeps them that many days instead. Nothing in it
-// goes into any shared memory; shared findings come only through reviewed
-// case files.
+// goes into any shared memory but by the person's own click: research memory
+// (docs/research-memory.md) reads an account's conversations only for that
+// account's own answers, and shares one answer's sources only when the person
+// clicks "Share these sources" (worker/research.js).
 //
 // Each key carries metadata (title, turns, updated, city), so the list reads
 // the account's keys, never its conversations. The list pages newest-updated
@@ -32,6 +34,7 @@
 
 import { boundary, hmacHex } from './crypto.js';
 import { unescapeMarkdown } from '../src/answer-links.js';
+import { topicSources, scoreTexts, enough, MAX_MATCHES } from '../src/prior-research.js';
 
 /** Turns kept in a conversation; the oldest drop past it. */
 export const MAX_TURNS = 50;
@@ -88,7 +91,12 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
     })),
     resources: {
       datasets: (r.datasets || []).slice(0, 20).map((d) => ({ id: clip(d.id, 20), name: clip(d.name, 200), page: clip(d.page, 500), docs: clip(d.docs, 500), csv: clip(d.csv, 500), department: clip(d.department, 200), queries: (d.queries || []).slice(0, 5).map((q) => clip(q, 2000)) })),
-      records: (r.records || []).slice(0, 30).map((x) => ({ title: clip(x.title, 300), url: clip(x.url, 2000), kind: clip(x.kind, 40), page_age: clip(x.page_age, 60) })),
+      // Records the answer read, then at most 10 earlier research pointers
+      // (src/prior-research.js), so pointers never crowd out what was read.
+      records: [
+        ...(r.records || []).filter((x) => x?.kind !== 'earlier').slice(0, 30),
+        ...(r.records || []).filter((x) => x?.kind === 'earlier').slice(0, 10),
+      ].map((x) => ({ title: clip(x.title, 300), url: clip(x.url, 2000), kind: clip(x.kind, 40), page_age: clip(x.page_age, 60), ...(x.kind === 'earlier' && /^\d{4}-\d{2}-\d{2}$/.test(String(x.read)) ? { read: x.read } : {}) })),
       contacts: (r.contacts || []).slice(0, 20).map((c) => ({ role: clip(c.role, 200), name: clip(c.name, 200), email: clip(c.email, 200), phone: clip(c.phone, 60), url: clip(c.url, 500), note: clip(c.note, 300) })),
       links: (r.links || []).slice(0, 20).map((l) => ({ title: clip(l.title, 300), url: clip(l.url, 2000) })),
     },
@@ -419,9 +427,9 @@ export async function searchConversations(kv, uid, folded, { scan = SEARCH_SCAN,
  * keys, or to its own counters on other days; every key of a day expires at
  * the same boundary, two days on.
  */
-export async function chargeSearch(kv, secret, uid, { now = Date.now(), daily = SEARCH_DAILY } = {}) {
+export async function chargeSearch(kv, secret, uid, { now = Date.now(), daily = SEARCH_DAILY, name = 'search-rate' } = {}) {
   const day = new Date(now).toISOString().slice(0, 10);
-  const k = `search-rate:${day}:${await hmacHex(secret, `search-rate:${day}:${uid}`, 32)}`;
+  const k = `${name}:${day}:${await hmacHex(secret, `${name}:${day}:${uid}`, 32)}`;
   const used = Number((await kv.get(k)) || 0);
   if (used >= daily) return 'limit';
   try {
@@ -430,6 +438,43 @@ export async function chargeSearch(kv, secret, uid, { now = Date.now(), daily = 
     return 'busy';
   }
   return 'ok';
+}
+
+// ---- Research memory: the account's own earlier research ----
+
+/** Conversations prior_research reads at most for the account scope: the newest by updated. */
+export const RESEARCH_SCAN = 100;
+
+/**
+ * The account's own earlier research for prior_research (src/prior-research.js):
+ * the turns of its RESEARCH_SCAN newest conversations, other than `exclude`
+ * (the one being answered), whose question, answer or source titles hold
+ * enough of the terms, best first, then newest. Each is { day, question,
+ * sources }: the account's own question and the sources that turn's
+ * hand-off read (records of the topic kinds and dataset pages, never an
+ * earlier pointer, a CSV or a contact), each with the day read. Never the
+ * answer's text. Reads only conv:<uid>:..., so only the account's own.
+ */
+export async function researchInConversations(kv, uid, terms, { exclude = null, scan = RESEARCH_SCAN, limit = MAX_MATCHES } = {}) {
+  if (!uid || !Array.isArray(terms) || !terms.length) return [];
+  const pool = (await conversationIndex(kv, uid)).filter((c) => c.id !== exclude).slice(0, scan);
+  const found = [];
+  for (let i = 0; i < pool.length; i += READ_BATCH) {
+    const batch = pool.slice(i, i + READ_BATCH);
+    const convs = await Promise.all(batch.map((c) => kv.get(key(uid, c.id), 'json')));
+    for (const conv of convs) {
+      for (const t of Array.isArray(conv?.turns) ? conv.turns : []) {
+        const sources = topicSources(t?.record?.resources || {});
+        if (!sources.length) continue;
+        const score = scoreTexts([t.question, t.answer, ...sources.map((x) => x.title)], terms);
+        if (!enough(score, terms)) continue;
+        const day = String(t.at || '').slice(0, 10);
+        found.push({ score, at: String(t.at || ''), match: { day, question: String(t.question || ''), sources: sources.map((x) => ({ ...x, read: day })) } });
+      }
+    }
+  }
+  found.sort((a, b) => b.score - a.score || (a.at > b.at ? -1 : a.at < b.at ? 1 : 0));
+  return found.slice(0, limit).map((f) => f.match);
 }
 
 /** Delete every conversation the account has. Returns how many. */

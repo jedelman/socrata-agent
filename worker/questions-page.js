@@ -154,13 +154,18 @@ export function resourcesHtml(r = {}) {
     parts.push(`<details><summary>Who to contact <small>(${contacts.length})</small></summary><ul class="plain">${contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${link(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
   const all = Array.isArray(r.records) ? r.records : [];
-  const records = all.filter((x) => x.kind !== 'web');
+  const records = all.filter((x) => x.kind !== 'web' && x.kind !== 'earlier');
   const pages = all.filter((x) => x.kind === 'web');
+  const earlier = all.filter((x) => x.kind === 'earlier');
   if (records.length) {
     parts.push(`<details><summary>Public records <small>(${records.length})</small></summary><ul class="plain">${records.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
   }
   if (pages.length) {
     parts.push(`<details><summary>Web pages <small>(${pages.length})</small></summary><p class="meta">Found by web search, which Anthropic runs, on the official sites this deployment allows. A web page is not a record: it says what it said when the search found it.</p><ul class="plain">${pages.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>${x.page_age ? ` <small>${esc(x.page_age)}</small>` : ''}</li>`).join('')}</ul></details>`);
+  }
+  // Earlier research (prior_research): where earlier answers looked, each with the day it was read.
+  if (earlier.length) {
+    parts.push(`<details><summary>Earlier research <small>(${earlier.length})</small></summary><p class="meta">Where earlier answers looked, with the day each source was read. Not read again for this answer unless the trace shows it.</p><ul class="plain">${earlier.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>${x.read ? ` <small>read ${esc(x.read)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
   const datasets = Array.isArray(r.datasets) ? r.datasets : [];
   if (datasets.length) {

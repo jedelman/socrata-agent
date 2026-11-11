@@ -14,11 +14,12 @@ try {
 }
 export const hasSqlite = Boolean(sqlite?.DatabaseSync);
 
-const MIGRATION = new URL('../migrations/0004_public_questions.sql', import.meta.url);
+const MIGRATION = '0004_public_questions.sql';
 
-export function fakeD1() {
+/** `migrations`: the files under migrations/ to apply, in order (default: the free tier's 0004). */
+export function fakeD1({ migrations = [MIGRATION] } = {}) {
   const db = new sqlite.DatabaseSync(':memory:');
-  db.exec(readFileSync(MIGRATION, 'utf8'));
+  for (const m of migrations) db.exec(readFileSync(new URL(`../migrations/${m}`, import.meta.url), 'utf8'));
   const log = [];
   const binding = { db, log, fail: false };
   const plain = (r) => (r ? { ...r } : null);

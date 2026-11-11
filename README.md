@@ -39,6 +39,16 @@ mentions a source it hasn't read but its tools can open, the page shows a
 (`offer_followup`); a source it can't reach gets the **Ask for this source**
 card instead (`suggest_data_source`).
 
+In the web app, an answer can start from earlier research
+(`prior_research`, [docs/research-memory.md](docs/research-memory.md)): where
+your own earlier conversations, public answers and sources other people shared
+looked, each with the day it was read. Never what an earlier answer
+concluded: Siren re-reads a source or says how old it is. Those sources show
+under **Earlier research**. With shared research on, a saved answer has a
+**Share these sources** button: it shares the sources' titles and links only,
+never your question or the answer, and leaves out anything that could point
+at an address.
+
 ## Three ways to use it
 
 ### 1. The web app (for everyone)

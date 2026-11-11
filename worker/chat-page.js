@@ -97,13 +97,18 @@ function renderResources(r) {
   if (r.contacts?.length) {
     parts.push(`<details open><summary>Who to contact <small>(${r.contacts.length})</small></summary><ul class="plain">${r.contacts.map((c) => `<li><span class="role">${esc(c.role)}</span>${[c.name && esc(c.name), c.email && `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`, c.phone && `<a href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}">${esc(c.phone)}</a>`, c.url && `<a href="${link(c.url)}" target="_blank" rel="noopener">website</a>`].filter(Boolean).join(' · ')}${c.note ? `<br><small>${esc(c.note)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
-  const records = (r.records || []).filter((x) => x.kind !== 'web');
+  const records = (r.records || []).filter((x) => x.kind !== 'web' && x.kind !== 'earlier');
   const pages = (r.records || []).filter((x) => x.kind === 'web');
+  const earlier = (r.records || []).filter((x) => x.kind === 'earlier');
   if (records.length) {
     parts.push(`<details><summary>Public records <small>(${records.length})</small></summary><ul class="plain">${records.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></li>`).join('')}</ul></details>`);
   }
   if (pages.length) {
     parts.push(`<details><summary>Web pages <small>(${pages.length})</small></summary><p class="meta">Found by web search, which Anthropic runs, on the official sites this deployment allows. A web page is not a record: it says what it said when the search found it.</p><ul class="plain">${pages.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>${x.page_age ? ` <small>${esc(x.page_age)}</small>` : ''}</li>`).join('')}</ul></details>`);
+  }
+  // Earlier research (prior_research): where earlier answers looked, each with the day it was read.
+  if (earlier.length) {
+    parts.push(`<details><summary>Earlier research <small>(${earlier.length})</small></summary><p class="meta">Where earlier answers looked, with the day each source was read. Not read again for this answer unless the trace shows it.</p><ul class="plain">${earlier.map((x) => `<li><a href="${link(x.url)}" target="_blank" rel="noopener">${esc(x.title || x.url)}</a>${x.read ? ` <small>read ${esc(x.read)}</small>` : ''}</li>`).join('')}</ul></details>`);
   }
   if (r.datasets?.length) {
     parts.push(`<details><summary>Download the data <small>(${r.datasets.length} datasets)</small></summary><ul class="plain">${r.datasets.map((d) => `<li><strong>${esc(d.name || d.id)}</strong>${d.department ? ` <small>from ${esc(d.department)}</small>` : ''}<div class="links"><a href="${link(d.page)}" target="_blank" rel="noopener">dataset page</a>${d.csv ? `<a href="${link(d.csv)}">full CSV</a>` : ''}${(d.queries || []).map((q, i) => `<a href="${link(q)}">these rows${d.queries.length > 1 ? ` (${i + 1})` : ''} as CSV</a>`).join('')}<a href="${link(d.docs)}" target="_blank" rel="noopener">API docs</a></div></li>`).join('')}</ul></details>`);
@@ -143,6 +148,33 @@ $('#log').addEventListener('submit', async (e) => {
     f.querySelector('button').disabled = true;
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
+// Sharing an answer's sources with shared research (worker/research.js;
+// only when the site has it on and the answer is a saved turn of this
+// account's conversation). The person's own click, never a prompt: the
+// Worker reads the sources from the saved turn, never from this page, and
+// keeps their titles and links only, without anything that could point at
+// an address, and never the question or the answer.
+function renderShare(conv, at) {
+  if (!session.share_research || !conv || !at) return '';
+  return `<form class="share-sources" data-conv="${esc(conv)}" data-at="${esc(at)}"><p class="fine">Share the sources this answer read with the shared research other people's answers start from: their titles and links only, never your question or this answer. Sources that could point at an address are left out.</p><div class="row"><button class="ask" type="submit">Share these sources</button><span class="msg" role="status"></span></div></form>`;
+}
+$('#log').addEventListener('submit', async (e) => {
+  const f = e.target.closest('form.share-sources');
+  if (!f) return;
+  e.preventDefault();
+  const b = f.querySelector('button');
+  if (b.disabled) return;
+  b.disabled = true;
+  const msg = f.querySelector('.msg');
+  msg.textContent = 'Sharing…';
+  try {
+    const { res, data } = await postJson('api/research/share', { conversation: f.dataset.conv, at: f.dataset.at });
+    // Still saving (409), a limit or a server error: the button can be tried again.
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; if (res.status === 409 || res.status === 429 || res.status >= 500) b.disabled = false; return; }
+    msg.className = 'msg ok';
+    msg.textContent = data.shared ? `Shared ${data.shared} source${data.shared === 1 ? '' : 's'}. Thank you.` : 'This answer read no sources that can be shared.';
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; b.disabled = false; }
+});
 // A follow-up offer: its question goes as the next message in this
 // conversation, exactly as if typed, once. Model output can't make one: an
 // answer's markup keeps no buttons or data attributes.
@@ -179,7 +211,7 @@ function renderAnswer(answer, r, at) {
   const when = at ? `${esc(String(at).slice(0, 16).replace('T', ' '))} UTC` : '';
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
-  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderFollowups(r.followups)}${renderSuggestions(r.suggestions)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
+  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderFollowups(r.followups)}${renderSuggestions(r.suggestions)}${renderShare(conversationId, at || r.at)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
 }
 // A web search step (web search on). Its tool name is WEB_SEARCH_STEP in
 // src/web-search.js (test/web-search.test.js keeps the two the same). The

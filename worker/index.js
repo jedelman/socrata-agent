@@ -50,7 +50,13 @@ import {
   loadConversation, saveTurn, historyFrom, pageConversations, deleteConversation, deleteAllConversations, newConversationId, turnView,
   searchQuery, searchConversations, chargeSearch, SEARCH_DAILY,
 } from './conversations.js';
+// Research memory (docs/research-memory.md): imported as code here, above
+// the text block (it imports crypto.js and atproto-oauth.js through its
+// own imports), like every shared module.
+import { priorResearchFor, sharedResearchOn, sharedResearchReady, handleShare, handleResearchList, handleAdminResearch } from './research.js';
+import { researchScopesFor } from '../src/agent.js';
 import REQUESTS_PAGE from './requests.html';
+import ADMIN_RESEARCH_PAGE from './admin-research.html';
 import QUESTIONS_PAGE from './questions.html';
 import ADMIN_QUESTIONS_PAGE from './admin-questions.html';
 // The requests page's module and style, and the browser OAuth client with
@@ -71,6 +77,7 @@ import CHAT_CSS from './chat.css' with { type: 'text' };
 import QUESTIONS_JS from './questions-page.js' with { type: 'text' };
 import QUESTIONS_CSS from './questions.css' with { type: 'text' };
 import ADMIN_QUESTIONS_JS from './admin-questions.js' with { type: 'text' };
+import ADMIN_RESEARCH_JS from './admin-research.js' with { type: 'text' };
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
 import STORE_JS from './endorse-store.js' with { type: 'text' };
 import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
@@ -245,16 +252,27 @@ async function handleAsk(req, env, ctx) {
   }
 
   const gapsOn = deployment.gaps?.enabled === true && GAPS[cityId];
+  // Research memory (research.js): the account's own conversations (not this
+  // one), public answers and shared sources, as far as each is on.
+  const priorResearch = priorResearchFor(env, {
+    uid, city: cityId, exclude: conversationId, streets: STREETS[cityId], publicOn: publicAskReady(env), private: true,
+    pageBase: `${siteOrigin(env, new URL(req.url))}${basePath(env)}`,
+  });
+  const research = priorResearch ? { priorResearch } : {};
   // Built inside each path's try, as before, so a failure here is an error body.
-  const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId) });
+  const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId), ...research });
   // The response body, and the conversation save (started, not awaited).
+  // With shared research on, the body names the saved turn (`at`), so the
+  // page can offer to share its sources.
   const finish = (out) => {
     const { toolResults, ...answer } = out;
+    const now = Date.now();
     const save = conversationId
-      ? saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS })
+      ? saveTurn(kv, uid, conversationId, conversation, { city: cityId, question, answer: out.answer, tools: toolResults, record: answer }, { days: env.CONVERSATION_DAYS, now })
         .catch((err) => console.error('saving the conversation failed', err))
       : null;
-    return { save, body: { city: cityId, ...answer, ...(conversationId ? { conversation: conversationId } : {}) } };
+    const at = conversationId && sharedResearchReady(env) ? { at: new Date(now).toISOString() } : {};
+    return { save, body: { city: cityId, ...answer, ...(conversationId ? { conversation: conversationId } : {}), ...at } };
   };
 
   // Spend is recorded per paid call, as it happens (one KV key each, so
@@ -277,7 +295,8 @@ async function handleAsk(req, env, ctx) {
       try {
         const args = askArgs();
         // The tools this answer declares: a tool line names only one of these.
-        const known = new Set(toolsFor(args.city, plugins, gapsOn ? { gaps: GAPS[cityId] } : {}).map((t) => t.function.name));
+        const scopes = researchScopesFor(priorResearch);
+        const known = new Set(toolsFor(args.city, plugins, { ...(gapsOn ? { gaps: GAPS[cityId] } : {}), ...(scopes.length ? { priorResearch: { scopes } } : {}) }).map((t) => t.function.name));
         const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true }));
         if (save) await save;
         send({ type: 'final', body });
@@ -342,6 +361,13 @@ function answerArgs(env, req, cityId) {
 function publicAskDeps(req, env, base) {
   const { config: deployment } = getDeployment(env);
   const model = env.MODEL || deployment.model;
+  // Research memory for a public answer: public answers and shared sources,
+  // never an account's (ask() refuses 'account' on a public thread too), and
+  // the trace never shows the words searched.
+  const publicResearch = (cityId) => {
+    const priorResearch = priorResearchFor(env, { city: cityId, streets: STREETS[cityId], publicOn: true, private: false, pageBase: `${publicOrigin(env)?.origin || new URL(req.url).origin}${base}` });
+    return priorResearch ? { priorResearch } : {};
+  };
   return {
     base,
     cities: allowedCities(env),
@@ -349,8 +375,24 @@ function publicAskDeps(req, env, base) {
     subrequestBudget: askLimits(env, providerOf(model)).subrequestBudget,
     // A follow-up brings its thread's chain as history and carried results,
     // marked as a public thread's.
-    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost }),
+    answer: ({ question, cityId, budget, onCost, history = [], carried = [], publicThread = false }) => ask({ ...answerArgs(env, req, cityId), question, history, carried, publicThread, budget, onCost, ...publicResearch(cityId) }),
   };
+}
+
+// Shared research's routes, reached only with SHARED_RESEARCH "true"
+// (research.js): sharing a saved answer's sources, the public list, and the
+// steward's page and API. POST bodies are JSON (checked above).
+async function researchRoute(req, env, path, base) {
+  if (req.method === 'POST' && path === '/api/research/share') return handleShare(req, env, { streetsFor: (city) => STREETS[city] });
+  if (req.method === 'GET' && path === '/api/research') return handleResearchList(req, env, { cities: allowedCities(env) });
+  if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin/research') {
+    if (!sharedResearchReady(env)) return new Response("Shared research isn't set up here yet.", { status: 503, headers: { 'Cache-Control': 'no-store', ...NOINDEX } });
+    return new Response(ADMIN_RESEARCH_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base) })[k] ?? m), {
+      headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' },
+    });
+  }
+  if ((req.method === 'GET' && path === '/api/admin/research') || (req.method === 'POST' && (path === '/api/admin/research/remove' || path === '/api/admin/research/restore'))) return handleAdminResearch(req, env, path);
+  return null;
 }
 
 // The full upstream error goes to the operator's log only; visitors get the gist.
@@ -389,6 +431,8 @@ async function handleSession(req, env) {
     account,
     // Conversations (and follow-ups from earlier findings) need an account bound to an invite.
     conversations: member,
+    // Sharing an answer's sources (research memory): only with it on, so with it off this body is as before.
+    ...(member && sharedResearchReady(env) ? { share_research: true } : {}),
   }, 200, headers);
 }
 
@@ -573,10 +617,17 @@ const ASSETS = {
   'questions-page.js': [QUESTIONS_JS, JS],
   'questions.css': [QUESTIONS_CSS, 'text/css; charset=utf-8'],
   'admin-questions.js': [ADMIN_QUESTIONS_JS, JS],
+  'admin-research.js': [ADMIN_RESEARCH_JS, JS],
 };
 // The free tier's files: served only with PUBLIC_ASK on (with it off,
 // nothing new is served).
 const ASK_ASSETS = new Set(['questions-page.js', 'questions.css', 'admin-questions.js']);
+// Shared research's steward script: served only with SHARED_RESEARCH on;
+// its page borrows questions.css, served then too.
+const RESEARCH_ASSETS = new Set(['admin-research.js']);
+const assetServed = (env, name) =>
+  (!ASK_ASSETS.has(name) || publicAskOn(env) || (name === 'questions.css' && sharedResearchOn(env)))
+  && (!RESEARCH_ASSETS.has(name) || sharedResearchOn(env));
 // A content hash of every asset, computed once per isolate (FNV-1a, two
 // seeds; for cache-busting, not security), so the page's URLs change with
 // any deploy that changes them and each can be cached for a year.
@@ -879,7 +930,9 @@ export default {
     }
     if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin') {
       const { config } = getDeployment(env);
-      const questionsLink = publicAskReady(env) ? '\n  <p class="lede"><a href="admin/questions">Public questions</a>: hide or unhide a question asked in public.</p>' : '';
+      const questionsLink = (publicAskReady(env) ? '\n  <p class="lede"><a href="admin/questions">Public questions</a>: hide or unhide a question asked in public.</p>' : '')
+        // Shared research (docs/research-memory.md): only with it on, so with it off this page is as before.
+        + (sharedResearchReady(env) ? '\n  <p class="lede"><a href="admin/research">Shared sources</a>: remove or restore a source someone shared from an answer.</p>' : '');
       return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace('{{QUESTIONS_LINK}}', questionsLink), {
         // Its buttons act for the signed-in steward, so it can't be framed.
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' },
@@ -894,7 +947,7 @@ export default {
     }
     // The pages' scripts and styles, and the browser client, as text.
     const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
-    if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]] && (!ASK_ASSETS.has(asset[2]) || publicAskOn(env))) return assetResponse(asset[1], asset[2]);
+    if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]] && assetServed(env, asset[2])) return assetResponse(asset[1], asset[2]);
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation' || path === '/api/conversations/search')) return handleConversations(req, env, path);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
@@ -911,6 +964,13 @@ export default {
     // none of this is reached and every one of these paths is the 404 below.
     if (publicAskOn(env)) {
       const res = await publicAskRoute(req, env, ctx, path, base);
+      if (res) return res;
+    }
+    // Shared research (docs/research-memory.md): with SHARED_RESEARCH
+    // anything but "true", none of this is reached and every one of these
+    // paths is the 404 below; on but not set up, they answer 503.
+    if (sharedResearchOn(env)) {
+      const res = await researchRoute(req, env, path, base);
       if (res) return res;
     }
     return new Response('Not found', { status: 404 });

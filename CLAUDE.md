@@ -156,7 +156,29 @@ generic mode.
   steps, cost, suggestions, follow-up offers, link counts; bounded by
   `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are
-  private to their account and never feed the case files.
+  private to their account and never feed the case files, with two exceptions
+  (research memory, `docs/research-memory.md`; Jason 2026-11-11: research
+  counts from "Public, shared, and within the account"): the account's own
+  `prior_research` reads its own earlier conversations' sources, never
+  another account's; and a person can share one saved answer's sources with
+  the "Share these sources" click, which keeps only their titles, links,
+  kinds and days, never who shared, the question or the answer, and drops
+  anything that could point at an address or a person.
+  `research.js` is research memory's storage and routes; the tool is
+  `src/prior-research.js` (`prior_research`, a core tool declared only when
+  the Worker passes `priorResearch` to `ask()`). It gives back where earlier
+  answers looked (sources with the day read, `recheck` past 30 days), never
+  an earlier answer's text; the model re-reads or dates what it uses. Scopes:
+  `account` (signed-in accounts; `PRIOR_RESEARCH = "off"` turns the tool off),
+  `public` (answered free-tier questions passing the public-text checks, with
+  `PUBLIC_ASK`), `shared` (D1 `shared_sources`, migration 0005, unapplied,
+  behind `SHARED_RESEARCH`; with it off its paths are 404s and the session and
+  answer body carry nothing new). A public answer never gets `account`, and
+  its trace step never shows the words searched. Returned sources join the
+  hand-off as `kind: 'earlier'` records (at most 10, with `read`), shown apart
+  as "Earlier research". Shared sources are public at `GET /api/research`;
+  the steward removes one at `/admin/research` at once, and re-sharing never
+  revives it.
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
