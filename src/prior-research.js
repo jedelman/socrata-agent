@@ -21,7 +21,7 @@
 // isn't declared, the prompt has no line for it, and everything is as before.
 
 import { normalizeUrl } from './answer-links.js';
-import { publicTextViolations } from './public-text.js';
+import { publicTextViolations, publicTextMessage } from './public-text.js';
 
 export const RESEARCH_SCOPES = Object.freeze(['account', 'public', 'shared']);
 /** A source read more than this many days ago is marked for a re-check. */
@@ -106,15 +106,48 @@ const URL_BLOCKS = new Set(['house_number', 'number_street', 'intersection', 'bl
 /** Whether a turn's tools looked up an address. */
 export const addressTurn = (toolNames = []) => toolNames.some((n) => ADDRESS_TOOLS.has(n));
 
-function urlWords(url) {
-  let s;
-  try {
-    const u = new URL(url);
-    s = decodeURIComponent(`${u.pathname} ${u.search}`);
-  } catch {
-    return null;
+// A URL's own text, decoded up to three times (a double-encoded "%2540" is
+// still an "@"), fragment included: a single-page app keeps its state there.
+function decodedUrl(u) {
+  let raw = `${u.pathname}${u.search}${u.hash}`;
+  for (let i = 0; i < 3; i++) {
+    let next;
+    try {
+      next = decodeURIComponent(raw.replace(/\+/g, ' '));
+    } catch {
+      break;
+    }
+    if (next === raw) break;
+    raw = next;
   }
-  return s.replace(/[/?&=+_.%:;,#()[\]{}"'<>|\\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return raw;
+}
+// Query keys (in the query or a fragment's) that carry a place or a person.
+const PLACE_KEYS = /(?:^|[?&#/;])(?:[a-z_]*address[a-z_]*|addr|street|streetname|parcel[a-z_]*|gpin|pin|apn|lat|latitude|lng|lon|long|longitude|coords?|xy|owner[a-z_]*|email|phone|mailto|name|firstname|lastname)=/i;
+// Two decimal numbers side by side: a latitude and longitude, or a projected
+// map position (a web map's "-8496000.5/4440000.2").
+const COORD_PAIR = /-?\d+\.\d+\s*[,/;|\s]\s*-?\d+\.\d+/;
+
+/**
+ * Whether a URL may carry over into shared or public research: never one
+ * with credentials, an "@" anywhere past the host (an email, encoded or not),
+ * a mailto, a coordinate pair, a query key naming a place or a person, or
+ * (read as words, and as written) a house number, street address, corner,
+ * "block of", unit, contact, coordinates or a person.
+ */
+export function urlCarries(url, streets) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.username || u.password) return false;
+  const raw = decodedUrl(u);
+  if (/@|mailto:/i.test(raw) || COORD_PAIR.test(raw) || PLACE_KEYS.test(raw)) return false;
+  const words = raw.replace(/[/?&=+_.%:;,#()[\]{}"'<>|\\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const text of [raw, words]) if (publicTextViolations(text, { streets }).some((c) => URL_BLOCKS.has(c))) return false;
+  return true;
 }
 
 /**
@@ -138,8 +171,7 @@ export function topicSources(resources = {}, { filter = false, byAddress = false
     if (filter) {
       if (byAddress && BY_ADDRESS.has(kind)) return;
       if (publicTextViolations(t, { streets }).length) return;
-      const words = urlWords(url);
-      if (words == null || publicTextViolations(words, { streets }).some((c) => URL_BLOCKS.has(c))) return;
+      if (!urlCarries(url, streets)) return;
     }
     out.set(key, { title: t, url: url.trim(), kind });
   };
@@ -171,6 +203,9 @@ export async function priorResearch(ctx, args = {}) {
   const scopes = RESEARCH_SCOPES.filter((s) => (pr.scopes || []).includes(s));
   const parsed = researchTerms(args.query, { cityName: ctx.city?.name });
   if (parsed.error) return { error: parsed.error };
+  // Research is searched by place, project or topic: never by a person or an address.
+  const codes = publicTextViolations(String(args.query), { streets: pr.streets });
+  if (codes.length) return { error: `Search for the place, project or topic only, in a few keywords. ${publicTextMessage(codes)}` };
   ctx.priorCalls = (ctx.priorCalls || 0) + 1;
   if (ctx.priorCalls > MAX_CALLS) return { error: `Earlier research was already searched ${MAX_CALLS} times for this answer. Use what it returned, and your other tools.` };
   const today = new Date().toISOString().slice(0, 10);
@@ -212,4 +247,25 @@ export async function priorResearch(ctx, args = {}) {
   }
   if (!results.length) return { searched: scopes, results: [], note: NOTHING_FOUND };
   return { how_to_use: HOW_TO_USE, searched: scopes, results };
+}
+
+export const CUT_SHORT_NOTE = 'The earlier research results were cut short, so they are not kept.';
+
+/**
+ * A prior_research result as a conversation or a public row keeps it (a
+ * tool result's content, a JSON string): every match's `question` taken out,
+ * so an earlier question's text never outlives its own conversation or its
+ * withdrawal by living on in another turn. What's left (the scopes, the
+ * days, the sources) still serves a follow-up. A result that no longer
+ * parses (cut to size) is kept as a note only.
+ */
+export function storedResearchResult(content) {
+  let v;
+  try {
+    v = JSON.parse(String(content));
+  } catch {
+    return JSON.stringify({ note: CUT_SHORT_NOTE });
+  }
+  const strip = (o) => (o && Array.isArray(o.results) ? { ...o, results: o.results.map(({ question, ...r }) => r) } : o);
+  return JSON.stringify(v && typeof v === 'object' && v.result ? { ...v, result: strip(v.result) } : strip(v));
 }

@@ -117,7 +117,7 @@ export function budgetNote({ limit, refused }) {
  * counts on it, and `subrequestBudget` and `fetchImpl` are not used. Unset,
  * the answer starts its own, as before.
  * `priorResearch` (off by default) is the Worker's research memory: {
- * scopes, search(terms, { scopes }), private } (src/prior-research.js,
+ * scopes, search(terms, { scopes }), private, streets } (src/prior-research.js,
  * worker/research.js). It declares the prior_research tool and its prompt
  * line; a public thread never gets the 'account' scope, and the trace shows
  * the words searched only when `private` is set. Off, everything is as before.
@@ -222,7 +222,7 @@ export async function ask({
   // Research memory (src/prior-research.js): the Worker's search over the
   // scopes this answer may read. A public thread never reads an account's.
   const researchScopes = researchScopesFor(priorResearch, publicThread);
-  if (researchScopes.length) ctx.priorResearch = { scopes: researchScopes, search: priorResearch.search, private: !publicThread && priorResearch.private === true };
+  if (researchScopes.length) ctx.priorResearch = { scopes: researchScopes, search: priorResearch.search, private: !publicThread && priorResearch.private === true, streets: priorResearch.streets };
   const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}), ...(researchScopes.length ? { priorResearch: true } : {}) };
   const toolOpts = { ...(gapsOn ? { gaps: gaps.data } : {}), ...(researchScopes.length ? { priorResearch: { scopes: researchScopes } } : {}) };
   llm.init({

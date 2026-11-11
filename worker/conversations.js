@@ -34,7 +34,7 @@
 
 import { boundary, hmacHex } from './crypto.js';
 import { unescapeMarkdown } from '../src/answer-links.js';
-import { topicSources, scoreTexts, enough, MAX_MATCHES } from '../src/prior-research.js';
+import { topicSources, scoreTexts, enough, MAX_MATCHES, storedResearchResult } from '../src/prior-research.js';
 
 /** Turns kept in a conversation; the oldest drop past it. */
 export const MAX_TURNS = 50;
@@ -142,8 +142,9 @@ export async function saveTurn(kv, uid, id, conv, { city, question, answer, tool
     at: new Date(now).toISOString(),
     question: String(question).slice(0, QUESTION_CHARS),
     answer: String(answer).slice(0, ANSWER_CHARS),
-    // note_unanswered keeps only what was noted, never the drafted question.
-    tools: tools.map((t) => ({ name: t.name, args: t.name === 'note_unanswered' ? { answered: t.args?.answered, gaps: t.args?.gaps } : t.args, result: clipResult(String(t.content)) })),
+    // note_unanswered keeps only what was noted, never the drafted question;
+    // prior_research never keeps an earlier question's text (src/prior-research.js).
+    tools: tools.map((t) => ({ name: t.name, args: t.name === 'note_unanswered' ? { answered: t.args?.answered, gaps: t.args?.gaps } : t.args, result: clipResult(t.name === 'prior_research' ? storedResearchResult(t.content) : String(t.content)) })),
     ...(record ? { record: answerRecord(record) } : {}),
   }].slice(-MAX_TURNS).map((t, i, all) => (i < all.length - CONTEXT_TURNS && t.tools?.length ? { ...t, tools: [] } : t));
   const next = { city, created: conv?.created || new Date(now).toISOString(), turns };

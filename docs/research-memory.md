@@ -21,20 +21,24 @@ on with its own tools, or gives the day the source was read ("as of
 `prior_research` (`src/prior-research.js`) takes `{query}`: a few keywords naming
 a place, project or topic. The words become terms (three letters or more, no
 stop words, not the city's own name, six at most). A match needs at least half
-of them. An answer may search at most twice. Every result is labelled with
-its scope:
+of them. A query that names a person or an address (the public-text checks)
+is refused, with a message the model can act on, and isn't counted. An answer
+may search at most twice. Every result is labelled with its scope:
 
 | Scope | What it reads | When it's on |
 |---|---|---|
-| `account` | The asking account's own earlier conversations: its 100 newest, never the one being answered | Signed-in accounts, unless `PRIOR_RESEARCH = "off"` |
+| `account` | The asking account's own earlier conversations: its 100 newest, never the one being answered | Signed-in accounts, only with `PRIOR_RESEARCH = "true"` |
 | `public` | Answered free-tier questions (`public_questions`, status `answered`) | `PUBLIC_ASK` on and ready |
 | `shared` | Sources people shared from private answers (`shared_sources`, status `listed`) | `SHARED_RESEARCH = "true"`, `SIREN_DB`, `LIMITS`, `INVITE_SECRET` |
 
 A public answer (the free tier) never gets the `account` scope. `ask()`
 refuses it on a public thread, and the Worker never passes an account for one.
 
-Without the Worker's search, the tool isn't declared and the prompt has no line
-for it. The CLI, and every deployment without accounts or flags, behave as before.
+Every scope is opt-in. Without the Worker's search, the tool isn't declared
+and the prompt has no line for it. With `PRIOR_RESEARCH`, `PUBLIC_ASK` and
+`SHARED_RESEARCH` all off, a member's request to the model is what it was
+before this change (a test sends the same question with each "off" spelling
+and compares). The CLI behaves as before.
 
 ### The hand-off
 
@@ -62,13 +66,24 @@ the count.
 under `conv:<uid>:` are listed or read. A turn matches on its question, its
 answer and its sources' titles. The answer is only searched, never returned.
 Results are not filtered for addresses: they go back only to the account that
-found them. The person's own question comes back with them.
+found them. The person's own question comes back with them, to the model and
+live only.
+
+**What's kept.** A conversation turn (`saveTurn`) and a public row
+(`keptTools`) store a `prior_research` result without any match's
+`question` (`storedResearchResult`): the scopes, days and sources stay for
+follow-ups. So when a conversation is deleted, or a public question
+withdrawn, its text doesn't live on in another turn. A result cut to size
+(no longer valid JSON) is kept as a note only.
 
 **Public** (`worker/research.js` `searchPublic`). Only answered questions whose
 text passes the public-text checks (no house number, street address, corner,
 "block of", unit, contact, coordinates or named person). Only their sources
-that pass the address filter below. The answer is searched, never returned.
-The match links the question's page (`/q/<id>`).
+that pass the address filter below, and no legislation or meeting page when
+any question in the same thread looked up an address (a follow-up carries
+its root's results). The question and the answer are searched, never
+returned: a match is the day, the question's page (`/q/<id>`) and the
+sources.
 
 **Shared** (`worker/research.js` `searchShared`). Listed sources whose titles
 hold enough of the terms. Each comes back as its own match, with the day an
@@ -89,16 +104,23 @@ Worker then:
    pointer.
 3. Drops anything that could point at an address or a person:
    - every legislation and meeting page from a turn that looked up an address
-     (`block_report` or `lookup_address` among its tools or trace, or a
-     question naming an address), since `block_report` finds agenda items by
-     address;
+     (`block_report` or `lookup_address` among a turn's tools or trace, or
+     a question naming an address, in **any turn of that conversation**),
+     since `block_report` finds agenda items by address and a later turn can
+     follow them;
    - every source whose title fails the public-text checks;
-   - every source whose URL, with its separators read as spaces, carries a
-     house number, street address, corner, "block of", unit, contact,
-     coordinates or a person.
-4. Upserts each remaining source by URL into `shared_sources`: title, link,
-   kind, city, the newest day an answer read it, the days first and last
-   shared, and a share count.
+   - every source whose URL fails `urlCarries`: the whole URL past the host,
+     fragment included, decoded up to three times, may hold no "@" (an email,
+     encoded or not) or mailto, no coordinate pair (a latitude and longitude,
+     or a web map's projected position), no query key naming a place or a
+     person (address, parcel, lat/lon, owner, email, name…), and, read as
+     written and with its separators as spaces, no house number, street
+     address, corner, "block of", unit, contact, coordinates or person.
+4. Upserts each remaining source by its normalized URL (`url_key`) into
+   `shared_sources`: title, link, kind, city, the newest day an answer read
+   it, the days first and last shared, and a share count. An answer is
+   shared once: sharing it again answers `already_shared` and changes
+   nothing (`share-turn:<HMAC(uid, conversation, at)>`, kept 400 days).
 
 **Never stored:** who shared it (no account, invite, visitor hash or Bluesky
 identity), the question, the answer, or any time finer than a day.
@@ -113,16 +135,24 @@ conversation the account doesn't have, 401 signed out, 403 from another
 origin.
 
 **The public list.** `GET /api/research?city=&limit=&before=` lists the listed
-sources, last shared first, 50 a page (100 at most), cached 60 seconds. The
+sources, last shared first (then newest row), 50 a page (100 at most), cached
+60 seconds. The cursor is `<last_day>.<seq>`; a source shared again between
+two pages moves to the top, so paging can miss or repeat it. The
 case-file routine reads it to see what people found useful.
 
 **The steward.** `/admin/research` (ADMIN_EMAILS) lists every shared source.
-**Remove** takes one off the list and out of every answer's earlier research
-at once, and sharing it again doesn't bring it back. **Restore** undoes that.
+**Remove** takes one off the list at once, and out of every scope of earlier
+research from then on (shared, public, and accounts' own conversations,
+matched by normalized URL); answers already given keep what they showed.
+Sharing it again, by either spelling, doesn't bring it back. **Restore**
+undoes that. While shared research is on, a search that can't read the
+removals returns nothing.
 
 ## Flags and rollout
 
-- `PRIOR_RESEARCH = "off"` turns the tool off everywhere without a code deploy.
+- `PRIOR_RESEARCH = "true"` turns on the account scope; `"off"` turns the
+  tool off everywhere without a code deploy. Unset, only `PUBLIC_ASK` and
+  `SHARED_RESEARCH` can declare it.
 - `SHARED_RESEARCH` stays off until migration 0005 is applied:
   `npx wrangler d1 migrations apply SIREN_DB --env siren --remote`. That
   command applies every pending migration, 0003 and 0004 included: check

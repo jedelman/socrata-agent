@@ -172,7 +172,7 @@ $('#log').addEventListener('submit', async (e) => {
     // Still saving (409), a limit or a server error: the button can be tried again.
     if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; if (res.status === 409 || res.status === 429 || res.status >= 500) b.disabled = false; return; }
     msg.className = 'msg ok';
-    msg.textContent = data.shared ? `Shared ${data.shared} source${data.shared === 1 ? '' : 's'}. Thank you.` : 'This answer read no sources that can be shared.';
+    msg.textContent = data.already_shared ? "This answer's sources are already shared." : data.shared ? `Shared ${data.shared} source${data.shared === 1 ? '' : 's'}. Thank you.` : 'This answer read no sources that can be shared.';
   } catch { msg.textContent = "Couldn't reach the server. Try again."; b.disabled = false; }
 });
 // A follow-up offer: its question goes as the next message in this
@@ -225,7 +225,7 @@ function traceStep(s) {
     const docs = /^https:\/\/platform\.claude\.com\//.test(String(s.url || ''));
     return `<li><strong>${esc(s.tool)}</strong>${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${status} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">${docs ? 'how web search works' : 'first page found'}</a></span></li>`;
   }
-  return `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code class="ds">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${s.ms} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`;
+  return `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code class="ds">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : `${s.rows} row${s.rows === 1 ? '' : 's'}`) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${s.ms} ms${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a>` : ''}</span></li>`;
 }
 function renderTrace(t) {
   if (!t?.length) return '';

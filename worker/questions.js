@@ -11,6 +11,7 @@
 // or a conversation (test/public-ask.test.js reads every statement the
 // public routes run). Pure: every call takes the D1 binding.
 
+import { storedResearchResult } from '../src/prior-research.js';
 import { newPublicId, PUBLIC_ID_RE } from './requests.js';
 import { CONTEXT_TURNS } from './conversations.js';
 
@@ -114,7 +115,9 @@ export function keptTools(toolResults) {
     name: t.name,
     // note_unanswered keeps only what was noted, never the drafted question.
     args: t.name === 'note_unanswered' ? { answered: t.args?.answered, gaps: t.args?.gaps } : t.args,
-    result: clipResult(String(t.content)),
+    // prior_research never keeps an earlier question's text, so a withdrawn
+    // question can't live on in another row (src/prior-research.js).
+    result: clipResult(t.name === 'prior_research' ? storedResearchResult(t.content) : String(t.content)),
   }));
 }
 

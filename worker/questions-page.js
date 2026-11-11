@@ -187,7 +187,7 @@ function traceStep(s) {
     const docs = /^https:\/\/platform\.claude\.com\//.test(String(s.url || ''));
     return `<li><strong>${esc(s.tool)}</strong>${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${status} · ${Number(s.ms) || 0} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">${docs ? 'how web search works' : 'first page found'}</a></span></li>`;
   }
-  return `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code class="ds">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : plural(s.rows, 'row')) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${Number(s.ms) || 0} ms · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a></span></li>`;
+  return `<li><strong>${esc(s.tool)}</strong>${s.dataset ? ` · <code class="ds">${esc(s.dataset)}</code>` : ''}${s.soql ? `<code>${esc(s.soql)}</code>` : ''}<span class="meta">${s.ok ? (s.rows == null ? 'ok' : plural(s.rows, 'row')) : `${s.refused ? 'refused' : 'failed'}: ${esc(s.error)}`} · ${Number(s.ms) || 0} ms${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">run it yourself</a>` : ''}</span></li>`;
 }
 
 /** How she found it: the code-written trace. */

@@ -230,11 +230,13 @@ test('the account scope reads only the account\'s own conversations, never the o
     for (const k of keys) assert.ok(!k.includes('uid-them'), k);
     if (op.op === 'list') assert.ok(String(op.prefix || '').startsWith('conv:uid-me:'), JSON.stringify(op));
   }
-  // The Worker's search: account only with a signed-in account; PRIOR_RESEARCH = "off" turns it all off.
-  assert.equal(priorResearchFor({ LIMITS: kv }, {}), null);
-  assert.deepEqual(priorResearchFor({ LIMITS: kv }, { uid: 'uid-me' }).scopes, ['account']);
-  assert.equal(priorResearchFor({ LIMITS: kv, PRIOR_RESEARCH: 'off' }, { uid: 'uid-me' }), null);
-  const got = await priorResearchFor({ LIMITS: kv }, { uid: 'uid-me', exclude: mine1 }).search(['macarthur'], { scopes: ['account'] });
+  // The Worker's search: the account scope is opt-in (PRIOR_RESEARCH = "true"), for a signed-in account only.
+  assert.equal(priorResearchFor({ LIMITS: kv }, { uid: 'uid-me' }), null, 'off by default');
+  for (const v of ['false', 'off', 'TRUE', '1', '']) assert.equal(priorResearchFor({ LIMITS: kv, PRIOR_RESEARCH: v }, { uid: 'uid-me' }), null, v);
+  const on = { LIMITS: kv, PRIOR_RESEARCH: 'true' };
+  assert.equal(priorResearchFor(on, {}), null, 'no account, no scope');
+  assert.deepEqual(priorResearchFor(on, { uid: 'uid-me' }).scopes, ['account']);
+  const got = await priorResearchFor(on, { uid: 'uid-me', exclude: mine1 }).search(['macarthur'], { scopes: ['account'] });
   assert.deepEqual(got.account.map((m) => m.question), ['MacArthur again']);
 });
 
@@ -266,7 +268,15 @@ async function sharedWorld({ on = 'true' } = {}) {
     const res = await handleAdminResearch(new Request(`${ORIGIN}${path}`, init), env, path);
     return { status: res.status, body: await res.json() };
   };
-  return { kv, db, env, conv, at, share, list, admin };
+  let tick = now;
+  /** Another saved answer in the same conversation: -> its `at`. */
+  const addTurn = async ({ resources = RESOURCES, tools = [], question = 'More about MacArthur Center?' } = {}) => {
+    tick += 60e3;
+    const conv0 = await kv.get(`conv:${ME}:${conv}`, 'json');
+    await saveTurn(kv, ME, conv, conv0, { city: 'norfolk', question, answer: 'another answer', tools, record: { resources, trace: [] } }, { now: tick });
+    return new Date(tick).toISOString();
+  };
+  return { kv, db, env, conv, at, share, list, admin, addTurn };
 }
 
 test('sharing keeps a saved answer\'s topic sources only: no account, question, answer, address or person; days only', { skip: sqliteSkip }, async () => {
@@ -274,12 +284,15 @@ test('sharing keeps a saved answer\'s topic sources only: no account, question, 
   const r = await w.share({ conversation: w.conv, at: w.at });
   assert.equal(r.status, 200);
   assert.deepEqual(r.body, { shared: 3, left_out: 4 });
+  // The same answer counts once.
+  assert.deepEqual((await w.share({ conversation: w.conv, at: w.at })).body, { shared: 0, already_shared: true });
   const rows = w.db.db.prepare('SELECT * FROM shared_sources ORDER BY seq').all().map((x) => ({ ...x }));
   assert.deepEqual(rows.map((x) => x.title), ['Ordinance approving the MacArthur Center redevelopment agreement', 'Downtown plan for MacArthur', 'Work Orders']);
   const stored = JSON.stringify(rows);
   for (const never of [ME, 'What is planned', 'my answer', '1234 Granby', '810', 'Smith', 'Colley', '.csv', w.conv]) assert.ok(!stored.includes(never), never);
   for (const x of rows) {
-    assert.deepEqual(Object.keys(x).sort(), ['city', 'first_day', 'id', 'kind', 'last_day', 'read_day', 'seq', 'shares', 'status', 'title', 'url']);
+    assert.deepEqual(Object.keys(x).sort(), ['city', 'first_day', 'id', 'kind', 'last_day', 'read_day', 'seq', 'shares', 'status', 'title', 'url', 'url_key']);
+    assert.equal(x.shares, 1);
     assert.equal(x.read_day, '2026-11-10');
     assert.match(x.id, /^[a-z2-7]{16}$/);
   }
@@ -294,14 +307,18 @@ test('sharing keeps a saved answer\'s topic sources only: no account, question, 
   const page = await w.list('?limit=2');
   assert.equal(page.body.sources.length, 2);
   assert.equal((await w.list(`?limit=2&before=${page.body.next}`)).body.sources.length, 1);
-  // Sharing again counts, and a removed source stays removed.
+  // Another answer sharing them counts; a removed source stays removed, whichever way its URL is spelled.
   const id = l.body.sources.find((s) => s.kind === 'web').id;
   assert.equal((await w.admin('/api/admin/research/remove', { id }, ME)).status, 403, 'stewards only');
   assert.equal((await w.admin('/api/admin/research/remove', { id })).status, 200);
-  assert.equal((await w.share({ conversation: w.conv, at: w.at })).status, 200);
+  const slashed = { ...RESOURCES, records: RESOURCES.records.map((x) => (x.url === PLAN ? { ...x, url: `${PLAN}/` } : x)) };
+  const at2 = await w.addTurn({ resources: slashed });
+  assert.equal((await w.share({ conversation: w.conv, at: at2 })).body.shared, 3);
   const after = await w.list();
   assert.ok(!after.body.sources.some((s) => s.id === id), 'gone from the list at once');
+  assert.equal(after.body.sources.length, 2);
   assert.ok(after.body.sources.every((s) => s.shares === 2));
+  assert.equal(w.db.db.prepare('SELECT count(*) AS n FROM shared_sources').get().n, 3, 'one row per normalized URL');
   const found = await searchShared(w.db, 'norfolk', ['macarthur']);
   assert.deepEqual(found.map((m) => m.sources[0].title), ['Ordinance approving the MacArthur Center redevelopment agreement'], 'and from prior_research');
   assert.equal((await w.admin('/api/admin/research')).body.sources.find((s) => s.id === id).status, 'removed');
@@ -316,8 +333,14 @@ test('sharing: signed out, someone else\'s or an unsaved answer, cross-site, the
   assert.equal((await w.share({ conversation: w.conv, at: '2026-11-10T15:00:01.000Z' })).status, 409, 'still being saved');
   assert.equal((await w.share({ conversation: w.conv, at: 'yesterday' })).status, 400);
   assert.equal((await w.share({ conversation: w.conv, at: w.at }, { headers: { Origin: 'https://evil.example' } })).status, 403);
-  for (let i = 0; i < SHARE_DAILY; i++) assert.equal((await w.share({ conversation: w.conv, at: w.at })).status, 200);
-  assert.equal((await w.share({ conversation: w.conv, at: w.at })).status, 429);
+  const ats = [w.at];
+  for (let i = 1; i <= SHARE_DAILY; i++) ats.push(await w.addTurn());
+  for (let i = 0; i < SHARE_DAILY; i++) assert.equal((await w.share({ conversation: w.conv, at: ats[i] })).status, 200, String(i));
+  assert.equal((await w.share({ conversation: w.conv, at: ats[SHARE_DAILY] })).status, 429);
+  assert.deepEqual((await w.share({ conversation: w.conv, at: ats[0] })).body, { shared: 0, already_shared: true }, 'an answer already shared says so, uncounted');
+  const turnKeys = [...w.kv.store.keys()].filter((k) => k.startsWith('share-turn:'));
+  assert.equal(turnKeys.length, SHARE_DAILY);
+  for (const k of turnKeys) assert.ok(!k.includes(ME) && !k.includes(w.conv), 'the per-answer key can\'t be joined to the account or the conversation');
   const keys = [...w.kv.store.keys()].filter((k) => k.startsWith('share-rate:'));
   assert.equal(keys.length, 1);
   assert.ok(!keys[0].includes(ME), 'the counter can\'t be joined to the account');
@@ -365,4 +388,173 @@ test('flag off: the new paths are 404s, the session and the answer body carry no
   }
   const s = await (await worker.fetch(new Request(`${ORIGIN}/api/session`), env, {})).json();
   assert.ok(!('share_research' in s));
+  // A member's question with PRIOR_RESEARCH unset, "false" or anything but "true": no tool, no prompt line, the same request.
+  const { claudeResponse } = await import('./fake-claude.js');
+  const uid = await userId(SECRET, 'member@example.org');
+  const bodies = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input instanceof Request ? input.url : input);
+    if (url.startsWith('https://api.anthropic.com/v1/messages')) {
+      bodies.push(JSON.parse(init.body));
+      return claudeResponse(init, { id: 'msg_x', type: 'message', role: 'assistant', model: 'claude-sonnet-5-5', stop_reason: 'end_turn', stop_details: null, content: [{ type: 'text', text: 'I found nothing.' }], usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } });
+    }
+    return new Response('[]', { status: 404 });
+  };
+  try {
+    for (const flag of [undefined, 'false', 'off']) {
+      const kv = fakeKV();
+      await kv.put('invite:' + 'a'.repeat(64), JSON.stringify({ label: 'test', max_uses: 5 }));
+      await kv.put(`member:${uid}`, JSON.stringify({ invite: 'a'.repeat(64) }));
+      const menv = { DEPLOYMENT: 'siren', MODEL: 'claude-sonnet-5-5', ANTHROPIC_API_KEY: 'k', INVITE_REQUIRED: 'true', LIMITS: kv, INVITE_SECRET: SECRET, IP_SALT: 's', PUBLIC_ORIGIN: ORIGIN, BASE_PATH: '', ...(flag ? { PRIOR_RESEARCH: flag } : {}) };
+      const res = await worker.fetch(new Request(`${ORIGIN}/api/ask`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: `__Host-siren_user=${await signUser(SECRET, uid)}` }, body: JSON.stringify({ question: 'What is the plan for MacArthur Center?', city: 'norfolk' }) }), menv, {});
+      const out = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(out));
+      assert.ok(out.conversation, 'asked as a member');
+      assert.ok(!('at' in out));
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.equal(bodies.length, 3);
+  for (const b of bodies) {
+    assert.ok(!b.tools.some((t) => t.name === 'prior_research'));
+    assert.ok(!JSON.stringify(b.system).includes('prior_research'));
+  }
+  assert.deepEqual(bodies[1], bodies[0]);
+  assert.deepEqual(bodies[2], bodies[0]);
+});
+
+// ---- review fixes (2026-11-11) ----
+
+test('the URL filter reads the whole decoded URL, fragment included: emails, coordinates, place keys and addresses never carry over', async () => {
+  const { urlCarries } = await import('../src/prior-research.js');
+  for (const u of [
+    'https://www.norfolk.gov/page#810-union-st',
+    'https://msc.fema.gov/portal/search?AddressQuery=36.8468%2C-76.2852',
+    'https://coast.noaa.gov/slr/#/layer/slr/0/-8496000.5/4440000.2/18/',
+    'https://www.norfolk.gov/contact?to=jane.doe%40example.com',
+    'https://www.norfolk.gov/contact?to=jane.doe%2540example.com',
+    'https://www.norfolk.gov/contact#mailto:someone@example.org',
+    'https://maps.example.gov/view?lat=36.85&lon=-76.29',
+    'https://www.norfolk.gov/DocumentCenter/View/81235/810-Union-St-staff-report',
+    'https://user:pw@www.norfolk.gov/x',
+  ]) {
+    assert.equal(urlCarries(u, STREETS), false, u);
+    assert.deepEqual(topicSources({ records: [{ kind: 'web', title: 'A page', url: u }] }, { filter: true, streets: STREETS }), [], u);
+  }
+  for (const u of [LEGI, PLAN, PAGE, 'https://library.municode.com/va/norfolk/codes/zoning?nodeId=5.3', 'https://www.norfolk.gov/CivicAlerts.aspx?AID=9876', 'https://law.lis.virginia.gov/vacode/title15.2/chapter22/section15.2-2286/']) {
+    assert.equal(urlCarries(u, STREETS), true, u);
+  }
+});
+
+test('a query naming a person or an address is refused before any search, and isn\'t counted', async () => {
+  const asked = [];
+  const pr = { scopes: ['shared'], streets: STREETS, async search(terms) { asked.push(terms); return {}; } };
+  const { fetchImpl } = scripted([{ tools: [['prior_research', { query: '810 Union St kennel' }], ['prior_research', { query: 'Mr. Smith permits' }], ['prior_research', { query: 'MacArthur Center' }], ['prior_research', { query: 'MacArthur mall' }]] }, { text: 'ok' }]);
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', fetchImpl, priorResearch: pr });
+  const results = out.toolResults.map((t) => JSON.parse(t.content));
+  assert.match(results[0].error, /place, project or topic only[\s\S]*addresses/);
+  assert.match(results[1].error, /names/);
+  assert.ok(!results[0].error.includes('Union'), 'the error never repeats the query');
+  assert.deepEqual(asked, [['macarthur', 'center'], ['macarthur', 'mall']], 'the two refused calls spent none of the two searches');
+});
+
+test('an earlier question\'s text never outlives its conversation or its withdrawal: stored prior_research results keep no question, and public matches carry none', { skip: sqliteSkip }, async () => {
+  const { keptTools, withdrawQuestion } = await import('../worker/questions.js');
+  const { storedResearchResult, CUT_SHORT_NOTE } = await import('../src/prior-research.js');
+  const { deleteConversation, loadConversation, historyFrom } = await import('../worker/conversations.js');
+  // The account scope gives the model the account's own earlier question, live only.
+  const kv = fakeKV();
+  const a = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const b = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+  await saveTurn(kv, 'uid-me', a, null, { city: 'norfolk', question: 'Q-SECRET-A about MacArthur Center', answer: 'x', tools: [], record: { resources: { records: [{ kind: 'legislation', title: 'MacArthur Center agreement', url: LEGI }] } } }, { now: Date.parse('2026-11-01T12:00:00Z') });
+  const pr = priorResearchFor({ LIMITS: kv, PRIOR_RESEARCH: 'true' }, { uid: 'uid-me', exclude: b, streets: STREETS });
+  const { fetchImpl } = scripted([{ tools: [['prior_research', { query: 'MacArthur Center' }]] }, { text: 'I found the agreement.' }]);
+  const out = await ask({ question: 'And MacArthur now?', city: norfolk, apiKey: 'k', fetchImpl, priorResearch: pr });
+  assert.ok(out.toolResults[0].content.includes('Q-SECRET-A'), 'the model saw it live');
+  await saveTurn(kv, 'uid-me', b, null, { city: 'norfolk', question: 'And MacArthur now?', answer: out.answer, tools: out.toolResults, record: out }, { now: Date.parse('2026-11-11T12:00:00Z') });
+  await deleteConversation(kv, 'uid-me', a);
+  const kept = await loadConversation(kv, 'uid-me', b);
+  assert.ok(!JSON.stringify(kept).includes('Q-SECRET-A'), 'gone with its conversation');
+  assert.ok(!JSON.stringify(historyFrom(kept)).includes('Q-SECRET-A'));
+  assert.ok(JSON.stringify(kept).includes(LEGI), 'the sources stay for follow-ups');
+  // A public row's kept tools: the same strip.
+  const content = JSON.stringify({ how_to_use: 'x', searched: ['public'], results: [{ scope: 'public', question: 'Q-PUBLIC', sources: [{ title: 't', url: PLAN }] }] });
+  const row = keptTools([{ name: 'prior_research', args: { query: 'MacArthur' }, content }, { name: 'query_dataset', args: {}, content: '{"question":"kept as is"}' }]);
+  assert.ok(!row[0].result.includes('Q-PUBLIC') && row[0].result.includes(PLAN));
+  assert.ok(row[1].result.includes('kept as is'), 'only prior_research results are touched');
+  assert.equal(JSON.parse(storedResearchResult('{"results":[{"question":"q', 'x')).note, CUT_SHORT_NOTE, 'a result cut to size keeps nothing');
+  // And the public scope returns no question text at all, so a question withdrawn later can't have been copied.
+  const db = fakeD1({ migrations: ['0004_public_questions.sql', '0005_shared_sources.sql'] });
+  db.db.prepare("INSERT INTO public_questions (id, question_uri, status, day, city, question, answer, record) VALUES ('gggggggggggggggg', 'at://did:plc:x/q/g', 'answered', '2026-11-09', 'norfolk', 'Q-WITHDRAWN about MacArthur Center', 'a', ?)").run(JSON.stringify({ resources: RESOURCES }));
+  const found = await searchPublic(db, 'norfolk', ['macarthur', 'center'], { streets: STREETS, pageBase: ORIGIN });
+  assert.equal(found.length, 1);
+  assert.ok(!('question' in found[0]) && !JSON.stringify(found).includes('Q-WITHDRAWN'));
+  await withdrawQuestion(db, 'gggggggggggggggg');
+  assert.deepEqual(await searchPublic(db, 'norfolk', ['macarthur', 'center'], { streets: STREETS, pageBase: ORIGIN }), [], 'withdrawn: gone');
+});
+
+test('a steward-removed source leaves every scope, and with removals unreadable nothing comes back', { skip: sqliteSkip }, async () => {
+  const w = await sharedWorld();
+  await w.share({ conversation: w.conv, at: w.at });
+  const id = (await w.list()).body.sources.find((s) => s.title === 'Downtown plan for MacArthur').id;
+  await w.admin('/api/admin/research/remove', { id });
+  // The same page in someone's own conversation (spelled with a slash) and in a public answer.
+  w.db.db.prepare("INSERT INTO public_questions (id, question_uri, status, day, city, question, answer, record) VALUES ('hhhhhhhhhhhhhhhh', 'at://did:plc:x/q/h', 'answered', '2026-11-09', 'norfolk', 'MacArthur Center plans?', 'a', ?)").run(JSON.stringify({ resources: RESOURCES }));
+  const own = 'abababab-abab-4bab-8bab-abababababab';
+  await saveTurn(w.kv, ME, own, null, { city: 'norfolk', question: 'MacArthur Center?', answer: 'x', tools: [], record: { resources: { records: [{ kind: 'web', title: 'Downtown plan for MacArthur', url: `${PLAN}/` }, { kind: 'legislation', title: 'MacArthur Center agreement', url: LEGI }] } } }, { now: Date.parse('2026-11-02T12:00:00Z') });
+  const env = { ...w.env, PRIOR_RESEARCH: 'true' };
+  const pr = priorResearchFor(env, { uid: ME, city: 'norfolk', publicOn: true, streets: STREETS, pageBase: ORIGIN });
+  assert.deepEqual(pr.scopes, ['account', 'public', 'shared']);
+  const got = await pr.search(['macarthur'], { scopes: pr.scopes });
+  const urls = JSON.stringify(got);
+  assert.ok(!urls.includes('Downtown-Plan-2030'), 'removed from account, public and shared');
+  assert.ok(got.account.length && got.public.length && got.shared.length);
+  w.db.fail = true;
+  assert.deepEqual(await pr.search(['macarthur'], { scopes: pr.scopes }), {}, 'fails closed');
+});
+
+test('legislation and meeting pages stay out when any turn of the conversation, or any question in a public thread, looked up an address', { skip: sqliteSkip }, async () => {
+  const w = await sharedWorld();
+  // An earlier turn in this conversation ran a block report; the shared turn didn't.
+  const at2 = await w.addTurn({ question: 'What does the MacArthur Center ordinance say?' });
+  const conv0 = await w.kv.get(`conv:${ME}:${w.conv}`, 'json');
+  conv0.turns[0].record.trace = [{ tool: 'block report', ok: true }];
+  await w.kv.put(`conv:${ME}:${w.conv}`, JSON.stringify(conv0));
+  assert.deepEqual((await w.share({ conversation: w.conv, at: at2 })).body, { shared: 2, left_out: 5 });
+  assert.ok(!(await w.list()).body.sources.some((s) => s.kind === 'legislation'));
+  // A public follow-up whose root ran a block report.
+  const db = fakeD1({ migrations: ['0004_public_questions.sql', '0005_shared_sources.sql'] });
+  db.db.prepare("INSERT INTO public_questions (id, question_uri, status, day, city, question, answer, record, tools) VALUES ('iiiiiiiiiiiiiiii', 'at://did:plc:x/q/root', 'answered', '2026-11-09', 'norfolk', 'What is near my place?', 'a', '{}', ?)").run(JSON.stringify([{ name: 'block_report' }]));
+  db.db.prepare("INSERT INTO public_questions (id, question_uri, root_uri, parent_uri, depth, status, day, city, question, answer, record) VALUES ('jjjjjjjjjjjjjjjj', 'at://did:plc:x/q/f', 'at://did:plc:x/q/root', 'at://did:plc:x/q/root', 1, 'answered', '2026-11-09', 'norfolk', 'And the MacArthur Center ordinance?', 'a', ?)").run(JSON.stringify({ resources: RESOURCES }));
+  const found = await searchPublic(db, 'norfolk', ['macarthur', 'center'], { streets: STREETS, pageBase: ORIGIN });
+  assert.deepEqual(found.map((m) => m.sources.map((s) => s.kind)), [['web', 'dataset']]);
+});
+
+test('the shared list runs last shared first, and pages by (last day, row)', { skip: sqliteSkip }, async () => {
+  const w = await sharedWorld();
+  const put = (n, title, last) => w.db.db.prepare("INSERT INTO shared_sources (id, url_key, url, title, kind, city, read_day, first_day, last_day) VALUES (?, ?, ?, ?, 'web', 'norfolk', '2026-11-01', '2026-11-01', ?)").run(`${'k'.repeat(15)}${n}`, `https://x.gov/${n}`, `https://x.gov/${n}`, title, last);
+  put('a', 'old, shared again today', '2026-11-11');
+  put('b', 'newer row, shared once', '2026-11-05');
+  put('c', 'newest row, shared once', '2026-11-05');
+  const first = await w.list('?limit=2');
+  assert.deepEqual(first.body.sources.map((s) => s.title), ['old, shared again today', 'newest row, shared once']);
+  assert.match(first.body.next, /^2026-11-05\.\d+$/);
+  assert.deepEqual((await w.list(`?limit=2&before=${first.body.next}`)).body.sources.map((s) => s.title), ['newer row, shared once']);
+  assert.equal((await w.list('?before=junk')).status, 200, 'a bad cursor reads as the first page');
+});
+
+test('a trace step with no request (earlier research, earlier results) shows no link', async () => {
+  const { Trace } = await import('../src/trace.js');
+  const t = new Trace();
+  await t.record({ tool: 'searched earlier research (shared sources)' }, async () => ({ result: null, rows: 2 }));
+  await t.record({ tool: 'query', url: PAGE }, async () => ({ result: null, rows: 1 }));
+  const md = t.toMarkdown();
+  assert.doesNotMatch(md, /undefined/);
+  assert.match(md, /2 rows · \d+ ms\n/);
+  assert.match(md, new RegExp(`\\[source\\]\\(${PAGE.replace(/[.]/g, '\\.')}\\)`));
+  const page = readFileSync(new URL('../worker/chat-page.js', import.meta.url), 'utf8');
+  const pub = readFileSync(new URL('../worker/questions-page.js', import.meta.url), 'utf8');
+  for (const src of [page, pub]) assert.match(src, /\$\{s\.url \? ` · <a href="\$\{link\(s\.url\)\}" target="_blank" rel="noopener">run it yourself<\/a>` : ''\}/);
 });

@@ -10,13 +10,18 @@
 -- than a day. Sources that could point at an address are dropped before a
 -- row is written (src/prior-research.js topicSources).
 --
--- A steward removing a source sets status 'removed': it leaves the public
--- list and prior_research at once, and sharing it again doesn't bring it
--- back (the upsert only updates listed rows). `id` is a random public id.
+-- A source is keyed by its normalized URL (url_key: src/answer-links.js
+-- normalizeUrl, one trailing slash off the path), so "…/page" and "…/page/"
+-- are one row; url keeps the link as first shared. A steward removing a
+-- source sets status 'removed': it leaves the public list and every scope of
+-- prior_research at once, and sharing it again (by either spelling) doesn't
+-- bring it back (the upsert only updates listed rows). `id` is a random
+-- public id.
 CREATE TABLE shared_sources (
   seq INTEGER PRIMARY KEY,
   id TEXT NOT NULL UNIQUE,
-  url TEXT NOT NULL UNIQUE,
+  url_key TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
   title TEXT NOT NULL,
   kind TEXT NOT NULL,
   city TEXT NOT NULL,
@@ -26,5 +31,6 @@ CREATE TABLE shared_sources (
   shares INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'listed' CHECK (status IN ('listed', 'removed'))
 );
--- The public list and prior_research: listed sources per city, last shared first.
+-- The public list and prior_research: listed sources per city, last shared
+-- first; the removals every scope checks.
 CREATE INDEX shared_sources_list ON shared_sources (status, city, last_day, seq);

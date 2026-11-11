@@ -46,7 +46,8 @@ export class Trace {
             ? 'ok'
             : `${s.rows} row${s.rows === 1 ? '' : 's'}`
           : `${s.refused ? 'refused' : 'failed'}: ${s.error}`;
-        return `${head}${what}\n   ${result} · ${s.ms} ms · [source](${s.url})`;
+        // A step with no request to repeat (earlier results, earlier research) has no link.
+        return `${head}${what}\n   ${result} · ${s.ms} ms${s.url ? ` · [source](${s.url})` : ''}`;
       })
       .join('\n');
   }

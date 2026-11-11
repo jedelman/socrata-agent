@@ -53,7 +53,7 @@ import {
 // Research memory (docs/research-memory.md): imported as code here, above
 // the text block (it imports crypto.js and atproto-oauth.js through its
 // own imports), like every shared module.
-import { priorResearchFor, sharedResearchOn, sharedResearchReady, handleShare, handleResearchList, handleAdminResearch } from './research.js';
+import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearchOn, handleShare, handleResearchList, handleAdminResearch } from './research.js';
 import { researchScopesFor } from '../src/agent.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
@@ -791,9 +791,16 @@ function page(env) {
   const ui = config.ui || {};
   const skinName = skins[ui.skin] ? ui.skin : 'plain';
   const skin = skins[skinName];
+  const appName = esc(env.APP_NAME || config.name || 'socrata-agent');
   const fill = {
     ASSETS: esc(`${basePath(env)}/assets/${ASSET_HASH}`),
-    APP_NAME: esc(env.APP_NAME || config.name || 'socrata-agent'),
+    APP_NAME: appName,
+    // The privacy line's end (research memory, docs/research-memory.md): with
+    // PRIOR_RESEARCH and SHARED_RESEARCH off, exactly the sentence it was.
+    PRIVACY_SHARED: (accountResearchOn(env) ? 'your own later answers can start from the sources they read, ' : '')
+      + (sharedResearchReady(env)
+        ? `and nothing from them goes into ${appName}'s shared research unless you press "Share these sources" under an answer, which shares that answer's sources (their titles and links), never your question or the answer.`
+        : `and nothing from them goes into ${appName}'s shared findings.`),
     SKIN: skinName,
     TAGLINE: esc(ui.tagline),
     LOADING: esc(ui.loading || 'Looking it up. This usually takes 10 to 30 seconds'),
