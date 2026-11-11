@@ -31,6 +31,23 @@ import zoning from '../data/documents/norfolk-zoning-ordinance.json' with { type
 
 export const telemetryOn = (env) => env?.TELEMETRY === 'true';
 
+// A trace id for one answer, sent to the Claude API as a W3C traceparent on
+// each of its model calls, so the spans the API exports for them (otlp.js)
+// share it, and logged on the answer's line. Random, and tied to nothing
+// else: not the account, the conversation or the question.
+const TRACE_RE = /^[0-9a-f]{32}$/;
+const randomHex = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join('');
+export function newTrace(env) {
+  if (!telemetryOn(env)) return null;
+  let id = randomHex(16);
+  while (/^0+$/.test(id)) id = randomHex(16);
+  let parent = randomHex(8);
+  while (/^0+$/.test(parent)) parent = randomHex(8);
+  return { id, traceparent: `00-${id}-${parent}-01` };
+}
+/** ask()'s argument for a trace: nothing without one. */
+export const traceArgs = (trace) => (trace ? { traceparent: trace.traceparent } : {});
+
 /** The footer's sentence, with telemetry on. */
 export const TELEMETRY_NOTE = (app) =>
   `To improve its research, ${app} logs how each answer was found (the tools it used, its cost, and a few topic words from its searches, checked against the City's own budget and zoning books), never your question, your account or an address, and keeps that for 7 days.`;
@@ -73,7 +90,7 @@ export function topicTerms(toolResults = [], streets) {
  * The line for one answer. `out` is ask()'s result (toolResults included);
  * `tier` is 'member', 'invite' or 'public'; `ms` how long the answer took.
  */
-export function answerEvent(out, { tier, ms, city, streets } = {}) {
+export function answerEvent(out, { tier, ms, city, streets, trace } = {}) {
   const tools = {};
   for (const t of out?.toolResults || []) if (t?.name) tools[t.name] = (tools[t.name] || 0) + 1;
   const searches = (out?.trace || []).filter((s) => s?.tool === WEB_SEARCH_STEP).length;
@@ -98,6 +115,7 @@ export function answerEvent(out, { tier, ms, city, streets } = {}) {
     budget_reached: Boolean(out?.requestBudget?.reached),
     refused: Boolean(out?.refusal),
     terms: topicTerms(out?.toolResults, streets),
+    ...(typeof trace === 'string' && TRACE_RE.test(trace) ? { trace } : {}),
   };
 }
 

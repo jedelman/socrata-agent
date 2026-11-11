@@ -74,12 +74,19 @@ export const STREAM_DEADLINE_MS = 5 * 60_000;
 // headers or replace the Authorization header; this wrapper drops anything
 // else, sets the key itself, and refuses any host but api.anthropic.com.
 const SENT_HEADERS = new Set(['accept', 'content-type', 'user-agent', 'anthropic-version', 'anthropic-beta']);
-export function guardedFetch(apiKey, fetchImpl) {
+// A W3C traceparent the caller chose (the Worker's per-answer trace id, with
+// telemetry on): sampled, version 00, ids not all zeros. The API's
+// OpenTelemetry spans for the call then carry its trace id. Anything else
+// is never sent, and no other trace header (tracestate, baggage) ever is.
+export const TRACEPARENT_RE = /^00-(?!0{32})[0-9a-f]{32}-(?!0{16})[0-9a-f]{16}-01$/;
+export function guardedFetch(apiKey, fetchImpl, traceparent = null) {
+  const trace = typeof traceparent === 'string' && TRACEPARENT_RE.test(traceparent) ? traceparent : null;
   return async (url, init = {}) => {
     const u = String(url instanceof Request ? url.url : url);
     if (!u.startsWith(`${API_BASE}/`)) throw new Error('Refusing to send the Anthropic key anywhere but api.anthropic.com.');
     const headers = new Headers();
     for (const [k, v] of new Headers(init.headers)) if (SENT_HEADERS.has(k) || k.startsWith('x-stainless-')) headers.set(k, v);
+    if (trace) headers.set('traceparent', trace);
     headers.set('authorization', `Bearer ${apiKey}`);
     return (fetchImpl || networkFetch)(u, { ...init, headers });
   };
@@ -234,14 +241,14 @@ export function partialUsage(message) {
  * forwarded: the declining model's notes are to be withdrawn.
  * `streamDeadlineMs` bounds each call (default STREAM_DEADLINE_MS).
  */
-export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking, onFallback, webSearch, streamDeadlineMs = STREAM_DEADLINE_MS }) {
+export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl, onThinking, onFallback, webSearch, traceparent = null, streamDeadlineMs = STREAM_DEADLINE_MS }) {
   if (!PRICES[model]) throw new Error(`No price on file for ${model}. Add it to PRICES in src/providers/anthropic.js before using it.`);
   // The base URL is pinned: without it the SDK reads ANTHROPIC_BASE_URL from
   // the environment, and inside a Claude Code session (or behind someone
   // else's proxy) that would send this key somewhere other than Anthropic.
   // One retry at most: a retried attempt that the API billed would not show
   // up in usage. Streaming calls get the SDK's default timeout (10 minutes).
-  const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: MAX_RETRIES, fetch: guardedFetch(apiKey, fetchImpl) });
+  const client = new Anthropic({ apiKey, baseURL: API_BASE, maxRetries: MAX_RETRIES, fetch: guardedFetch(apiKey, fetchImpl, traceparent) });
   // Thinking tokens count toward max_tokens on these models; the caller sets
   // the allowance (the Worker's MAX_TOKENS_CLAUDE), default CLAUDE_MAX_TOKENS.
   const max_tokens = Number(maxTokens) > 0 ? Number(maxTokens) : CLAUDE_MAX_TOKENS;

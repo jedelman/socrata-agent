@@ -165,6 +165,7 @@ export async function ask({
   budget: given = null,
   publicThread = false,
   priorResearch = null,
+  traceparent = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // Checked whatever the model, so a bad list fails here; declared only for
@@ -210,7 +211,7 @@ export async function ask({
   const onThinking = thinkingEvents ? (text) => onEvent({ type: 'thinking', step, text }) : undefined;
   const onFallback = thinkingEvents ? () => onEvent({ type: 'fallback', step }) : undefined;
   const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking, onFallback, ...(searchOn ? { webSearch: searchSettings } : {}) })
+    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking, onFallback, ...(searchOn ? { webSearch: searchSettings } : {}), ...(traceparent ? { traceparent } : {}) })
     : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
   // Fetches one API call can take, and one complete() at worst (a cut-off
   // call's second try, each with its retry).

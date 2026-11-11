@@ -221,6 +221,24 @@ generic mode.
   `[env.siren.observability]` keeps console output only: invocation logs
   (request URLs and headers: tokens, a GET search's words, cookies) and
   traces (outbound URLs: the addresses people look up) stay off.
+  `otlp.js` is the collector for the Claude API's OpenTelemetry export of
+  Siren's API workspace (Jason, 2026-11-11: "the Siren workspace refers to
+  the Claude API we're running her on"; `docs/telemetry.md` has the Console
+  steps): `POST /otlp/v1/traces`, only while the `OTLP_TOKEN` secret (32+
+  characters) is set, else that path answers as any unknown one. Cloudflare
+  takes no OTLP in, so Siren decodes the protobuf herself (gzip, 4 MB sent,
+  16 MB inflated, 2,000 lines a delivery) and logs one `claude.span` line per
+  span with a fixed list of attributes, each shape-checked (model, tokens,
+  stop reason, service tier, error type, tool name, request id, timing),
+  never a prompt, response, tool input or result, organization, workspace or
+  user id, or URL. The destination is to be "Metadata only"; if content ever
+  arrives it's never read, and the summary line says `content_arrived`. The
+  token comes in `x-otlp-token`, never `Authorization` (no route reads one).
+  `OTLP_WORKSPACE` keeps other workspaces' spans out. With `TELEMETRY` on,
+  each answer's model calls send one random W3C `traceparent`
+  (`newTrace`; the provider's `guardedFetch` sends only a valid sampled one,
+  and never tracestate or baggage), and the answer line carries its `trace`
+  id, so one answer's line and its API spans join.
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person
