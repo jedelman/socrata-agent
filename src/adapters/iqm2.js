@@ -29,6 +29,72 @@ const field = (html, label) => {
   return m ? decode(m[1]) || null : null;
 };
 
+// The City's cover letter to Council (the "Council Transmittal Letter" on a
+// legislative file's page), where the substance is: what the item does, the
+// analysis, the money (Jason, 2026-11-11, "Yes" to Siren reading it). Only
+// the sections that describe the item are kept: Request, Description,
+// Analysis and Financial Impact in the numbered format, or the letter's body
+// in the older "Dear Ladies and Gentlemen" format. The Applicant section and
+// the rest (payment of taxes names an owner; outreach, coordination and
+// signatures add nothing) are left out. An applicant that isn't plainly an
+// organization is a person, and their name is withheld wherever it appears;
+// so is a name after a courtesy title.
+const LETTER_KEEP = { request: /^request$/, description: /^description$/, analysis: /^analysis$/, financial_impact: /^financial impact$/ };
+const ORG = /\b(?:llc|l\.l\.c|inc|incorporated|corp|corporation|company|co\.|lp|llp|ltd|trust|association|church|ministries|university|college|school|foundation|partners|partnership|group|hospital|bank|authority|commission|department|city of|county|commonwealth|board|council|society|club|center|centre|properties|holdings|ventures|realty|development|enterprises|services|restaurant|cafe|hotel|museum)\b/i;
+const LETTER_MAX = 1200;
+const letterText = (s) =>
+  decode(s.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))))
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u00b7\u2022]\s*/g, '; ')
+    .replace(/\s+/g, ' ')
+    .trim();
+const clip = (s) => (s.length <= LETTER_MAX ? s : `${s.slice(0, LETTER_MAX).replace(/\s+\S*$/, '')} …`);
+
+export function parseTransmittal(html) {
+  const at = html.indexOf('Council Transmittal Letter</h4>');
+  if (at < 0) return null;
+  const rest = html.slice(at + 'Council Transmittal Letter</h4>'.length);
+  const end = rest.search(/<h4\b|class=['"]LegiFileSection(?!Contents)|MeetingHistory/);
+  const text = letterText(end < 0 ? rest.slice(0, 40000) : rest.slice(0, end));
+  if (!text) return null;
+  // Numbered sections: "I. Recommendation: … II. Applicant: … III. Description: …"
+  const heads = [...text.matchAll(/(?:^|\s)(X{0,3}(?:IX|IV|V?I{0,3}))\.\s+([A-Z][A-Za-z/&' -]{2,60}?)(?::|(?=\s+(?:As of|The|This|By|To|A|An|On|In)\b))/g)].filter((m) => m[1]);
+  const sections = {};
+  let applicant = null;
+  if (heads.length >= 2) {
+    heads.forEach((m, i) => {
+      const name = m[2].trim().toLowerCase().replace(/\s+/g, ' ');
+      const from = m.index + m[0].length;
+      const to = i + 1 < heads.length ? heads[i + 1].index : text.length;
+      const body = text.slice(from, to).replace(/^[\s:;]+/, '').trim();
+      if (name === 'applicant') applicant = body;
+      for (const [key, re] of Object.entries(LETTER_KEEP)) if (re.test(name) && body) sections[key] = body;
+    });
+  } else {
+    // Words in these letters are sometimes split by markup ("Re spectfully").
+    const loose = (w) => w.split('').map((c) => (c === ' ' ? '\\s+' : `${c}\\s?`)).join('');
+    const body = text.match(new RegExp(`${loose('Dear Ladies and Gentlemen')}:\\s*([\\s\\S]*?)\\s*${loose('Respectfully')},`, 'i'))?.[1];
+    if (body) sections.letter = body.trim();
+  }
+  if (!Object.keys(sections).length) return null;
+  // The applicant's name, when the applicant isn't plainly an organization:
+  // the words before its address (the first number), at most five of them.
+  // Judged on the name only, before the address (whose "Norfolk, VA" says nothing).
+  const withheld = [];
+  if (applicant) {
+    const name = applicant.split(/\s\d/)[0].split(/\s+/).slice(0, 5).join(' ').replace(/[,;:]+$/, '').trim();
+    if (name.length >= 3 && !ORG.test(name)) withheld.push(name);
+  }
+  const scrub = (s) => {
+    let out = s;
+    for (const n of withheld) out = out.split(n).join('the applicant');
+    return out.replace(/\b(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+(?:[A-Z][a-z'-]+\s?){1,3}/g, '[name withheld] ');
+  };
+  const out = {};
+  for (const [k, v] of Object.entries(sections)) out[k] = clip(scrub(v).replace(/^[;\s]+/, '').replace(/\s+;/g, ';')).trim();
+  return { ...out, ...(withheld.length ? { applicant_name_withheld: true } : {}) };
+}
+
 export function parseLegiFile(html) {
   const history = [];
   const rowRe =
@@ -69,6 +135,10 @@ export function parseLegiFile(html) {
     sponsors: field(html, 'Sponsors'),
     category: field(html, 'Category'),
     history,
+    ...(() => {
+      const letter = parseTransmittal(html);
+      return letter ? { cover_letter: letter } : {};
+    })(),
   };
 }
 
