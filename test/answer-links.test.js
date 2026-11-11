@@ -15,7 +15,7 @@ import { systemPrompt, LINK_LINE, FOLLOWUP_LINE } from '../src/prompt.js';
 import { voiceViolations } from '../src/voice.js';
 import { getCity } from '../src/cities/index.js';
 import { applyConfig, definePlugin } from '../src/plugins.js';
-import { answerRecord, saveTurn, loadConversation, turnView, newConversationId } from '../worker/conversations.js';
+import { answerRecord, saveTurn, loadConversation, turnView, newConversationId, historyFrom } from '../worker/conversations.js';
 import { TOOL_LABELS } from '../worker/ask-stream.js';
 import { followupsHtml, followupOffer, checkLink as pageCheckLink, handoffLinks as pageHandoffLinks, normUrl as pageNormUrl, md as pageMd, answerHtml, FOLLOWUP_LABEL as PAGE_LABEL } from '../worker/questions-page.js';
 import siren from '../deployments/siren.config.js';
@@ -483,4 +483,10 @@ test('questions page: answers render through DOMPurify with the link hook: hand-
   assert.equal(a.attrs.get('rel'), 'noopener noreferrer');
   for (const u of ['https://x.gov/a/', 'https://x.gov/a?b=c/']) assert.equal(pageNormUrl(u), normalizeUrl(u));
   assert.equal(unescapeMarkdown('https\\://x.gov/a\\_b'), 'https://x.gov/a_b');
+});
+
+test('history fed back to the model carries no link-filter escapes; the stored answer keeps them for the page', () => {
+  const answer = 'I found [Ordinance 50170](https\\://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6016). See www\\.example.com.';
+  const { history } = historyFrom({ turns: [{ at: '2026-11-10T00:00:00.000Z', question: 'q', answer, tools: [] }] });
+  assert.equal(history[1].content, 'I found [Ordinance 50170](https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6016). See www.example.com.');
 });
