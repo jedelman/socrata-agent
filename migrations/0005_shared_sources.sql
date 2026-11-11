@@ -1,7 +1,7 @@
 -- Shared research (docs/research-memory.md; Jason, 2026-11-11: research
 -- counts from "Public, shared, and within the account"). One row per source
 -- someone shared from a private answer with the "Share these sources" button.
--- NOT applied yet: SHARED_RESEARCH stays off until it is (wrangler.toml).
+-- Applied 2026-11-11, with SHARED_RESEARCH turned on in wrangler.toml.
 --
 -- A row holds the source only: its title, its link, its kind and the city,
 -- the newest day an answer read it, the days it was first and last shared,

@@ -17,7 +17,7 @@ test('wrangler.toml: the flag off, three limiters, only the free tier\'s sweep c
   for (const gone of ['BSKY_ACCOUNT_RL', 'BSKY_D1_RL']) assert.ok(!toml.includes(gone), gone);
   for (const kept of ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_SITE_RL']) assert.match(toml, new RegExp(`name = "${kept}"`));
   assert.match(toml, /binding = "SIREN_DB"/);
-  assert.match(toml, /next one applied also\n# applies 0003/, 'applying any later migration applies 0003 too');
+  assert.match(toml, /then 0003 \(dropping them\), 0004 .* and 0005 .* were applied/s, 'the comment records 0003 to 0005 as applied, after the old tables were checked empty');
   // The old endorsement purge cron is gone; the one cron is the free tier's
   // sweep, and the scheduled handler does nothing but that and wake the
   // Jetstream watcher (both no-ops with PUBLIC_ASK off:

@@ -192,7 +192,10 @@ LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jaso
 # PUBLIC_ASK; sources people share from their answers ("Share these
 # sources") need SHARED_RESEARCH = "true", added by a PR after migration
 # 0005 is applied. PRIOR_RESEARCH = "off" turns the tool off everywhere.
-# PRIOR_RESEARCH = "true"
+# Both on for Siren (Jason, 2026-11-11, "Yep"; migration 0005 applied the
+# same day).
+PRIOR_RESEARCH = "true"
+SHARED_RESEARCH = "true"
 # Siren's origin. Sign-in links, annotation ids, the Bluesky client_id and
 # every endorsement subject URL are built from it. Subjects are fixed from
 # here on: changing it after endorsements exist strands them
@@ -205,18 +208,15 @@ id = "d4dfe5ca9b814268a1a1abe052287959"
 
 # The SIREN_DB D1 database. Created 2026-11-09 (ENAM) for the first,
 # server-side endorsement design; migrations 0001 and 0002 applied the same
-# day. Endorsements now live in people's own repos. Migration 0003 drops the
-# old tables and is not applied yet (rollout step 5 checks they're empty
-# first). Kept bound for the planned public board (D9, default, pending
-# Jason): migration 0004 (not applied) holds the free tier's public
-# questions, the only thing the Worker reads here, with PUBLIC_ASK on.
-# Migration 0005 (not applied) holds shared research's sources, read only
-# with SHARED_RESEARCH on.
+# day. Endorsements now live in people's own repos. On 2026-11-11 the old
+# tables were checked empty (0 rows in endorsements, endorsement_counts,
+# bsky_rate_counts and siren_d1_budget), then 0003 (dropping them), 0004 (the
+# free tier's public questions, read with PUBLIC_ASK on) and 0005 (shared
+# research's sources) were applied through the D1 query API and recorded in
+# d1_migrations, so wrangler counts all five applied. Kept bound for the
+# planned public board (D9, default, pending Jason).
 # Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
-# That command applies every pending migration, so the next one applied also
-# applies 0003 and drops the old tables: check they're empty first
-# (docs/bluesky-endorsements.md, Rollout, step 5).
 [[env.siren.d1_databases]]
 binding = "SIREN_DB"
 database_name = "siren"
