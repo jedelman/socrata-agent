@@ -10,9 +10,9 @@
 -- than a day. Sources that could point at an address are dropped before a
 -- row is written (src/prior-research.js topicSources).
 --
--- A source is keyed by its normalized URL (url_key: src/answer-links.js
--- normalizeUrl, one trailing slash off the path), so "…/page" and "…/page/"
--- are one row; url keeps the link as first shared. A steward removing a
+-- A source is keyed by url_key (src/prior-research.js sourceKey: scheme and
+-- host in lower case, no trailing slash, fragment or tracking parameters), so
+-- "…/page", "…/page/", "…/page#top" and "…/page?utm_source=x" are one row; url keeps the link as first shared. A steward removing a
 -- source sets status 'removed': it leaves the public list and every scope of
 -- prior_research at once, and sharing it again (by either spelling) doesn't
 -- bring it back (the upsert only updates listed rows). `id` is a random

@@ -446,6 +446,28 @@ test('the URL filter reads the whole decoded URL, fragment included: emails, coo
   for (const u of [LEGI, PLAN, PAGE, 'https://library.municode.com/va/norfolk/codes/zoning?nodeId=5.3', 'https://www.norfolk.gov/CivicAlerts.aspx?AID=9876', 'https://law.lis.virginia.gov/vacode/title15.2/chapter22/section15.2-2286/']) {
     assert.equal(urlCarries(u, STREETS), true, u);
   }
+  // One malformed escape must not switch the decoding off (re-check N1).
+  for (const u of [
+    'https://www.norfolk.gov/contact?to=jane.doe%40example.com&x=%E0%A4%A',
+    'https://maps.example.gov/map?c=36.8468%2C-76.2852&x=%ZZ',
+    'https://www.norfolk.gov/x?addr%65ss=810%20Union%20St&bad=%',
+  ]) assert.equal(urlCarries(u, STREETS), false, u);
+  // A path segment of digits is a page or document id, not a house number (re-check: City topic pages were dropped).
+  for (const u of [
+    'https://www.norfolk.gov/6267/MacArthur-Center',
+    'https://www.norfolk.gov/5678/Ghent-Square',
+    'https://www.norfolk.gov/3333/35th-Street-Market',
+    'https://www.norfolk.gov/2345/Military-Highway-Corridor-Study',
+    'https://www.norfolk.gov/DocumentCenter/View/115044/City-R-01-City-Acquisition-of-Ground-Lease-for-MacArthur-Center-Mall_060723',
+  ]) assert.equal(urlCarries(u, STREETS), true, u);
+});
+
+test('sourceKey: one source however its link is spelled', async () => {
+  const { sourceKey } = await import('../src/prior-research.js');
+  const one = sourceKey('https://www.norfolk.gov/6267/MacArthur-Center');
+  for (const u of ['https://www.norfolk.gov/6267/MacArthur-Center/', 'HTTPS://WWW.NORFOLK.GOV/6267/MacArthur-Center#top', 'https://www.norfolk.gov/6267/MacArthur-Center?utm_source=x&fbclid=y']) assert.equal(sourceKey(u), one, u);
+  assert.notEqual(sourceKey('https://www.norfolk.gov/6267/macarthur-center'), one, 'the path keeps its case');
+  assert.notEqual(sourceKey('https://www.norfolk.gov/x?id=1'), sourceKey('https://www.norfolk.gov/x?id=2'));
 });
 
 test('a query naming a person or an address is refused before any search, and isn\'t counted', async () => {
@@ -513,6 +535,25 @@ test('a steward-removed source leaves every scope, and with removals unreadable 
   assert.ok(got.account.length && got.public.length && got.shared.length);
   w.db.fail = true;
   assert.deepEqual(await pr.search(['macarthur'], { scopes: pr.scopes }), {}, 'fails closed');
+  w.db.fail = false;
+  // Shared research turned off later: the removal still holds in the scopes left (re-check N2).
+  const off = priorResearchFor({ ...env, SHARED_RESEARCH: 'false' }, { uid: ME, city: 'norfolk', publicOn: true, streets: STREETS, pageBase: ORIGIN });
+  assert.deepEqual(off.scopes, ['account', 'public']);
+  const left = await off.search(['macarthur'], { scopes: off.scopes });
+  assert.ok(left.account.length && !JSON.stringify(left).includes('Downtown-Plan-2030'), 'still removed with SHARED_RESEARCH off');
+  // A spelling with a fragment or a tracking parameter doesn't bring it back.
+  await saveTurn(w.kv, ME, 'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd', null, { city: 'norfolk', question: 'MacArthur again?', answer: 'x', tools: [], record: { resources: { records: [{ kind: 'web', title: 'Downtown plan for MacArthur', url: `${PLAN}?utm_source=mail#top` }] } } }, { now: Date.parse('2026-11-03T12:00:00Z') });
+  assert.ok(!JSON.stringify(await off.search(['macarthur'], { scopes: off.scopes })).includes('Downtown-Plan-2030'), 'any spelling stays removed');
+});
+
+test('without the shared_sources table (migration 0005 not applied), the other scopes go on without removals', { skip: sqliteSkip }, async () => {
+  const w = await sharedWorld();
+  w.db.db.exec('DROP TABLE shared_sources');
+  w.db.db.prepare("INSERT INTO public_questions (id, question_uri, status, day, city, question, answer, record) VALUES ('iiiiiiiiiiiiiiii', 'at://did:plc:x/q/i', 'answered', '2026-11-09', 'norfolk', 'MacArthur Center plans?', 'a', ?)").run(JSON.stringify({ resources: RESOURCES }));
+  const pr = priorResearchFor({ ...w.env, SHARED_RESEARCH: 'false' }, { uid: ME, city: 'norfolk', publicOn: true, streets: STREETS, pageBase: ORIGIN });
+  assert.deepEqual(pr.scopes, ['public']);
+  const got = await pr.search(['macarthur'], { scopes: pr.scopes });
+  assert.ok(got.public.length, 'public answers still searched');
 });
 
 test('legislation and meeting pages stay out when any turn of the conversation, or any question in a public thread, looked up an address', { skip: sqliteSkip }, async () => {

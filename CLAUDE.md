@@ -175,7 +175,7 @@ generic mode.
   (answered free-tier questions passing the public-text checks, with
   `PUBLIC_ASK`; the day, the `/q/<id>` link and the sources only, never the
   question's text), `shared` (D1 `shared_sources`, migration 0005, unapplied,
-  keyed by `normalizeUrl`, behind `SHARED_RESEARCH`; with it off its paths are
+  keyed by `sourceKey`, behind `SHARED_RESEARCH`; with it off its paths are
   404s and the session and answer body carry nothing new). With every flag
   off, a member's request to the model is what it was before. A public
   answer never gets `account`, and its trace step never shows the words
@@ -191,7 +191,9 @@ generic mode.
   "Earlier research". Shared sources are public at `GET /api/research` (last
   shared first); an answer is shared once (`share-turn:<HMAC>`). The steward
   removes one at `/admin/research`: it leaves the list and every scope at
-  once, and re-sharing, by either spelling, never revives it.
+  once (whether or not shared research is still on), and re-sharing, by any
+  spelling, never revives it. A path segment of digits only is read as a
+  page id, not a house number (`/6267/MacArthur-Center` carries over).
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person

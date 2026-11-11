@@ -23,6 +23,7 @@
 
 import { topicSources, addressTurn, scoreTexts, enough, MAX_MATCHES, MAX_SOURCES } from '../src/prior-research.js';
 import { normalizeUrl } from '../src/answer-links.js';
+import { sourceKey } from '../src/prior-research.js';
 import { hmacHex } from './crypto.js';
 import { publicTextViolations } from '../src/public-text.js';
 import { loadConversation, researchInConversations, chargeSearch } from './conversations.js';
@@ -38,6 +39,8 @@ export const SHARE_MAX = 20;
 export const LIST_DEFAULT = 50;
 export const LIST_MAX = 100;
 const STEWARD_ROWS = 200;
+// At most 40 threads of at most 25 questions each (docs/free-tier.md).
+const THREAD_ROWS = 1000;
 const AT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 const NOINDEX = { 'X-Robots-Tag': 'noindex' };
 
@@ -104,11 +107,12 @@ export async function searchPublic(db, city, terms, { streets, pageBase, limit =
   if (roots.length) {
     const marks = roots.map(() => '?').join(', ');
     const { results: thread = [] } = (await db.prepare(
-      `SELECT question_uri, root_uri, question, record, tools FROM public_questions WHERE root_uri IN (${marks}) OR question_uri IN (${marks})`
+      `SELECT question_uri, root_uri, question, json_extract(record, '$.trace') AS trace, tools FROM public_questions WHERE root_uri IN (${marks}) OR question_uri IN (${marks}) LIMIT ${THREAD_ROWS}`
     ).bind(...roots, ...roots).all()) || {};
     for (const t of thread) {
       const tools = parse(t.tools, []);
-      if (turnByAddress({ tools: Array.isArray(tools) ? tools : [], record: parse(t.record, {}), question: t.question }, streets)) byAddress.add(threadOf(t));
+      const trace = parse(t.trace, []);
+      if (turnByAddress({ tools: Array.isArray(tools) ? tools : [], record: { trace: Array.isArray(trace) ? trace : [] }, question: t.question }, streets)) byAddress.add(threadOf(t));
     }
   }
   const found = [];
@@ -171,19 +175,22 @@ export function priorResearchFor(env, { uid = null, city, exclude = null, street
         want.includes('public') && scopes.includes('public') ? run('public', searchPublic(env.SIREN_DB, city, terms, { streets, pageBase })) : null,
         want.includes('shared') && scopes.includes('shared') ? run('shared', searchShared(env.SIREN_DB, city, terms)) : null,
       ]);
-      // A source a steward removed leaves every scope. With shared research
-      // on, the removals must be read: if they can't be, nothing comes back.
-      if (!sharedResearchReady(env)) return out;
+      // A source a steward removed leaves every scope, whether or not shared
+      // research is still on. The removals must be read: if they can't be,
+      // nothing comes back. Only a database without the table (migration 0005
+      // not applied, so nothing was ever removed) goes without them.
+      if (!env.SIREN_DB || !Object.keys(out).length) return out;
       let removed;
       try {
         removed = await removedUrls(env.SIREN_DB);
-      } catch {
+      } catch (err) {
+        if (!sharedResearchReady(env) && /no such table/i.test(String(err?.message || err))) return out;
         console.error('prior research: removed sources could not be read');
         return {};
       }
       for (const scope of Object.keys(out)) {
         out[scope] = (out[scope] || [])
-          .map((m) => ({ ...m, sources: (m.sources || []).filter((x) => !removed.has(normalizeUrl(x.url))) }))
+          .map((m) => ({ ...m, sources: (m.sources || []).filter((x) => !removed.has(sourceKey(x.url))) }))
           .filter((m) => m.sources.length);
       }
       return out;
@@ -199,13 +206,13 @@ export function priorResearchFor(env, { uid = null, city, exclude = null, street
  */
 export async function storeShared(db, { city, sources, readDay, now = Date.now() }) {
   const day = dayOf(now);
-  // Keyed by the normalized URL (src/answer-links.js normalizeUrl), as every
+  // Keyed by sourceKey (src/prior-research.js), as every
   // dedupe and removal check is: "…/page" and "…/page/" are one source.
   const stmts = sources.map((s) => db.prepare(
     `INSERT INTO shared_sources (id, url_key, url, title, kind, city, read_day, first_day, last_day, shares, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'listed')
      ON CONFLICT (url_key) DO UPDATE SET title = excluded.title, kind = excluded.kind, read_day = max(shared_sources.read_day, excluded.read_day), last_day = excluded.last_day, shares = shared_sources.shares + 1
      WHERE shared_sources.status = 'listed'`
-  ).bind(newPublicId(), normalizeUrl(s.url), s.url, s.title, s.kind, city, readDay, day, day));
+  ).bind(newPublicId(), sourceKey(s.url), s.url, s.title, s.kind, city, readDay, day, day));
   if (!stmts.length) return 0;
   await db.batch(stmts);
   return stmts.length;

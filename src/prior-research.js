@@ -115,7 +115,9 @@ function decodedUrl(u) {
     try {
       next = decodeURIComponent(raw.replace(/\+/g, ' '));
     } catch {
-      break;
+      // One malformed sequence ("%ZZ", a cut-off "%E0%A4%A") must not stop the
+      // rest from being read: decode each valid %XX on its own, as a byte.
+      next = raw.replace(/\+/g, ' ').replace(/%([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)));
     }
     if (next === raw) break;
     raw = next;
@@ -127,6 +129,26 @@ const PLACE_KEYS = /(?:^|[?&#/;])(?:[a-z_]*address[a-z_]*|addr|street|streetname
 // Two decimal numbers side by side: a latitude and longitude, or a projected
 // map position (a web map's "-8496000.5/4440000.2").
 const COORD_PAIR = /-?\d+\.\d+\s*[,/;|\s]\s*-?\d+\.\d+/;
+
+/**
+ * One key per source however its URL is spelled: scheme and host in lower
+ * case, no trailing slash, no fragment, no tracking parameters (utm_*,
+ * fbclid, gclid, mc_*), the rest of the query kept in order. Shared rows are
+ * stored and steward removals matched by it, so "/page", "/page/",
+ * "/page#top" and "/page?utm_source=x" are one source.
+ */
+export function sourceKey(url) {
+  let u;
+  try {
+    u = new URL(String(url ?? '').trim());
+  } catch {
+    return normalizeUrl(url);
+  }
+  const query = [...u.searchParams].filter(([k]) => !/^(?:utm_[a-z0-9_]*|fbclid|gclid|mc_[a-z]+)$/i.test(k));
+  const path = u.pathname.length > 1 && u.pathname.endsWith('/') ? u.pathname.slice(0, -1) : u.pathname;
+  const q = query.length ? `?${new URLSearchParams(query).toString()}` : '';
+  return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${path}${q}`;
+}
 
 /**
  * Whether a URL may carry over into shared or public research: never one
@@ -145,7 +167,16 @@ export function urlCarries(url, streets) {
   if (u.username || u.password) return false;
   const raw = decodedUrl(u);
   if (/@|mailto:/i.test(raw) || COORD_PAIR.test(raw) || PLACE_KEYS.test(raw)) return false;
-  const words = raw.replace(/[/?&=+_.%:;,#()[\]{}"'<>|\\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // A path segment that is only digits is a page or document id (the City's
+  // "/6267/MacArthur-Center", "/DocumentCenter/View/115044/..."), not a house
+  // number: it is kept apart from the words that follow it. An address in a
+  // URL sits inside one segment ("/810-Union-St-staff-report").
+  const words = raw
+    .replace(/\/(\d+)(?=\/|$)/g, '/$1\u2016')
+    .replace(/[/?&=+_.%:;,#()[\]{}"'<>|\\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\u2016\s*/g, '; ')
+    .trim();
   for (const text of [raw, words]) if (publicTextViolations(text, { streets }).some((c) => URL_BLOCKS.has(c))) return false;
   return true;
 }

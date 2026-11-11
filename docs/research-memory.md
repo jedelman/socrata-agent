@@ -116,11 +116,21 @@ Worker then:
      person (address, parcel, lat/lon, owner, email, name…), and, read as
      written and with its separators as spaces, no house number, street
      address, corner, "block of", unit, contact, coordinates or person.
-4. Upserts each remaining source by its normalized URL (`url_key`) into
+4. Upserts each remaining source by its key (`url_key`, `sourceKey`: scheme
+   and host in lower case, no trailing slash, fragment or tracking
+   parameters, so one page is one row however its link is spelled) into
    `shared_sources`: title, link, kind, city, the newest day an answer read
    it, the days first and last shared, and a share count. An answer is
    shared once: sharing it again answers `already_shared` and changes
    nothing (`share-turn:<HMAC(uid, conversation, at)>`, kept 400 days).
+
+**What the share-once marker allows.** The marker is an HMAC of the account,
+conversation and answer time under `INVITE_SECRET`. Anyone holding that
+secret and the KV store (in practice, the operator) can test a given
+account's answers against the markers for 400 days and learn which of them
+were shared, though not which sources a share wrote. That is narrower than
+"nothing about who shared is kept", and it is the price of counting a share
+once on the server.
 
 **Never stored:** who shared it (no account, invite, visitor hash or Bluesky
 identity), the question, the answer, or any time finer than a day.
