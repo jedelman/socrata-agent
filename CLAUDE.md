@@ -12,9 +12,10 @@ generic mode.
   the check to make an answer pass. A question the records can't settle (a
   plan, an intention, what will happen) but that the tools found something
   about is answered with what was found, led by exactly "I can't say that for
-  sure, but here's what I found:" and closed with an offer to summarize that
-  carries "AI can make mistakes" (Jason, 2026-11-10; `PARTIAL_LEAD`,
-  `SUMMARY_OFFER`, `SUMMARY_CAVEAT` in `src/prompt.js`, pinned by
+  sure, but here's what I found:", followed by a summary given without asking
+  ("What this might add up to:") and closed with "AI can make mistakes"
+  (Jason, 2026-11-10 and 11-11; `PARTIAL_LEAD`, `SUMMARY_LEAD`,
+  `SUMMARY_CAVEAT` in `src/prompt.js`, pinned by
   `test/prompt-partial.test.js`). An answer links the words a fact comes
   from, inline (`LINK_LINE`), and code keeps a link only when its URL is in
   that answer's own hand-off (`src/answer-links.js`, run in `ask()` after any

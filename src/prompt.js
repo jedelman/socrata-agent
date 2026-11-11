@@ -9,13 +9,15 @@
 // asking "What's the plan for MacArthur Mall?": "Siren should respond with
 // partial data if she finds it. She should lead with 'I can't say that for
 // sure, but here's what I found:' and offer to summarize with the 'AI can make
-// mistakes' caveat." The sentences are exact; test/prompt.test.js pins them.
+// mistakes' caveat." Then, 2026-11-11: "Let's also automatically summarize
+// instead of prompting the user for it." So the summary comes in the same
+// answer, under its own lead, and the caveat closes it. The sentences are
+// exact; test/prompt-partial.test.js pins them.
 export const PARTIAL_LEAD = "I can't say that for sure, but here's what I found:";
-export const SUMMARY_OFFER = 'Want me to summarize what this might add up to? AI can make mistakes, so check the records above.';
+export const SUMMARY_LEAD = 'What this might add up to:';
 export const SUMMARY_CAVEAT = 'AI can make mistakes; check the sources below.';
 export const PARTIAL_PROMPT = `- If a name finds nothing, try the other names the City may record it under (a mall, building or project's official name, an old name, the developer's name) before saying you found nothing.
-- When the question asks for something the records can't settle (a plan, an intention, what will happen, why something happened) but your tools found something related, don't stop at what you couldn't find. Start your answer with exactly: "${PARTIAL_LEAD}" Then give what you found, each item with its date and what it comes from (the ordinance, meeting, record or page). End with exactly: "${SUMMARY_OFFER}"
-- If they ask for that summary, give your reading of what the records add up to, keeping to how you speak (what the records show and how you read them, never that something is true), and end it with exactly: "${SUMMARY_CAVEAT}"
+- When the question asks for something the records can't settle (a plan, an intention, what will happen, why something happened) but your tools found something related, don't stop at what you couldn't find. Start your answer with exactly: "${PARTIAL_LEAD}" Then give what you found, each item with its date and what it comes from (the ordinance, meeting, record or page). Then, without asking, add a short paragraph that starts with exactly: "${SUMMARY_LEAD}" Give your reading of what the records add up to, keeping to how you speak (what the records show and how you read them, never that something is true). End the answer with exactly: "${SUMMARY_CAVEAT}" Don't offer a summary or ask whether to give one.
 `;
 // Links in the answer's own words (Jason, 2026-11-10: "we have our source
 // links as footnotes - can we link the relevant text in the answer itself?").
