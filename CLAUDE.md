@@ -94,7 +94,13 @@ generic mode.
     `answer-links.js` holds the answer's links to its hand-off and
     `followups.js` the follow-up offers; `block.js` is the block report and legislation matching;
     `socrata.js` is the SODA client; `adapters/iqm2.js` parses Norfolk's
-    meeting portal; `cities/` holds the profiles.
+    meeting portal (`get_legislation` also returns `cover_letter`, from the
+    City's Council Transmittal Letter on the same page: Request, Description,
+    Analysis and Financial Impact, or an older letter's body, each cut at
+    1,200 characters; never the Applicant section or Payment of Taxes; an
+    applicant that isn't plainly an organization is withheld wherever named,
+    as is a name after a courtesy title; Jason, 2026-11-11); `cities/` holds
+    the profiles.
 - `src/plugins.js` defines plugin tools and deployment configs. Plugins get a
   traced context (`ctx.socrata`, `ctx.http`, `ctx.lookupAddress`), never a raw
   fetch; `test/conformance.js` enforces it. Configs can add but not remove
