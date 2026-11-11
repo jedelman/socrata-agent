@@ -6,14 +6,20 @@ import { soqlString, ACCESS } from './socrata.js';
 import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
 import { NOTE_UNANSWERED_TOOL, noteUnanswered } from './gaps/answer.js';
 import { offerFollowup, FOLLOWUP_LABEL, MAX_FOLLOWUPS, FOLLOWUP_QUESTION_CHARS } from './followups.js';
+import { priorResearch, RESEARCH_SCOPES } from './prior-research.js';
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
   function: { name, description, parameters: { type: 'object', properties, required, additionalProperties: false } },
 });
 
+// Core tool names no plugin may take, declared or not.
+const RESERVED = new Set(['prior_research']);
+const SCOPE_TEXT = { account: "this person's own earlier conversations", public: 'public answers on this site', shared: 'sources people shared from their answers' };
+
 // opts.gaps (a built gap file) adds note_unanswered after suggest_data_source;
-// offer_followup comes after both.
+// offer_followup comes after both. opts.priorResearch ({ scopes }, set by the
+// Worker; src/prior-research.js) adds prior_research last among the core tools.
 export function toolsFor(city, plugins = [], opts = {}) {
   const tools = [
     T('search_datasets', `Search ${city.name}'s open data catalog by keyword. Returns dataset ids, names and descriptions.`, {
@@ -67,7 +73,15 @@ export function toolsFor(city, plugins = [], opts = {}) {
       url: { type: 'string', description: "The source's url, exactly as a tool result in this conversation showed it." },
     }, ['question', 'source_title', 'url'])
   );
-  const core = new Set(tools.map((t) => t.function.name));
+  const scopes = RESEARCH_SCOPES.filter((x) => (opts.priorResearch?.scopes || []).includes(x));
+  if (scopes.length) {
+    tools.push(
+      T('prior_research', `Search earlier research for where to look: ${scopes.map((x) => SCOPE_TEXT[x]).join(', ')}. For each match it returns the day, the question when it can be shown, and the sources that answer read (title, link, kind, the day read), never what an earlier answer concluded. Call it first, once, when earlier research may cover the question (a place, project, plan or topic), then re-read what you rely on.`, {
+        query: { type: 'string', description: 'A few keywords naming the place, project or topic, e.g. "MacArthur Center redevelopment". No address, names or contact details.' },
+      }, ['query'])
+    );
+  }
+  const core = new Set([...tools.map((t) => t.function.name), ...RESERVED]);
   for (const def of pluginToolDefs(plugins, city)) {
     if (core.has(def.function.name)) throw new Error(`Plugin "${def.function.name}" would replace a core tool.`);
     tools.push(def);
@@ -94,6 +108,9 @@ export async function runTool(ctx, name, args) {
     }
     case 'offer_followup':
       return offerFollowup(ctx, args);
+    case 'prior_research':
+      // Gated in code: without the Worker's search this is an unknown tool, whatever the model emits.
+      return priorResearch(ctx, args);
     case 'note_unanswered':
       // Gated in code: with gaps off this is an unknown tool, whatever the model emits.
       if (!ctx.gaps) throw new Error(`Unknown tool ${name}`);

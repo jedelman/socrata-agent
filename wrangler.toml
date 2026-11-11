@@ -185,6 +185,14 @@ LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jaso
 # (comma-separated wss:// origins; default below, Jetstream v2's public pair).
 # An entry of any other shape turns the watcher off (logged); the sweep runs.
 # JETSTREAM_URL = "wss://jetstream.us-east.bsky.network,wss://jetstream.us-west.bsky.network"
+# Research memory (docs/research-memory.md; Jason, 2026-11-11): the
+# prior_research tool gives an answer where earlier research looked, never
+# what it concluded. Every scope is opt-in. A signed-in account's own
+# conversations need PRIOR_RESEARCH = "true"; public answers come with
+# PUBLIC_ASK; sources people share from their answers ("Share these
+# sources") need SHARED_RESEARCH = "true", added by a PR after migration
+# 0005 is applied. PRIOR_RESEARCH = "off" turns the tool off everywhere.
+# PRIOR_RESEARCH = "true"
 # Siren's origin. Sign-in links, annotation ids, the Bluesky client_id and
 # every endorsement subject URL are built from it. Subjects are fixed from
 # here on: changing it after endorsements exist strands them
@@ -202,6 +210,8 @@ id = "d4dfe5ca9b814268a1a1abe052287959"
 # first). Kept bound for the planned public board (D9, default, pending
 # Jason): migration 0004 (not applied) holds the free tier's public
 # questions, the only thing the Worker reads here, with PUBLIC_ASK on.
+# Migration 0005 (not applied) holds shared research's sources, read only
+# with SHARED_RESEARCH on.
 # Workers Builds doesn't apply migrations: apply each new one before merging:
 #   npx wrangler d1 migrations apply SIREN_DB --env siren --remote
 # That command applies every pending migration, so the next one applied also

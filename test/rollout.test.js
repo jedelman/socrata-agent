@@ -34,8 +34,9 @@ test('wrangler.toml: the flag off, three limiters, only the free tier\'s sweep c
 test('migration 0003 drops every table and trigger 0001 and 0002 made', () => {
   const dir = new URL('../migrations/', import.meta.url);
   const files = readdirSync(dir).sort();
-  // 0004 is the free tier's (docs/free-tier.md), checked in test/public-ask.test.js.
-  assert.deepEqual(files, ['0001_bluesky_endorsements.sql', '0002_d1_budget.sql', '0003_endorsements_move_to_repos.sql', '0004_public_questions.sql']);
+  // 0004 is the free tier's (docs/free-tier.md), checked in test/public-ask.test.js;
+  // 0005 is shared research's (docs/research-memory.md), checked in test/research-memory.test.js.
+  assert.deepEqual(files, ['0001_bluesky_endorsements.sql', '0002_d1_budget.sql', '0003_endorsements_move_to_repos.sql', '0004_public_questions.sql', '0005_shared_sources.sql']);
   const made = files.slice(0, 2).map((f) => read(`migrations/${f}`)).join('\n');
   const drops = read('migrations/0003_endorsements_move_to_repos.sql');
   for (const [, kind, name] of made.matchAll(/CREATE (TABLE|TRIGGER) (\w+)/g)) {

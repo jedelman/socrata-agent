@@ -157,7 +157,43 @@ generic mode.
   steps, cost, suggestions, follow-up offers, link counts; bounded by
   `answerRecord`), so a reopened
   conversation shows how each answer was found; the model never sees it. Conversations are
-  private to their account and never feed the case files.
+  private to their account and never feed the case files, with two exceptions
+  (research memory, `docs/research-memory.md`; Jason 2026-11-11: research
+  counts from "Public, shared, and within the account"): the account's own
+  `prior_research` reads its own earlier conversations' sources, never
+  another account's; and a person can share one saved answer's sources with
+  the "Share these sources" click, which keeps only their titles, links,
+  kinds and days, never who shared, the question or the answer, and drops
+  anything that could point at an address or a person.
+  `research.js` is research memory's storage and routes; the tool is
+  `src/prior-research.js` (`prior_research`, a core tool declared only when
+  the Worker passes `priorResearch` to `ask()`). It gives back where earlier
+  answers looked (sources with the day read, `recheck` past 30 days), never
+  an earlier answer's text; the model re-reads or dates what it uses. Scopes:
+  every one opt-in. `account` (signed-in accounts, only with
+  `PRIOR_RESEARCH = "true"`; `"off"` turns the tool off everywhere), `public`
+  (answered free-tier questions passing the public-text checks, with
+  `PUBLIC_ASK`; the day, the `/q/<id>` link and the sources only, never the
+  question's text), `shared` (D1 `shared_sources`, migration 0005, unapplied,
+  keyed by `sourceKey`, behind `SHARED_RESEARCH`; with it off its paths are
+  404s and the session and answer body carry nothing new). With every flag
+  off, a member's request to the model is what it was before. A public
+  answer never gets `account`, and its trace step never shows the words
+  searched. A query naming a person or an address is refused; two searches
+  an answer. Stored tool results (`saveTurn`, `keptTools`) keep no earlier
+  question's text (`storedResearchResult`), so a deleted conversation's or a
+  withdrawn question's words never live on in another turn. Shared and
+  public sources drop anything whose title or whole decoded URL (fragment
+  included) points at an address, a person, an email or coordinates, and
+  every legislation or meeting page from a conversation or public thread
+  that looked up an address. Returned sources join the hand-off as
+  `kind: 'earlier'` records (at most 10, with `read`), shown apart as
+  "Earlier research". Shared sources are public at `GET /api/research` (last
+  shared first); an answer is shared once (`share-turn:<HMAC>`). The steward
+  removes one at `/admin/research`: it leaves the list and every scope at
+  once (whether or not shared research is still on), and re-sharing, by any
+  spelling, never revives it. A path segment of digits only is read as a
+  page id, not a house number (`/6267/MacArthur-Center` carries over).
   `ask-stream.js` streams `POST /api/ask` as NDJSON when the page sends `Accept: application/x-ndjson` (working notes: the model's summarized thinking, live only, capped at 20,000 characters, never saved, traced, voice-checked or fed back as text; code-written tool lines; then a `final` line with exactly the JSON body); `WORKING_NOTES = "off"` turns it off.
   `requests.js` pools source requests: when the records can't answer, the
   core `suggest_data_source` tool names the source that would, and the person

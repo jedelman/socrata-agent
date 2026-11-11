@@ -69,7 +69,9 @@ export class Resources {
       }
     }
     // Web pages found by web search are kept apart: a page is not a record.
-    const recs = [...this.records.values()].filter((r) => r.kind !== 'web');
+    // So are earlier research's sources (src/prior-research.js): pointers to
+    // where earlier answers looked, not read again unless the trace shows it.
+    const recs = [...this.records.values()].filter((r) => r.kind !== 'web' && r.kind !== 'earlier');
     if (recs.length) {
       out.push('**Public records**');
       for (const r of recs) out.push(`- [${r.title}](${r.url})`);
@@ -79,6 +81,11 @@ export class Resources {
       out.push('**Web pages** (found by web search; pages, not records)');
       // Their titles and dates come from other sites: made inert in markdown.
       for (const r of pages) out.push(`- [${mdText(r.title)}](${mdUrl(r.url)})${r.page_age ? `, ${mdText(r.page_age)}` : ''}`);
+    }
+    const earlier = [...this.records.values()].filter((r) => r.kind === 'earlier');
+    if (earlier.length) {
+      out.push('**Earlier research** (where earlier answers looked, with the day each was read; not read again for this answer unless the trace shows it)');
+      for (const r of earlier) out.push(`- [${mdText(r.title)}](${mdUrl(r.url)})${r.read ? `, read ${mdText(r.read)}` : ''}`);
     }
     const cs = this.sortedContacts();
     if (cs.length) {

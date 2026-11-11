@@ -6,7 +6,9 @@
 // conversation browsing and search, which isn't free-tier code, and again
 // with the answer-links change's diff to chat-page.js and chat.css (links
 // checked against the hand-off, follow-up offers, the stacked request card;
-// only those two assets' bodies moved, in all three envs)
+// only those two assets' bodies moved, in all three envs), and with research
+// memory's chat.css rules (the "Share these sources" card; only chat.css's
+// three entries were retaken, from a run on the change: nothing else moved)
 // (fixtures/public-ask-off-scenario.js says how it is normalized: only the
 // asset hash, signed values and trace timings).
 //

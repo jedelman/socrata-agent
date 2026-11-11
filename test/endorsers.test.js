@@ -158,14 +158,15 @@ test('no person filter: did, handle or actor parameters change nothing, and noth
   // search text (index.js: each private to its account, searched only in its
   // own conversations, never logged), the endorser list's cursor, the token
   // that carries an invite over from Siren's old address (moved.js, signed,
-  // two minutes), and the public question list's cursor (the free tier: a
-  // sequence number, never a person).
+  // two minutes), the public question list's cursor (the free tier: a
+  // sequence number, never a person), and the shared research list's city,
+  // page size and cursor (research.js: a sequence number, never a person).
   const read = new Set();
   for (const f of readdirSync(new URL('../worker/', import.meta.url)).filter((x) => x.endsWith('.js'))) {
     const src = readFileSync(new URL(`../worker/${f}`, import.meta.url), 'utf8');
     for (const m of src.matchAll(/searchParams\.get(?:All)?\('([^']+)'\)/g)) read.add(`${f}:${m[1]}`);
   }
-  assert.deepEqual([...read].sort(), ['endorsers.js:cursor', 'index.js:cursor', 'index.js:id', 'index.js:limit', 'index.js:q', 'moved.js:t', 'public-ask.js:cursor']);
+  assert.deepEqual([...read].sort(), ['endorsers.js:cursor', 'index.js:cursor', 'index.js:id', 'index.js:limit', 'index.js:q', 'moved.js:t', 'public-ask.js:cursor', 'research.js:before', 'research.js:city', 'research.js:limit']);
 });
 
 test('limits: the visitor limit and the site breaker refuse before any outbound call; pages are cached', async () => {
