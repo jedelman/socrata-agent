@@ -1,7 +1,7 @@
 {
   "id": "norfolk-military-circle",
   "title": "What's the plan for the former Military Circle Mall site, and how settled is it?",
-  "summary": "What the records show as of November 12, 2026 about the former Military Circle Mall at 880 N. Military Highway. The City owns much of the mall footprint: Council approved its transfer from the Economic Development Authority on July 15, 2025. Council has since appropriated up to $600,000 for operating costs (April 28, 2026) and approved a $200,000 advance for state-funded site readiness studies (August 25, 2026), meant to make the site eligible for Virginia Business Ready Sites infrastructure money. News reports say demolition was priced at nearly $3 million against a $10 million budget approved in 2023, set to start in October 2026 and run about 15 months, with the studies due around spring 2027. What isn't settled: as of September 2026 the City had no master plan for the site, Sentara owns part of it, and the Ross Dress for Less lease, which reportedly carries a veto inside the ring road, was still being negotiated. The adopted FY 2027-2031 capital plan names no Military Circle project, and the East Side library and recreation center moved to the former Poplar Hall Elementary site to avoid the site's delays. Siren found no City record yet that demolition has begun. City Council approves agreements for the land, and state law requires a public hearing before the City disposes of it.",
+  "summary": "What the records show as of November 12, 2026 about the former Military Circle Mall at 880 N. Military Highway. The City owns much of the mall footprint: Council approved its transfer from the Economic Development Authority on July 15, 2025. Council has since appropriated up to $600,000 for operating costs (April 28, 2026) and approved a $200,000 advance to the Economic Development Authority for site readiness studies (August 25, 2026), which the City’s letter calls a prerequisite for applying to the Virginia Business Ready Sites Program for infrastructure development. News reports say demolition was priced at nearly $3 million against a $10 million budget approved in 2023, set to start in October 2026 and run about 15 months, with the studies due around spring 2027. What isn't settled: as of September 2026 the City had no master plan for the site, Sentara owns part of it, and the Ross Dress for Less lease was still being negotiated (WAVY reported in June that Ross effectively holds a veto inside the ring road, and that the City was putting the demolition out to bid without its consent). The adopted FY 2027-2031 capital plan names no Military Circle project, and the City Manager said the East Side library and recreation center would go to the former Poplar Hall Elementary site instead, to avoid the site’s delays. This review found no City record yet that demolition has begun. City Council approves agreements for the land, and state law requires a public hearing before the City sells or leases it, with exceptions such as a lease to a public authority.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
   "reviewed": "2026-11-12",
@@ -19,7 +19,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreigy63u7bsidtabwmjgziyhu2djrfth3aannctnzggelmkigw4wtma",
+        "cid": "bafkreicj4f6cau5qjqq37nrom4td2kk5ipw3ui2ol555zfwojzyrem2dmq",
         "bytes": 32151,
         "read": "2026-11-12",
         "via": "live"
@@ -44,7 +44,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihnxhjcwan4o7xzvhuezxxu47agyj45w2gkvgunv7syn54yvxrmty",
+        "cid": "bafkreif4fgifu625bbowflplttuaeuscwauczbgaukoz5mhkec2lhbj3va",
         "bytes": 34973,
         "read": "2026-11-12",
         "via": "live"
@@ -69,7 +69,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihnxhjcwan4o7xzvhuezxxu47agyj45w2gkvgunv7syn54yvxrmty",
+        "cid": "bafkreif4fgifu625bbowflplttuaeuscwauczbgaukoz5mhkec2lhbj3va",
         "bytes": 34973,
         "read": "2026-11-12",
         "via": "live"
@@ -94,7 +94,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreib4gnont4bitt5ovttjihtygllvotc5hqf6k2jafyvhys4ax7zo5e",
+        "cid": "bafkreifrg7smawlnuxjekd2f4afitj4ikpfkhmuyjfrgr62qdfjewjpco4",
         "bytes": 35074,
         "read": "2026-11-12",
         "via": "live"
@@ -109,7 +109,7 @@
     {
       "id": "site-readiness-purpose",
       "stance": "confirms",
-      "claim": "The City's transmittal letter says the site readiness studies are a prerequisite for applying to the Virginia Business Ready Sites Program for future infrastructure development money.",
+      "claim": "The City’s transmittal letter says the site readiness studies are a prerequisite for applying to the Virginia Business Ready Sites Program for future infrastructure development.",
       "source": {
         "title": "Ordinance No. 50487 (City Council, August 25, 2026)",
         "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5949"
@@ -119,7 +119,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreib4gnont4bitt5ovttjihtygllvotc5hqf6k2jafyvhys4ax7zo5e",
+        "cid": "bafkreifrg7smawlnuxjekd2f4afitj4ikpfkhmuyjfrgr62qdfjewjpco4",
         "bytes": 35074,
         "read": "2026-11-12",
         "via": "live"
@@ -138,7 +138,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -163,7 +163,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -188,7 +188,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -213,7 +213,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -238,7 +238,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -263,7 +263,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicdukv2jrxyjda6iwpwgssj63nhzpo73uhgid7fncw3spi4nj2cvi",
+        "cid": "bafkreibrx3atxmznz5ipvolqcma6mfstigpqsgxhgwh2cnud33gu4xsu3q",
         "bytes": 111352,
         "read": "2026-11-12",
         "via": "live"
@@ -288,7 +288,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiaivjtcljiecozfywhmlcnidqmhaxbk6yds4b2xg7j74fzde4j2ai",
+        "cid": "bafkreiheegfv7sj36a5s2gmhqxjjgg43meyjvcpbxeovlvtyq7aabw3umq",
         "bytes": 108723,
         "read": "2026-11-12",
         "via": "live"
@@ -313,7 +313,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -351,6 +351,31 @@
       }
     },
     {
+      "id": "demo-without-ross",
+      "stance": "weakens",
+      "claim": "WAVY reported (June 4, 2026), as the City put the demolition out to bid, that Ross Dress for Less had still not given its consent to the demolition.",
+      "source": {
+        "title": "WAVY: \"Norfolk moving ahead with Military Circle Mall demo without Ross ‘ok’, citing public safety\" (June 4, 2026)",
+        "url": "https://www.wavy.com/news/norfolk-moving-ahead-with-military-circle-mall-demo-without-ross-ok-citing-public-safety/amp/"
+      },
+      "quote": "Ross had still not given their consent to the demolition.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-12",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
+        "bytes": 54214,
+        "read": "2026-11-12",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ross had still not given their consent to the demolition.",
+        "prefix": "to Norfolk, said as of Wednesday, ",
+        "suffix": " VB Deputy City Manager Ron Williams"
+      }
+    },
+    {
       "id": "ross-cost",
       "stance": "weakens",
       "claim": "WTKR reported (July 14, 2026) that breaking the Ross Dress for Less lease would reportedly cost up to $16 million.",
@@ -363,7 +388,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreib3xvayjflfysdb5va4k4exet7jh4tcyiq2vhxjdqw2y73uyew52a",
+        "cid": "bafkreieprw7wc4gh2w3ecpdiqkwyo3fk4ajvk5j5rdek3atc3awp5qyhgy",
         "bytes": 113542,
         "read": "2026-11-12",
         "via": "live"
@@ -388,7 +413,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -413,7 +438,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvzmhilaxcz7clccdywrqdcsxqwoj5st26bmuz6d4k52a4jamo5y",
+        "cid": "bafkreihklhrpakbxx7klykgdfn7li5mlzzig33b3utwlgejow7js6553qm",
         "bytes": 161340,
         "read": "2026-11-12",
         "via": "live"
@@ -428,7 +453,7 @@
     {
       "id": "rec-center-moved",
       "stance": "weakens",
-      "claim": "WHRO reported (May 20, 2026) that, to avoid delays tied to the Military Circle site, the City chose the former Poplar Hall Elementary School for the East Side library and recreation center.",
+      "claim": "WHRO reported (May 20, 2026) City Manager Patrick Roberts saying that, to avoid delays tied to the Military Circle site, the City selected the former Poplar Hall Elementary School for the East Side library and recreation center.",
       "source": {
         "title": "WHRO: \"Norfolk City Council approves capital budget with rec center funding after public pushback\" (May 20, 2026)",
         "url": "https://www.whro.org/local-government/2026-05-20/052026-cipapproved-saunders"
@@ -438,7 +463,7 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihbhfeaxsr4blntjahoexu2bzpiqvttjiqwuhv75odfmriwkukyfa",
+        "cid": "bafkreifa3j7m32ymd7mzxw4offrxg5ulbyazezlnwmxmio2klecauldpfm",
         "bytes": 161689,
         "read": "2026-11-12",
         "via": "live"
@@ -479,7 +504,7 @@
     {
       "id": "uda-vision",
       "stance": "context",
-      "claim": "The City's adopted 2017 vision plan for the area describes a long-term goal of a completely redeveloped, high-density urban mixed-use neighborhood, tied to a light rail extension.",
+      "claim": "The City’s adopted 2017 vision plan for the area describes a long-term goal of a completely redeveloped, high-density urban mixed-use neighborhood for the Military Circle area.",
       "source": {
         "title": "Military Circle / Military Highway Urban Development Area: A Vision for the Future (adopted by City Council January 24, 2017, Ordinance No. 46,707)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/27580/Military_Circle_UDA_Vision_Plan"
@@ -514,8 +539,8 @@
       "checked": "2026-11-12",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiemi4wgb2vsldw5cu3al3ns7kv5p62zyojwwti33dtuyxy5ex6qgm",
-        "bytes": 33940,
+        "cid": "bafkreieuyobys4ssiqwatkp2h462pbccdbuxkt3khwvauex7tp3qtcr6wi",
+        "bytes": 31862,
         "read": "2026-11-12",
         "via": "live"
       },
@@ -525,20 +550,45 @@
         "prefix": "from the subjacent land surface, ",
         "suffix": " However, the holding of a public"
       }
+    },
+    {
+      "id": "disposal-hearing-exceptions",
+      "stance": "who_decides",
+      "claim": "The same subsection exempts some disposals from the public hearing, including leasing the land to another public body, political subdivision or authority of the Commonwealth.",
+      "source": {
+        "title": "Code of Virginia § 15.2-1800(B)",
+        "url": "https://law.lis.virginia.gov/vacode/title15.2/chapter18/section15.2-1800/"
+      },
+      "quote": "However, the holding of a public hearing shall not apply to (i) the leasing of real property to another public body, political subdivision or authority of the Commonwealth",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-12",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreieuyobys4ssiqwatkp2h462pbccdbuxkt3khwvauex7tp3qtcr6wi",
+        "bytes": 31862,
+        "read": "2026-11-12",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "However, the holding of a public hearing shall not apply to (i) the leasing of real property to another public body, political subdivision or authority of the Commonwealth",
+        "prefix": "hearing concerning such disposal. ",
+        "suffix": " or (ii) conveyance of site development"
+      }
     }
   ],
   "what_would_help": [
     {
-      "text": "Watch for the site readiness reports (expected around spring 2027) and the master plan the City says will follow: they decide what the site is marketed for.",
+      "text": "Watch for the site readiness reports (expected around spring 2027) and the master plan the City says will follow: the City says the studies will inform how the site is redeveloped.",
       "finding": "plan-timeline"
     },
     {
-      "text": "Any sale or lease of the site to a developer needs a public hearing first; that hearing is the formal chance to speak on the terms.",
-      "finding": "disposal-hearing"
+      "text": "A sale or lease of City land generally needs a public hearing first, the formal chance to speak on the terms; a lease to a public authority such as the Economic Development Authority is exempt, so watch for that route too.",
+      "finding": "disposal-hearing-exceptions"
     },
     {
-      "text": "Watch City Council agendas for an agreement with Ross Dress for Less or Sentara: the site can't be redeveloped as one piece while they hold their parts.",
-      "finding": "ross-veto"
+      "text": "Watch City Council agendas for an agreement with Ross Dress for Less or Sentara, who hold parts of the site; the Deputy City Manager has said redevelopment may come in phases.",
+      "finding": "fragmented-ownership"
     }
   ],
   "records_to_request": [
@@ -549,8 +599,8 @@
   ],
   "pending": [
     "Whether demolition actually began in October 2026: the latest found is WTKR's September 29, 2026 report of a first phase due \"next month\"; no City notice of the start was found.",
-    "The demolition contractor and contract amount in the City's own records (reports give nearly $3 million; a third-party recap of the September 29, 2026 work session names a contractor and $2.88 million, not yet confirmed in a City record).",
-    "The Virginia Business Ready Sites grant amount (a search summary cited $371,000; not found in a source opened).",
+    "The demolition contractor and contract amount in the City’s own records (WTKR reports nearly $3 million); no City contract or award notice found yet.",
+    "The amount of the Virginia Business Ready Sites grant: not found in a source opened.",
     "The 2023 Council action approving $10 million for demolition is reported by WHRO and WAVY but not yet found in Siren's legislation index."
   ]
 }
