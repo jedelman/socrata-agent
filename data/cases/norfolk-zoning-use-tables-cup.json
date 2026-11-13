@@ -1,0 +1,349 @@
+{
+  "id": "norfolk-zoning-use-tables-cup",
+  "title": "How does Norfolk's Zoning Ordinance decide what's allowed where, and how does a Conditional Use Permit work?",
+  "summary": "General rules from the City's official Zoning Ordinance: how to read a district's use table (P, C, P/C, blank; unlisted uses are prohibited; an overlay district's column can override the base district), the standards a Conditional Use Permit is judged by, when an approved permit lapses, and what the Official Zoning Map decides and who interprets it. Which district an address is in comes from the City's open-data map layers (parcel_inventory), which Siren treats as a guide, not a legal determination; whether a particular use is allowed there needs that district's row in the use table, and any overlay's, read from the ordinance itself.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "findings": [
+    {
+      "id": "use-tables-purpose",
+      "stance": "rules",
+      "claim": "Each group of zoning districts has a use table, which says in which districts a use is allowed and what kind of permit or review it needs (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "The use tables identify the zoning districts in which different uses are allowed, identify what type of permit or review is required to establish them",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The use tables identify the zoning districts in which different uses are allowed, identify what type of permit or review is required to establish them",
+        "prefix": "in a particular base zoning district. ",
+        "suffix": ", and provide reference to any special"
+      }
+    },
+    {
+      "id": "unlisted-use-prohibited",
+      "stance": "rules",
+      "claim": "A use that isn't listed in a use table is prohibited (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Any use that is not listed in a use table is prohibited.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Any use that is not listed in a use table is prohibited.",
+        "prefix": "expressly stated to the contrary. ",
+        "suffix": " Use Classifications Use"
+      }
+    },
+    {
+      "id": "use-table-p",
+      "stance": "rules",
+      "claim": "A \"P\" in a district's column means the use is allowed in that district, subject to any performance standards the table references and the ordinance's other rules (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A “P” under a zoning district column indicates that the use is an allowable use in the district, subject to any referenced performance standards and all other applicable regulations of this Ordinance.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A “P” under a zoning district column indicates that the use is an allowable use in the district, subject to any referenced performance standards and all other applicable regulations of this Ordinance.",
+        "prefix": "in a particular zoning district: ",
+        "suffix": " A P P under an overlay zoning district"
+      }
+    },
+    {
+      "id": "use-table-c",
+      "stance": "rules",
+      "claim": "A \"C\" in a district's column means the use is allowed there only if a Conditional Use Permit is approved under §2.4.8 (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A “C” under a zoning district column indicates that the use is an allowable use in the zoning district only on approval of a Conditional Use Permit",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A “C” under a zoning district column indicates that the use is an allowable use in the zoning district only on approval of a Conditional Use Permit",
+        "prefix": "use in the overlay zoning district. ",
+        "suffix": " in C accordance with Section 2.4.8,"
+      }
+    },
+    {
+      "id": "use-table-pc",
+      "stance": "rules",
+      "claim": "A \"P/C\" means the use is allowed in the district, but a Conditional Use Permit may be required, as the use's performance standards determine (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "that the use is an allowable use in the district but that approval of a Conditional Use Permit in accordance with Section 2.4.8, Conditional Use Permit may be required, as determined by the applicable performance standards.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "that the use is an allowable use in the district but that approval of a Conditional Use Permit in accordance with Section 2.4.8, Conditional Use Permit may be required, as determined by the applicable performance standards.",
+        "prefix": "a zoning district column indicates ",
+        "suffix": " A blank cell under a zoning district"
+      }
+    },
+    {
+      "id": "use-table-blank",
+      "stance": "rules",
+      "claim": "A blank cell in a district's column means the use is prohibited there as a principal or conditional use; in an overlay district's column, a blank prohibits it whatever the base district allows (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A blank cell under a zoning district column indicates that the use is prohibited as a principal use or conditional use in the zoning district.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A blank cell under a zoning district column indicates that the use is prohibited as a principal use or conditional use in the zoning district.",
+        "prefix": "the applicable performance standards. ",
+        "suffix": " A blank cell [blank] under an overlay"
+      }
+    },
+    {
+      "id": "use-table-overlay",
+      "stance": "rules",
+      "claim": "An overlay district's column can override the base district: a \"P\" there allows the use even if the base district prohibits it, and a blank there prohibits it even if the base district allows it (§3.1.4).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "under an overlay zoning district column indicates that, irrespective of whether the use is prohibited in the underlying base district, the use is allowable as a permitted use in the overlay zoning district.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "under an overlay zoning district column indicates that, irrespective of whether the use is prohibited in the underlying base district, the use is allowable as a permitted use in the overlay zoning district.",
+        "prefix": "regulations of this Ordinance. A P P ",
+        "suffix": " A \"C\" under a zoning district column"
+      }
+    },
+    {
+      "id": "cup-applicant-demonstrates",
+      "stance": "rules",
+      "claim": "A Conditional Use Permit may be approved if the applicant shows that the proposed use meets the review standards in §2.4.8.C (the ordinance counts 16), which include consistency with the comprehensive plan and compatibility with the general character of surrounding lands.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A Conditional Use Permit may be approved if the applicant demonstrates that the proposed conditional use:",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A Conditional Use Permit may be approved if the applicant demonstrates that the proposed conditional use:",
+        "prefix": "USE PERMIT REVIEW STANDARDS ",
+        "suffix": " Is consistent with the purposes, goals"
+      }
+    },
+    {
+      "id": "cup-cumulative-effect",
+      "stance": "rules",
+      "claim": "One review standard is that the use won't cause a negative cumulative effect, considering the combined effect of Conditional Use Permits of all types on the immediate neighborhood and the effect of this type of permit on the city as a whole (§2.4.8.C).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Will not cause a negative cumulative effect, when its effect is considered in conjunction with the cumulative effect of various Conditional Use Permits of all types on the immediate neighborhood and the effect of the proposed type of Conditional Use Permit on the city as a whole;",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Will not cause a negative cumulative effect, when its effect is considered in conjunction with the cumulative effect of various Conditional Use Permits of all types on the immediate neighborhood and the effect of the proposed type of Conditional Use Permit on the city as a whole;",
+        "prefix": "neighborhood in which it is located. ",
+        "suffix": " Complies with all other relevant city,"
+      }
+    },
+    {
+      "id": "cup-12-months",
+      "stance": "rules",
+      "claim": "Unless the permit itself waives or modifies this condition, a Conditional Use Permit becomes void if construction doesn't begin or the use doesn't start within 12 months of approval, subject to Virginia's vesting provisions. If asked before it expires, the Zoning Administrator may extend it up to six months for good cause; further extensions need City Council (§2.4.8 general conditions).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "If construction does not begin or the use is not commenced within 12 months from the date of approval of the Conditional Use Permit, the permit shall become null and void, subject to the vesting provisions of the Code of Virginia. Upon request by the applicant prior to the permit’s expiration, the ZA may grant an extension of the permit for up to an additional six months, for good cause, if the conditional use complies with all applicable provisions of this Ordinance. Any further extensions shall require the approval of the City Council.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "If construction does not begin or the use is not commenced within 12 months from the date of approval of the Conditional Use Permit, the permit shall become null and void, subject to the vesting provisions of the Code of Virginia. Upon request by the applicant prior to the permit’s expiration, the ZA may grant an extension of the permit for up to an additional six months, for good cause, if the conditional use complies with all applicable provisions of this Ordinance. Any further extensions shall require the approval of the City Council.",
+        "prefix": "with all conditions of approval. ",
+        "suffix": " If the use allowed by the Conditional"
+      }
+    },
+    {
+      "id": "cup-discontinued-two-years",
+      "stance": "rules",
+      "claim": "Unless the permit itself waives or modifies this condition, a Conditional Use Permit becomes void if its use stops for more than two years (§2.4.8 general conditions).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "If the use allowed by the Conditional Use Permit is discontinued for a period of greater than two years, the permit shall become null and void.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "If the use allowed by the Conditional Use Permit is discontinued for a period of greater than two years, the permit shall become null and void.",
+        "prefix": "the approval of the City Council. ",
+        "suffix": " During all hours of operation, the"
+      }
+    },
+    {
+      "id": "map-final-authority",
+      "stance": "rules",
+      "claim": "The Official Zoning Map is the final authority on how land in the city is currently zoned (§1.6.1).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "It shall be the final authority as to the status of the current zoning district classification of land in the city",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "It shall be the final authority as to the status of the current zoning district classification of land in the city",
+        "prefix": "in either hardcopy or digital form. ",
+        "suffix": ", and shall only be amended in"
+      }
+    },
+    {
+      "id": "map-za-interprets",
+      "stance": "who_decides",
+      "claim": "Where actual features differ from the Official Zoning Map, or in other cases its boundary rules don't cover, the Zoning Administrator interprets the district boundaries, and that interpretation can be appealed to the Board of Zoning Appeals (BZA) (§1.6.3).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "the ZA shall have the authority to interpret the district boundaries (Section 2.4.17, Interpretation). The ZA’s interpretation may be appealed to the BZA",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "the ZA shall have the authority to interpret the district boundaries (Section 2.4.17, Interpretation). The ZA’s interpretation may be appealed to the BZA",
+        "prefix": "not covered by this subsection, ",
+        "suffix": " (Section 2.4.13, Appeals to the Board"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "To see whether a use is allowed at an address, find its district first, then read that district's column in the use table, and any overlay district's column: P allowed, C needs a Conditional Use Permit, P/C may need one depending on the use's performance standards, blank or unlisted is prohibited.",
+      "finding": "use-table-c"
+    },
+    {
+      "text": "If a Conditional Use Permit is approved, start construction or the use within 12 months, or ask the Zoning Administrator for an extension (up to six months, for good cause) before it expires; a longer one needs City Council.",
+      "finding": "cup-12-months"
+    }
+  ],
+  "pending": [
+    "The use tables' individual rows (for example, whether a given use is P, C or blank in a given district): a cell in a table column can't be quoted exactly from the PDF's text, so no row is a finding yet. Tables 3.2.12 (residential), 3.3.9 (commercial), 3.4.11 (downtown), 3.5.7 (industrial), 3.6.11 (historic and cultural conservation), 3.7.13 (special purpose) and 3.9.23 (overlay districts) hold them; ordinance_lookup reads the sections.",
+    "The Official Zoning Map itself: the City's open-data Zoning layer (read by parcel_inventory) shows a district for each spot, but the ordinance makes the Official Zoning Map, kept by the Department of City Planning, the final authority (§1.6.1), with the Zoning Administrator interpreting its boundaries (§1.6.3). A quotable City source on how to get a binding answer for one address is still to find.",
+    "How often Council approves or denies Conditional Use Permits: that would need the Council's legislation records, counted, not the ordinance."
+  ]
+}
