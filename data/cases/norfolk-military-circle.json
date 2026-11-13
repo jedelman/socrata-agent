@@ -1,0 +1,705 @@
+{
+  "id": "norfolk-military-circle",
+  "title": "What's the plan for the former Military Circle Mall site, and how settled is it?",
+  "summary": "What the records show as of November 12, 2026 about the former Military Circle Mall at 880 N. Military Highway. WHRO reported (September 1, 2026) that the City owns much of the mall footprint; Council approved its transfer from the Economic Development Authority on July 15, 2025. Council has since appropriated up to $600,000 for operating costs (April 28, 2026) and approved a $200,000 advance to the Economic Development Authority for site readiness studies (August 25, 2026), which the City’s letter calls a prerequisite for applying to the Virginia Business Ready Sites Program for infrastructure development; the advance is repaid from a $337,750 state site characterization grant the Authority has been awarded. News reports say demolition was priced at nearly $3 million against a $10 million budget approved in 2023, set to start in October 2026 and run about 15 months, with the studies due around spring 2027. What isn't settled: as of September 2026 the City had no master plan for the site, Sentara owns part of it, and the Ross Dress for Less lease was still being negotiated (WAVY reported in June that Ross effectively holds a veto inside the ring road, and that the City was putting the demolition out to bid without its consent). The adopted FY 2027-2031 capital plan names no Military Circle project (the demolition money was reported as approved in 2023, before this plan), and the City Manager said the East Side library and recreation center would go to the former Poplar Hall Elementary site instead, to avoid the site’s delays. This review found no City record yet that demolition has begun. City Council approves agreements for the land, and state law requires a public hearing before the City sells or leases it, with exceptions such as a lease to a public authority.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "reviewed": "2026-11-12",
+  "findings": [
+    {
+      "id": "city-owns-site",
+      "stance": "who_decides",
+      "claim": "On July 15, 2025, City Council approved the conveyance of the Military Circle Mall parcels, at 880 N. Military Highway, from the Economic Development Authority to the City.",
+      "source": {
+        "title": "Ordinance No. 50067 (City Council, July 15, 2025)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5374"
+      },
+      "quote": "An Ordinance Approving the Conveyance to the City of Norfolk by the Economic Development Authority of the City of Norfolk of Those Certain Parcels of Property Known as Military Circle Mall and Located Generally at 880 N. Military Highway",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihnosutvoev5jid4p3egsg77inuhobl4zqkt7nl6xnvwmwtfrgaqy",
+        "bytes": 32151,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "An Ordinance Approving the Conveyance to the City of Norfolk by the Economic Development Authority of the City of Norfolk of Those Certain Parcels of Property Known as Military Circle Mall and Located Generally at 880 N. Military Highway",
+        "prefix": "Ordinance No. 50067 ",
+        "suffix": " in the City of Norfolk, Virginia and"
+      }
+    },
+    {
+      "id": "eda-managed",
+      "stance": "context",
+      "claim": "According to the City's transmittal letter for the April 2026 appropriation, the Economic Development Authority had operated and managed the mall since 2020.",
+      "source": {
+        "title": "Ordinance No. 50345 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5770"
+      },
+      "quote": "The EDA has been operating and managing the mall since 2020.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreide3ndyuisi5uvewkwecciinqd5jfo3rilkcmodhdwqu4esn6hhji",
+        "bytes": 34973,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The EDA has been operating and managing the mall since 2020.",
+        "prefix": "the transaction on August 6, 2025. ",
+        "suffix": " As a result of the conveyance, the EDA"
+      }
+    },
+    {
+      "id": "operating-funds",
+      "stance": "context",
+      "claim": "In April 2026 Council appropriated up to $600,000 transferred from the Economic Development Authority to pay the mall's operating expenses.",
+      "source": {
+        "title": "Ordinance No. 50345 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5770"
+      },
+      "quote": "The Economic Development Authority will transfer up to $600,000 to the City of Norfolk to fund the necessary operating expenses related to Military Circle Mall.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreide3ndyuisi5uvewkwecciinqd5jfo3rilkcmodhdwqu4esn6hhji",
+        "bytes": 34973,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Economic Development Authority will transfer up to $600,000 to the City of Norfolk to fund the necessary operating expenses related to Military Circle Mall.",
+        "prefix": "Financial Impact: ",
+        "suffix": " &#xa0; VI. &#xa0;&#xa0; Environmental:"
+      }
+    },
+    {
+      "id": "site-readiness-advance",
+      "stance": "confirms",
+      "claim": "On August 25, 2026, Council approved a cooperation agreement under which the City advances $200,000 to the Economic Development Authority for site readiness testing at Military Circle.",
+      "source": {
+        "title": "Ordinance No. 50487 (City Council, August 25, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5949"
+      },
+      "quote": "The City agrees to advance $200,000 to the EDA to enable the EDA to complete site readiness testing at the property owned by the City of Norfolk known as Military Circle.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreih6sovpciz2u4hywe6d33mv6eiya63omjkikz47msm6hrquar4mly",
+        "bytes": 35074,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The City agrees to advance $200,000 to the EDA to enable the EDA to complete site readiness testing at the property owned by the City of Norfolk known as Military Circle.",
+        "prefix": "Financial Impact: ",
+        "suffix": " &#xa0; VI. &#xa0;&#xa0;&#xa0;"
+      }
+    },
+    {
+      "id": "grant-amount",
+      "stance": "confirms",
+      "claim": "The cooperation agreement says the Economic Development Authority has been awarded $337,750 from the Virginia Business Ready Sites Program's Accelerated Site Characterization Grant (FY'26).",
+      "source": {
+        "title": "Ordinance No. 50487, Exhibit A: Cooperation Agreement between the City of Norfolk and the Economic Development Authority (City Council, August 25, 2026)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25519"
+      },
+      "quote": "The Authority has been awarded and anticipates receiving funds in the amount of Three Hundred Thirty-Seven Thousand Seven Hundred Fifty and 00/100 Dollars ($337,750.00) from the VBRSP Accelerated Site Characterization Grant FY’26",
+      "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
+        "bytes": 136538,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Authority has been awarded and anticipates receiving funds in the amount of Three Hundred Thirty-Seven Thousand Seven Hundred Fifty and 00/100 Dollars ($337,750.00) from the VBRSP Accelerated Site Characterization Grant FY’26",
+        "prefix": "of Virginia (\"Authority\"). RECITALS A. ",
+        "suffix": " (the \"Grant\") from the Virginia"
+      }
+    },
+    {
+      "id": "eda-political-subdivision",
+      "stance": "who_decides",
+      "claim": "The cooperation agreement describes the Economic Development Authority as a political subdivision of the Commonwealth of Virginia.",
+      "source": {
+        "title": "Ordinance No. 50487, Exhibit A: Cooperation Agreement between the City of Norfolk and the Economic Development Authority (City Council, August 25, 2026)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25519"
+      },
+      "quote": "a duly organized and existing body corporate and politic constituting a political subdivision of the Commonwealth of Virginia",
+      "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
+        "bytes": 136538,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "a duly organized and existing body corporate and politic constituting a political subdivision of the Commonwealth of Virginia",
+        "prefix": "AUTHORITY OF THE CITY OF NORFOLK, ",
+        "suffix": " (\"Authority\"). RECITALS A. The"
+      }
+    },
+    {
+      "id": "site-readiness-purpose",
+      "stance": "confirms",
+      "claim": "The City’s transmittal letter says the site readiness studies are a prerequisite for applying to the Virginia Business Ready Sites Program for future infrastructure development.",
+      "source": {
+        "title": "Ordinance No. 50487 (City Council, August 25, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5949"
+      },
+      "quote": "The necessary site readiness studies are a prerequisite for applying for a Virginia Business Ready Sites Program Site Development for future infrastructure development.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreih6sovpciz2u4hywe6d33mv6eiya63omjkikz47msm6hrquar4mly",
+        "bytes": 35074,
+        "read": "2026-11-13",
+        "via": "live"
+      }
+    },
+    {
+      "id": "tier-3",
+      "stance": "confirms",
+      "claim": "WHRO reported (September 1, 2026) that the site readiness work aims to move Military Circle from Tier 2 to Tier 3 on the state's site-readiness scale.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "This effort aims to advance Military Circle’s status from Tier 2 to Tier 3.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This effort aims to advance Military Circle’s status from Tier 2 to Tier 3.",
+        "prefix": "Virginia Business Ready Site Program. ",
+        "suffix": " Williams said this move enables"
+      }
+    },
+    {
+      "id": "reports-spring",
+      "stance": "context",
+      "claim": "WHRO reported (September 1, 2026) that the site readiness reports were expected to take six to eight months, with results likely by spring 2027.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "The reports are expected to take six to eight months to finish, with results likely available by next spring",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The reports are expected to take six to eight months to finish, with results likely available by next spring",
+        "prefix": "from its suburban mall design. ",
+        "suffix": ", about midway through the planned"
+      }
+    },
+    {
+      "id": "no-master-plan",
+      "stance": "weakens",
+      "claim": "As of September 2026, WHRO reported the Deputy City Manager saying no specific master plan was in place for the site after demolition and testing.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "Williams said no specific master plan is in place yet for the site following demolition and testing.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Williams said no specific master plan is in place yet for the site following demolition and testing.",
+        "prefix": "commercial development opportunity.\" ",
+        "suffix": " However, he expects the city to"
+      }
+    },
+    {
+      "id": "plan-timeline",
+      "stance": "context",
+      "claim": "WHRO reported (September 1, 2026) that the Deputy City Manager expected the City to set a master plan within about a year, once the studies conclude, and hoped incremental development with Sentara could begin within three years.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "he expects the city to establish one within the next year once the technical studies conclude, with hopes that incremental development, coordinated alongside Sentara, can begin within three years.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "he expects the city to establish one within the next year once the technical studies conclude, with hopes that incremental development, coordinated alongside Sentara, can begin within three years.",
+        "prefix": "demolition and testing. However, ",
+        "suffix": " Tags Local Government Norfolk Facebook"
+      }
+    },
+    {
+      "id": "demolition-budget",
+      "stance": "confirms",
+      "claim": "WHRO reported (September 1, 2026) the Deputy City Manager saying the demolition budget approved in 2023 was $10 million and would not grow.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "The demolition budget, approved at $10 million in 2023, will not grow, according to Williams.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The demolition budget, approved at $10 million in 2023, will not grow, according to Williams.",
+        "prefix": "contracting within the next week. ",
+        "suffix": " \"We have very favorable bids, and if"
+      }
+    },
+    {
+      "id": "demolition-priced",
+      "stance": "confirms",
+      "claim": "WTKR reported (September 29, 2026), from City leaders' update, that demolition was priced at nearly $3 million, with the first phase to begin the next month.",
+      "source": {
+        "title": "WTKR News 3: \"Norfolk leaders share updates on casino, MacArthur Mall, Military Circle Mall and East Street Garage\" (September 29, 2026)",
+        "url": "https://www.wtkr.com/news/in-the-community/norfolk/norfolk-leaders-share-updates-on-casino-macarthur-mall-military-circle-mall-and-east-street-garage"
+      },
+      "quote": "Demolition of Military Circle Mall is priced at nearly $3 million, with the first phase set to begin next month.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibxtx47e3xxvytlxghyku2lw2nxdj5z2i6iecak7kzotwozm4uj44",
+        "bytes": 111765,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Demolition of Military Circle Mall is priced at nearly $3 million, with the first phase set to begin next month.",
+        "prefix": "Military Circle Mall demolition ",
+        "suffix": " This marks the beginning of the end"
+      }
+    },
+    {
+      "id": "demolition-duration",
+      "stance": "context",
+      "claim": "WTKR reported (September 4, 2026) that the City expected demolition itself to take about 15 months.",
+      "source": {
+        "title": "WTKR News 3: \"Military Circle demolition moving forward in Norfolk; work begins in October\" (September 4, 2026)",
+        "url": "https://www.wtkr.com/news/in-the-community/norfolk/military-circle-demolition-moving-forward-in-norfolk-work-begins-in-october"
+      },
+      "quote": "The city anticipates the demolition itself will take about 15 months.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihco4yaec4a4z5ftpjabo6dxhn3xk74xs7twi6xnwgzen35jn4twi",
+        "bytes": 109136,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The city anticipates the demolition itself will take about 15 months.",
+        "prefix": "the information to News 3 on Friday. ",
+        "suffix": " According to the city, the scope of"
+      }
+    },
+    {
+      "id": "fragmented-ownership",
+      "stance": "weakens",
+      "claim": "WHRO reported (September 1, 2026) that the City does not own the whole site: Sentara owns the former J.C. Penney building and much of the parking inside the ring road.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "The city owns much of the mall footprint, but Sentara holds ownership of the former J.C. Penney building and much of the parking area inside the ring road.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The city owns much of the mall footprint, but Sentara holds ownership of the former J.C. Penney building and much of the parking area inside the ring road.",
+        "prefix": "challenge in planning its future. ",
+        "suffix": " Additionally, two parcels remain under"
+      }
+    },
+    {
+      "id": "phases",
+      "stance": "weakens",
+      "claim": "WTKR reported (September 4, 2026) that the Deputy City Manager had said the mix of property ownership could mean redevelopment happens in phases.",
+      "source": {
+        "title": "WTKR News 3: \"Military Circle demolition moving forward in Norfolk; work begins in October\" (September 4, 2026)",
+        "url": "https://www.wtkr.com/news/in-the-community/norfolk/military-circle-demolition-moving-forward-in-norfolk-work-begins-in-october"
+      },
+      "quote": "Williams previously said the mix of property ownership could result in redevelopment happening in phases.",
+      "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihco4yaec4a4z5ftpjabo6dxhn3xk74xs7twi6xnwgzen35jn4twi",
+        "bytes": 109136,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Williams previously said the mix of property ownership could result in redevelopment happening in phases.",
+        "prefix": "Less lease has also complicated plans. ",
+        "suffix": " The future of Military Circle has been"
+      }
+    },
+    {
+      "id": "ross-veto",
+      "stance": "weakens",
+      "claim": "WAVY reported (June 4, 2026) that Ross Dress for Less, a tenant, effectively holds a veto inside the ring road under an old operating agreement.",
+      "source": {
+        "title": "WAVY: \"Norfolk moving ahead with Military Circle Mall demo without Ross ‘ok’, citing public safety\" (June 4, 2026)",
+        "url": "https://www.wavy.com/news/norfolk-moving-ahead-with-military-circle-mall-demo-without-ross-ok-citing-public-safety/amp/"
+      },
+      "quote": "Even though Ross is a tenant of the city property, the discount retailer essentially has veto power under an old-operating agreement inside the ring road.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
+        "bytes": 54214,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Even though Ross is a tenant of the city property, the discount retailer essentially has veto power under an old-operating agreement inside the ring road.",
+        "prefix": "leaves job after nearly 5 years ",
+        "suffix": " While their lease, signed prior to"
+      }
+    },
+    {
+      "id": "ross-extension",
+      "stance": "weakens",
+      "claim": "WAVY reported (June 4, 2026) that Ross's lease, signed before the City owned the site, was set to expire in 2026 but carries extension options through 2036.",
+      "source": {
+        "title": "WAVY: \"Norfolk moving ahead with Military Circle Mall demo without Ross ‘ok’, citing public safety\" (June 4, 2026)",
+        "url": "https://www.wavy.com/news/norfolk-moving-ahead-with-military-circle-mall-demo-without-ross-ok-citing-public-safety/amp/"
+      },
+      "quote": "While their lease, signed prior to city ownership, is set to expire this year, they have extension options through 2036.",
+      "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
+        "bytes": 54214,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "While their lease, signed prior to city ownership, is set to expire this year, they have extension options through 2036.",
+        "prefix": "agreement inside the ring road. ",
+        "suffix": " \"We continue to have open"
+      }
+    },
+    {
+      "id": "demo-without-ross",
+      "stance": "weakens",
+      "claim": "WAVY reported (June 4, 2026), as the City put the demolition out to bid, that Ross Dress for Less had still not given its consent to the demolition.",
+      "source": {
+        "title": "WAVY: \"Norfolk moving ahead with Military Circle Mall demo without Ross ‘ok’, citing public safety\" (June 4, 2026)",
+        "url": "https://www.wavy.com/news/norfolk-moving-ahead-with-military-circle-mall-demo-without-ross-ok-citing-public-safety/amp/"
+      },
+      "quote": "Ross had still not given their consent to the demolition.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
+        "bytes": 54214,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ross had still not given their consent to the demolition.",
+        "prefix": "to Norfolk, said as of Wednesday, ",
+        "suffix": " VB Deputy City Manager Ron Williams"
+      }
+    },
+    {
+      "id": "ross-cost",
+      "stance": "weakens",
+      "claim": "WTKR reported (July 14, 2026) that breaking the Ross Dress for Less lease would reportedly cost up to $16 million.",
+      "source": {
+        "title": "WTKR News 3: \"13 bids submitted for Military Circle Mall demo project, city reports\" (July 14, 2026)",
+        "url": "https://www.wtkr.com/news/in-the-community/norfolk/multiple-bids-submitted-for-military-circle-demo-project-city-leader-reports"
+      },
+      "quote": "An ongoing dispute with Ross Dress for Less over its lease would reportedly cost up to $16 million to break.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiferx64laqw4r3btzi3aaxrnr22vuatznwmh2awtfr2cvbnlp5tdi",
+        "bytes": 113954,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "An ongoing dispute with Ross Dress for Less over its lease would reportedly cost up to $16 million to break.",
+        "prefix": "Sentara-owned portion of the property. ",
+        "suffix": " The city does not own all of the"
+      }
+    },
+    {
+      "id": "ross-unresolved",
+      "stance": "weakens",
+      "claim": "As of September 2026, WHRO reported the Deputy City Manager saying the City was still negotiating the Ross lease and hoped to resolve it by the end of demolition.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "Williams said the city is still negotiating the Ross lease situation and hopes it will be resolved by the time demolition concludes.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Williams said the city is still negotiating the Ross lease situation and hopes it will be resolved by the time demolition concludes.",
+        "prefix": "pay for their own utilities. ",
+        "suffix": " The shift, from the city footing"
+      }
+    },
+    {
+      "id": "earlier-proposals",
+      "stance": "weakens",
+      "claim": "WHRO recounted (September 1, 2026) that the three 2021 redevelopment proposals had all been shelved as financially unworkable by late 2023.",
+      "source": {
+        "title": "WHRO: \"Norfolk aims to start Military Circle Mall demolition in October\" (September 1, 2026)",
+        "url": "https://www.whro.org/local-government/2026-09-01/260901-militarycircle-saunders"
+      },
+      "quote": "By late 2023, WHRO reported that all three proposals had been shelved as financially unworkable",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "bytes": 161340,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "By late 2023, WHRO reported that all three proposals had been shelved as financially unworkable",
+        "prefix": "Circle team over a $1.1 billion plan. ",
+        "suffix": ", with city officials shifting focus"
+      }
+    },
+    {
+      "id": "rec-center-moved",
+      "stance": "weakens",
+      "claim": "WHRO reported (May 20, 2026) the City Manager saying that, to avoid delays tied to the Military Circle site, the City selected the former Poplar Hall Elementary School for the East Side library and recreation center.",
+      "source": {
+        "title": "WHRO: \"Norfolk City Council approves capital budget with rec center funding after public pushback\" (May 20, 2026)",
+        "url": "https://www.whro.org/local-government/2026-05-20/052026-cipapproved-saunders"
+      },
+      "quote": "To avoid delays tied to the Military Circle Mall site, the city selected the former Poplar Hall Elementary School for the project after considering alternatives and assessing site readiness, Roberts said.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiehi6xxiag4kn2wussyqnrk2xqrhbla6f7qzsctaf6fy5j6od6nwu",
+        "bytes": 161689,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "To avoid delays tied to the Military Circle Mall site, the city selected the former Poplar Hall Elementary School for the project after considering alternatives and assessing site readiness, Roberts said.",
+        "prefix": "recreation center on the East Side. ",
+        "suffix": " The move was a direct concession to"
+      }
+    },
+    {
+      "id": "cip-no-line",
+      "stance": "weakens",
+      "claim": "The adopted FY 2027-2031 capital plan funds $1,000,000 to design an East Side library and recreation center at the former Poplar Hall Elementary site; the document names no Military Circle project.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan: Conceptualize East Side Recreation Center (Adopted FY 2027 Budget Document, 14 Capital Improvement Plan)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "This project will be used to begin the preliminary design and site planning for a combination library and recreation center to be constructed on the former Poplar Hall Elementary School site.",
+      "absent": "Military Circle",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This project will be used to begin the preliminary design and site planning for a combination library and recreation center to be constructed on the former Poplar Hall Elementary School site.",
+        "prefix": "$0 $0 $0 $0 $1,000,000 Description: ",
+        "suffix": " Background: $350,000 was previously"
+      }
+    },
+    {
+      "id": "uda-vision",
+      "stance": "context",
+      "claim": "The City’s adopted 2017 vision plan for the area describes a long-term goal of a completely redeveloped, high-density urban mixed-use neighborhood for the Military Circle area.",
+      "source": {
+        "title": "Military Circle / Military Highway Urban Development Area: A Vision for the Future (adopted by City Council January 24, 2017, Ordinance No. 46,707)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/27580/Military_Circle_UDA_Vision_Plan"
+      },
+      "quote": "vision for the Military Circle area is for a completely redeveloped high density urban mixed use neighborhood.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihblxoox7qzovnf6burllehjubie6hhds7cwsrtgdg57wr2ykzvau",
+        "bytes": 7369082,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "vision for the Military Circle area is for a completely redeveloped high density urban mixed use neighborhood.",
+        "prefix": "to the west of the interstate. The ",
+        "suffix": " The vision for the Military Circle"
+      }
+    },
+    {
+      "id": "disposal-hearing",
+      "stance": "who_decides",
+      "claim": "Virginia law bars a locality from selling, leasing or otherwise disposing of its real property until its governing body has held a public hearing on that disposal.",
+      "source": {
+        "title": "Code of Virginia § 15.2-1800(B)",
+        "url": "https://law.lis.virginia.gov/vacode/title15.2/chapter18/section15.2-1800/"
+      },
+      "quote": "provided that no such real property, whether improved or unimproved, shall be disposed of until the governing body has held a public hearing concerning such disposal.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifkmvd7osfcmujilpnhyfsa43j5wwqx4lzze2zaivv2eiupjgboze",
+        "bytes": 31862,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "provided that no such real property, whether improved or unimproved, shall be disposed of until the governing body has held a public hearing concerning such disposal.",
+        "prefix": "from the subjacent land surface, ",
+        "suffix": " However, the holding of a public"
+      }
+    },
+    {
+      "id": "disposal-hearing-exceptions",
+      "stance": "who_decides",
+      "claim": "The same subsection exempts some disposals from the public hearing, including leasing the land to another public body, political subdivision or authority of the Commonwealth.",
+      "source": {
+        "title": "Code of Virginia § 15.2-1800(B)",
+        "url": "https://law.lis.virginia.gov/vacode/title15.2/chapter18/section15.2-1800/"
+      },
+      "quote": "However, the holding of a public hearing shall not apply to (i) the leasing of real property to another public body, political subdivision or authority of the Commonwealth",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-13",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifkmvd7osfcmujilpnhyfsa43j5wwqx4lzze2zaivv2eiupjgboze",
+        "bytes": 31862,
+        "read": "2026-11-13",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "However, the holding of a public hearing shall not apply to (i) the leasing of real property to another public body, political subdivision or authority of the Commonwealth",
+        "prefix": "hearing concerning such disposal. ",
+        "suffix": " or (ii) conveyance of site development"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Watch for the site readiness reports (expected around spring 2027) and the master plan to follow: news reports quote City officials saying the studies will inform how the site is redeveloped.",
+      "finding": "plan-timeline"
+    },
+    {
+      "text": "A sale or lease of City land generally needs a public hearing first, the formal chance to speak on the terms; a lease to another public body or authority of the Commonwealth is exempt, and the Economic Development Authority is described as a political subdivision of the Commonwealth, so watch for a lease to it. A sale to the Authority would still need the hearing.",
+      "finding": "disposal-hearing-exceptions"
+    },
+    {
+      "text": "Watch City Council agendas for an agreement with Ross Dress for Less or Sentara, who hold parts of the site; WTKR reported the Deputy City Manager saying redevelopment could come in phases.",
+      "finding": "phases"
+    }
+  ],
+  "records_to_request": [
+    "The Military Circle demolition contract and its notice of award, with the bid tabulation for the 13 bids received in July 2026 and the schedule of phases.",
+    "The Virginia Economic Development Partnership's award letter for the $337,750 site characterization grant, the engineering consultant's contract and scope of work, and the site readiness reports when delivered.",
+    "The operating agreement and the Ross Dress for Less lease covering the Military Circle ring road, with any amendments and any correspondence on consent to demolition since July 2025.",
+    "Monthly operating, security and utility costs for Military Circle Mall since the City took title in 2025."
+  ],
+  "pending": [
+    "Whether demolition actually began in October 2026: the latest found is WTKR's September 29, 2026 report of a first phase due \"next month\"; no City notice of the start was found.",
+    "The demolition contractor and contract amount in the City’s own records (WTKR reports nearly $3 million); no City contract or award notice found yet.",
+    "The 2023 Council action approving $10 million for demolition is reported by WHRO and WAVY but not yet found in a City record; Siren's legislation index starts with July 2023 meetings, so the FY 2024 adopted budget and capital plan are the next place to look. (News reports from April 2023 describe a first phase that demolished outparcels; that is not the mall teardown.)"
+  ]
+}
