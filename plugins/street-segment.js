@@ -12,7 +12,7 @@
 // owner is ever listed.
 
 import { definePlugin } from '../src/plugins.js';
-import { resolveSegment, parcelsIn, padBox, touchingParcels, rollGroups, classCode, isResidentialCode, OPEN_DATA, REACH_M } from './gis.js';
+import { resolveSegment, parcelsIn, padBox, touchingParcels, rollGroups, classCode, isResidentialCode, typeOf, streetTag, OPEN_DATA, REACH_M } from './gis.js';
 
 export default definePlugin({
   name: 'street_segment',
@@ -34,7 +34,12 @@ export default definePlugin({
     const found = await resolveSegment(ctx, { street, from, to });
     if (found.error) return { error: found.error };
     const seg = found.segment;
-    const parcels = await parcelsIn(ctx, padBox(seg.box, 0.0006));
+    let parcels;
+    try {
+      parcels = await parcelsIn(ctx, padBox(seg.box, 0.001));
+    } catch (err) {
+      return { error: String(err.message || err) };
+    }
     const touch = touchingParcels(parcels, seg);
     const groups = await rollGroups(ctx, touch);
     const residential = new Set();
@@ -42,13 +47,14 @@ export default definePlugin({
     for (const r of groups) {
       if (!isResidentialCode(classCode(r.property_class_description))) continue;
       residential.add(String(r.gpin));
-      if (String(r.property_street_name || '').toUpperCase() === seg.streetKey) onStreet.add(String(r.gpin));
+      if (streetTag(r.property_street_name, typeOf(r.property_street_type)) === seg.streetTag) onStreet.add(String(r.gpin));
     }
     ctx.resources.addLink({ title: "City of Norfolk open-data map services: street centerlines and parcels (gisshare.norfolk.gov)", url: OPEN_DATA });
     return {
       street: seg.street,
       between: [from, to],
       addresses: seg.addresses,
+      length_m: seg.length_m,
       blocks: seg.blocks,
       parcels_touching: touch.length,
       residential_parcels_touching: residential.size,
@@ -56,7 +62,7 @@ export default definePlugin({
       residential_addressed_on_other_streets: residential.size - onStreet.size,
       about_the_data: [
         `A parcel touches the street when its shape comes within ${REACH_M} m of the street's centerline and it isn't past either cross street; corner buildings addressed on a cross street count.`,
-        "Speed limits, traffic direction and road class are the City's centerline fields. A divided road has one centerline per direction (carriageways); a block's length is its longer carriageway, in feet.",
+        "Speed limits, traffic direction and road class are the City's centerline fields. A divided road has one centerline per direction (carriageways); lengths are measured along one carriageway.",
         "These are the City's open-data map layers, not legal determinations or surveys.",
       ],
     };

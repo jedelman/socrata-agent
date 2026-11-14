@@ -12,13 +12,15 @@ Jason's calls (2026-11-14) on the design PR (#54):
 
 Graydon between Colley and Colonial is its **500, 600 and 700 blocks**, addresses 502–755. Each block is a divided road with one centerline per direction, 20 mph, road class "minor".
 
-- **Parcels:** 65 touch it. 60 are residential: 58 addressed on Graydon, plus 2 corner buildings addressed on Colley and Colonial.
-- **Homes:** 194 (95 counted exactly, 99 estimated apartment units).
+- **Parcels:** 67 touch it. 61 are residential: 59 addressed on Graydon, plus 2 corner buildings addressed on Colley and Colonial.
+- **Homes:** 193 (96 counted exactly, 97 estimated apartment units), in 31 houses, 5 duplexes, 5 triplexes, 3 fourplexes, 28 condominium units and 12 apartment properties.
 
 | Graydon's 500–700 blocks as a share of | Residential parcels | Homes | Share of parcels | Share of homes |
 |---|---|---|---|---|
-| Ghent Neighborhood League | 849 | 3,199 | 7.1% | 6.1% |
-| All three Ghent civic leagues | 1,871 | 5,158 (2020 Census: 5,243) | 3.2% | 3.8% |
+| Ghent Neighborhood League | 853 | 3,171 (2020 Census: 3,283) | 7.2% | 6.1% |
+| All three Ghent civic leagues | 1,887 | 5,146 (2020 Census: 5,243) | 3.2% | 3.8% |
+
+These replace the first build's figures (60 parcels, 194 homes; 7.1% and 6.1%; 3.2% and 3.8%), which counted building rows rather than properties and computed lot centers less precisely; an independent review caught both.
 
 "Ghent" also matches several planning districts, North Ghent and West Ghent among them, so Siren asks which is meant.
 
@@ -34,12 +36,13 @@ All three follow one rule: **the model chooses, code computes.** The model picks
 
 ### `street_segment` `{ street, from, to }`
 
-- **Finding the blocks:** it reads the City's street centerlines (OpenData Public_Works, layer 1). It finds where each cross street meets the street, at shared centerline ends within 3 m. From each intersection it takes the block toward the other one, and returns the blocks in between.
+- **Finding the blocks:** it reads the City's street centerlines (OpenData Public_Works, layer 1) and walks them. A cross street meets the street where one of its vertices lies within 3 m of a centerline piece's end; pieces of the street join where their ends lie within 12 m. From the crossings with one cross street it takes the shortest connected way to a crossing with the other, then adds the other carriageway of a divided road (the same street, within 40 m of the walked one all the way, not past either crossing; median crossovers left out). Block numbers come from the pieces walked, never from a numeric range, so a piece of the same street across town numbered in between isn't included.
+- **Which street:** each full name (Llewellyn Avenue, Llewellyn Mews) is walked on its own. A name as written is matched exactly first ("North Shore" is NORTH SHORE), then without a leading direction or type word ("W Little Creek" is LITTLE CREEK, "Avenue I" is I); a type or direction given narrows the match. Where the City's centerlines have a real gap between the cross streets, the tool says the street doesn't run unbroken there. North Shore Road, for one, is four separate pieces.
 - **Per block:** the address range and the centerline's own fields: speed limit, traffic (two-way, one-way, or one way on a divided road), road class, length and the number of carriageways.
-- **What it returns:** the blocks, plus how many parcels touch the segment.
+- **What it returns:** the blocks, the stretch's length along one carriageway, and how many parcels touch it, how many of those are residential, and how many are addressed on the street itself.
 - **What touching means:**
   - a parcel's shape comes within 15 m of a carriageway's centerline;
-  - the nearest point on the street to the parcel's center isn't a cross street's corner, so a parcel past either cross street is left out;
+  - the center of its lot isn't past either cross street: more than 2 m on the far side of the cross street's line where it meets the street (where a cross street runs within 30 degrees of the street, the line is cut square to the street instead);
   - corner buildings addressed on a cross street count.
 - **Why 15 m:** at 10 m and 15 m Graydon's 500–700 blocks gave the same 60 residential parcels; at 20 m the count began to take in parcels behind the frontage.
 - **Right-of-way width:** the centerline's `ROW` field holds a road type ("residential"), not a width, so there isn't one to report.
@@ -58,37 +61,39 @@ With `of`, it adds the share of residential parcels and of homes.
 - an area holds a parcel when the area contains the center of its lot;
 - a street holds the parcels that touch it.
 
-**Homes from the FY27 assessment roll** (`qva7-tzrf`). One query per 400 parcels returns rows grouped by parcel, class and street. Owner and deed fields stay denied at plugin access.
-- **Counted exactly:**
+**Homes from the FY27 assessment roll** (`qva7-tzrf`). The roll has a row per building on a property, so one query per 400 parcels groups by parcel, class and street and counts properties as distinct accounts (`count(distinct lrsn)`), with their building rows, building area and oldest building's year. Owner and deed fields stay denied at plugin access.
+- **Counted exactly, per property:**
   - houses count 1;
   - a house with an extra dwelling unit, 2;
   - duplexes 2, triplexes 3, fourplexes 4;
-  - each condominium unit is its own row, counted 1.
-- **Estimated:** apartment buildings, because the roll gives them only as bands (5–11, 12–48, 49+ units).
-- **Also estimated:** shops with apartments over, and public or religious residential property, which the roll gives no count for.
+  - each condominium unit is its own property, counted 1.
+- **Estimated:** apartment properties, because the roll gives them only as bands (5–11, 12–48, 49+ units).
+- **Also estimated:** mobile home parks, cooperatives, shops with apartments over, and public or religious residential property, which the roll gives no count for (from 1 up).
 - **Not homes:** vacant lots and boat slips.
+- **Reported:** homes by kind (houses, duplexes, condominium units, apartments ...) and properties by kind, separately.
 
 **The estimate, per census block:**
 1. Take each 2020 Census block's housing count (TIGERweb, 2020 Census Blocks, `HU100`).
-2. Subtract the homes the roll counts exactly in that block.
-3. Share the remainder among the block's apartment buildings by building area (`commercial_building_area`), keeping each within its band.
-4. Where the remainder falls outside the bands, each building sits at its band's floor or ceiling, and the result counts how often that happened.
-5. A building put up after 2020, or on a parcel in no block, counts at its band's floor.
+2. Subtract the homes the roll counts exactly in that block, for properties standing in 2020.
+3. Share the remainder among the block's apartment properties by building area (`commercial_building_area`; 900 sq ft a unit at the band's floor where none is recorded), keeping each within its band.
+4. Where the remainder falls outside the bands, each property sits at its band's floor or ceiling, and the result counts how often that happened.
+5. A property whose buildings all went up after 2020, or on a parcel in no block, counts at its band's floor.
 
-**How accurate it is:** against 43 apartment buildings whose units a City assessment layer records (Real_Estate/Submarkets, which covers only part of the city), the estimate's median error was 17%. Band midpoints gave 33%. Summed over the 43, the estimate ran 19% high (midpoints, 39%). One record there, 47,850 units, is plainly an error and was left out.
+**How accurate it is:** `scripts/check-unit-estimate.js` takes the first 60 GPINs, in SHA-256 order, of the 650 apartment properties whose units the City's Real_Estate/Submarkets layers record (they cover only part of the city), runs the estimate on each one's census block, and writes `eval/unit-estimate-<date>.json`. On 2026-11-14 (58 properties; 2 had no apartment class in the FY27 roll): median error 15%, 38 of the 58 within 20%, and summed over the 58 the estimate ran 8% high. Band midpoints (49+ at its floor) were off by 33% at the median. For single-building properties the median error was 14% (midpoints 25%); for properties with several buildings, 17% (midpoints 77%). The largest misses were 49+ properties, among them one the City records at 16 units in a 49+ class.
 
 **Where exact counts live:** the City assessor's table carries `number_units`; the NRHA layer shows it. It isn't in the open-data roll, so publishing it would make every count exact.
 
 **What it fetches:**
-- the census blocks that meet the places;
-- the parcels in the places' box;
-- then only the blocks holding a parcel of either place, with all their parcels, so each block's estimate sees every home in it.
+- a count of the parcels in the places' box, then the parcels, only if there are at most 12,000;
+- the census blocks that meet the box;
+- the roll for the parcels of either place;
+- then, only for census blocks holding a counted apartment property, the rest of those blocks' parcels and their roll rows, so each apartment estimate sees every home in its block. A block of houses alone needs nothing past the places.
 
 **Refusals:**
-- more than 4,000 parcels (a ward is too large);
-- fewer than 5 residential parcels, which would describe single households.
+- a box of more than 12,000 parcels, before downloading it (a ward is too large), or more than 8,000 parcels to count;
+- fewer than 5 parcels, or 5 residential parcels, which would describe single households.
 
-**Cost:** the three Ghents with Graydon took 16 requests.
+**Cost:** Graydon in the Ghent Neighborhood League took 11 requests; in all three Ghents, 16.
 
 ## Rules these tools keep
 
@@ -97,8 +102,9 @@ With `of`, it adds the share of residential parcels and of homes.
   - The roll goes through `ctx.socrata` at plugin access, and lands in the hand-off.
   - Each request counts on the answer's budget.
 - **No people-finding.**
-  - Outputs are counts and shares, never parcels, addresses or GPINs.
+  - Tool results are counts and shares, never parcels, addresses or GPINs. The trace and hand-off show every query exactly, as for every tool, so the parcel query's GPIN list is visible there.
   - The roll's owner and deed fields stay denied.
+  - The floor of 5 residential parcels keeps one answer from describing a household. Two overlapping counts can still be subtracted, which yields a property's class and home count: no more than the public assessment roll shows for any address.
   - The Civic Leagues layer is queried for `LEAGUE` only.
 - **Coordinates never reach the model.**
 - **The City's map layers are a guide, not a legal determination or a survey.**
