@@ -208,6 +208,7 @@ test('housing_count: a street\'s share of an area, computed in code, through the
   const roll = seen.filter((u) => u.includes('/resource/qva7-tzrf')).map((u) => decodeURIComponent(u));
   assert.ok(roll.length >= 1);
   for (const q of roll) assert.doesNotMatch(q, /owner|grantor|grantee|legal_description|document_number/i);
+  for (const q of roll) assert.match(q, /count\(distinct lrsn\) AS n/, 'properties are distinct accounts');
   for (const u of seen.filter((x) => x.includes('/Maps/MapServer/12/'))) assert.equal(new URL(u).searchParams.get('outFields'), 'LEAGUE');
   const text = JSON.stringify(result);
   assert.doesNotMatch(text, /-76\.\d{3}|36\.\d{3}|14000000\d\d/);
@@ -216,8 +217,10 @@ test('housing_count: a street\'s share of an area, computed in code, through the
 test(`housing_count refuses fewer than ${MIN_PARCELS} residential parcels, and an unknown area`, async () => {
   const few = STREETS.map((f) => (f.attributes.ST_NAME === 'BETA' ? { ...f, geometry: { paths: [line([[40, -200], [40, 0], [40, 200]])] } } : f));
   const respond = (url) => (url.includes('/Public_Works/') ? { features: [...few, { attributes: { FULLNAME: 'TEST AVENUE', ST_NAME: 'TEST', LBLOCK: '100' }, geometry: { paths: [line([[0, 0], [40, 0]])] } }].filter((f) => !(f.attributes.ST_NAME === 'TEST' && f.attributes.LBLOCK === '100' && f.geometry.paths[0].length === 2 && f.geometry.paths[0][1][0] > ll([100, 0])[0])) } : world()(url));
-  const { result } = await checkPlugin(housingCount, { city: norfolk, args: { place: { street: 'Test', from: 'Alpha', to: 'Beta' } }, respond });
+  const asked = [];
+  const { result } = await checkPlugin(housingCount, { city: norfolk, args: { place: { street: 'Test', from: 'Alpha', to: 'Beta' } }, respond: (url) => (asked.push(url), respond(url)) });
   assert.match(result.error, /fewer than 5 (residential )?parcels/);
+  assert.ok(!asked.some((u) => u.includes('/resource/qva7-tzrf')), 'refused before any roll query');
   const unknown = await checkPlugin(housingCount, {
     city: norfolk, args: { place: { areas: [{ kind: 'civic_league', name: 'Nowhere' }] } },
     respond: (url) => (url.includes('/Maps/MapServer/12/') ? { features: [] } : world()(url)),
@@ -348,4 +351,105 @@ test('housing_count reads parcels past the places only for blocks holding a coun
   // The census block reaches past both places: with apartments it is read whole, without them it isn't.
   assert.equal(await parcelReads(ROLL), 2);
   assert.equal(await parcelReads(ROLL.filter((r) => !r.property_class_description.startsWith('403'))), 1);
+});
+
+test('housing_count refuses more than 8000 parcels to count, before any roll query', async () => {
+  const many = Array.from({ length: 8001 }, (_, i) => ({ attributes: { GPIN: String(1500000000 + i) }, geometry: { rings: square(-90 + (i % 90) * 5, -90 + Math.floor(i / 90) * 2, -89 + (i % 90) * 5, -89 + Math.floor(i / 90) * 2) } }));
+  const asked = [];
+  const { result } = await checkPlugin(housingCount, {
+    city: norfolk, args: { place: { areas: [{ kind: 'civic_league', name: 'Test League' }] } },
+    respond: (url) => {
+      asked.push(url);
+      if (url.includes('/Parcels/')) return new URL(url).searchParams.get('returnCountOnly') ? { count: many.length } : { features: many };
+      return world()(url);
+    },
+  });
+  assert.match(result.error, /more than 8000 parcels/);
+  assert.ok(!asked.some((u) => u.includes('/resource/qva7-tzrf')));
+});
+
+test("an apartment estimate counts the homes of its block's parcels outside the places too", async () => {
+  // A house in the census block but outside the league and off the street: read, and subtracted from the block.
+  const outsider = { attributes: { GPIN: '1499999999' }, geometry: { rings: square(450, 150, 470, 170) } };
+  const roll = [...ROLL, { gpin: '1499999999', property_class_description: '513 S/F Detached =2 but <3 Sty', property_street_name: 'Far', n: '1', rows: '1' }];
+  const asked = [];
+  const base = world();
+  const { result } = await checkPlugin(housingCount, {
+    city: norfolk,
+    args: { place: { street: 'Test', from: 'Alpha', to: 'Beta' }, of: { areas: [{ kind: 'civic_league', name: 'Test League' }] } },
+    respond: (url) => {
+      if (url.includes('/Parcels/')) return new URL(url).searchParams.get('returnCountOnly') ? { count: PARCELS.length + 1 } : { features: [...PARCELS, outsider] };
+      if (url.includes('/resource/qva7-tzrf')) {
+        asked.push(decodeURIComponent(url));
+        const soql = decodeURIComponent(new URL(url).searchParams.get('$query'));
+        const ids = new Set((/gpin IN \(([^)]*)\)/.exec(soql)?.[1] || '').split(',').map((x) => x.trim()));
+        return roll.filter((r) => ids.has(r.gpin));
+      }
+      return base(url);
+    },
+  });
+  assert.equal(result.error, undefined, result.error);
+  assert.ok(asked.some((q) => q.includes('1499999999')), "the outsider's roll rows were read");
+  assert.equal(result.place.homes_estimated, 79, '117 in the block, less 38 exact homes');
+  assert.equal(result.place.homes, 105);
+  assert.equal(result.of.residential_parcels, 30, 'the outsider is not in the league');
+});
+
+test('a walk ending on a median crossover keeps its frontage, and the crossover adds no block', async () => {
+  // DIV AVENUE: carriageways at y = -10 (south) and y = +10 (north), x 0-300, a crossover at x = 300.
+  // ALPHA meets only the south carriageway; BETA, running north, meets only the north one, at the crossover's end.
+  const div = (block, pts, extra = {}) => ({ attributes: { FULLNAME: 'DIV AVENUE', ST_NAME: 'DIV', ST_TYPE: 'AVENUE', LBLOCK: block, ONEWAY: 2, CLASS: '2', ...extra }, geometry: { paths: [line(pts)] } });
+  const streets = [
+    div('100', [[0, -10], [300, -10]], { RADD_FR: 101, RADD_TO: 199 }),
+    div('100', [[300, 10], [0, 10]], { LADD_FR: 100, LADD_TO: 198 }),
+    div('900', [[300, -10], [300, 10]], { CLASS: '7', ONEWAY: 0 }),
+    { attributes: { FULLNAME: 'ALPHA STREET', ST_NAME: 'ALPHA', ST_TYPE: 'STREET' }, geometry: { paths: [line([[0, -200], [0, -10]])] } },
+    { attributes: { FULLNAME: 'BETA STREET', ST_NAME: 'BETA', ST_TYPE: 'STREET' }, geometry: { paths: [line([[300, 10], [300, 200]])] } },
+  ];
+  const { segment } = await resolveSegment({ http: { json: async () => ({ features: streets }) } }, { street: 'Div', from: 'Alpha', to: 'Beta' });
+  assert.deepEqual(segment.blocks.map((b) => b.block), [100], 'no block 900 from the crossover');
+  assert.equal(segment.length_m, 300, 'the crossover is not length along the street');
+  const lots = new Map();
+  for (let i = 0; i < 10; i++) {
+    lots.set(`n${i}`, square(5 + i * 29, 20, 25 + i * 29, 40));
+    lots.set(`s${i}`, square(5 + i * 29, -40, 25 + i * 29, -20));
+  }
+  lots.set('past', square(310, 20, 330, 40));
+  const touch = new Set(touchingParcels(lots, segment));
+  for (let i = 0; i < 10; i++) assert.ok(touch.has(`n${i}`) && touch.has(`s${i}`), `frontage ${i}`);
+  assert.ok(!touch.has('past'));
+});
+
+test('a curving street keeps its frontage where it bends back beyond an end', async () => {
+  // BEND ROAD runs west from (400,100) to (0,100), south to (0,0), then east to GAMMA at (300,0);
+  // GAMMA leaves nearly along the street, so that end's cut is square to the street (x = 300).
+  const bend = (pts) => ({ attributes: { FULLNAME: 'BEND ROAD', ST_NAME: 'BEND', ST_TYPE: 'ROAD', LBLOCK: '100', ONEWAY: 0, CLASS: '3' }, geometry: { paths: [line(pts)] } });
+  const streets = [
+    bend([[400, 100], [0, 100]]), bend([[0, 100], [0, 0]]), bend([[0, 0], [300, 0]]),
+    { attributes: { FULLNAME: 'DELTA STREET', ST_NAME: 'DELTA', ST_TYPE: 'STREET' }, geometry: { paths: [line([[400, 300], [400, 100]])] } },
+    { attributes: { FULLNAME: 'GAMMA STREET', ST_NAME: 'GAMMA', ST_TYPE: 'STREET' }, geometry: { paths: [line([[300, 0], [500, 20]])] } },
+  ];
+  const { segment } = await resolveSegment({ http: { json: async () => ({ features: streets }) } }, { street: 'Bend', from: 'Delta', to: 'Gamma' });
+  assert.equal(segment.length_m, 800);
+  const lots = new Map([['beyond-the-line', square(320, 110, 380, 130)], ['past-gamma', square(310, -30, 330, -10)]]);
+  const touch = new Set(touchingParcels(lots, segment));
+  assert.ok(touch.has('beyond-the-line'), 'frontage on the first leg, east of x = 300');
+  assert.ok(!touch.has('past-gamma'));
+});
+
+test('a walk that overshoots its cross street by a frontage road is cut back at the cross street', async () => {
+  // MAIN runs x 0-500 (a node at 420); a frontage piece of MAIN runs back from (420,0) to (300,20), where GAMMA dead-ends.
+  const main = (block, pts) => ({ attributes: { FULLNAME: 'MAIN STREET', ST_NAME: 'MAIN', ST_TYPE: 'STREET', LBLOCK: block, ONEWAY: 0, CLASS: '3' }, geometry: { paths: [line(pts)] } });
+  const streets = [
+    main('100', [[0, 0], [420, 0]]), main('500', [[420, 0], [500, 0]]), main('450', [[420, 0], [400, 20], [300, 20]]),
+    { attributes: { FULLNAME: 'ALPHA STREET', ST_NAME: 'ALPHA', ST_TYPE: 'STREET' }, geometry: { paths: [line([[0, -200], [0, 0], [0, 200]])] } },
+    { attributes: { FULLNAME: 'GAMMA STREET', ST_NAME: 'GAMMA', ST_TYPE: 'STREET' }, geometry: { paths: [line([[300, 20], [300, 200]])] } },
+  ];
+  const { segment } = await resolveSegment({ http: { json: async () => ({ features: streets }) } }, { street: 'Main', from: 'Alpha', to: 'Gamma' });
+  assert.equal(segment.length_m, 300);
+  assert.deepEqual(segment.blocks.map((b) => b.block), [100], 'not the frontage piece past GAMMA');
+  const lots = new Map([['before', square(250, -30, 280, -10)], ['beyond', square(330, -30, 360, -10)], ['far', square(440, -30, 470, -10)]]);
+  const touch = new Set(touchingParcels(lots, segment));
+  assert.ok(touch.has('before'));
+  assert.ok(!touch.has('beyond') && !touch.has('far'));
 });

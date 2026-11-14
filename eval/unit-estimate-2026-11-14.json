@@ -1,34 +1,35 @@
 {
   "date": "2026-11-14",
-  "method": "For each sampled apartment property: its 2020 Census block (TIGERweb), every parcel whose lot center is in that block, the FY27 roll grouped by parcel, then plugins/gis.js homesByParcel, as housing_count runs it. Recorded units are the Submarkets layers' number_uni, summed over each parcel's building rows. The band midpoint baseline puts 5-11 at 8 and 12-48 at 30, and the open 49+ band at its floor, 49.",
-  "source": "https://gisshare.norfolk.gov/pubserver/rest/services/Real_Estate/Submarkets/MapServer (layers 0-15), where number_uni is 5 to 2000 and the class is 40x",
-  "population": 650,
+  "method": "For each sampled apartment property: its 2020 Census block (TIGERweb), every parcel whose lot center is in that block, the FY27 roll grouped by parcel, then plugins/gis.js homesByParcel, as housing_count runs it. Recorded units are the Submarkets layers' number_uni, summed over each parcel's building rows; a property with a building row of 0 units not described as a clubhouse, office, pool or the like is left out as not fully recorded. The band midpoint baseline puts 5-11 at 8 and 12-48 at 30, and the open 49+ band at its floor, 49.",
+  "source": "https://gisshare.norfolk.gov/pubserver/rest/services/Real_Estate/Submarkets/MapServer (layers 0-15), class 40x; a property's recorded units are the sum over its building rows, 5 to 2000",
+  "population": 628,
+  "left_out_unrecorded_buildings": 26,
   "sample_rule": "first 60 GPINs in SHA-256 order",
   "summary": {
     "properties": 58,
-    "recorded_units": 2443,
-    "median_abs_error_pct": 15,
+    "recorded_units": 2099,
+    "median_abs_error_pct": 16,
     "median_abs_error_pct_band_midpoint": 33,
     "within_20_pct": 38,
-    "total_error_pct": 8,
-    "total_error_pct_band_midpoint": -50
+    "total_error_pct": 1,
+    "total_error_pct_band_midpoint": -45
   },
   "single_building": {
-    "properties": 47,
-    "recorded_units": 596,
-    "median_abs_error_pct": 14,
+    "properties": 49,
+    "recorded_units": 608,
+    "median_abs_error_pct": 15,
     "median_abs_error_pct_band_midpoint": 25,
-    "within_20_pct": 31,
+    "within_20_pct": 32,
     "total_error_pct": 8,
     "total_error_pct_band_midpoint": 25
   },
   "several_buildings_or_properties": {
-    "properties": 11,
-    "recorded_units": 1847,
+    "properties": 9,
+    "recorded_units": 1491,
     "median_abs_error_pct": 17,
     "median_abs_error_pct_band_midpoint": 77,
-    "within_20_pct": 7,
-    "total_error_pct": 8,
+    "within_20_pct": 6,
+    "total_error_pct": -2,
     "total_error_pct_band_midpoint": -74
   },
   "skipped": [
@@ -285,17 +286,6 @@
       "block": "517100004002003"
     },
     {
-      "gpin": "1438015501",
-      "class": "406 Apartment 49+ Mid Rise",
-      "recorded_units": 268,
-      "estimated_units": 273,
-      "band_midpoint": 49,
-      "apartment_properties": 1,
-      "building_rows": 2,
-      "built_after_2020": false,
-      "block": "517100036001036"
-    },
-    {
       "gpin": "1448657023",
       "class": "403 Apartment 12-48 Fam Desi",
       "recorded_units": 24,
@@ -549,17 +539,6 @@
       "block": "517100016001000"
     },
     {
-      "gpin": "1448910333",
-      "class": "405 Apartment 49+ Low Rise",
-      "recorded_units": 84,
-      "estimated_units": 258,
-      "band_midpoint": 49,
-      "apartment_properties": 1,
-      "building_rows": 6,
-      "built_after_2020": false,
-      "block": "517100070011001"
-    },
-    {
       "gpin": "1428632811",
       "class": "403 Apartment 12-48 Fam Desi",
       "recorded_units": 21,
@@ -637,6 +616,17 @@
       "block": "517100065024005"
     },
     {
+      "gpin": "1448439622",
+      "class": "403 Apartment 12-48 Fam Desi",
+      "recorded_units": 12,
+      "estimated_units": 13,
+      "band_midpoint": 30,
+      "apartment_properties": 1,
+      "building_rows": 3,
+      "built_after_2020": false,
+      "block": "517100061004004"
+    },
+    {
       "gpin": "1438182875",
       "class": "403 Apartment 12-48 Fam Desi",
       "recorded_units": 23,
@@ -646,17 +636,6 @@
       "building_rows": 1,
       "built_after_2020": false,
       "block": "517100028002004"
-    },
-    {
-      "gpin": "1448641172",
-      "class": "403 Apartment 12-48 Fam Desi",
-      "recorded_units": 16,
-      "estimated_units": 16,
-      "band_midpoint": 30,
-      "apartment_properties": 1,
-      "building_rows": 3,
-      "built_after_2020": false,
-      "block": "517100061003021"
     },
     {
       "gpin": "1436682370",
@@ -679,6 +658,28 @@
       "building_rows": 1,
       "built_after_2020": false,
       "block": "517100037002007"
+    },
+    {
+      "gpin": "1439987743",
+      "class": "401 Apartment 5-11 Fam Desig",
+      "recorded_units": 6,
+      "estimated_units": 7,
+      "band_midpoint": 8,
+      "apartment_properties": 1,
+      "building_rows": 1,
+      "built_after_2020": false,
+      "block": "517100057014004"
+    },
+    {
+      "gpin": "1428635765",
+      "class": "401 Apartment 5-11 Fam Desig",
+      "recorded_units": 6,
+      "estimated_units": 8,
+      "band_midpoint": 8,
+      "apartment_properties": 1,
+      "building_rows": 1,
+      "built_after_2020": false,
+      "block": "517100037002008"
     }
   ]
 }

@@ -103,10 +103,11 @@ export function cleanName(s) {
 export const sqlString = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
 // Street types: what people write (and the roll's abbreviations) to the
-// centerline's ST_TYPE word (both read 2026-11-14).
+// centerline's ST_TYPE word (both read 2026-11-14; the roll's CR is College
+// Crescent).
 const TYPE_WORDS = {
   AVENUE: ['AVE', 'AV', 'AVENUE'], STREET: ['ST', 'STREET'], ROAD: ['RD', 'ROAD'], DRIVE: ['DR', 'DRIVE'], BOULEVARD: ['BLVD', 'BOULEVARD'],
-  COURT: ['CT', 'COURT'], CIRCLE: ['CIR', 'CIRCLE'], PLACE: ['PL', 'PLACE'], LANE: ['LN', 'LA', 'LANE'], CRESCENT: ['CRES', 'CRESCENT'],
+  COURT: ['CT', 'COURT'], CIRCLE: ['CIR', 'CIRCLE'], PLACE: ['PL', 'PLACE'], LANE: ['LN', 'LA', 'LANE'], CRESCENT: ['CRES', 'CR', 'CRESCENT'],
   TERRACE: ['TER', 'TERR', 'TERRACE'], WAY: ['WAY'], HIGHWAY: ['HWY', 'HIGHWAY'], GARDENS: ['GDNS', 'GARDENS'], PARKWAY: ['PKWY', 'PARKWAY'],
   ARCH: ['ARCH'], PARK: ['PARK'], SQUARE: ['SQ', 'SQUARE'], MEWS: ['MEWS'], TRAIL: ['TRL', 'TRAIL'], LOOP: ['LOOP'], POINT: ['PT', 'POINT'],
   RUN: ['RUN'], QUARTER: ['QTR', 'QUARTER'], CHASE: ['CH', 'CHASE'], TURN: ['TURN'], LAIR: ['LAIR'], COVE: ['COVE'], LANDING: ['LD', 'LANDING'],
@@ -485,6 +486,16 @@ const SNAP_M = 3;
 const JOIN_M = 12;
 // The other carriageway of a divided road lies within this of the walked one.
 const CORRIDOR_M = 40;
+// An end's direction is taken this far along the stretch.
+const INWARD_M = 40;
+// An end's cut applies to points whose nearest place on the stretch is this close to the end.
+const END_ZONE_M = 40;
+// A walk that crosses a cross street's line within CROSS_NEAR_M of the cross
+// street and goes on more than OVERSHOOT_M is cut back to the crossing.
+const CROSS_NEAR_M = 60;
+const OVERSHOOT_M = 15;
+// Pieces shorter than this (stubs inside an intersection) add no block number of their own.
+const STUB_M = 15;
 const near = (a, b, m = SNAP_M) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= m;
 const plen = (pts) => pts.reduce((s, p, i) => (i ? s + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) : 0), 0);
 const unit = ([x, y]) => {
@@ -553,11 +564,73 @@ export function walk(edges, vertsA, vertsB) {
   return { meetsA: true, meetsB: true };
 }
 
-/** Direction into the stretch from its end E, along the edge that starts there (taken 10 m in). */
-function inwardFrom(E, pts) {
-  const p = near(pts[0], E) ? pts : [...pts].reverse();
-  const q = p.find((x) => Math.hypot(x[0] - E[0], x[1] - E[1]) >= 10) || p[p.length - 1];
-  return unit([q[0] - E[0], q[1] - E[1]]);
+/** The walked path as one line from its start to its end, each step marked when it's a median crossover or a join between pieces. */
+function walkedLine(edges, path, start) {
+  const pts = [];
+  const skip = [];
+  for (const k of path) {
+    const e = edges[k];
+    const at = pts[pts.length - 1] || start;
+    const seq = Math.hypot(e.pts[0][0] - at[0], e.pts[0][1] - at[1]) <= Math.hypot(e.pts[e.pts.length - 1][0] - at[0], e.pts[e.pts.length - 1][1] - at[1]) ? e.pts : [...e.pts].reverse();
+    const crossover = Number(e.f.attributes.CLASS) === 7;
+    seq.forEach((p, i) => {
+      if (pts.length) skip.push(crossover || i === 0);
+      pts.push(p);
+    });
+  }
+  return { pts, skip };
+}
+
+const signedTo = (C, t, p) => t[0] * (p[1] - C[1]) - t[1] * (p[0] - C[0]);
+
+/**
+ * Where the walk crosses the cross street's line near the cross street and
+ * goes on (it reached the crossing by a piece beyond it, such as a frontage
+ * road), cut it back to that crossing.
+ */
+function trimAt(line, crossLines) {
+  const { pts, skip } = line;
+  const m = nearestOnLines(pts[pts.length - 1], crossLines);
+  const t = unit([m.b[0] - m.a[0], m.b[1] - m.a[1]]);
+  const C = m.q;
+  let rest = 0;
+  const after = new Array(pts.length).fill(0);
+  for (let i = pts.length - 2; i >= 0; i--) {
+    rest += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+    after[i] = rest;
+  }
+  for (let i = 0; i < pts.length - 1; i++) {
+    const s0 = signedTo(C, t, pts[i]);
+    const s1 = signedTo(C, t, pts[i + 1]);
+    if (s0 * s1 >= 0) continue;
+    const f = s0 / (s0 - s1);
+    const X = [pts[i][0] + f * (pts[i + 1][0] - pts[i][0]), pts[i][1] + f * (pts[i + 1][1] - pts[i][1])];
+    const beyond = after[i + 1] + Math.hypot(pts[i + 1][0] - X[0], pts[i + 1][1] - X[1]);
+    if (beyond > OVERSHOOT_M && Math.abs(dot([X[0] - C[0], X[1] - C[1]], t)) <= CROSS_NEAR_M) {
+      return { pts: [...pts.slice(0, i + 1), X], skip: skip.slice(0, i + 1) };
+    }
+  }
+  return line;
+}
+const reversed = ({ pts, skip }) => ({ pts: [...pts].reverse(), skip: [...skip].reverse() });
+
+/** Direction into the stretch from its end, taken INWARD_M along it, crossovers and joins left out. */
+function inward({ pts, skip }) {
+  const E = pts[0];
+  let along = 0;
+  let q = pts[pts.length - 1];
+  let d = [0, 0];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const step = [pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]];
+    if (skip[i]) continue;
+    d = [d[0] + step[0], d[1] + step[1]];
+    along += Math.hypot(step[0], step[1]);
+    if (along >= INWARD_M) {
+      q = pts[i + 1];
+      break;
+    }
+  }
+  return Math.hypot(d[0], d[1]) > 1 ? unit(d) : unit([q[0] - E[0], q[1] - E[1]]);
 }
 
 /**
@@ -565,18 +638,24 @@ function inwardFrom(E, pts) {
  * normal pointing into the stretch. Where the cross street runs within 30
  * degrees of the street itself, the cut is square to the street instead.
  */
-function endAt(E, crossLines, inward) {
+function endAt(E, crossLines, into) {
   const m = nearestOnLines(E, crossLines);
   const t = unit([m.b[0] - m.a[0], m.b[1] - m.a[1]]);
   const n = [-t[1], t[0]];
-  const c = dot(n, inward);
-  if (Math.abs(c) < 0.5) return { E, n: inward };
+  const c = dot(n, into);
+  if (Math.abs(c) < 0.5) return { E, n: into };
   return { E, n: c < 0 ? [-n[0], -n[1]] : n };
 }
 
-/** Whether a projected point lies more than `tol` meters past either end of a stretch, on the far side of its cross street's line. */
-export function pastEnd(pt, ends, tol = PAST_M) {
-  return ends.some(({ E, n }) => dot([pt[0] - E[0], pt[1] - E[1]], n) < -tol);
+/**
+ * Whether a projected point lies more than `tol` meters past an end of the
+ * stretch: on the far side of that end's cross-street line, where the point's
+ * nearest place on the stretch is within END_ZONE_M of that end (so a curve
+ * elsewhere on the stretch is never cut).
+ */
+export function pastEnd(pt, segment, tol = PAST_M) {
+  const near = nearestOnLines(pt, [segment.walk]).q;
+  return segment.ends.some(({ E, n }) => Math.hypot(near[0] - E[0], near[1] - E[1]) <= END_ZONE_M && dot([pt[0] - E[0], pt[1] - E[1]], n) < -tol);
 }
 
 const nameOf = (f) => String(f.attributes?.ST_NAME ?? '').trim();
@@ -646,51 +725,74 @@ export async function resolveSegment(ctx, { street, from, to }) {
     return { error: `In the City's centerlines, ${street} doesn't run unbroken from ${from} to ${to}.` };
   }
   const { edges, w } = best;
-  const pathLines = w.path.map((k) => edges[k].pts);
-  const ends = [
-    endAt(w.start, crossA, inwardFrom(w.start, edges[w.path[0]].pts)),
-    endAt(w.end, crossB, inwardFrom(w.end, edges[w.path[w.path.length - 1]].pts)),
-  ];
-  // The other carriageway of a divided road: the same street, alongside the
-  // walked one all the way, and not running past either cross street.
-  // Median crossovers (road class 7) join the two but belong to neither.
-  const chosen = new Set(w.path);
+  // The walked line, cut back where it overshot either cross street.
+  let line = walkedLine(edges, w.path, w.start);
+  line = trimAt(line, crossB);
+  line = reversed(trimAt(reversed(line), crossA));
+  const segment = {
+    lat0,
+    walk: line.pts,
+    ends: [endAt(line.pts[0], crossA, inward(line)), endAt(line.pts[line.pts.length - 1], crossB, inward(reversed(line)))],
+  };
+  const midpoint = (pts) => {
+    const half = plen(pts) / 2;
+    for (let i = 0, run = 0; i < pts.length - 1; i++) {
+      const step = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+      if (run + step >= half) {
+        const f = step ? (half - run) / step : 0;
+        return [pts[i][0] + f * (pts[i + 1][0] - pts[i][0]), pts[i][1] + f * (pts[i + 1][1] - pts[i][1])];
+      }
+      run += step;
+    }
+    return pts[0];
+  };
+  const crossover = (e) => Number(e.f.attributes.CLASS) === 7;
+  // Pieces walked: most of their length on the cut-back line. The other
+  // carriageway: the same street, alongside the line all the way, its middle
+  // not past either end and no point well past one. Crossovers belong to neither.
+  const walked = new Set(w.path.filter((k) => !crossover(edges[k]) && nearestOnLines(midpoint(edges[k].pts), [line.pts]).d <= SNAP_M && !pastEnd(midpoint(edges[k].pts), segment)));
+  const alongside = new Set();
   edges.forEach((e, k) => {
-    if (!chosen.has(k) && Number(e.f.attributes.CLASS) !== 7 && e.pts.every((p) => nearestOnLines(p, pathLines).d <= CORRIDOR_M && !pastEnd(p, ends, 10))) chosen.add(k);
+    if (walked.has(k) || w.path.includes(k) || crossover(e)) return;
+    if (e.pts.every((p) => nearestOnLines(p, [line.pts]).d <= CORRIDOR_M && !pastEnd(p, segment, 10)) && !pastEnd(midpoint(e.pts), segment)) alongside.add(k);
   });
-  const segEdges = [...chosen].map((k) => edges[k]);
-  const feats = [...new Set(segEdges.map((e) => e.f))];
-  const blockOf = (f) => Number(f.attributes.LBLOCK);
+  const kept = [...walked, ...alongside].map((k) => edges[k]);
+  const blockOf = (e) => Number(e.f.attributes.LBLOCK);
+  const numbered = kept.filter((e) => Number.isFinite(blockOf(e)) && blockOf(e) > 0);
+  const named = numbered.some((e) => e.len >= STUB_M) ? numbered.filter((e) => e.len >= STUB_M) : numbered;
   const uniq = (xs) => [...new Set(xs.filter((x) => x != null && x !== ''))];
-  const walked = new Map();
-  for (const k of w.path) if (Number(edges[k].f.attributes.CLASS) !== 7) walked.set(blockOf(edges[k].f), (walked.get(blockOf(edges[k].f)) || 0) + edges[k].len);
-  const blocks = [...new Set(feats.filter((f) => Number(f.attributes.CLASS) !== 7).map(blockOf))].filter((b) => Number.isFinite(b) && b > 0).sort((x, y) => x - y).map((block) => {
-    const here = feats.filter((f) => blockOf(f) === block && Number(f.attributes.CLASS) !== 7).map((f) => f.attributes);
+  const lengthOf = (block) => {
+    const sum = (set) => [...set].map((k) => edges[k]).filter((e) => blockOf(e) === block).reduce((n, e) => n + e.len, 0);
+    const m = sum(walked) || sum(alongside);
+    return m ? Math.round(m * 3.28084) : null;
+  };
+  const blocks = [...new Set(named.map(blockOf))].sort((x, y) => x - y).map((block) => {
+    const here = kept.filter((e) => blockOf(e) === block).map((e) => e.f.attributes);
     const nums = here.flatMap((a) => [a.LADD_FR, a.LADD_TO, a.RADD_FR, a.RADD_TO]).map(Number).filter((x) => x > 0);
     return {
       block,
       addresses: nums.length ? `${Math.min(...nums)}-${Math.max(...nums)}` : null,
       carriageways: here.some((a) => Number(a.ONEWAY) === 2) ? 2 : 1,
-      length_ft: walked.has(block) ? Math.round(walked.get(block) * 3.28084) : null,
+      length_ft: lengthOf(block),
       speed_limit_mph: uniq(here.map((a) => a.SPEEDLIMIT)).map(Number),
       traffic: uniq(here.map((a) => ONE_WAY[a.ONEWAY] ?? null)),
       road_class: uniq(here.map((a) => ROAD_CLASS[a.CLASS] ?? null)),
     };
   });
   const all = blocks.flatMap((b) => (b.addresses ? b.addresses.split('-').map(Number) : []));
+  const first = (kept[0] || edges[w.path[0]]).f;
   return {
     segment: {
+      ...segment,
       street: best.name,
       from, to,
       blocks,
       addresses: all.length ? `${Math.min(...all)}-${Math.max(...all)}` : null,
-      length_m: Math.round(w.length),
-      streetTag: streetTag(nameOf(feats[0]), typeIn(feats[0]) || null),
-      prefix: dirIn(feats[0]) || null,
-      lat0,
-      lines: segEdges.map((e) => e.pts),
-      ends,
-      box: bbox(segEdges.map((e) => e.path)),
+      length_m: Math.round(line.pts.slice(1).reduce((n, p, i) => (line.skip[i] ? n : n + Math.hypot(p[0] - line.pts[i][0], p[1] - line.pts[i][1])), 0)),
+      streetTag: streetTag(nameOf(first), typeIn(first) || null),
+      prefix: dirIn(first) || null,
+      lines: [line.pts, ...[...alongside].map((k) => edges[k].pts)],
+      box: bbox([...kept.map((e) => e.path), ...w.path.map((k) => edges[k].path)]),
     },
   };
 }
@@ -704,7 +806,7 @@ export function touchingParcels(parcels, segment, reach = REACH_M) {
     const b = bbox(rings);
     if (b.xmax < pad.xmin || b.xmin > pad.xmax || b.ymax < pad.ymin || b.ymin > pad.ymax) continue;
     const pr = rings.map((r) => r.map(P));
-    if (pastEnd(centroid(pr), segment.ends)) continue;
+    if (pastEnd(centroid(pr), segment)) continue;
     if (polygonToLines(pr, segment.lines) <= reach) out.push(g);
   }
   return out;

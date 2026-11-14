@@ -453,19 +453,22 @@ generic mode.
   `LEAGUE` only, since it also carries a private person's name, address and
   email; several matches tell Siren to ask which, offering all together),
   `street_segment` (a street between two cross streets from the City's
-  centerlines, walked as a connected graph from one crossing to the other,
-  each full street name on its own, both carriageways of a divided road:
+  centerlines, walked as a connected graph from one crossing to the other
+  and cut back where it overshoots a cross street, each full street name on
+  its own, both carriageways of a divided road:
   blocks, address ranges, speed limit, traffic, road class; parcels touching
   it, within 15 m of a carriageway with the lot's center not past either
-  cross street, corner buildings included) and `housing_count` (homes in
+  cross street's line, each end's cut applying only near that end, corner
+  buildings included) and `housing_count` (homes in
   areas or along a segment, and with `of` the share, computed in code:
   per property, i.e. distinct accounts, from the FY27 roll `qva7-tzrf`,
   grouped queries with no owner fields; exact for houses, duplexes to
   fourplexes and condo units; apartment units estimated from each 2020
   Census block's `HU100` (TIGERweb) less the exact homes, shared by building
   area within each band; `scripts/check-unit-estimate.js` measures it against
-  the City's Submarkets layers, 15% median error on 58 properties against 33%
-  for band midpoints, `eval/unit-estimate-2026-11-14.json`). The model
+  the City's Submarkets layers, 16% median error on 58 fully recorded
+  properties against 33% for band midpoints,
+  `eval/unit-estimate-2026-11-14.json`). The model
   chooses, code computes: tool results carry counts, never a coordinate,
   GPIN or address (the trace and hand-off do show the exact queries,
   GPINs included, as for every tool). Parcels are counted before they're

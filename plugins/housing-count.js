@@ -28,7 +28,7 @@ import {
 const MAX_EXTRA = 4000;
 
 // Measured by scripts/check-unit-estimate.js; the run is eval/unit-estimate-2026-11-14.json.
-export const ACCURACY = "Checked on 2026-11-14 against 58 of the 650 apartment properties whose units the City's Submarkets assessment layers record (they cover part of the city): the estimate was off by 15% at the median, and within 20% for 38 of the 58; band midpoints were off by 33%. Summed over the 58 it ran 8% high. It is closer over a neighborhood than for any one property, and widest for the largest buildings. Per-property counts exist in the City assessor's records but aren't in the open data.";
+export const ACCURACY = "Checked on 2026-11-14 against 58 of the 628 fully recorded apartment properties in the City's Submarkets assessment layers (they cover part of the city): the estimate was off by 16% at the median, and within 20% for 38 of the 58; band midpoints were off by 33%. Summed over the 58 it came within 1%. Per-property counts exist in the City assessor's records but aren't in the open data.";
 
 const PLACE = {
   type: 'object',
@@ -49,6 +49,7 @@ const PLACE = {
 
 const pct = (a, b) => (b > 0 ? `${((100 * a) / b).toFixed(1)}%` : null);
 const tooLarge = (n) => `That place holds more than ${n} parcels, more than one answer can count. A civic league or a planning district works; wards and most ZIP codes are too large.`;
+const EDGE = 'The census blocks at the edge of that place reach more parcels than one answer can read. A smaller place works.';
 
 async function resolve(ctx, place) {
   if (place?.areas?.length) {
@@ -127,10 +128,16 @@ export default definePlugin({
       const core = unionBox([target.box, ...(whole ? [whole.box] : [])]);
       const reaching = aptBlocks.filter((b) => !within(b.box, core));
       if (reaching.length) {
-        for (const [g, rings] of await parcelsIn(ctx, unionBox(reaching.map((b) => b.box)))) if (!parcels.has(g)) parcels.set(g, rings);
+        let more;
+        try {
+          more = await parcelsIn(ctx, unionBox(reaching.map((b) => b.box)));
+        } catch (err) {
+          throw /^That place holds more than/.test(err.message) ? new Error(EDGE) : err;
+        }
+        for (const [g, rings] of more) if (!parcels.has(g)) parcels.set(g, rings);
       }
       for (const g of blockIndex(parcels, aptBlocks).keys()) if (!wanted.has(g)) extra.add(g);
-      if (extra.size > MAX_EXTRA) throw new Error(tooLarge(MAX_PARCELS));
+      if (extra.size > MAX_EXTRA) throw new Error(EDGE);
     } catch (err) {
       return { error: String(err.message || err) };
     }

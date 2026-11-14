@@ -14,8 +14,13 @@
 // writes eval/unit-estimate-<date>.json: every property's recorded and
 // estimated units and the summary that housing-count.js's ACCURACY quotes.
 //
-// Only GPIN, LRSN, extension, number_uni and PropClassD are requested from
-// Submarkets; the layer also carries owner and deed fields, never read here.
+// Only GPIN, LRSN, extension, ext_descri (the building's description),
+// number_uni and PropClassD are requested from Submarkets; the layer also
+// carries owner and deed fields, never read here. A property counts as
+// recorded only when every building row records units, apart from rows
+// describing a clubhouse, office, pool or the like, which hold none: a row
+// with 0 units and any other description is a building whose units weren't
+// recorded, and its property is left out.
 // The sample is the first N properties in SHA-256 order of their GPIN, so a
 // rerun picks the same properties while the layer holds the same ones.
 // About five requests a property.
@@ -41,24 +46,28 @@ const fresh = () => pluginContext(createContext({ city }));
 const tool = 'unit-estimate check';
 
 // Recorded units per parcel: sum over its building rows, each (LRSN, extension) once.
-const recorded = new Map();
+const NO_DWELLINGS = /club ?house|office|leasing|maintenance|pool|garage|storage|laundry|community|amenit|fitness|shed|carport|cabana|gazebo/i;
+const byParcel = new Map();
 for (let lid = 0; lid < LAYERS; lid++) {
   const fs = await arcgis(fresh(), `${SUBMARKETS}/${lid}`, {
-    where: "number_uni >= 5 AND number_uni <= 2000 AND PropClassD LIKE '40%'",
-    outFields: 'GPIN,LRSN,extension,number_uni,PropClassD', returnGeometry: 'false',
+    where: "PropClassD LIKE '40%'",
+    outFields: 'GPIN,LRSN,extension,ext_descri,number_uni,PropClassD', returnGeometry: 'false',
   }, tool);
   for (const { attributes: a } of fs) {
     const g = String(a.GPIN ?? '').trim();
     if (!/^\d{6,12}$/.test(g)) continue;
-    const r = recorded.get(g) || { units: 0, seen: new Set(), classes: new Set() };
+    const r = byParcel.get(g) || { units: 0, seen: new Set(), unrecorded: 0 };
     const key = `${a.LRSN}|${a.extension}`;
     if (r.seen.has(key)) continue;
     r.seen.add(key);
-    r.units += Number(a.number_uni) || 0;
-    r.classes.add(String(a.PropClassD || '').trim());
-    recorded.set(g, r);
+    const u = Number(a.number_uni) || 0;
+    r.units += u;
+    if (u <= 0 && !NO_DWELLINGS.test(String(a.ext_descri || ''))) r.unrecorded += 1;
+    byParcel.set(g, r);
   }
 }
+const recorded = new Map([...byParcel].filter(([, r]) => !r.unrecorded && r.units >= 5 && r.units <= 2000));
+const incomplete = [...byParcel.values()].filter((r) => r.unrecorded && r.units >= 5).length;
 const order = (g) => createHash('sha256').update(g).digest('hex');
 const sample = [...recorded.keys()].sort((x, y) => (order(x) < order(y) ? -1 : 1)).slice(0, SAMPLE);
 
@@ -132,9 +141,10 @@ const summarize = (list) => {
 const date = new Date().toISOString().slice(0, 10);
 const out = {
   date,
-  method: 'For each sampled apartment property: its 2020 Census block (TIGERweb), every parcel whose lot center is in that block, the FY27 roll grouped by parcel, then plugins/gis.js homesByParcel, as housing_count runs it. Recorded units are the Submarkets layers\' number_uni, summed over each parcel\'s building rows. The band midpoint baseline puts 5-11 at 8 and 12-48 at 30, and the open 49+ band at its floor, 49.',
-  source: `${SUBMARKETS} (layers 0-${LAYERS - 1}), where number_uni is 5 to 2000 and the class is 40x`,
+  method: 'For each sampled apartment property: its 2020 Census block (TIGERweb), every parcel whose lot center is in that block, the FY27 roll grouped by parcel, then plugins/gis.js homesByParcel, as housing_count runs it. Recorded units are the Submarkets layers\' number_uni, summed over each parcel\'s building rows; a property with a building row of 0 units not described as a clubhouse, office, pool or the like is left out as not fully recorded. The band midpoint baseline puts 5-11 at 8 and 12-48 at 30, and the open 49+ band at its floor, 49.',
+  source: `${SUBMARKETS} (layers 0-${LAYERS - 1}), class 40x; a property's recorded units are the sum over its building rows, 5 to 2000`,
   population: recorded.size,
+  left_out_unrecorded_buildings: incomplete,
   sample_rule: `first ${SAMPLE} GPINs in SHA-256 order`,
   summary: summarize(rows),
   single_building: summarize(rows.filter((r) => r.building_rows === 1 && r.apartment_properties === 1)),
@@ -144,4 +154,4 @@ const out = {
 };
 const file = new URL(`../eval/unit-estimate-${date}.json`, import.meta.url);
 await writeFile(file, `${JSON.stringify(out, null, 2)}\n`);
-console.log(JSON.stringify({ population: out.population, summary: out.summary, single_building: out.single_building, several: out.several_buildings_or_properties, skipped: skipped.length }, null, 2));
+console.log(JSON.stringify({ population: out.population, left_out: incomplete, summary: out.summary, single_building: out.single_building, several: out.several_buildings_or_properties, skipped: skipped.length }, null, 2));
