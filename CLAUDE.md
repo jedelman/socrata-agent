@@ -446,6 +446,24 @@ generic mode.
   its own traced step (`tracedHttp`'s `retry: false`). Only `www.norfolk.gov`
   links are kept. Fire-Rescue alerts stay off until one has been read and
   names no one.
+- `plugins/gis.js` is shared GIS for the place tools (docs/gis-skills.md;
+  Jason's Graydon question, 2026-11-13, and his calls, 2026-11-14):
+  `area_lookup` (civic leagues, planning districts, wards, super wards, ZIP
+  codes by their one name field; the Civic Leagues layer is queried for
+  `LEAGUE` only, since it also carries a private person's name, address and
+  email; several matches tell Siren to ask which, offering all together),
+  `street_segment` (a street between two cross streets from the City's
+  centerlines: blocks, address ranges, speed limit, traffic, road class;
+  parcels touching it, within 15 m and not past either cross street, corner
+  buildings included) and `housing_count` (homes in areas or along a segment,
+  and with `of` the share, computed in code: exact for houses, duplexes to
+  fourplexes and condo units from the FY27 roll `qva7-tzrf`, grouped queries
+  with no owner fields; apartment units estimated per building from each
+  2020 Census block's `HU100` (TIGERweb) less the exact homes, shared by
+  building area within each band, median error 17% on 43 buildings
+  (2026-11-14)). The model chooses, code computes: no coordinate, GPIN or
+  address reaches the model; counts only; fewer than 5 residential parcels
+  or more than 4,000 parcels are refused.
 - `.claude/skills/socrata-agent/` is the Claude Code skill.
 - `data/norfolk-legislation.json` is built by
   `scripts/build-norfolk-legislation.js` and refreshed weekly by an Action.
