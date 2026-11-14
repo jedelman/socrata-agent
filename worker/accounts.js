@@ -115,7 +115,7 @@ export async function currentUserInfo(req, env) {
 export const loginConfigured = (env) => Boolean(env.RESEND_API_KEY && env.LOGIN_FROM && env.INVITE_SECRET);
 
 /** Send through Resend's HTTP API. `fetchImpl` is injectable for tests. */
-export async function sendWithResend(env, { to, subject, text, html, idempotencyKey }, fetchImpl = fetch) {
+export async function sendWithResend(env, { to, subject, text, html, headers, idempotencyKey }, fetchImpl = fetch) {
   const res = await fetchImpl('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -123,7 +123,8 @@ export async function sendWithResend(env, { to, subject, text, html, idempotency
       'Content-Type': 'application/json',
       ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
     },
-    body: JSON.stringify({ from: env.LOGIN_FROM, to: [to], subject, text, html }),
+    // headers: the block watch's List-Unsubscribe pair; sign-in mail sends none, so its body is as before.
+    body: JSON.stringify({ from: env.LOGIN_FROM, to: [to], subject, text, html, ...(headers ? { headers } : {}) }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}`);
   return res.json();

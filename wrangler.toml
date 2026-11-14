@@ -197,6 +197,13 @@ LOGIN_FROM = "Siren <siren@send.jason-edelman.org>"   # verified in Resend (Jaso
 # same day).
 PRIOR_RESEARCH = "true"
 SHARED_RESEARCH = "true"
+# Block watch (docs/block-watch.md; Jason, 2026-11-14): members watch a
+# block (never a house number) and get an email when an upcoming agenda item
+# names an address on it. Off until a PR adds BLOCK_WATCH = "true" here,
+# after the WATCH_SECRET secret is set (32+ characters:
+#   npx wrangler secret put WATCH_SECRET --env siren
+# ) and a live add, scan, email and unsubscribe are tried. Its daily scan
+# rides the cron below; with the flag off nothing of it runs.
 # Siren's origin. Sign-in links, annotation ids, the Bluesky client_id and
 # every endorsement subject URL are built from it. Subjects are fixed from
 # here on: changing it after endorsements exist strands them
