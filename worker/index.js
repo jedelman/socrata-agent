@@ -660,14 +660,17 @@ function fnv(s, h) {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
   return h.toString(16).padStart(8, '0');
 }
-const ALL_ASSETS = Object.entries(ASSETS).map(([k, [v]]) => `${k}\n${v}`).join('\n');
+// Block watch's style is hashed apart (WATCH_HASH), so adding it left every
+// other page's asset URLs, and so their bytes, as they were.
+const ALL_ASSETS = Object.entries(ASSETS).filter(([k]) => !WATCH_ASSETS.has(k)).map(([k, [v]]) => `${k}\n${v}`).join('\n');
 const ASSET_HASH = fnv(ALL_ASSETS, 0x811c9dc5) + fnv(ALL_ASSETS, 0x01000193);
+const WATCH_HASH = fnv(WATCH_CSS, 0x811c9dc5) + fnv(WATCH_CSS, 0x01000193);
 
 function assetResponse(hash, name) {
   const [body, type] = ASSETS[name];
   // An old hash (a page cached across a deploy) still gets the current
   // file, but never cached, so no URL ever holds the wrong content.
-  const cache = hash === ASSET_HASH ? 'public, max-age=31536000, immutable' : 'no-store';
+  const cache = hash === (WATCH_ASSETS.has(name) ? WATCH_HASH : ASSET_HASH) ? 'public, max-age=31536000, immutable' : 'no-store';
   return new Response(body, { headers: { 'Content-Type': type, 'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff' } });
 }
 
@@ -862,7 +865,7 @@ async function watchRoute(req, env, path, base, url) {
   return handleWatch(req, env, path, {
     base,
     origin: siteOrigin(env, url),
-    css: `${base}/assets/${ASSET_HASH}/watch.css`,
+    css: `${base}/assets/${WATCH_HASH}/watch.css`,
     pageHeaders: PAGE_HEADERS(WATCH_CSP),
     currentUserInfo: (r) => currentUserInfo(r, env),
     isMember: async (uid) => Boolean(await memberInvite(env.LIMITS, uid)),

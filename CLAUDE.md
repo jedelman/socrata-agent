@@ -418,18 +418,23 @@ generic mode.
   Siren's first forward-looking feature (analysis looks back; this is
   presence). A signed-in member names an address once on `/watch` (a page with
   no script; plain forms, each checked for this origin, routed before the
-  JSON-only rule); Siren keeps only its hundred block, never the house number,
-  and the member's sign-in email sealed with AES-GCM under `WATCH_SECRET`
-  (the uid as additional data), in `watch:<uid>`, deleted on the last Remove,
-  "Stop all alerts" or the unsubscribe link (RFC 8058 one-click; a GET only
-  shows a button). The typed email must hash to the account's uid. Once a UTC
-  day from 12:00, the cron reads the next 14 days' meetings (Public Meeting
-  Notices, then each agenda from iqm2, 40 counted, traced requests a city)
-  and emails a digest when an item's title names an address on a watched
-  block, with an applicant who isn't plainly an organization withheld
-  (`withholdApplicant`); one log line of counts, never an address, block,
-  email or account. With the flag off, `/watch` is a 404, the cron doesn't
-  call it and `watch.css` isn't served (`test/block-watch.test.js`).
+  JSON-only rule); Siren keeps only its hundred block (street name, direction
+  and type), never the house number, and the member's sign-in email sealed
+  with AES-GCM under `WATCH_SECRET` (the uid as additional data), in
+  `watch:<uid>`, which only the member's own actions write. The typed email
+  must hash to the account's uid. From 12:00 UTC each day the cron reads the
+  next 14 days' meetings (Public Meeting Notices, then each agenda from iqm2,
+  40 counted, traced requests a city) and works through the watches 80 a
+  tick from a stored place, deleting a watch whose member lost their invite,
+  and emails a digest when an item names an address on a watched block. The
+  email never carries an agenda title (titles name buyers, encroachers,
+  tenants and applicants anywhere in them): only the kind of item, from the
+  fixed phrases in `KINDS`, and the address. Sent items are their own key
+  (`watch-sent:<HMAC>`); the unsubscribe link (RFC 8058 one-click; a GET only
+  shows a button) carries the watch's random id, never the uid. One log line
+  of counts a tick. With the flag off, `/watch` is a 404, the cron doesn't
+  call it, and `watch.css` isn't served and is hashed apart, so other pages
+  are byte-identical (`test/block-watch.test.js`).
   `plugins/case-file.js` serves a
   case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`

@@ -6,11 +6,10 @@ import assert from 'node:assert/strict';
 import * as nodeModule from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { withholdApplicant } from '../src/adapters/iqm2.js';
 import { userId, signUser } from '../worker/accounts.js';
 import {
-  blockOf, blockId, onBlock, sealEmail, openEmail, unsubscribeToken, tokenUid, addBlock, removeBlock, loadWatch,
-  runBlockWatch, handleWatch, digest, MAX_BLOCKS, blockWatchSetupError,
+  blockOf, blockId, onBlock, itemKinds, sealEmail, openEmail, unsubscribeToken, tokenWatchId, addBlock, removeBlock, loadWatch,
+  runBlockWatch, handleWatch, digest, MAX_BLOCKS, BATCH, blockWatchSetupError,
 } from '../worker/block-watch.js';
 
 function fakeKV() {
@@ -28,8 +27,12 @@ function fakeKV() {
     async delete(key) {
       store.delete(key);
     },
-    async list({ prefix }) {
-      return { keys: [...store.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })), list_complete: true };
+    async list({ prefix, limit = 1000, cursor }) {
+      const all = [...store.keys()].filter((k) => k.startsWith(prefix)).sort();
+      const from = cursor ? Number(cursor) : 0;
+      const keys = all.slice(from, from + limit).map((name) => ({ name }));
+      const done = from + limit >= all.length;
+      return { keys, list_complete: done, ...(done ? {} : { cursor: String(from + limit) }) };
     },
   };
 }
@@ -43,27 +46,31 @@ const MATCH = { address: '810 UNION ST', number: '810', street: 'UNION ST' };
 const lookup = async () => ({ match: MATCH });
 const NOON = Date.parse('2026-11-16T12:05:00Z');
 
-test('agenda titles: an applicant who is a person is withheld; organizations and ordinances are left as they are', () => {
-  assert.equal(withholdApplicant('ROBERT WARING, for a conditional change in zoning at 812 Union Street'), 'An applicant, for a conditional change in zoning at 812 Union Street');
-  assert.equal(withholdApplicant('HARBOR HOLDINGS LLC, for a change in zoning'), 'HARBOR HOLDINGS LLC, for a change in zoning');
-  const ord = 'Ordinance No. 50487 : An Ordinance Approving a Cooperation Agreement, for Site Readiness';
-  assert.equal(withholdApplicant(ord), ord);
-  assert.match(withholdApplicant('A letter from Mrs. Jane Roe about 800 Union St'), /\[name withheld\]/);
-  assert.equal(withholdApplicant('DOE, JANE, for a Short-Term Rental at 1 A St'), 'An applicant, for a Short-Term Rental at 1 A St');
-  assert.equal(withholdApplicant('PAT O\u2019BRIEN, for an ADU at 1 A St'), 'An applicant, for an ADU at 1 A St');
-  assert.equal(withholdApplicant('THE TOWERS, LLC, for applications at 301 S. Newtown Road'), 'THE TOWERS, LLC, for applications at 301 S. Newtown Road');
-  assert.equal(withholdApplicant('VICTORIA\u2019S FOOD RESTAURANT, LLC, for a permit'), 'VICTORIA\u2019S FOOD RESTAURANT, LLC, for a permit');
+test('the email describes an item by its kind, from fixed phrases: never a title, which can name anyone', () => {
+  assert.deepEqual(itemKinds('JANE DOE, for a Conditional Use Permit to operate a Short-Term Rental at 1 A St'), ['a short-term rental', 'a conditional use permit']);
+  assert.deepEqual(itemKinds('An Ordinance Approving the Sale and Conveyance to Jane Q. Public of That Certain Parcel at 928 W. 26th Street'), ['a sale or transfer of property']);
+  assert.deepEqual(itemKinds('An Ordinance Permitting John Roe and Mary Roe to Encroach into the Right-of-Way at 3101 Pretty Lake Avenue'), ['an encroachment into the public right-of-way']);
+  assert.deepEqual(itemKinds('Something else entirely'), ['an agenda item']);
+  assert.deepEqual(itemKinds('X, for Conditional Use Permits at 9567 Shore Drive: a. Sale of Alcoholic Beverages'), ['a conditional use permit', 'alcohol sales']);
 });
 
-test('a block is the hundred block of the street, and only addresses on it match', () => {
+test('a block is the hundred block of one street: its direction and type count, the house number is dropped', () => {
   const b = blockOf('norfolk', MATCH);
-  assert.deepEqual(b, { city: 'norfolk', street: 'UNION', hundred: 800, label: '800 block of Union St' });
-  assert.equal(blockId(b), 'norfolk:800:UNION');
+  assert.deepEqual(b, { city: 'norfolk', dir: '', core: 'UNION', suffix: 'STREET', hundred: 800, label: '800 block of Union St' });
+  assert.equal(blockId(b), 'norfolk:800::UNION:STREET');
   assert.ok(onBlock(b, '812 UNION STREET'));
-  assert.ok(onBlock(b, '899 Union St'));
+  assert.ok(onBlock(b, '899 Union St.'));
+  assert.ok(onBlock(b, '812A Union Street'));
   assert.ok(!onBlock(b, '900 UNION STREET'));
-  assert.ok(!onBlock(b, '812 UNION AVENUE MEWS'));
+  assert.ok(!onBlock(b, '810 Union Avenue'), 'another street type is another street');
   assert.ok(!onBlock(b, 'UNION STREET'));
+  const w = blockOf('norfolk', { number: '1150', street: 'W OCEAN VIEW AVE' });
+  assert.ok(onBlock(w, '1100 W. Ocean View Avenue'));
+  assert.ok(!onBlock(w, '1100 E. Ocean View Avenue'), 'another direction is another street');
+  assert.ok(!onBlock(w, '1100 Ocean View Road'));
+  assert.ok(!onBlock(w, '1100 Ocean View Avenue'), 'an agenda that leaves out the direction is a miss, never a wrong street');
+  const n = blockOf('norfolk', { number: '5800', street: 'N MILITARY HWY' });
+  assert.ok(!onBlock(n, '5800 S. Military Highway'));
 });
 
 test('the email is sealed, and opens only in its own account', async () => {
@@ -75,13 +82,13 @@ test('the email is sealed, and opens only in its own account', async () => {
   assert.equal(await openEmail('x'.repeat(40), 'a'.repeat(64), sealed), null);
 });
 
-test("the unsubscribe token names one account and can't be forged", async () => {
+test("the unsubscribe token carries the watch's random id, not the account, and can't be forged", async () => {
   const s = 'k'.repeat(40);
-  const uid = 'c'.repeat(64);
-  const t = await unsubscribeToken(s, uid);
-  assert.equal(await tokenUid(s, t), uid);
-  assert.equal(await tokenUid(s, `${'d'.repeat(64)}.${t.split('.')[1]}`), null);
-  assert.equal(await tokenUid(s, 'nonsense'), null);
+  const id = 'c'.repeat(32);
+  const t = await unsubscribeToken(s, id);
+  assert.equal(await tokenWatchId(s, t), id);
+  assert.equal(await tokenWatchId(s, `${'d'.repeat(32)}.${t.split('.')[1]}`), null);
+  assert.equal(await tokenWatchId(s, 'nonsense'), null);
 });
 
 test("adding a block: the account's own email only; the house number is never stored; limits hold", async () => {
@@ -103,7 +110,7 @@ test("adding a block: the account's own email only; the house number is never st
   }
   assert.equal((await loadWatch(kv, uid)).blocks.length, MAX_BLOCKS);
   assert.equal((await addBlock({ env: e, kv, uid, email: EMAIL, address: 'x', cityKey: 'norfolk', lookup })).code, 'full');
-  await removeBlock({ kv, uid, id: 'norfolk:800:UNION' });
+  await removeBlock({ env: e, kv, uid, id: 'norfolk:800::UNION:STREET' });
   assert.equal((await loadWatch(kv, uid)).blocks.length, MAX_BLOCKS - 1);
 });
 
@@ -153,11 +160,23 @@ test('the scan: off, early, or with no watches, it fetches nothing', async () =>
   assert.equal(net.calls.length, 0);
 });
 
-test('the scan emails a watcher once about an item on their block, with the applicant withheld and a one-click unsubscribe', async () => {
+// A member: the account bound to a live invite (accounts.js memberInvite).
+async function makeMember(kv, uid) {
+  await kv.put(`member:${uid}`, JSON.stringify({ invite: 'inv1' }));
+  await kv.put('invite:inv1', JSON.stringify({ label: 'test' }));
+}
+async function watcher(kv, e, email = EMAIL, address = '810 Union St', match = MATCH) {
+  const uid = await userId(e.INVITE_SECRET, email);
+  await makeMember(kv, uid);
+  await addBlock({ env: e, kv, uid, email, address, cityKey: 'norfolk', lookup: async () => ({ match }) });
+  return uid;
+}
+
+test('the scan emails a watcher once about an item on their block: its kind and address, never its title, and a one-click unsubscribe', async () => {
   const kv = fakeKV();
   const e = env(kv);
-  const uid = await userId(e.INVITE_SECRET, EMAIL);
-  await addBlock({ env: e, kv, uid, email: EMAIL, address: '810 Union St', cityKey: 'norfolk', lookup });
+  const uid = await watcher(kv, e);
+  const before = kv.store.get(`watch:${uid}`);
   const net = fakeNet();
   const out = await runBlockWatch(e, { now: NOON, fetchImpl: net.fetchImpl });
   assert.equal(out.emails, 1);
@@ -166,26 +185,71 @@ test('the scan emails a watcher once about an item on their block, with the appl
   const m = net.mails[0];
   assert.deepEqual(m.to, [EMAIL]);
   assert.match(m.subject, /800 block of Union St/);
-  assert.match(m.text, /An applicant, for a conditional change in zoning on Property Located at 812 Union Street/);
-  assert.doesNotMatch(m.text + m.html, /WARING|Granby|Annual Budget/);
+  assert.match(m.text, /City Council, Nov 24, 2026: an item about a zoning change at 812 Union Street/);
+  assert.doesNotMatch(m.text + m.html, /WARING|ROBERT|conditional change|Granby|Annual Budget/);
   assert.match(m.text, /Detail_LegiFile\.aspx\?ID=7001/);
-  assert.match(m.headers['List-Unsubscribe'], /^<https:\/\/siren\.example\.org\/watch\/unsubscribe\?t=[0-9a-f]{64}\.[0-9a-f]{32}>$/);
+  assert.match(m.headers['List-Unsubscribe'], /^<https:\/\/siren\.example\.org\/watch\/unsubscribe\?t=[0-9a-f]{32}\.[0-9a-f]{32}>$/);
+  assert.ok(!m.headers['List-Unsubscribe'].includes(uid), 'the link never carries the account id');
   assert.equal(m.headers['List-Unsubscribe-Post'], 'List-Unsubscribe=One-Click');
   // Every request but the mail went through the counted, traced clients: the notices query and the one agenda.
   assert.equal(net.calls.filter((u) => !u.includes('resend')).length, 2);
-  // The same day: claimed, nothing runs. Forced again: the item was sent, so no email.
+  assert.equal(kv.store.get(`watch:${uid}`), before, 'the scan never writes the watch record');
+  // Later the same day: done. The next day: the item was sent, so no email.
   assert.equal((await runBlockWatch(e, { now: NOON + 600e3, fetchImpl: net.fetchImpl })).skipped, 'done');
   const again = await runBlockWatch(e, { now: NOON + 864e5, fetchImpl: net.fetchImpl });
   assert.equal(again.emails, 0);
   assert.equal(net.mails.length, 1);
 });
 
+test('the scan: a removal during it stays removed; a member who lost their invite is deleted, not emailed', async () => {
+  const kv = fakeKV();
+  const e = env(kv);
+  const uid = await watcher(kv, e);
+  const net = fakeNet();
+  const slow = async (url, init) => {
+    // The member presses "Stop all alerts" while the scan reads the agendas.
+    if (String(url).includes('Detail_Meeting')) await handleWatch(post('/watch/delete', {}), e, '/watch/delete', deps(kv, { uid }));
+    return net.fetchImpl(url, init);
+  };
+  await runBlockWatch(e, { now: NOON, fetchImpl: slow });
+  assert.equal(kv.store.get(`watch:${uid}`), undefined, 'not written back');
+  assert.ok(![...kv.store.keys()].some((k) => k.startsWith('watch-sent:') || k.startsWith('watch-by-id:')), 'nothing kept for it');
+
+  const kv2 = fakeKV();
+  const e2 = env(kv2);
+  const uid2 = await watcher(kv2, e2);
+  await kv2.delete(`member:${uid2}`);
+  const out = await runBlockWatch(e2, { now: NOON, fetchImpl: fakeNet().fetchImpl });
+  assert.equal(out.removed, 1);
+  assert.equal(out.emails, 0);
+  assert.equal(await loadWatch(kv2, uid2), null);
+});
+
+test('the scan works through the watches a batch a tick, and retries a tick whose agendas failed', async () => {
+  const kv = fakeKV();
+  const e = env(kv);
+  for (let i = 0; i < BATCH + 5; i++) await watcher(kv, e, `n${i}@example.org`);
+  const down = async () => new Response('down', { status: 503 });
+  const failed = await runBlockWatch(e, { now: NOON, fetchImpl: down });
+  assert.equal(failed.retry, true);
+  const net = fakeNet();
+  const first = await runBlockWatch(e, { now: NOON + 600e3, fetchImpl: net.fetchImpl });
+  assert.equal(first.watches, BATCH);
+  assert.equal(first.emails, BATCH);
+  const second = await runBlockWatch(e, { now: NOON + 1200e3, fetchImpl: net.fetchImpl });
+  assert.equal(second.watches, 5);
+  assert.equal(second.emails, 5);
+  assert.equal((await runBlockWatch(e, { now: NOON + 1800e3, fetchImpl: net.fetchImpl })).skipped, 'done');
+  assert.equal(net.mails.length, BATCH + 5);
+});
+
 test("the digest speaks in Siren's voice and says what it can't see", () => {
   const d = digest({
-    groups: [{ block: { label: '800 block of Union St' }, items: [{ title: 'X at 812 Union St', meeting: { body: 'City Council', date: '2026-11-24' }, url: 'https://r', meetingUrl: 'https://m' }] }],
+    groups: [{ block: { label: '800 block of Union St' }, items: [{ kinds: ['a conditional use permit'], here: ['812 UNION STREET'], meeting: { body: 'City Council', date: '2026-11-24' }, url: 'https://r', meetingUrl: 'https://m' }] }],
     origin: 'https://s', unsubscribe: 'https://s/u',
   });
   assert.match(d.text, /^Siren found/);
+  assert.match(d.text, /an item about a conditional use permit at 812 Union Street/);
   assert.match(d.text, /Items that name no address .* are not matched/);
   assert.doesNotMatch(d.text, /\bthere (is|are)\b|\bnobody\b|\bno one\b/i);
   assert.match(d.text, /Nov 24, 2026/);
@@ -238,7 +302,7 @@ test('the unsubscribe link: GET only shows a button; POST, by form or one-click,
   const e = env(kv);
   const uid = await userId(e.INVITE_SECRET, EMAIL);
   await addBlock({ env: e, kv, uid, email: EMAIL, address: '810 Union St', cityKey: 'norfolk', lookup });
-  const t = await unsubscribeToken(e.WATCH_SECRET, uid);
+  const t = await unsubscribeToken(e.WATCH_SECRET, (await loadWatch(kv, uid)).id);
   const shown = await handleWatch(new Request(`${ORIGIN}/watch/unsubscribe?t=${t}`), e, '/watch/unsubscribe', deps(kv));
   assert.equal(shown.status, 200);
   assert.ok(await loadWatch(kv, uid), 'a GET (a mail scanner) changes nothing');
@@ -247,6 +311,9 @@ test('the unsubscribe link: GET only shows a button; POST, by form or one-click,
   const oneClick = new Request(`${ORIGIN}/watch/unsubscribe?t=${t}`, { method: 'POST', body: 'List-Unsubscribe=One-Click', headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
   assert.equal((await handleWatch(oneClick, e, '/watch/unsubscribe', deps(kv))).status, 200);
   assert.equal(await loadWatch(kv, uid), null);
+  // Spent: the watch is gone, so the link no longer works, even after a new watch.
+  await addBlock({ env: e, kv, uid, email: EMAIL, address: '810 Union St', cityKey: 'norfolk', lookup });
+  assert.equal((await handleWatch(new Request(`${ORIGIN}/watch/unsubscribe?t=${t}`), e, '/watch/unsubscribe', deps(kv))).status, 400);
 });
 
 test('setup: every piece it needs is named', () => {

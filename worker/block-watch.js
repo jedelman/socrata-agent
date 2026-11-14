@@ -2,20 +2,29 @@
 // plausible deniability. Let's build it."): a signed-in member names an
 // address once, Siren keeps only its hundred block ("800 block of Union St"),
 // and once a day the cron reads the agendas of meetings in the next two weeks
-// and emails the member when an item's title names an address on that block.
+// and emails the member when an agenda item names an address on that block.
 // It's Siren's first forward-looking feature: analysis tells you what was
 // decided; this tells you what's coming up.
 //
 // What's stored, per account, under watch:<uid> (uid is the account's keyed
-// hash, worker/accounts.js): the blocks (city, street, hundred), the email
-// address sealed with AES-GCM under a key derived from the WATCH_SECRET secret
-// (the uid is the additional data, so a sealed address can't be moved to
-// another record), the agenda items already sent, and the day it last changed.
-// Never the house number: the address someone types is looked up, cut to its
-// block and dropped, and it's never logged or traced anywhere that's kept.
-// Sign-in still stores no email address (accounts.js); a watch is the one
-// place Siren keeps one, sealed, because it has to send mail to it, and only
-// until the member removes the watch or unsubscribes.
+// hash, worker/accounts.js): the blocks (city, direction, street, suffix,
+// hundred), the email address sealed with AES-GCM under a key derived from the
+// WATCH_SECRET secret (the uid is the additional data, so a sealed address
+// can't be moved to another record), a random id for the unsubscribe link,
+// and the day it last changed. Never the house number: the address someone
+// types is looked up, cut to its block and dropped, and it's never logged or
+// traced anywhere that's kept. Sign-in still stores no email address
+// (accounts.js); a watch is the one place Siren keeps one, sealed, because it
+// has to send mail to it, and only until the member removes the watch or
+// unsubscribes. Only the member's own actions write watch:<uid>; the scan
+// never does (its sent list is a key of its own), so a removal can't be
+// undone by a scan that read the record before it.
+//
+// The email never carries an agenda title. Titles name private people
+// anywhere in them (buyers of City lots, people allowed to encroach, tenants,
+// applicants), so the email says only what kind of item it is, from a fixed
+// list of phrases, and which address on the block it names; the reader opens
+// the City's record for the rest.
 //
 // The email typed when adding a watch must be the account's own: its keyed
 // hash has to equal the uid, so nobody can sign someone else's inbox up, and
@@ -30,25 +39,31 @@
 
 import { getCity } from '../src/cities/index.js';
 import { Socrata, ACCESS, soqlString } from '../src/socrata.js';
-import { Iqm2, extractAddresses, normalizeAddress, withholdApplicant } from '../src/adapters/iqm2.js';
+import { Iqm2, extractAddresses, normalizeAddress } from '../src/adapters/iqm2.js';
 import { Trace } from '../src/trace.js';
 import { Resources } from '../src/resources.js';
 import { requestBudget } from '../src/request-budget.js';
-import { addressKey, lookupAddress } from '../src/block.js';
-import { userId, sendWithResend, loginConfigured } from './accounts.js';
+import { lookupAddress } from '../src/block.js';
+import { userId, sendWithResend, loginConfigured, memberInvite } from './accounts.js';
 import { normalizeEmail } from './invites.js';
-import { enc, b64url, unb64url, hmac, hmacHex, boundary } from './crypto.js';
+import { enc, b64url, unb64url, hmac, hmacHex, hex, boundary } from './crypto.js';
 
 export const MAX_BLOCKS = 5;
 export const ADDS_DAILY = 20;
 export const DAYS_AHEAD = 14;
 export const MAX_MEETINGS = 20;
-export const MAX_WATCHES = 2000;
-export const MAX_EMAILS = 200;
+// Watches handled per cron tick. Each costs at most eight KV operations (the
+// watch read twice, its member and invite keys, the sent list read and
+// write, or a deletion's read and three deletes), so a batch stays well under
+// the 1,000 a Worker invocation may make; the rest of the list waits for the
+// next tick, ten minutes later, from a stored cursor.
+export const BATCH = 80;
+export const MAX_EMAILS = 100;
 export const MAX_SENT = 300;
-// 12:00 UTC is 7 or 8 a.m. in Norfolk: the first cron tick at or after it runs the day's scan.
+const SENT_DAYS = 120;
+// 12:00 UTC is 7 or 8 a.m. in Norfolk: the scan starts on the first tick at or after it.
 export const SCAN_HOUR_UTC = 12;
-// Requests one city's scan may make: the notices query, the meeting pages, and spare.
+// Requests one city's agendas may take each tick: the notices query, the meeting pages, and spare.
 export const SCAN_BUDGET = 40;
 const PREFIX = 'watch:';
 
@@ -68,19 +83,76 @@ export const watchable = (city) => Boolean(city?.meetings?.kind === 'iqm2' && ci
 
 const titleCase = (s) => String(s).toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase());
 
+// Directions and street types as normalizeAddress spells them.
+const DIRS = new Set(['NORTH', 'SOUTH', 'EAST', 'WEST']);
+const SUFFIXES = new Set([
+  'STREET', 'AVENUE', 'BOULEVARD', 'ROAD', 'DRIVE', 'LANE', 'COURT', 'CIRCLE', 'PLACE', 'WAY', 'TERRACE', 'PARKWAY',
+  'HIGHWAY', 'CRESCENT', 'SQUARE', 'TRAIL', 'ARCH', 'LANDING', 'POINT', 'QUAY', 'RUN', 'WALK', 'MEWS',
+]);
+
+/**
+ * An address's street, kept whole: number, direction, name and type. Two
+ * streets that differ only by direction (W and E Ocean View Ave) or type
+ * (Union St and Union Ave) are different streets.
+ */
+export function streetParts(address) {
+  const words = normalizeAddress(String(address).split(',')[0]).split(' ').filter(Boolean);
+  const i = words.findIndex((w) => /^\d+[A-Z]?$/.test(w));
+  if (i < 0) return null;
+  const num = parseInt(words[i], 10);
+  let rest = words.slice(i + 1);
+  let dir = '';
+  if (rest.length > 1 && DIRS.has(rest[0])) {
+    dir = rest[0];
+    rest = rest.slice(1);
+  }
+  let suffix = '';
+  if (rest.length > 1 && SUFFIXES.has(rest.at(-1))) suffix = rest.pop();
+  if (!rest.length || !Number.isFinite(num)) return null;
+  return { num, dir, core: rest.join(' '), suffix };
+}
+
 /** The block of a looked-up address (lookupAddress's match): never the house number. */
 export function blockOf(cityKey, match) {
-  const hundred = Math.floor(Number(match.number) / 100) * 100;
-  const street = addressKey(`${match.number} ${match.street}`).street;
-  return { city: cityKey, street, hundred, label: `${hundred} block of ${titleCase(match.street)}` };
+  const p = streetParts(`${match.number} ${match.street}`);
+  if (!p) return null;
+  const hundred = Math.floor(p.num / 100) * 100;
+  return { city: cityKey, dir: p.dir, core: p.core, suffix: p.suffix, hundred, label: `${hundred} block of ${titleCase(match.street)}` };
 }
-export const blockId = (b) => `${b.city}:${b.hundred}:${b.street}`;
+export const blockId = (b) => `${b.city}:${b.hundred}:${b.dir}:${b.core}:${b.suffix}`;
 
-/** Whether an address written in an agenda title is on the block. */
+/**
+ * Whether an address written in an agenda title is on the block: the same
+ * street name, direction and type (an agenda that leaves out a direction the
+ * block has doesn't match: a miss, never a wrong street), and the same hundred.
+ */
 export function onBlock(block, address) {
-  const k = addressKey(address);
-  if (!k.num || k.street !== block.street) return false;
-  return Math.floor(Number(k.num) / 100) * 100 === block.hundred;
+  const p = streetParts(address);
+  if (!p || p.core !== block.core || p.dir !== block.dir || p.suffix !== block.suffix) return false;
+  return Math.floor(p.num / 100) * 100 === block.hundred;
+}
+
+// What kind of item it is, in Siren's words, from fixed phrases only: the
+// email never quotes a title.
+const KINDS = [
+  [/short[- ]term rental/i, 'a short-term rental'],
+  [/conditional use permit/i, 'a conditional use permit'],
+  [/rezon|change (?:in|of) zoning|zoning map/i, 'a zoning change'],
+  [/encroach/i, 'an encroachment into the public right-of-way'],
+  // "Sale of Alcoholic Beverages" is a permit, not a property sale.
+  [/\bconvey|\bsale of (?!alcohol)(?:city|certain|real|that|the|property|land|surplus|a parcel)/i, 'a sale or transfer of property'],
+  [/\blease\b|license agreement/i, 'a lease or license'],
+  [/demoli/i, 'a demolition'],
+  [/design review|development certificate|certificate of appropriateness/i, 'a design review'],
+  [/variance|special exception/i, 'a variance or exception'],
+  [/easement/i, 'an easement'],
+  [/subdivision|\bplat\b/i, 'a subdivision'],
+  [/accessory dwelling|\bADU\b/, 'an accessory dwelling unit'],
+  [/[Aa]lcohol|\bABC\b/, 'alcohol sales'],
+];
+export function itemKinds(title) {
+  const out = KINDS.filter(([re]) => re.test(String(title))).map(([, phrase]) => phrase);
+  return out.length ? out.slice(0, 3) : ['an agenda item'];
 }
 
 // The email, sealed. The key is derived from WATCH_SECRET with a label of its
@@ -104,25 +176,40 @@ export async function openEmail(secret, uid, sealed) {
   }
 }
 
-// The unsubscribe link's token: the uid and an HMAC of it under its own label.
-// It can only remove that account's watch.
-export async function unsubscribeToken(secret, uid) {
-  return `${uid}.${await hmacHex(secret, `block-watch:unsubscribe:${uid}`, 32)}`;
+function sameString(a, b) {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
 }
-export async function tokenUid(secret, token) {
-  const m = /^([0-9a-f]{64})\.([0-9a-f]{32})$/.exec(String(token || ''));
+
+// The unsubscribe link carries the watch's own random id (made when the watch
+// is, gone when it is), never the uid, and an HMAC of it under its own label.
+// It can only remove that one watch, and it stops working once the watch is
+// deleted, even if the member watches a block again later.
+export async function unsubscribeToken(secret, id) {
+  return `${id}.${await hmacHex(secret, `block-watch:unsubscribe:${id}`, 32)}`;
+}
+export async function tokenWatchId(secret, token) {
+  const m = /^([0-9a-f]{32})\.([0-9a-f]{32})$/.exec(String(token || ''));
   if (!m) return null;
-  return (await hmacHex(secret, `block-watch:unsubscribe:${m[1]}`, 32)) === m[2] ? m[1] : null;
+  return sameString(await hmacHex(secret, `block-watch:unsubscribe:${m[1]}`, 32), m[2]) ? m[1] : null;
 }
 
 const day = (now) => new Date(now).toISOString().slice(0, 10);
+const sentListKey = async (secret, uid) => `watch-sent:${await hmacHex(secret, `watch-sent:${uid}`, 32)}`;
 
 export async function loadWatch(kv, uid) {
   const w = await kv.get(`${PREFIX}${uid}`, 'json');
   return w && Array.isArray(w.blocks) ? w : null;
 }
-export async function deleteWatch(kv, uid) {
+/** Delete a watch and everything kept for it: the record, its sent list and its unsubscribe id. */
+export async function deleteWatch(env, uid) {
+  const kv = env.LIMITS;
+  const w = await loadWatch(kv, uid);
   await kv.delete(`${PREFIX}${uid}`);
+  await kv.delete(await sentListKey(env.WATCH_SECRET, uid));
+  if (w?.id) await kv.delete(`watch-by-id:${w.id}`);
 }
 
 /**
@@ -138,7 +225,7 @@ export async function addBlock({ env, kv, uid, email, address, cityKey, lookup, 
   if (!addr) return { ok: false, code: 'address' };
   const mail = normalizeEmail(email);
   if (!mail || (await userId(env.INVITE_SECRET, mail)) !== uid) return { ok: false, code: 'email' };
-  const watch = (await loadWatch(kv, uid)) || { v: 1, blocks: [], sent: [] };
+  const watch = (await loadWatch(kv, uid)) || { v: 1, blocks: [] };
   if (watch.blocks.length >= MAX_BLOCKS) return { ok: false, code: 'full' };
   // Lookups per account per UTC day, counted under a key that can't be joined to the account's other keys.
   const rateKey = `watch-rate:${day(now)}:${await hmacHex(env.WATCH_SECRET, `watch-rate:${uid}`, 32)}`;
@@ -153,21 +240,23 @@ export async function addBlock({ env, kv, uid, email, address, cityKey, lookup, 
   }
   if (!found?.match) return { ok: false, code: found?.candidates?.length ? 'ambiguous' : 'notfound' };
   const block = blockOf(cityKey, found.match);
-  if (!block.street || !Number.isFinite(block.hundred)) return { ok: false, code: 'notfound' };
+  if (!block) return { ok: false, code: 'notfound' };
   if (watch.blocks.some((b) => blockId(b) === blockId(block))) return { ok: true, block, already: true };
   watch.blocks.push({ ...block, added: day(now) });
   watch.email = await sealEmail(env.WATCH_SECRET, uid, mail);
+  if (!watch.id) watch.id = hex(crypto.getRandomValues(new Uint8Array(16)));
   watch.updated = day(now);
+  await kv.put(`watch-by-id:${watch.id}`, uid);
   await kv.put(`${PREFIX}${uid}`, JSON.stringify(watch));
   return { ok: true, block };
 }
 
-export async function removeBlock({ kv, uid, id, now = Date.now() }) {
+export async function removeBlock({ env, kv, uid, id, now = Date.now() }) {
   const watch = await loadWatch(kv, uid);
   if (!watch) return { ok: true };
   watch.blocks = watch.blocks.filter((b) => blockId(b) !== id);
   if (!watch.blocks.length) {
-    await deleteWatch(kv, uid);
+    await deleteWatch(env, uid);
     return { ok: true };
   }
   watch.updated = day(now);
@@ -179,7 +268,7 @@ export async function removeBlock({ kv, uid, id, now = Date.now() }) {
  * Upcoming agenda items for a city that name an address: the meetings in the
  * Public Meeting Notices dataset for the next DAYS_AHEAD days, each meeting's
  * agenda read from the meeting portal. Every request goes through `trace`
- * and one counting fetch.
+ * and one counting fetch. Throws if the notices can't be read.
  */
 export async function upcomingItems({ city, env, fetchImpl, now = Date.now() }) {
   const budget = requestBudget({ limit: SCAN_BUDGET, fetchImpl });
@@ -206,7 +295,7 @@ export async function upcomingItems({ city, env, fetchImpl, now = Date.now() }) 
       const m = await iqm2.meeting(mt.id);
       for (const it of m.items) {
         const addresses = extractAddresses(it.text).map(normalizeAddress);
-        if (addresses.length) items.push({ id: it.id, title: it.text, addresses, meeting: mt, url: iqm2.legiUrl(it.id), meetingUrl: iqm2.meetingUrl(mt.id) });
+        if (addresses.length) items.push({ id: it.id, kinds: itemKinds(it.text), addresses, meeting: mt, url: iqm2.legiUrl(it.id), meetingUrl: iqm2.meetingUrl(mt.id) });
       }
     } catch {
       failed++;
@@ -221,24 +310,29 @@ const prettyDay = (d) => {
   const t = Date.parse(`${d}T12:00:00Z`);
   return Number.isFinite(t) ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : d;
 };
+const joinList = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs.at(-1)}`);
 
-/** The digest: plain text and HTML, every agenda title with an applicant's name withheld. */
+/**
+ * The digest, plain text and HTML. Each item is described by its kind (fixed
+ * phrases) and the addresses on the watched block it names: never its title.
+ */
 export function digest({ groups, origin, unsubscribe, appName = 'Siren' }) {
   const manage = `${origin}/watch`;
-  const lines = [`${appName} found agenda items naming an address on a block you watch.`, ''];
-  const html = [`<p>${esc(appName)} found agenda items naming an address on a block you watch.</p>`];
+  const lead = `${appName} found agenda items naming an address on a block you watch.`;
+  const lines = [lead, ''];
+  const html = [`<p>${esc(lead)}</p>`];
   for (const g of groups) {
     lines.push(g.block.label);
     html.push(`<h3>${esc(g.block.label)}</h3><ul>`);
     for (const it of g.items) {
-      const title = withholdApplicant(it.title).slice(0, 400);
-      lines.push(`- ${it.meeting.body}, ${prettyDay(it.meeting.date)}: ${title}`, `  Record: ${it.url}`, `  Agenda: ${it.meetingUrl}`);
-      html.push(`<li><strong>${esc(it.meeting.body)}, ${esc(prettyDay(it.meeting.date))}</strong>: <a href="${esc(it.url)}">${esc(title)}</a> (<a href="${esc(it.meetingUrl)}">agenda</a>)</li>`);
+      const what = `an item about ${joinList(it.kinds.map((k) => k.replace(/^an agenda item$/, 'City business')))} at ${joinList(it.here.map(titleCase))}`;
+      lines.push(`- ${it.meeting.body}, ${prettyDay(it.meeting.date)}: ${what}`, `  Record: ${it.url}`, `  Agenda: ${it.meetingUrl}`);
+      html.push(`<li><strong>${esc(it.meeting.body)}, ${esc(prettyDay(it.meeting.date))}</strong>: <a href="${esc(it.url)}">${esc(what)}</a> (<a href="${esc(it.meetingUrl)}">agenda</a>)</li>`);
     }
     lines.push('');
     html.push('</ul>');
   }
-  const caveat = 'I matched these by the street address written in each agenda title. Items that name no address (citywide ordinances, budgets) are not matched, so this is not everything that could affect the block. AI can make mistakes; the record is the word.';
+  const caveat = 'I matched these by the street address written in each agenda title, and described each by its kind; the City\'s record has the rest. Items that name no address (citywide ordinances, budgets) are not matched, so this is not everything that could affect the block. AI can make mistakes; the record is the word.';
   lines.push(caveat, '', `Manage your blocks: ${manage}`, `Stop these emails: ${unsubscribe}`);
   html.push(`<p>${esc(caveat)}</p><p><a href="${esc(manage)}">Manage your blocks</a> · <a href="${esc(unsubscribe)}">Stop these emails</a></p>`);
   const n = groups.length;
@@ -246,49 +340,48 @@ export function digest({ groups, origin, unsubscribe, appName = 'Siren' }) {
   return { subject, text: lines.join('\n'), html: html.join('') };
 }
 
-async function listWatches(kv) {
-  const keys = [];
-  let cursor;
-  do {
-    const page = await kv.list({ prefix: PREFIX, ...(cursor ? { cursor } : {}) });
-    for (const k of page.keys) keys.push(k.name);
-    cursor = page.list_complete ? null : page.cursor;
-  } while (cursor && keys.length < MAX_WATCHES);
-  return keys.slice(0, MAX_WATCHES);
-}
-
 /**
- * The daily scan, from the cron. Runs at most once a UTC day, on the first
- * tick at or after SCAN_HOUR_UTC (a claim key, written before any fetch; the
- * sent list keeps a second run from repeating an email anyway). With no
- * watches it makes no request at all. Logs one line of counts, never an
- * address, block, email or account.
+ * The daily scan, from the cron. From SCAN_HOUR_UTC each UTC day it reads the
+ * upcoming agendas and works through the watches BATCH at a time, one batch a
+ * tick, keeping its place in `watch-run:<day>`; a tick whose agendas can't be
+ * read leaves the place as it was, so the next tick tries again. With no
+ * watches it reads no agendas. A member who has lost their invite has their
+ * watch deleted, not emailed. It never writes a watch record. Logs one line
+ * of counts a tick, never an address, block, email or account.
  */
-export async function runBlockWatch(env, { now = Date.now(), fetchImpl, send = sendWithResend, force = false } = {}) {
+export async function runBlockWatch(env, { now = Date.now(), fetchImpl, send = sendWithResend } = {}) {
   if (!blockWatchOn(env)) return { skipped: 'off' };
   const setup = blockWatchSetupError(env);
   if (setup) {
     console.error('block watch:', setup);
     return { skipped: 'setup' };
   }
-  if (!force && new Date(now).getUTCHours() < SCAN_HOUR_UTC) return { skipped: 'early' };
+  if (new Date(now).getUTCHours() < SCAN_HOUR_UTC) return { skipped: 'early' };
   const kv = env.LIMITS;
-  const claim = `watch-run:${day(now)}`;
-  if (!force && (await kv.get(claim))) return { skipped: 'done' };
-  await kv.put(claim, '1', { expiration: boundary(now, 'day', 2) });
-  const keys = await listWatches(kv);
+  const stateKey = `watch-run:${day(now)}`;
+  const state = await kv.get(stateKey, 'json');
+  if (state?.done) return { skipped: 'done' };
+  const expiration = boundary(now, 'day', 2);
+  const page = await kv.list({ prefix: PREFIX, limit: BATCH, ...(state?.cursor ? { cursor: state.cursor } : {}) });
+  const next = page.list_complete || !page.cursor ? { done: true } : { cursor: page.cursor };
+  const summary = { event: 'block_watch', watches: 0, meetings: 0, items: 0, failed_meetings: 0, requests: 0, emails: 0, email_failures: 0, removed: 0, errors: 0 };
   const watches = [];
-  for (const k of keys) {
-    const w = await kv.get(k, 'json');
-    if (w && Array.isArray(w.blocks) && w.blocks.length) watches.push({ uid: k.slice(PREFIX.length), w });
+  for (const k of page.keys) {
+    try {
+      const w = await kv.get(k.name, 'json');
+      if (w && Array.isArray(w.blocks) && w.blocks.length) watches.push({ uid: k.name.slice(PREFIX.length), w });
+    } catch {
+      summary.errors++;
+    }
   }
-  const summary = { event: 'block_watch', watches: watches.length, meetings: 0, items: 0, failed_meetings: 0, requests: 0, emails: 0, email_failures: 0 };
+  summary.watches = watches.length;
   if (!watches.length) {
+    await kv.put(stateKey, JSON.stringify(next), { expiration });
     console.log(JSON.stringify(summary));
     return summary;
   }
   const byCity = new Map();
-  for (const { w } of watches) for (const b of w.blocks) if (!byCity.has(b.city)) byCity.set(b.city, null);
+  for (const { w } of watches) for (const b of w.blocks) byCity.set(b.city, null);
   for (const key of byCity.keys()) {
     const city = getCity(key);
     if (!watchable(city)) continue;
@@ -300,42 +393,57 @@ export async function runBlockWatch(env, { now = Date.now(), fetchImpl, send = s
       summary.failed_meetings += got.failed;
       summary.requests += got.requests;
     } catch {
-      summary.failed_meetings += 1;
+      // The agendas couldn't be read: keep the place, try again next tick.
+      summary.errors++;
+      console.log(JSON.stringify({ ...summary, retry: true }));
+      return { ...summary, retry: true };
     }
   }
   const origin = String(env.PUBLIC_ORIGIN).replace(/\/$/, '') + String(env.BASE_PATH || '').replace(/\/$/, '');
   for (const { uid, w } of watches) {
     if (summary.emails >= MAX_EMAILS) break;
-    const sent = new Set(w.sent || []);
-    const groups = [];
-    for (const b of w.blocks) {
-      const items = (byCity.get(b.city) || []).filter((it) => !sent.has(sentKey(it)) && it.addresses.some((a) => onBlock(b, a)));
-      if (items.length) groups.push({ block: b, items });
-    }
-    if (!groups.length) continue;
-    const to = await openEmail(env.WATCH_SECRET, uid, w.email);
-    if (!to) continue;
-    const unsubscribe = `${origin}/watch/unsubscribe?t=${await unsubscribeToken(env.WATCH_SECRET, uid)}`;
-    const mail = digest({ groups, origin, unsubscribe, appName: env.APP_NAME || 'Siren' });
-    const fresh = groups.flatMap((g) => g.items.map(sentKey));
     try {
+      if (!(await memberInvite(kv, uid))) {
+        await deleteWatch(env, uid);
+        summary.removed++;
+        continue;
+      }
+      const listKey = await sentListKey(env.WATCH_SECRET, uid);
+      const sent = new Set((await kv.get(listKey, 'json')) || []);
+      const groups = [];
+      for (const b of w.blocks) {
+        const items = [];
+        for (const it of byCity.get(b.city) || []) {
+          if (sent.has(sentKey(it))) continue;
+          const here = it.addresses.filter((a) => onBlock(b, a));
+          if (here.length) items.push({ ...it, here });
+        }
+        if (items.length) groups.push({ block: b, items });
+      }
+      if (!groups.length) continue;
+      // Read again just before sending: a watch deleted while the agendas were
+      // read gets no email and no sent list. (KV can serve a read up to a
+      // minute stale, so a deletion in the last moments can still get that
+      // day's email; nothing is written back either way.)
+      if (!(await loadWatch(kv, uid))) continue;
+      const to = await openEmail(env.WATCH_SECRET, uid, w.email);
+      if (!to || !w.id) continue;
+      const unsubscribe = `${origin}/watch/unsubscribe?t=${await unsubscribeToken(env.WATCH_SECRET, w.id)}`;
+      const mail = digest({ groups, origin, unsubscribe, appName: env.APP_NAME || 'Siren' });
+      const fresh = [...new Set(groups.flatMap((g) => g.items.map(sentKey)))];
       await send(env, {
         to,
         ...mail,
         headers: { 'List-Unsubscribe': `<${unsubscribe}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
-        idempotencyKey: `watch-${day(now)}-${await hmacHex(env.WATCH_SECRET, `watch-mail:${uid}:${fresh.join(',')}`, 32)}`,
+        idempotencyKey: `watch-${await hmacHex(env.WATCH_SECRET, `watch-mail:${uid}:${fresh.join(',')}`, 32)}`,
       }, fetchImpl);
       summary.emails++;
-      // Re-read before writing, so a block removed during the scan stays removed.
-      const cur = await loadWatch(kv, uid);
-      if (cur) {
-        cur.sent = [...(cur.sent || []), ...fresh].slice(-MAX_SENT);
-        await kv.put(`${PREFIX}${uid}`, JSON.stringify(cur));
-      }
+      await kv.put(listKey, JSON.stringify([...sent, ...fresh].slice(-MAX_SENT)), { expirationTtl: SENT_DAYS * 86400 });
     } catch {
-      summary.email_failures++;
+      summary.errors++;
     }
   }
+  await kv.put(stateKey, JSON.stringify(next), { expiration });
   console.log(JSON.stringify(summary));
   return summary;
 }
@@ -355,7 +463,7 @@ const MESSAGES = {
   rate: 'Too many lookups today. Try again tomorrow.',
   lookup: "I couldn't reach the City's address list just now. Try again in a few minutes.",
   city: 'Block watch works for Norfolk addresses for now.',
-  badlink: "That link didn't work. Sign in and remove your blocks on this page instead.",
+  badlink: "That link didn't work, or the watch was already deleted. Sign in and check your blocks on this page.",
 };
 
 function layout({ title, body, css }) {
@@ -379,11 +487,11 @@ export function watchPage({ state, watch, base, css, message, account }) {
       : '<p class="small">None yet.</p>';
     body += '</div>';
     if (blocks.length < MAX_BLOCKS) {
-      body += `<div class="card"><h2>Add a block</h2><form class="add" method="post" action="${esc(base)}/watch/add"><label>Any address on the block<input name="address" autocomplete="street-address" maxlength="120" required placeholder="810 Union St"></label><label>Your sign-in email, to send the alerts to<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button type="submit">Watch this block</button></form><p class="small">The address is looked up once and not kept. Your email is kept encrypted, only to send these alerts, until you remove your last block or press "Stop these emails".</p></div>`;
+      body += `<div class="card"><h2>Add a block</h2><form class="add" method="post" action="${esc(base)}/watch/add"><label>Any address on the block<input name="address" autocomplete="street-address" maxlength="120" required placeholder="810 Union St"></label><label>Your sign-in email, to send the alerts to<input name="email" type="email" autocomplete="email" maxlength="254" required></label><button type="submit">Watch this block</button></form><p class="small">The address is looked up once and not kept. Your email is kept encrypted, only to send these alerts, until you remove your last block or press "Stop all alerts".</p></div>`;
     }
     if (blocks.length) body += `<div class="card"><form method="post" action="${esc(base)}/watch/delete"><button class="quiet" type="submit">Stop all alerts and delete my email</button></form></div>`;
   }
-  body += '<p class="small">I match agenda items by the street address written in their titles. Items that name no address (citywide ordinances, budgets) are not matched.</p>';
+  body += '<p class="small">I match agenda items by the street address written in their titles, and the email says only what kind of item it is and where; the City\'s record has the rest. Items that name no address (citywide ordinances, budgets) are not matched.</p>';
   return layout({ title: 'Watch a block', body, css });
 }
 
@@ -403,7 +511,7 @@ export function unsubscribePage({ token, base, css, message }) {
 export async function handleWatch(req, env, path, deps) {
   if (path !== '/watch' && !path.startsWith('/watch/')) return null;
   const { base, css, pageHeaders } = deps;
-  const html = (body, status = 200) => new Response(body, { status, headers: { ...pageHeaders, 'Cache-Control': 'no-store' } });
+  const html = (body, status = 200) => new Response(body, { status, headers: { ...pageHeaders, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
   const back = (m) => new Response(null, { status: 303, headers: { Location: `${base}/watch?m=${encodeURIComponent(m)}`, 'Cache-Control': 'no-store' } });
   const setup = blockWatchSetupError(env);
   if (setup) return new Response('Block watch is not set up on this site yet.', { status: 503, headers: { 'Cache-Control': 'no-store' } });
@@ -420,14 +528,16 @@ export async function handleWatch(req, env, path, deps) {
   if (path === '/watch/unsubscribe') {
     const url = new URL(req.url);
     if (req.method === 'GET' || req.method === 'HEAD') {
-      const ok = await tokenUid(env.WATCH_SECRET, url.searchParams.get('t'));
-      return html(unsubscribePage({ token: url.searchParams.get('t') || '', base, css, message: ok ? '' : 'badlink' }), ok ? 200 : 400);
+      const id = await tokenWatchId(env.WATCH_SECRET, url.searchParams.get('t'));
+      const live = id ? await kv.get(`watch-by-id:${id}`) : null;
+      return html(unsubscribePage({ token: live ? url.searchParams.get('t') : '', base, css, message: live ? '' : 'badlink' }), live ? 200 : 400);
     }
     if (req.method !== 'POST') return null;
     const f = await form();
-    const uid = await tokenUid(env.WATCH_SECRET, f.get('t') || url.searchParams.get('t'));
+    const id = await tokenWatchId(env.WATCH_SECRET, f.get('t') || url.searchParams.get('t'));
+    const uid = id ? await kv.get(`watch-by-id:${id}`) : null;
     if (!uid) return html(unsubscribePage({ token: '', base, css, message: 'badlink' }), 400);
-    await deleteWatch(kv, uid);
+    await deleteWatch(env, uid);
     return html(unsubscribePage({ token: '', base, css, message: 'stopped' }));
   }
 
@@ -449,10 +559,10 @@ export async function handleWatch(req, env, path, deps) {
     return back(out.ok ? (out.already ? 'already' : 'added') : out.code);
   }
   if (path === '/watch/remove') {
-    await removeBlock({ kv, uid, id: String(f.get('block') || '') });
+    await removeBlock({ env, kv, uid, id: String(f.get('block') || '') });
     return back('removed');
   }
-  await deleteWatch(kv, uid);
+  await deleteWatch(env, uid);
   return back('stopped');
 }
 
