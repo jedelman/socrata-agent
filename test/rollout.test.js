@@ -27,8 +27,15 @@ test('wrangler.toml: the flag off, three limiters, only the free tier\'s sweep c
   const index = read('worker/index.js');
   assert.match(index, /export default \{\n  async fetch/);
   const scheduled = index.slice(index.indexOf('  async scheduled(event, env, ctx) {'));
-  assert.match(scheduled, /^  async scheduled\(event, env, ctx\) \{\n    if \(!publicAskOn\(env\)\) return;/);
-  assert.deepEqual([...scheduled.matchAll(/await |sweepQuestions\(|ping[A-Z]\w*\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['sweepQuestions(', 'pingQuestionWatcher(']);
+  // Block watch's daily scan rides the same trigger (docs/block-watch.md),
+  // called only behind its own flag; the free tier's two jobs only behind
+  // PUBLIC_ASK. Nothing else runs. Both flags ship off.
+  assert.ok(!/^\s*BLOCK_WATCH\s*=/m.test(toml), 'block watch flips in its own PR');
+  const body = scheduled.slice(0, scheduled.indexOf('\n  },\n'));
+  assert.match(body, /if \(blockWatchOn\(env\)\) jobs\.push\(runBlockWatch\(env\)/);
+  assert.match(body, /if \(publicAskOn\(env\)\) \{\n      if \(!publicAskReady\(env\)\)[^\n]*\n      else \{\n        jobs\.push\(\n          sweepQuestions\(env\)[^\n]*\n          pingQuestionWatcher\(env\)/);
+  assert.match(body, /if \(!jobs\.length\) return;/);
+  assert.deepEqual([...body.matchAll(/await |run[A-Z]\w*\(|sweepQuestions\(|ping[A-Z]\w*\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['runBlockWatch(', 'sweepQuestions(', 'pingQuestionWatcher(']);
 });
 
 test('migration 0003 drops every table and trigger 0001 and 0002 made', () => {

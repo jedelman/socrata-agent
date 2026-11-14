@@ -57,6 +57,9 @@ import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearc
 import { researchScopesFor } from '../src/agent.js';
 import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs } from './telemetry.js';
 import { OTLP_PATH, otlpOn, handleOtlp } from './otlp.js';
+// Block watch (docs/block-watch.md), behind BLOCK_WATCH: imported as code
+// here, above the text block (it imports crypto.js), like every shared module.
+import { blockWatchOn, handleWatch, runBlockWatch, addressLookup, watchable } from './block-watch.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
 import QUESTIONS_PAGE from './questions.html';
@@ -78,6 +81,8 @@ import CHAT_CSS from './chat.css' with { type: 'text' };
 // them (the free tier), served only with PUBLIC_ASK on.
 import QUESTIONS_JS from './questions-page.js' with { type: 'text' };
 import QUESTIONS_CSS from './questions.css' with { type: 'text' };
+// Block watch's page style, served only with BLOCK_WATCH on (the page has no script).
+import WATCH_CSS from './watch.css' with { type: 'text' };
 import ADMIN_QUESTIONS_JS from './admin-questions.js' with { type: 'text' };
 import ADMIN_RESEARCH_JS from './admin-research.js' with { type: 'text' };
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
@@ -634,6 +639,7 @@ const ASSETS = {
   'questions.css': [QUESTIONS_CSS, 'text/css; charset=utf-8'],
   'admin-questions.js': [ADMIN_QUESTIONS_JS, JS],
   'admin-research.js': [ADMIN_RESEARCH_JS, JS],
+  'watch.css': [WATCH_CSS, 'text/css; charset=utf-8'],
 };
 // The free tier's files: served only with PUBLIC_ASK on (with it off,
 // nothing new is served).
@@ -641,9 +647,12 @@ const ASK_ASSETS = new Set(['questions-page.js', 'questions.css', 'admin-questio
 // Shared research's steward script: served only with SHARED_RESEARCH on;
 // its page borrows questions.css, served then too.
 const RESEARCH_ASSETS = new Set(['admin-research.js']);
+// Block watch's style: served only with BLOCK_WATCH on.
+const WATCH_ASSETS = new Set(['watch.css']);
 const assetServed = (env, name) =>
   (!ASK_ASSETS.has(name) || publicAskOn(env) || (name === 'questions.css' && sharedResearchOn(env)))
-  && (!RESEARCH_ASSETS.has(name) || sharedResearchOn(env));
+  && (!RESEARCH_ASSETS.has(name) || sharedResearchOn(env))
+  && (!WATCH_ASSETS.has(name) || blockWatchOn(env));
 // A content hash of every asset, computed once per isolate (FNV-1a, two
 // seeds; for cache-busting, not security), so the page's URLs change with
 // any deploy that changes them and each can be cached for a year.
@@ -845,6 +854,23 @@ function page(env) {
   });
 }
 
+// Block watch's routes (/watch, its forms and the unsubscribe link), or null.
+// The page has no script; its policy allows only this origin's stylesheet,
+// forms posting here and Cloudflare's beacon.
+const WATCH_CSP = `default-src 'none'; script-src ${CF_BEACON.join(' ')}; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`;
+async function watchRoute(req, env, path, base, url) {
+  return handleWatch(req, env, path, {
+    base,
+    origin: siteOrigin(env, url),
+    css: `${base}/assets/${ASSET_HASH}/watch.css`,
+    pageHeaders: PAGE_HEADERS(WATCH_CSP),
+    currentUserInfo: (r) => currentUserInfo(r, env),
+    isMember: async (uid) => Boolean(await memberInvite(env.LIMITS, uid)),
+    lookup: addressLookup(env),
+    cityKey: allowedCities(env).find((id) => watchable(cities[id])) || null,
+  });
+}
+
 // The free tier's routes, or null for any other path. Each fails closed (503)
 // when the flag is on but something it needs is missing.
 async function publicAskRoute(req, env, ctx, path, base) {
@@ -975,6 +1001,14 @@ export default {
     const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
     if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]] && assetServed(env, asset[2])) return assetResponse(asset[1], asset[2]);
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation' || path === '/api/conversations/search')) return handleConversations(req, env, path);
+    // Block watch (docs/block-watch.md), before the JSON-only rule: its page
+    // posts plain forms (no script), each checked for this origin. With
+    // BLOCK_WATCH anything but "true", none of this is reached and every
+    // /watch path is the 404 at the end; on but not set up, they answer 503.
+    if (blockWatchOn(env) && (path === '/watch' || path.startsWith('/watch/'))) {
+      const res = await watchRoute(req, env, path, base, url);
+      if (res) return res;
+    }
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
@@ -1011,16 +1045,23 @@ export default {
   // the backstop). With PUBLIC_ASK anything but "true" it returns at once:
   // no D1 call, no fetch, and the watcher is never reached. On but not
   // ready, it logs why (names only) and does nothing else.
+  // Block watch's daily scan (block-watch.js runBlockWatch) rides the same
+  // trigger: with BLOCK_WATCH anything but "true" it isn't called, and it
+  // runs at most once a UTC day, from 12:00 UTC.
   async scheduled(event, env, ctx) {
-    if (!publicAskOn(env)) return;
-    if (!publicAskReady(env)) {
-      console.error('public sweep:', publicAskSetupError(env));
-      return;
+    const jobs = [];
+    if (blockWatchOn(env)) jobs.push(runBlockWatch(env).catch((err) => console.error('block watch failed', String(err?.message || err).slice(0, 200))));
+    if (publicAskOn(env)) {
+      if (!publicAskReady(env)) console.error('public sweep:', publicAskSetupError(env));
+      else {
+        jobs.push(
+          sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200))),
+          pingQuestionWatcher(env).catch((err) => console.error('question watcher: ping failed', String(err?.message || err).slice(0, 200))),
+        );
+      }
     }
-    const run = Promise.all([
-      sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200))),
-      pingQuestionWatcher(env).catch((err) => console.error('question watcher: ping failed', String(err?.message || err).slice(0, 200))),
-    ]);
+    if (!jobs.length) return;
+    const run = Promise.all(jobs);
     if (ctx?.waitUntil) ctx.waitUntil(run);
     else await run;
   },

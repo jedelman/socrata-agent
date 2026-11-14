@@ -95,6 +95,21 @@ export function parseTransmittal(html) {
   return { ...out, ...(withheld.length ? { applicant_name_withheld: true } : {}) };
 }
 
+// An agenda title that opens with its applicant ("JANE DOE, for a conditional
+// change in zoning ...", the Planning Commission's style) names a person when
+// the applicant isn't plainly an organization. For text Siren sends on its
+// own (block watch emails), that opening name is replaced with "An applicant",
+// as the cover letters withhold one; a business can be withheld too, the safe
+// direction. A name after a courtesy title is withheld as well.
+export function withholdApplicant(title) {
+  const s = String(title);
+  // Up to the first ", for": a name may hold commas ("DOE, JANE", "ACME, LLC")
+  // and either apostrophe ("O’BRIEN"); an organization word anywhere in it keeps it.
+  const m = s.match(/^([A-Za-z][A-Za-z .,'\u2019&-]{2,80}?),\s+(?=for\b)/i);
+  const out = m && !ORG.test(m[1]) ? `An applicant, ${s.slice(m[0].length)}` : s;
+  return out.replace(/\b(?:Mr|Mrs|Ms|Miss|Dr)\.?\s+(?:[A-Z][a-z'-]+\s?){1,3}/g, '[name withheld] ').trim();
+}
+
 export function parseLegiFile(html) {
   const history = [];
   const rowRe =
