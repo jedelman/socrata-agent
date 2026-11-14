@@ -1,10 +1,10 @@
 {
   "id": "norfolk-military-circle",
   "title": "What's the plan for the former Military Circle Mall site, and how settled is it?",
-  "summary": "What the records show as of November 12, 2026 about the former Military Circle Mall at 880 N. Military Highway. WHRO reported (September 1, 2026) that the City owns much of the mall footprint; Council approved its transfer from the Economic Development Authority on July 15, 2025. Council has since appropriated up to $600,000 for operating costs (April 28, 2026) and approved a $200,000 advance to the Economic Development Authority for site readiness studies (August 25, 2026), which the City’s letter calls a prerequisite for applying to the Virginia Business Ready Sites Program for infrastructure development; the advance is repaid from a $337,750 state site characterization grant the Authority has been awarded. News reports say demolition was priced at nearly $3 million against a $10 million budget approved in 2023, set to start in October 2026 and run about 15 months, with the studies due around spring 2027. What isn't settled: as of September 2026 the City had no master plan for the site, Sentara owns part of it, and the Ross Dress for Less lease was still being negotiated (WAVY reported in June that Ross effectively holds a veto inside the ring road, and that the City was putting the demolition out to bid without its consent). The adopted FY 2027-2031 capital plan names no Military Circle project (the demolition money was reported as approved in 2023, before this plan), and the City Manager said the East Side library and recreation center would go to the former Poplar Hall Elementary site instead, to avoid the site’s delays. This review found no City record yet that demolition has begun. City Council approves agreements for the land, and state law requires a public hearing before the City sells or leases it, with exceptions such as a lease to a public authority.",
+  "summary": "What the records show as of November 14, 2026 about the former Military Circle Mall at 880 N. Military Highway. WHRO reported (September 1, 2026) that the City owns much of the mall footprint; Council approved its transfer from the Economic Development Authority on July 15, 2025. Council has since appropriated up to $600,000 for operating costs (April 28, 2026) and approved a $200,000 advance to the Economic Development Authority for site readiness studies (August 25, 2026), which the City’s letter calls a prerequisite for applying to the Virginia Business Ready Sites Program for infrastructure development; the advance is repaid from a $337,750 state site characterization grant the Authority has been awarded. The agreement names the work: a site certification report, geotechnical, survey, Phase I and II environmental, cultural resource, species, wetland and traffic studies, and a preliminary engineering report on water, sewer and transportation infrastructure; the Authority is to work in good faith to have them completed, and this review found no copy of the reports yet. In October 2025 Council approved the City taking on the mall's leases and its 1968 operating agreement from the Authority. News reports say demolition was priced at nearly $3 million against a $10 million budget approved in 2023, set to start in October 2026 and run about 15 months, with the studies due around spring 2027. What isn't settled: as of September 2026 the City had no master plan for the site, Sentara owns part of it, and the Ross Dress for Less lease was still being negotiated (WAVY reported in June that Ross effectively holds a veto inside the ring road, and that the City was putting the demolition out to bid without its consent). The adopted FY 2027-2031 capital plan names no Military Circle project (the demolition money was reported as approved in 2023, before this plan), and the City Manager said the East Side library and recreation center would go to the former Poplar Hall Elementary site instead, to avoid the site’s delays. This review found no City record yet that demolition has begun. City Council approves agreements for the land, and state law requires a public hearing before the City sells or leases it, with exceptions such as a lease to a public authority.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
-  "reviewed": "2026-11-12",
+  "reviewed": "2026-11-14",
   "findings": [
     {
       "id": "city-owns-site",
@@ -16,12 +16,12 @@
       },
       "quote": "An Ordinance Approving the Conveyance to the City of Norfolk by the Economic Development Authority of the City of Norfolk of Those Certain Parcels of Property Known as Military Circle Mall and Located Generally at 880 N. Military Highway",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihnosutvoev5jid4p3egsg77inuhobl4zqkt7nl6xnvwmwtfrgaqy",
+        "cid": "bafkreidk2pf5jtgwqgkfedsqtgbqzc52foyn3rpszv7vywccdl4qj2s4lm",
         "bytes": 32151,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -41,12 +41,12 @@
       },
       "quote": "The EDA has been operating and managing the mall since 2020.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreide3ndyuisi5uvewkwecciinqd5jfo3rilkcmodhdwqu4esn6hhji",
+        "cid": "bafkreib3c7ngwuxhi73chxz5jc3he4cd6ulye2w45ksapk2fys7nfepupa",
         "bytes": 34973,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -66,12 +66,12 @@
       },
       "quote": "The Economic Development Authority will transfer up to $600,000 to the City of Norfolk to fund the necessary operating expenses related to Military Circle Mall.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreide3ndyuisi5uvewkwecciinqd5jfo3rilkcmodhdwqu4esn6hhji",
+        "cid": "bafkreib3c7ngwuxhi73chxz5jc3he4cd6ulye2w45ksapk2fys7nfepupa",
         "bytes": 34973,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -91,12 +91,12 @@
       },
       "quote": "The City agrees to advance $200,000 to the EDA to enable the EDA to complete site readiness testing at the property owned by the City of Norfolk known as Military Circle.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreih6sovpciz2u4hywe6d33mv6eiya63omjkikz47msm6hrquar4mly",
+        "cid": "bafkreif7peaghgcuqurebnyqvmvr37xeohiqmtflxxjqn34s2thkevhoj4",
         "bytes": 35074,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -116,12 +116,12 @@
       },
       "quote": "The Authority has been awarded and anticipates receiving funds in the amount of Three Hundred Thirty-Seven Thousand Seven Hundred Fifty and 00/100 Dollars ($337,750.00) from the VBRSP Accelerated Site Characterization Grant FY’26",
       "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
         "bytes": 136538,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -141,12 +141,12 @@
       },
       "quote": "a duly organized and existing body corporate and politic constituting a political subdivision of the Commonwealth of Virginia",
       "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
         "bytes": 136538,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -166,12 +166,12 @@
       },
       "quote": "The necessary site readiness studies are a prerequisite for applying for a Virginia Business Ready Sites Program Site Development for future infrastructure development.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreih6sovpciz2u4hywe6d33mv6eiya63omjkikz47msm6hrquar4mly",
+        "cid": "bafkreif7peaghgcuqurebnyqvmvr37xeohiqmtflxxjqn34s2thkevhoj4",
         "bytes": 35074,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       }
     },
@@ -185,12 +185,12 @@
       },
       "quote": "This effort aims to advance Military Circle’s status from Tier 2 to Tier 3.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -210,12 +210,12 @@
       },
       "quote": "The reports are expected to take six to eight months to finish, with results likely available by next spring",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -235,12 +235,12 @@
       },
       "quote": "Williams said no specific master plan is in place yet for the site following demolition and testing.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -260,12 +260,12 @@
       },
       "quote": "he expects the city to establish one within the next year once the technical studies conclude, with hopes that incremental development, coordinated alongside Sentara, can begin within three years.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -285,12 +285,12 @@
       },
       "quote": "The demolition budget, approved at $10 million in 2023, will not grow, according to Williams.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -310,12 +310,12 @@
       },
       "quote": "Demolition of Military Circle Mall is priced at nearly $3 million, with the first phase set to begin next month.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreibxtx47e3xxvytlxghyku2lw2nxdj5z2i6iecak7kzotwozm4uj44",
-        "bytes": 111765,
-        "read": "2026-11-13",
+        "cid": "bafkreif7hgyusu6473v5ektzxkrost5k57gwixwcik3rzdwvrnyrwfyuke",
+        "bytes": 111758,
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -335,12 +335,12 @@
       },
       "quote": "The city anticipates the demolition itself will take about 15 months.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihco4yaec4a4z5ftpjabo6dxhn3xk74xs7twi6xnwgzen35jn4twi",
-        "bytes": 109136,
-        "read": "2026-11-13",
+        "cid": "bafkreidkcq3kouhsho2pszv5veacfdwod2245o66oltmnlsa2wjbm2qgke",
+        "bytes": 109128,
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -360,12 +360,12 @@
       },
       "quote": "The city owns much of the mall footprint, but Sentara holds ownership of the former J.C. Penney building and much of the parking area inside the ring road.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -385,12 +385,12 @@
       },
       "quote": "Williams previously said the mix of property ownership could result in redevelopment happening in phases.",
       "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihco4yaec4a4z5ftpjabo6dxhn3xk74xs7twi6xnwgzen35jn4twi",
-        "bytes": 109136,
-        "read": "2026-11-13",
+        "cid": "bafkreidkcq3kouhsho2pszv5veacfdwod2245o66oltmnlsa2wjbm2qgke",
+        "bytes": 109128,
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -410,12 +410,12 @@
       },
       "quote": "Even though Ross is a tenant of the city property, the discount retailer essentially has veto power under an old-operating agreement inside the ring road.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
         "bytes": 54214,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -435,12 +435,12 @@
       },
       "quote": "While their lease, signed prior to city ownership, is set to expire this year, they have extension options through 2036.",
       "found_by": "Claude Code (independent review of PR #52), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
         "bytes": 54214,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -460,12 +460,12 @@
       },
       "quote": "Ross had still not given their consent to the demolition.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreic36a4bfugppt3zh25nqfthamjtbavy4tlnqwmfj7pcs4vpusdroa",
         "bytes": 54214,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -485,12 +485,12 @@
       },
       "quote": "An ongoing dispute with Ross Dress for Less over its lease would reportedly cost up to $16 million to break.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiferx64laqw4r3btzi3aaxrnr22vuatznwmh2awtfr2cvbnlp5tdi",
-        "bytes": 113954,
-        "read": "2026-11-13",
+        "cid": "bafkreic7yqui5f2pce45jsn5gmynioohoaza7uzojrdqf63ck7p5ysygce",
+        "bytes": 113948,
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -510,12 +510,12 @@
       },
       "quote": "Williams said the city is still negotiating the Ross lease situation and hopes it will be resolved by the time demolition concludes.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -535,12 +535,12 @@
       },
       "quote": "By late 2023, WHRO reported that all three proposals had been shelved as financially unworkable",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihhqs2pxtyiyjvy56epevqhneflclmsl6wdbm5oqgchcvnrjnmcry",
+        "cid": "bafkreihthsy4nxdvifxyfy5rzy7m6vx54hg3yiiykpnnyzrohdv5v7hquq",
         "bytes": 161340,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -560,12 +560,12 @@
       },
       "quote": "To avoid delays tied to the Military Circle Mall site, the city selected the former Poplar Hall Elementary School for the project after considering alternatives and assessing site readiness, Roberts said.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiehi6xxiag4kn2wussyqnrk2xqrhbla6f7qzsctaf6fy5j6od6nwu",
+        "cid": "bafkreigmsluhg6zvvpxr2mshissr3n4rrjqhpnnknkpqepgv5wo4q77rom",
         "bytes": 161689,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -586,12 +586,12 @@
       "quote": "This project will be used to begin the preliminary design and site planning for a combination library and recreation center to be constructed on the former Poplar Hall Elementary School site.",
       "absent": "Military Circle",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
         "bytes": 987745,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -611,12 +611,12 @@
       },
       "quote": "vision for the Military Circle area is for a completely redeveloped high density urban mixed use neighborhood.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreihblxoox7qzovnf6burllehjubie6hhds7cwsrtgdg57wr2ykzvau",
         "bytes": 7369082,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -636,12 +636,12 @@
       },
       "quote": "provided that no such real property, whether improved or unimproved, shall be disposed of until the governing body has held a public hearing concerning such disposal.",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreifkmvd7osfcmujilpnhyfsa43j5wwqx4lzze2zaivv2eiupjgboze",
+        "cid": "bafkreih7e5stghsj3vjehfp5ooerxfuh37ejx6egzhkksu52uoicizo36q",
         "bytes": 31862,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -661,12 +661,12 @@
       },
       "quote": "However, the holding of a public hearing shall not apply to (i) the leasing of real property to another public body, political subdivision or authority of the Commonwealth",
       "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
-      "checked": "2026-11-13",
+      "checked": "2026-11-14",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreifkmvd7osfcmujilpnhyfsa43j5wwqx4lzze2zaivv2eiupjgboze",
+        "cid": "bafkreih7e5stghsj3vjehfp5ooerxfuh37ejx6egzhkksu52uoicizo36q",
         "bytes": 31862,
-        "read": "2026-11-13",
+        "read": "2026-11-14",
         "via": "live"
       },
       "selector": {
@@ -674,6 +674,256 @@
         "exact": "However, the holding of a public hearing shall not apply to (i) the leasing of real property to another public body, political subdivision or authority of the Commonwealth",
         "prefix": "hearing concerning such disposal. ",
         "suffix": " or (ii) conveyance of site development"
+      }
+    },
+    {
+      "id": "site-reports-scope",
+      "stance": "confirms",
+      "claim": "The cooperation agreement lists the site readiness work the state grant pays for at Military Circle: a site certification report, a preliminary geotechnical report, ALTA, boundary and topographic surveys, Phase I and Phase II environmental site assessments, cultural resource, threatened and endangered species and wetland reviews, a traffic impact analysis, and a preliminary engineering report (\"PER\") on water, sewer and transportation infrastructure.",
+      "source": {
+        "title": "Ordinance No. 50487, Exhibit A: Cooperation Agreement between the City of Norfolk and the Economic Development Authority (City Council, August 25, 2026)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25519"
+      },
+      "quote": "Site Certification Report, Preliminary Geotechnical Report, ALTA, Boundary Survey, Topographic Survey, Phase I ESA, Phase II ESA, Cultural Resource Review, Threatened & Endangered Species Review, Wetland Assessment, Traffic Impact Analysis, and PER – Water, Sewer, & Transportation Infrastructure, related to the property owned by City of Norfolk and known as Military Circle Mall",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
+        "bytes": 136538,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Site Certification Report, Preliminary Geotechnical Report, ALTA, Boundary Survey, Topographic Survey, Phase I ESA, Phase II ESA, Cultural Resource Review, Threatened & Endangered Species Review, Wetland Assessment, Traffic Impact Analysis, and PER – Water, Sewer, & Transportation Infrastructure, related to the property owned by City of Norfolk and known as Military Circle Mall",
+        "prefix": "by the Authority to complete a ",
+        "suffix": " (the \"Site Reports\"); C. The Authority"
+      }
+    },
+    {
+      "id": "grant-reimburses",
+      "stance": "context",
+      "claim": "Under the cooperation agreement, the state grant reaches the Economic Development Authority as a reimbursement of costs it incurs completing the site reports.",
+      "source": {
+        "title": "Ordinance No. 50487, Exhibit A: Cooperation Agreement between the City of Norfolk and the Economic Development Authority (City Council, August 25, 2026)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25519"
+      },
+      "quote": "The funds will be provided by VBRSP to the Authority as a reimbursement for costs incurred by the Authority to complete",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
+        "bytes": 136538,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The funds will be provided by VBRSP to the Authority as a reimbursement for costs incurred by the Authority to complete",
+        "prefix": "Ready Sites Program (\"VBRSP\"); B. ",
+        "suffix": " a Site Certification Report,"
+      }
+    },
+    {
+      "id": "eda-does-reports",
+      "stance": "who_decides",
+      "claim": "The cooperation agreement commits the Economic Development Authority to work in good faith to have the site reports completed in time to be reimbursed by the state grant.",
+      "source": {
+        "title": "Ordinance No. 50487, Exhibit A: Cooperation Agreement between the City of Norfolk and the Economic Development Authority (City Council, August 25, 2026)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25519"
+      },
+      "quote": "The Authority shall work in good faith to cause the Site Reports to be completed in a timely manner to ensure reimbursement via the Grant from VBRSP.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
+        "bytes": 136538,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Authority shall work in good faith to cause the Site Reports to be completed in a timely manner to ensure reimbursement via the Grant from VBRSP.",
+        "prefix": "Authority Obligations; Reimbursement. ",
+        "suffix": " Upon receipt of the Grant funds, the"
+      }
+    },
+    {
+      "id": "advance-repaid",
+      "stance": "context",
+      "claim": "The cooperation agreement requires the Economic Development Authority to repay the City's full $200,000 advance once it receives the grant funds.",
+      "source": {
+        "title": "Ordinance No. 50487, Exhibit A: Cooperation Agreement between the City of Norfolk and the Economic Development Authority (City Council, August 25, 2026)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25519"
+      },
+      "quote": "Upon receipt of the Grant funds, the Authority will reimburse City for the full amount of the Site Reports Funding Advance.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidpx5pjwticq6wuithlxriig455hev6mfdbjp7svirotwnmafi77u",
+        "bytes": 136538,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Upon receipt of the Grant funds, the Authority will reimburse City for the full amount of the Site Reports Funding Advance.",
+        "prefix": "via the Grant from VBRSP. ",
+        "suffix": " 3. Applicable Law. This Cooperation"
+      }
+    },
+    {
+      "id": "characterization-defined",
+      "stance": "context",
+      "claim": "Virginia law defines a site characterization grant, the kind of state grant behind the Military Circle studies, as a grant to determine and designate a site's level of development under the program's guidelines.",
+      "source": {
+        "title": "Code of Virginia § 2.2-2240.2:1, Virginia Business Ready Sites Program Fund",
+        "url": "https://law.lis.virginia.gov/vacode/title2.2/chapter22/section2.2-2240.2:1/"
+      },
+      "quote": "\"Site characterization grant\" means a grant to ascertain and designate a site's level of development as outlined in the Virginia Business Ready Sites Program Fund guidelines.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiaqwbj2vd6dgga4pp3gksbzmkrdmkcnrasfro5gd3xh52x2eazhtq",
+        "bytes": 35522,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "\"Site characterization grant\" means a grant to ascertain and designate a site's level of development as outlined in the Virginia Business Ready Sites Program Fund guidelines.",
+        "prefix": "Opportunity Board under § 2.2-2484 . ",
+        "suffix": " \"Site development grant\" means a grant"
+      }
+    },
+    {
+      "id": "grants-to-subdivisions",
+      "stance": "who_decides",
+      "claim": "Virginia law lets the Governor award these grants only to political subdivisions of the Commonwealth; the cooperation agreement describes Norfolk's Economic Development Authority as one, and says it has been awarded the Military Circle grant.",
+      "source": {
+        "title": "Code of Virginia § 2.2-2240.2:1, Virginia Business Ready Sites Program Fund",
+        "url": "https://law.lis.virginia.gov/vacode/title2.2/chapter22/section2.2-2240.2:1/"
+      },
+      "quote": "The Governor shall award grants from the Fund only to political subdivisions of the Commonwealth.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiaqwbj2vd6dgga4pp3gksbzmkrdmkcnrasfro5gd3xh52x2eazhtq",
+        "bytes": 35522,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Governor shall award grants from the Fund only to political subdivisions of the Commonwealth.",
+        "prefix": "the procedures of subsection D. D. 1. ",
+        "suffix": " 2. The Authority shall establish"
+      }
+    },
+    {
+      "id": "performance-agreement",
+      "stance": "who_decides",
+      "claim": "Virginia law requires a grant recipient to sign a performance agreement with the Virginia Economic Development Partnership Authority covering, at a minimum, disbursement, use of the proceeds, reporting, and repayment if the recipient fails to meet its terms.",
+      "source": {
+        "title": "Code of Virginia § 2.2-2240.2:1, Virginia Business Ready Sites Program Fund",
+        "url": "https://law.lis.virginia.gov/vacode/title2.2/chapter22/section2.2-2240.2:1/"
+      },
+      "quote": "To qualify to receive a grant from the Fund, a grant recipient shall enter into a performance agreement with the Authority that contains, at a minimum, provisions for disbursement of the grant, use of the proceeds, reporting, and repayment obligations in the event that the recipient fails to meet the terms of the performance agreement.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiaqwbj2vd6dgga4pp3gksbzmkrdmkcnrasfro5gd3xh52x2eazhtq",
+        "bytes": 35522,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "To qualify to receive a grant from the Fund, a grant recipient shall enter into a performance agreement with the Authority that contains, at a minimum, provisions for disbursement of the grant, use of the proceeds, reporting, and repayment obligations in the event that the recipient fails to meet the terms of the performance agreement.",
+        "prefix": "of the Administrative Process Act. 3. ",
+        "suffix": " Any repayment of grant funds required"
+      }
+    },
+    {
+      "id": "city-assumed-agreements",
+      "stance": "who_decides",
+      "claim": "When it took the mall from the Economic Development Authority, the City was to assume the Authority's leases, service agreements and operating agreement for the property; Council approved the assignments on October 7, 2025.",
+      "source": {
+        "title": "Ordinance No. 50144 (City Council, October 7, 2025)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5473"
+      },
+      "quote": "By virtue of its ownership of the Property, the EDA is party to various leases, service agreements, and an operating agreement, all of which the City will assume from the EDA.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicul6xsplp2rvpmi32rfm3eo2j3vrrvdgqfj53o6d2yiqjnyqalba",
+        "bytes": 34489,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "By virtue of its ownership of the Property, the EDA is party to various leases, service agreements, and an operating agreement, all of which the City will assume from the EDA.",
+        "prefix": "a deed of conveyance for the property. ",
+        "suffix": " &#xa0; V. &#xa0;&#xa0;&#xa0;&#xa0;"
+      }
+    },
+    {
+      "id": "operating-agreement-1968",
+      "stance": "context",
+      "claim": "The operating agreement in the assignment Council approved is dated February 21, 1968, and recorded in Deed Book 1104, page 628.",
+      "source": {
+        "title": "Ordinance No. 50144, Exhibit A: Assignment and Assumption of Easement and Operating Agreement (City Council, October 7, 2025)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=23535"
+      },
+      "quote": "all of Assignor’s right, title and interest in, to and under that certain Operating Agreement February 21, 1968, recorded in Deed Book 1104, page 628",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicnluzzaxnvvtuyt3mtfpisavi2bcnd3uimhby6r5lugmslma3pva",
+        "bytes": 174514,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "all of Assignor’s right, title and interest in, to and under that certain Operating Agreement February 21, 1968, recorded in Deed Book 1104, page 628",
+        "prefix": "and the singular and the plural), ",
+        "suffix": " as amended by the First Amendment"
+      }
+    },
+    {
+      "id": "ross-lease-term",
+      "stance": "context",
+      "claim": "The rent roll attached to the lease assignment (as of August 31, 2025) lists Ross Dress for Less in unit 1040, with 30,187 of rentable area (the roll names no unit), on a net retail lease whose current term runs from February 1, 2021 to January 31, 2026. The roll also lists renewal options on that lease as active; it doesn't say whether one was exercised.",
+      "source": {
+        "title": "Ordinance No. 50144, Exhibit B: Lease Assignment, with rent roll as of August 31, 2025 (City Council, October 7, 2025)",
+        "url": "https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=23607"
+      },
+      "quote": "1040 Ross Dress for Retail Net 30,187.00 02/01/2021 01/31/2026",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-14",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifj4fkt5nme6765hyrfvs6dqqtf4aj7qcaslubl37eissezij3wqm",
+        "bytes": 374137,
+        "read": "2026-11-14",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "1040 Ross Dress for Retail Net 30,187.00 02/01/2021 01/31/2026",
+        "prefix": "Guarantee Military Circle Mall (3225) ",
+        "suffix": " 60 4.58 13,206.81 0.44 158,481.72 5.25"
       }
     }
   ],
@@ -689,17 +939,25 @@
     {
       "text": "Watch City Council agendas for an agreement with Ross Dress for Less or Sentara, who hold parts of the site; WTKR reported the Deputy City Manager saying redevelopment could come in phases.",
       "finding": "phases"
+    },
+    {
+      "text": "The site readiness work is a set of named reports (environmental, geotechnical, surveys, traffic, utilities). When they are delivered, they are the records to ask the Economic Development Authority or the City for; state law requires the grant recipient to sign a performance agreement with the Virginia Economic Development Partnership Authority that includes reporting terms.",
+      "finding": "site-reports-scope"
     }
   ],
   "records_to_request": [
     "The Military Circle demolition contract and its notice of award, with the bid tabulation for the 13 bids received in July 2026 and the schedule of phases.",
     "The Virginia Economic Development Partnership's award letter for the $337,750 site characterization grant, the engineering consultant's contract and scope of work, and the site readiness reports when delivered.",
     "The operating agreement and the Ross Dress for Less lease covering the Military Circle ring road, with any amendments and any correspondence on consent to demolition since July 2025.",
-    "Monthly operating, security and utility costs for Military Circle Mall since the City took title in 2025."
+    "Monthly operating, security and utility costs for Military Circle Mall since the City took title in 2025.",
+    "The Economic Development Authority's performance agreement with the Virginia Economic Development Partnership Authority for the VBRSP Accelerated Site Characterization Grant FY'26, and each Site Report named in the cooperation agreement (Phase I and II ESA, geotechnical, traffic impact, PER) when delivered.",
+    "The 1968 Military Circle Easement and Operating Agreement and its eight recorded amendments (Deed Book 1104, page 628, through Instrument No. 020027164), whose assignment to the City Council approved on October 7, 2025."
   ],
   "pending": [
     "Whether demolition actually began in October 2026: the latest found is WTKR's September 29, 2026 report of a first phase due \"next month\"; no City notice of the start was found.",
     "The demolition contractor and contract amount in the City’s own records (WTKR reports nearly $3 million); no City contract or award notice found yet.",
-    "The 2023 Council action approving $10 million for demolition is reported by WHRO and WAVY but not yet found in a City record; Siren's legislation index starts with July 2023 meetings, so the FY 2024 adopted budget and capital plan are the next place to look. (News reports from April 2023 describe a first phase that demolished outparcels; that is not the mall teardown.)"
+    "The 2023 Council action approving $10 million for demolition is reported by WHRO and WAVY but not yet found in a City record; Siren's legislation index starts with July 2023 meetings, so the FY 2024 adopted budget and capital plan are the next place to look. (News reports from April 2023 describe a first phase that demolished outparcels; that is not the mall teardown.)",
+    "The site readiness reports themselves: as of November 14, 2026 no copy was found on the City's or the Economic Development Authority's sites (the Authority's site and VEDP's refused this environment's automated requests), and the state's annual VBRSP report on grant awards and expenditures, due November 1, 2026, wasn't found published yet.",
+    "Whether Ross Dress for Less exercised its lease renewal option: the City's August 2025 rent roll lists renewal options on the lease without saying whether one was exercised."
   ]
 }
