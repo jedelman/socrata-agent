@@ -14,7 +14,7 @@ import { PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE } from '../../src/prompt.js';
 import { stripAddedCases, enumAtSnapshot } from './cases-at-snapshot.js';
 import { readFileSync } from 'node:fs';
 
-export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news']);
+export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news', 'street_segment', 'housing_count', 'area_lookup']);
 // Base-prompt lines added since the snapshot (each joins every deployment's
 // prompt, so it can't be left out by tool): stripped from the prompt and the
 // requests before comparing. Add the exported text here when one joins.

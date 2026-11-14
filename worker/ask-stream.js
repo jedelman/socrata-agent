@@ -59,6 +59,9 @@ export const TOOL_LABELS = Object.freeze({
   budget_for: 'Reading the budget datasets',
   capital_projects: 'Reading planned capital projects',
   city_news: "Reading the City's announcements",
+  street_segment: 'Reading the street between its cross streets',
+  housing_count: 'Counting homes from the assessment roll and the 2020 Census',
+  area_lookup: "Finding the area on the City's map",
 });
 export const REWRITE_LABEL = 'Rewording the answer to say only what the records show';
 
