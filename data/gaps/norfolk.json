@@ -1,6 +1,7 @@
 {
   "city": "norfolk",
   "built": "2026-11-10",
+  "rebuilt": "2026-11-15",
   "note": "Built by scripts/build-gaps.js. Every number comes from a dated query, metadata or a bundled file; the requests are in the trace file beside this one.",
   "gaps": [
     {
@@ -38,15 +39,15 @@
           "line": 38
         }
       ],
-      "statement": "I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-10, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”",
-      "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-10.",
+      "statement": "I don't query MyNorfolk 311 requests (nbyu-xjez) for open-ended questions. Siren's rule, read from its city profile on 2026-11-15, in its words: “MyNorfolk 311 requests are not available to open-ended queries: some request types point at a single household.”",
+      "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-15.",
       "questions": [
         {
           "qid": "q1",
           "public_id": "7f0de0bc0086",
           "text": "How many tree requests reached MyNorfolk 311 in my ward last year?",
           "blocks": "all",
-          "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-10."
+          "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-15."
         }
       ],
       "actions": [
@@ -66,7 +67,7 @@
         "finding": true
       },
       "state": "open",
-      "measured": "2026-11-10",
+      "measured": "2026-11-15",
       "hand_off": []
     },
     {
@@ -121,7 +122,7 @@
               "field": "addresses"
             }
           ],
-          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-10, so I can't match them to a block."
+          "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-15, so I can't match them to a block."
         }
       ],
       "actions": [
@@ -148,7 +149,7 @@
         "over": "whole"
       },
       "state": "open",
-      "measured": "2026-11-10",
+      "measured": "2026-11-15",
       "hand_off": []
     },
     {
@@ -2517,7 +2518,7 @@
           "text": "All tree-care contracts and invoices from FY2020 to now, with trees pruned, removed and stump-ground per invoice."
         },
         "leave_out": "Please leave out the names and addresses of residents who made requests.",
-        "frame": "Siren drafted this from public records on 2026-11-10. Siren doesn't send requests; you do."
+        "frame": "Siren drafted this from public records on 2026-11-15. Siren doesn't send requests; you do."
       }
     },
     {
@@ -2552,7 +2553,7 @@
           }
         ],
         "leave_out": "Please leave out the names and addresses of residents who made requests.",
-        "frame": "Siren drafted this from public records on 2026-11-10. Siren doesn't send requests; you do."
+        "frame": "Siren drafted this from public records on 2026-11-15. Siren doesn't send requests; you do."
       }
     },
     {
