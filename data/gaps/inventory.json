@@ -1,10 +1,11 @@
 {
   "note": "The running inventory of gaps: every gap Siren knows of and its state, built by scripts/gaps-inventory.js from the committed gap files. Generated: edit a catalog or proposal and rebuild, never this file. Approved entries are in the catalog; proposed entries are drafts awaiting Jason’s approval, never on the board.",
-  "as_of": "2026-11-10",
+  "as_of": "2026-11-15",
   "inputs": [
     {
       "file": "data/gaps/norfolk.json",
-      "built": "2026-11-10"
+      "built": "2026-11-10",
+      "rebuilt": "2026-11-15"
     },
     {
       "file": "data/gaps/proposed-norfolk-budget.trace.json",
@@ -188,6 +189,7 @@
       "file": "data/gaps/norfolk.json",
       "doc": "docs/gaps-norfolk.md",
       "built": "2026-11-10",
+      "rebuilt": "2026-11-15",
       "entries": [
         {
           "id": "norfolk.311.restricted",
@@ -197,7 +199,7 @@
           "label": "Out of Siren's reach by rule",
           "topic": null,
           "state": "open",
-          "measured": "2026-11-10",
+          "measured": "2026-11-15",
           "shape": {
             "policy": {
               "dataset": "nbyu-xjez",
@@ -205,7 +207,7 @@
               "line": 38
             }
           },
-          "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-10.",
+          "short": "I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-15.",
           "evidence": [
             {
               "type": "policy",
@@ -218,7 +220,7 @@
               "qid": "q1",
               "text": "How many tree requests reached MyNorfolk 311 in my ward last year?",
               "blocks": "all",
-              "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-10."
+              "consequence": "I can't answer this: I don't query MyNorfolk 311 requests for open-ended questions, by Siren's rule as read on 2026-11-15."
             }
           ],
           "actions": [
@@ -239,7 +241,7 @@
           "label": "Partial coverage (in the records I read)",
           "topic": null,
           "state": "open",
-          "measured": "2026-11-10",
+          "measured": "2026-11-15",
           "shape": {
             "part": 682,
             "whole": 1437,
@@ -259,7 +261,7 @@
               "qid": "q1",
               "text": "Did the Council act on anything that affects my block?",
               "blocks": "part",
-              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-10, so I can't match them to a block."
+              "consequence": "With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found no street address in the titles of 682 of 1,437 agenda items (47%) in the index built 2026-11-09, measured 2026-11-15, so I can't match them to a block."
             }
           ],
           "actions": [

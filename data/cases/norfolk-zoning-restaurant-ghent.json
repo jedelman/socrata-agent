@@ -1,7 +1,7 @@
 {
   "id": "norfolk-zoning-restaurant-ghent",
   "title": "What does Norfolk's Zoning Ordinance say about opening a restaurant in a Ghent building?",
-  "summary": "General rules from the City's official Zoning Ordinance: when a restaurant needs a Conditional Use Permit (alcohol, late hours, under 80% seating, entertainment), who decides it, the Certificate of Appropriateness for exterior changes in the Ghent historic districts. It does not say which district a given address is in, whether a restaurant is allowed there (the use table differs by district), or what applies to converting a carriage house; those need the zoning map and a zoning determination for the address.",
+  "summary": "General rules from the City's official Zoning Ordinance: when a restaurant needs a Conditional Use Permit (alcohol, late hours, under 80% seating, entertainment), who decides it, the Certificate of Appropriateness for exterior changes in the Ghent historic districts, the Zoning Certificate any change of use needs and how it expires, the Certificate of Occupancy, the limits on accessory structures and accessory uses (plumbing, floor area), and when a small restaurant in an older building in the Downtown, Traditional or Coastal character districts needs no parking. It does not say which district a given address is in, whether a restaurant is allowed there (the use table differs by district), or how a particular carriage house would be classified; those need the zoning map and a zoning determination for the address.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
   "findings": [
@@ -15,12 +15,12 @@
       },
       "quote": "When alcoholic beverages are sold, except for establishments that are always closed between 5:00 p.m. and 7:00 a.m. the following morning.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -40,12 +40,12 @@
       },
       "quote": "In the Coastal, Suburban, or Traditional character districts, for establishments operating between the hours of 11:00 p.m. and 2:00 a.m.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -65,12 +65,12 @@
       },
       "quote": "Where seats will not be provided for at least 80 percent of patrons. (D) When entertainment is provided.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -90,12 +90,12 @@
       },
       "quote": "A food menu shall be provided at all times that alcohol is sold.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -115,12 +115,12 @@
       },
       "quote": "Allowed uses are primarily residential in order to ensure new structures are compatible with district character.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -140,12 +140,12 @@
       },
       "quote": "Development in the historic and cultural conservation districts shall comply with the City of Norfolk Historic District Design Guidelines, which is incorporated herein by reference.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -165,12 +165,12 @@
       },
       "quote": "HC-G1: Ghent Historic and Cultural Conservation HC-G2: Ghent Historic and Cultural Conservation HC-G3: Ghent Historic and Cultural Conservation",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -190,12 +190,12 @@
       },
       "quote": "Unless exempted in accordance with subsection (2), below, a Certificate of Appropriateness (COA) shall be approved before any of the following development occurs",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -215,12 +215,12 @@
       },
       "quote": "to City Council, where a final decision will be made.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -240,12 +240,12 @@
       },
       "quote": "conditional use permit applications shall be reviewed using the procedures outlined in Section 2.3.2: Planning Commission Public Hearing Procedure.",
       "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
-      "checked": "2026-11-09",
+      "checked": "2026-11-15",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
         "bytes": 18274064,
-        "read": "2026-11-09",
+        "read": "2026-11-15",
         "via": "live"
       },
       "selector": {
@@ -253,6 +253,256 @@
         "exact": "conditional use permit applications shall be reviewed using the procedures outlined in Section 2.3.2: Planning Commission Public Hearing Procedure.",
         "prefix": "provided under subsection (2), below, ",
         "suffix": " The expedited process for review of a"
+      }
+    },
+    {
+      "id": "zc-change-of-use",
+      "stance": "who_decides",
+      "claim": "A change of use in any building, or in part of one, needs a Zoning Certificate issued by the Zoning Administrator (§2.4.14).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "No change of use shall be made in any building or part thereof, now or hereafter located, constructed, reconstructed, enlarged or structurally altered, without a Zoning Certificate issued by the ZA.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "No change of use shall be made in any building or part thereof, now or hereafter located, constructed, reconstructed, enlarged or structurally altered, without a Zoning Certificate issued by the ZA.",
+        "prefix": "of this Ordinance for such use. ",
+        "suffix": " ZONING CERTIFICATE PROCEDURE Zoning"
+      }
+    },
+    {
+      "id": "zc-expires-six-months",
+      "stance": "rules",
+      "claim": "A Zoning Certificate expires on its own if a building permit or Certificate of Occupancy, whichever comes first, isn't approved within six months, or if the building permit approved for it expires, subject to Virginia's vesting provisions (§2.4.14).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Approval of a Zoning Certificate shall automatically expire if a building permit or Certificate of Occupancy, whichever occurs first, is not approved within six months, or if the building permit approved for the certificate expires, subject to the vesting provisions of the Code of Virginia.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Approval of a Zoning Certificate shall automatically expire if a building permit or Certificate of Occupancy, whichever occurs first, is not approved within six months, or if the building permit approved for the certificate expires, subject to the vesting provisions of the Code of Virginia.",
+        "prefix": "Quotient requirements. EXPIRATION ",
+        "suffix": " AME NDMENT A Zoning Certificate may be"
+      }
+    },
+    {
+      "id": "co-before-occupancy",
+      "stance": "rules",
+      "claim": "Where the City's Building Code requires one, a building can't be occupied until a Certificate of Occupancy is approved (§1.4.3).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A building or structure shall not be occupied unless a Certificate of Occupancy is approved, if required, in accordance with the city’s Building Code.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A building or structure shall not be occupied unless a Certificate of Occupancy is approved, if required, in accordance with the city’s Building Code.",
+        "prefix": "a Zoning Certificate, if required. B. ",
+        "suffix": " 1.4.4. EXEMPTIONS Activities related"
+      }
+    },
+    {
+      "id": "ghent-hc-g3-limited-commercial",
+      "stance": "context",
+      "claim": "The purpose statement for the HC-G3 district (Ghent) allows residential uses along with limited commercial activities that retain structures of historical and architectural significance (§3.6.7).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Residential uses are allowed, along with limited commercial activities that retain structures of historical and architectural significance.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Residential uses are allowed, along with limited commercial activities that retain structures of historical and architectural significance.",
+        "prefix": "of adverse environmental influences. ",
+        "suffix": " INTENSITY AND DI MENSIO NAL STANDARDS"
+      }
+    },
+    {
+      "id": "accessory-structure-plumbing",
+      "stance": "rules",
+      "claim": "An accessory structure may have no plumbing fixtures beyond one toilet and one sink, unless they are part of an accessory dwelling unit (§5.11.3.E; the ADU standards are in §4.3.3).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Plumbing fixtures, except one toilet and one sink, are prohibited in an accessory structure, unless as part of an accessory dwelling unit",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Plumbing fixtures, except one toilet and one sink, are prohibited in an accessory structure, unless as part of an accessory dwelling unit",
+        "prefix": "where the structure is located. E. ",
+        "suffix": " in accordance with Section"
+      }
+    },
+    {
+      "id": "accessory-use-25-percent",
+      "stance": "rules",
+      "claim": "As a general standard, accessory uses on a lot may not exceed 25 percent of the gross floor area of the principal use or uses on that lot (§4.3.3); the standards for particular accessory uses may set different limits.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "The gross floor area of accessory uses shall not exceed 25 percent of the gross floor area of the principal use(s) on the lot.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The gross floor area of accessory uses shall not exceed 25 percent of the gross floor area of the principal use(s) on the lot.",
+        "prefix": "use shall no longer be allowed. ",
+        "suffix": " LOCATION OF ACCESSORY USES Except as"
+      }
+    },
+    {
+      "id": "accessory-use-zoning-certificate",
+      "stance": "rules",
+      "claim": "A Zoning Certificate must be obtained before an accessory use is established (§4.3.3).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "A Zoning Certificate shall be obtained prior to establishing an accessory use.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A Zoning Certificate shall be obtained prior to establishing an accessory use.",
+        "prefix": "fence or wall. ZONING CERTIFICATE ",
+        "suffix": " SIGNS The installation of a sign in"
+      }
+    },
+    {
+      "id": "parking-exempt-small-restaurant",
+      "stance": "rules",
+      "claim": "For pre-existing buildings in the Downtown, Traditional or Coastal character districts, no parking is required for a change of use to a restaurant with an occupant load under 50 people (or to a retail sales and service use) (§5.1.2).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "For pre-existing buildings located within the Downtown, Traditional or Coastal character districts, no parking shall be required for changes of use to one of the following uses: Any use within the Retail Sales and Service Uses category or Any restaurant with an occupant load of less than 50 people.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "For pre-existing buildings located within the Downtown, Traditional or Coastal character districts, no parking shall be required for changes of use to one of the following uses: Any use within the Retail Sales and Service Uses category or Any restaurant with an occupant load of less than 50 people.",
+        "prefix": "building serves a non-residential use. ",
+        "suffix": " Zoning Lots Less Than or Equal To"
+      }
+    },
+    {
+      "id": "character-district-on-map",
+      "stance": "context",
+      "claim": "Which character district (Downtown, Traditional, Suburban or Coastal) land is in is shown on the Official Zoning Map (§3.1.3).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "The boundaries of the character districts are shown on the Official Zoning Map.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The boundaries of the character districts are shown on the Official Zoning Map.",
+        "prefix": "Traditional, Suburban, and Coastal. ",
+        "suffix": " The base zoning districts establish"
+      }
+    },
+    {
+      "id": "offlot-parking-hc",
+      "stance": "who_decides",
+      "claim": "Where parking is required, the Zoning Administrator may approve an alternative parking plan that puts required spaces on another lot no more than 500 feet away along a convenient pedestrian route: up to 100 percent of the required minimum for a property in an HC district (HC-G1, HC-G2 and HC-G3 are HC districts) or a Historic Landmark, and 50 percent for all other districts and properties, if the walkway, legal-right and signed-agreement conditions in the same section are met (§5.1.7).",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "For any property designated as a Historic Landmark or located in an HC district or PCO district, 100 percent of the required minimum number of spaces;",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-15",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-15",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "For any property designated as a Historic Landmark or located in an HC district or PCO district, 100 percent of the required minimum number of spaces;",
+        "prefix": "route, in the following amounts: ",
+        "suffix": " For all other districts and"
       }
     }
   ],
@@ -264,11 +514,17 @@
     {
       "text": "Before changing the building's exterior, apply for a Certificate of Appropriateness.",
       "finding": "coa-before-exterior-change"
+    },
+    {
+      "text": "Before changing what a building is used for, get a Zoning Certificate from the Zoning Administrator.",
+      "finding": "zc-change-of-use"
     }
   ],
   "pending": [
     "Which Ghent district (HC-G1, HC-G2, HC-G3 or a commercial district) a given address is in: Norfolk AIR (the City's GIS viewer) and the City's Zoning layer of its Planning map service show the district for each address; read it from there, then use Table 3.6.11 for that district.",
     "Whether a restaurant is allowed in that district: Table 3.6.11 (Historic and Cultural Conservation districts) shows restaurant as permitted-or-conditional (P/C) in HC-G3 and not permitted in HC-G1 or HC-G2 by the page image; a column-in-a-table cell can't be quoted exactly, so it is not a finding yet.",
-    "Rules for converting a carriage house to a commercial use: not found in the ordinance sections read. Its carriage-house provisions found so far apply to the R-C (Ocean View) district and to flood-plain definitions."
+    "Rules for converting a carriage house to a commercial use: the ordinance sections read name carriage houses only for the R-C (Ocean View) district and in flood-plain definitions. The general limits on accessory structures (plumbing) and accessory uses (25 percent of floor area) are findings; whether a given carriage house would be an accessory structure or could hold a principal use is a Zoning Administrator's determination (§2.4.17) for the address.",
+    "Whether the Ghent districts (HC-G1, HC-G2, HC-G3) are in the Traditional character district, which the small-restaurant parking exemption (§5.1.2) turns on: each district's dimensional table is headed \"Traditional Character District\" in the page image, but a table header can't be quoted as a statement, and the character district boundaries are on the Official Zoning Map.",
+    "What counts as a \"pre-existing building\" and how occupant load is set for the small-restaurant parking exemption (§5.1.2): the ordinance sections read don't define either; occupant load is a Building Code figure."
   ]
 }
