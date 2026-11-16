@@ -96,7 +96,7 @@
       <main id="log" aria-live="polite"></main>
 
       <section class="about" id="about" hidden aria-labelledby="about-title">
-        <h2 id="about-title">About {{APP_NAME}}</h2>
+        <h2 id="about-title" tabindex="-1">About {{APP_NAME}}</h2>
         <p class="footer-note">{{FOOTER_NOTE}}</p>
         {{DATA_NOTE}}
         <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
@@ -115,7 +115,7 @@
       </div>
     </form>
     <footer class="composer-note">
-      <p>{{APP_NAME}} is an AI agent and can make mistakes. Every answer shows the queries and records behind it: check what matters there.</p>
+      <p>{{APP_NAME}} is an AI agent and can make mistakes. Every answer shows the queries and records behind it: check what matters there. <button type="button" class="textbtn" id="about-note">About and privacy</button></p>
     </footer>
   </div>
 </div>

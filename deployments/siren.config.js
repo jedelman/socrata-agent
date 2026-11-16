@@ -53,11 +53,11 @@ export default {
     // self-improvement loop). Each point names only what Siren runs: the
     // plugins below, research memory, source requests and the twice-weekly
     // case-file routine (docs/case-file-routine.md).
-    intro: 'Ask a question in plain words. Siren searches Norfolk\'s public records for you and answers only from what they say, with every source behind the answer.',
+    intro: 'Ask a question in plain words. Siren searches Norfolk\'s public records and official sites for you, and every answer shows the sources behind it.',
     points: [
-      { title: 'Searches it all at once.', text: 'One question reaches open data and City maps, Council records, budget books, the Zoning Ordinance, City news, case files and the research behind earlier answers.' },
+      { title: 'One question, many sources.', text: 'One question can reach open data and City maps, Council records, budget books, the Zoning Ordinance, City news, case files and the research behind earlier answers.' },
       { title: 'Shows its work.', text: 'Each answer lists the queries it ran and the records it read, with the data to download, so you can check it.' },
-      { title: 'Learns what it can\'t answer.', text: 'When the records fall short, the answer says so and you can request the missing source. Requests and a twice-weekly research routine decide what Siren learns next.' },
+      { title: 'Learns what it can\'t answer.', text: 'When the records fall short, the answer says so and you can request the missing source. Requests and a twice-weekly research routine propose what Siren learns next, and a person reviews each addition before it goes in.' },
     ],
     examples: {
       norfolk: [
