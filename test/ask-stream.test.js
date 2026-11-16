@@ -355,7 +355,9 @@ test('every tool Siren declares has a label', async () => {
   const siren = (await import('../deployments/siren.config.js')).default;
   const city = applyConfig(getCity('norfolk'), siren);
   const gaps = JSON.parse(readFileSync(new URL('../data/gaps/norfolk.json', import.meta.url), 'utf8'));
-  const names = toolsFor(city, siren.plugins.map(definePlugin), { gaps }).map((t) => t.function.name);
+  // Watches' offer_watch included (declared for a signed-in member with WATCHES on).
+  const names = toolsFor(city, siren.plugins.map(definePlugin), { gaps, watches: { bodies: city.meetings.watchBodies } }).map((t) => t.function.name);
+  assert.ok(names.includes('offer_watch'));
   assert.deepEqual(names.filter((n) => !TOOL_LABELS[n]), []);
 });
 

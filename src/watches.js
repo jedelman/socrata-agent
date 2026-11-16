@@ -78,7 +78,10 @@ export function checkWatch(input = {}, { vocab, streets, leagues = [], bodies: a
   const raw = Array.isArray(input.terms) ? input.terms : typeof input.terms === 'string' ? input.terms.split(/[,;\n]/) : [];
   const refused = [];
   const terms = [];
-  const streetNames = new Set((Array.isArray(streets?.streets) ? streets.streets : Array.isArray(streets) ? streets : []).map((s) => normalizeText(s)));
+  // The compiled list the Worker keeps (src/public-text.js compileStreets: lower case, with and without a suffix), or raw names.
+  const streetNames = streets?.names instanceof Set
+    ? streets.names
+    : new Set((Array.isArray(streets?.streets) ? streets.streets : Array.isArray(streets) ? streets : []).map((s) => normalizeText(s)));
   const leagueByKey = new Map(leagues.map((l) => [leagueKey(l), l]));
   for (const r of raw.slice(0, 20)) {
     const term = normalizeText(r);
@@ -139,4 +142,25 @@ export const itemKey = (meetingId, itemId) => `${meetingId}:${itemId}`;
 export function sameWatch(a, b) {
   const k = (w) => JSON.stringify([[...(w.terms || [])].sort(), w.league || null, [...(w.bodies || [])].sort()]);
   return k(a) === k(b);
+}
+
+/** The offer card's limits, and what the model is told. */
+export const OFFERED_WATCH_NOTE = 'The person will see a card under your answer to start this watch: they can change the terms, and they confirm it with the email they signed in with. In your answer, say what the watch would look for and that they can start it on the card. Never say it is already set up.';
+
+/**
+ * offer_watch's executor. `ctx.watches.check(args)` is the Worker's checker
+ * (checkWatch with this city's vocabulary, streets and civic leagues). One
+ * offer an answer; the watch itself is made only by the person's click.
+ */
+export function offerWatch(ctx, args = {}) {
+  if (!ctx.watches?.check) return { offered: false, note: 'Watches are not available here.' };
+  if (ctx.watchOffer) return { offered: true, note: 'A watch is already offered for this answer.' };
+  const out = ctx.watches.check(args);
+  if (!out.ok) {
+    const refused = (out.refused || []).map((r) => `"${r.term}": ${r.reason}`).join('; ');
+    return { offered: false, note: `${out.error}${refused ? ` Refused: ${refused}.` : ''}` };
+  }
+  ctx.watchOffer = { ...out.watch, label: watchLabel(out.watch) };
+  const refused = (out.refused || []).map((r) => `"${r.term}" (${r.reason})`).join(', ');
+  return { offered: true, watch: ctx.watchOffer, note: `${OFFERED_WATCH_NOTE}${refused ? ` Left out: ${refused}.` : ''}` };
 }

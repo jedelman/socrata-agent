@@ -55,7 +55,7 @@ import {
 // own imports), like every shared module.
 import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearchOn, handleShare, handleResearchList, handleAdminResearch } from './research.js';
 import { researchScopesFor } from '../src/agent.js';
-import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs } from './telemetry.js';
+import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs, vocabulary } from './telemetry.js';
 import { OTLP_PATH, otlpOn, handleOtlp } from './otlp.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
@@ -88,6 +88,14 @@ import ADMIN_RESEARCH_JS from './admin-research.js' with { type: 'text' };
 import ADMIN_WAITLIST_JS from './admin-waitlist.js' with { type: 'text' };
 import ADMIN_SPEND_JS from './admin-spend.js' with { type: 'text' };
 import ADMIN_CSS from './admin.css' with { type: 'text' };
+import WATCHES_PAGE from './watches.html';
+import WATCH_STOP_PAGE from './watch-stop.html';
+import FEEDS_PAGE from './feeds.html';
+import WATCHES_JS from './watches-page.js' with { type: 'text' };
+import WATCH_STOP_JS from './watch-stop.js' with { type: 'text' };
+import WATCHES_CSS from './watches.css' with { type: 'text' };
+import { watchesOn, feedsOn, watchesReady, feedsReady, watchesSetupError, watchableCity, handleWatches, handleOneClickStop, runWatchJob, readSnapshot, atomFeed, leagueSlug, MAX_PER_ACCOUNT } from './watches.js';
+import { checkWatch } from '../src/watches.js';
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
 import STORE_JS from './endorse-store.js' with { type: 'text' };
 import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
@@ -269,8 +277,10 @@ async function handleAsk(req, env, ctx) {
     pageBase: `${siteOrigin(env, new URL(req.url))}${basePath(env)}`,
   });
   const research = priorResearch ? { priorResearch } : {};
+  // Watches (watches.js): a signed-in member can be offered one, with them on.
+  const watchArgs = uid && watchesReady(env) && watchableCity(cities[cityId]) ? { watches: await watchOptions(env, cityId) } : {};
   // Built inside each path's try, as before, so a failure here is an error body.
-  const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId), ...research });
+  const askArgs = () => ({ question, history, carried, ...answerArgs(env, req, cityId), ...research, ...watchArgs });
   const started = Date.now();
   // With telemetry on, the answer's model calls carry one trace id (a W3C
   // traceparent), so the API's spans for them (otlp.js) join its line.
@@ -311,7 +321,7 @@ async function handleAsk(req, env, ctx) {
         const args = askArgs();
         // The tools this answer declares: a tool line names only one of these.
         const scopes = researchScopesFor(priorResearch);
-        const known = new Set(toolsFor(args.city, plugins, { ...(gapsOn ? { gaps: GAPS[cityId] } : {}), ...(scopes.length ? { priorResearch: { scopes } } : {}) }).map((t) => t.function.name));
+        const known = new Set(toolsFor(args.city, plugins, { ...(gapsOn ? { gaps: GAPS[cityId] } : {}), ...(scopes.length ? { priorResearch: { scopes } } : {}), ...(watchArgs.watches ? { watches: { bodies: watchArgs.watches.bodies } } : {}) }).map((t) => t.function.name));
         const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true, ...traceArgs(trace) }));
         if (save) await save;
         send({ type: 'final', body });
@@ -342,6 +352,80 @@ async function handleAsk(req, env, ctx) {
     }
   }
 }
+
+// What offer_watch checks a watch against: the city's bodies, the
+// vocabulary, its street names and the civic leagues in the last snapshot.
+async function watchOptions(env, cityId) {
+  const bodies = cities[cityId].meetings.watchBodies;
+  let leagues = [];
+  try {
+    leagues = (await readSnapshot(env.LIMITS, cityId))?.leagues || [];
+  } catch { /* no leagues: a league watch is refused with a reason */ }
+  return { bodies, check: (args) => checkWatch(args, { vocab: vocabulary(), streets: STREETS[cityId], leagues, bodies }) };
+}
+const watchCities = (env) => {
+  const { config } = getDeployment(env);
+  return Object.fromEntries(allowedCities(env).filter((c) => watchableCity(cities[c])).map((c) => [c, applyConfig(getCity(c), config)]));
+};
+function watchDeps(env) {
+  const list = watchCities(env);
+  return {
+    cityIds: Object.keys(list),
+    cities: list,
+    streets: (c) => STREETS[c],
+    vocab: vocabulary,
+    // Email sign-in exists only in invite mode, where asking needs a bound invite.
+    canAsk: async (uid) => !inviteOnly(env) || Boolean(await memberInvite(env.LIMITS, uid)),
+  };
+}
+
+// The watches pages and API, and the civic-league feeds (watches.js), or
+// null. With WATCHES and LEAGUE_FEEDS off this is never reached.
+async function watchRoute(req, env, path, base, url) {
+  const get = req.method === 'GET' || req.method === 'HEAD';
+  const { config } = getDeployment(env);
+  const appName = esc(APP_NAME_OF(env, config));
+  const list = watchCities(env);
+  const first = Object.keys(list)[0];
+  const bodies = first ? list[first].meetings.watchBodies.join(' and ') : '';
+  const fill = (tpl, extra = {}) => tpl.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), APP_NAME: appName, BODIES: esc(bodies), ...extra })[k] ?? m);
+  const PAGE_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
+  if (watchesOn(env)) {
+    if (get && (path === '/watches' || path === '/watch/stop')) {
+      if (!watchesReady(env)) {
+        console.error('watches:', watchesSetupError(env));
+        return new Response("Watches aren't set up here yet.", { status: 503, headers: { 'Cache-Control': 'no-store', ...NOINDEX } });
+      }
+      const html = path === '/watches'
+        ? fill(WATCHES_PAGE, { PRIVACY: esc(WATCH_PRIVACY(APP_NAME_OF(env, config))), FEEDS_LINK: feedsReady(env) ? `<p class="fine"><a href="${esc(base)}/feeds">Civic-league feeds</a>: the same agendas, by neighborhood, for any feed reader.</p>` : '' })
+        : fill(WATCH_STOP_PAGE);
+      return new Response(html, { headers: { ...PAGE_HEADERS(PAGE_CSP), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+    }
+    if ((req.method === 'GET' && path === '/api/watches') || (req.method === 'POST' && /^\/api\/watches(?:\/(?:delete|renew|stop))?$/.test(path))) return handleWatches(req, env, path, watchDeps(env));
+  }
+  if (feedsOn(env)) {
+    const feed = /^\/feeds\/([a-z0-9-]{1,80})\.atom$/.exec(path);
+    if (get && (path === '/feeds' || feed)) {
+      if (!feedsReady(env) || !first) return new Response("Feeds aren't set up here yet.", { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      const snapshot = await readSnapshot(env.LIMITS, first);
+      if (!snapshot) return new Response("The agendas haven't been read yet. Try again in an hour.", { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '3600' } });
+      const origin = `${siteOrigin(env, url)}${base}`;
+      if (feed) {
+        const body = atomFeed({ snapshot, slug: feed[1], origin, appName: APP_NAME_OF(env, config) });
+        if (!body) return new Response('No such civic league.', { status: 404 });
+        return new Response(body, { headers: { 'Content-Type': 'application/atom+xml; charset=utf-8', 'Cache-Control': 'public, max-age=900', 'Access-Control-Allow-Origin': '*', 'X-Content-Type-Options': 'nosniff' } });
+      }
+      const leagues = snapshot.leagues.map((l) => {
+        const n = snapshot.items.filter((i) => (i.leagues || []).includes(l)).length;
+        return `<li><a href="${esc(base)}/feeds/${esc(leagueSlug(l))}.atom">${esc(l)}</a>${n ? ` <small>(${n} upcoming)</small>` : ''}</li>`;
+      }).join('');
+      const html = fill(FEEDS_PAGE, { LEAGUES: leagues, CHECKED: esc(`; last on ${snapshot.built.slice(0, 10)}`) });
+      return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'", 'X-Frame-Options': 'DENY', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=900' } });
+    }
+  }
+  return null;
+}
+const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. Matching reads only the agenda titles the City posts, and private applicants' names are withheld from every email.`;
 
 // What every answer runs with, private or public: the deployment's city,
 // plugins, model and limits, for one city.
@@ -456,6 +540,8 @@ async function handleSession(req, env) {
     conversations: member,
     // Sharing an answer's sources (research memory): only with it on, so with it off this body is as before.
     ...(member && sharedResearchReady(env) ? { share_research: true } : {}),
+    // Watches (watches.js): only with them on, so with them off this body is as before.
+    ...(member && watchesReady(env) ? { watches: true } : {}),
   }, 200, headers);
 }
 
@@ -664,6 +750,9 @@ const ASSETS = {
   'admin-waitlist.js': [ADMIN_WAITLIST_JS, JS],
   'admin-spend.js': [ADMIN_SPEND_JS, JS],
   'admin.css': [ADMIN_CSS, 'text/css; charset=utf-8'],
+  'watches-page.js': [WATCHES_JS, JS],
+  'watch-stop.js': [WATCH_STOP_JS, JS],
+  'watches.css': [WATCHES_CSS, 'text/css; charset=utf-8'],
 };
 // The free tier's files: served only with PUBLIC_ASK on (with it off,
 // nothing new is served).
@@ -671,9 +760,12 @@ const ASK_ASSETS = new Set(['questions-page.js', 'questions.css', 'admin-questio
 // Shared research's steward script: served only with SHARED_RESEARCH on;
 // its page borrows questions.css, served then too.
 const RESEARCH_ASSETS = new Set(['admin-research.js']);
+// Watches' scripts with WATCHES on; their style with either watches or feeds.
+const WATCH_ASSETS = new Set(['watches-page.js', 'watch-stop.js', 'watches.css']);
 const assetServed = (env, name) =>
   (!ASK_ASSETS.has(name) || publicAskOn(env) || (name === 'questions.css' && sharedResearchOn(env)))
-  && (!RESEARCH_ASSETS.has(name) || sharedResearchOn(env));
+  && (!RESEARCH_ASSETS.has(name) || sharedResearchOn(env))
+  && (!WATCH_ASSETS.has(name) || watchesOn(env) || (name === 'watches.css' && feedsOn(env)));
 // A content hash of every asset, computed once per isolate (FNV-1a, two
 // seeds; for cache-busting, not security), so the page's URLs change with
 // any deploy that changes them and each can be cached for a year.
@@ -868,6 +960,12 @@ function page(env) {
     FAVICON: skin.favicon,
     // The other door (the free tier): only with PUBLIC_ASK on and ready; with
     // it off, the page is exactly as before.
+    // Watches and feeds (watches.js): links and the privacy line's sign-in
+    // sentence; with both off, exactly as before.
+    WATCHES_LINK: (watchesReady(env) ? ' · <a href="watches">Your watches</a>' : '') + (feedsReady(env) ? ' · <a href="feeds">Neighborhood feeds</a>' : ''),
+    PRIVACY_EMAIL: watchesReady(env)
+      ? "Your email address is not stored, except by a watch you start: it keeps the address, encrypted, to send its emails, and deletes it when the watch stops. Otherwise the address goes to our mail provider only to deliver your sign-in link."
+      : "Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link.",
     PUBLIC_DOOR: publicAskReady(env) ? '\n    <p class="convbar" id="public-door">Want to ask in public instead? Sign in with Bluesky at <a href="questions">the public questions page</a>.</p>' : '',
   };
   const html = UI.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
@@ -1020,6 +1118,9 @@ export default {
     const asset = /^\/assets\/([0-9a-f]{16})\/([a-z-]+\.(?:js|css))$/.exec(path);
     if ((req.method === 'GET' || req.method === 'HEAD') && asset && ASSETS[asset[2]] && assetServed(env, asset[2])) return assetResponse(asset[1], asset[2]);
     if (req.method === 'GET' && (path === '/api/conversations' || path === '/api/conversation' || path === '/api/conversations/search')) return handleConversations(req, env, path);
+    // A watch's one-click stop from a mail client (RFC 8058) is a form POST,
+    // so it comes before the JSON rule; with WATCHES off it isn't reached.
+    if (watchesOn(env) && req.method === 'POST' && path === '/watch/stop') return handleOneClickStop(req, env);
     if (req.method === 'POST' && !isJson(req)) return json({ error: 'Send JSON (Content-Type: application/json).' }, 415);
     if (req.method === 'POST' && path === '/api/ask') return handleAsk(req, env, ctx);
     if (req.method === 'POST' && path === '/api/redeem') return handleRedeem(req, env);
@@ -1043,6 +1144,12 @@ export default {
     // paths is the 404 below; on but not set up, they answer 503.
     if (sharedResearchOn(env)) {
       const res = await researchRoute(req, env, path, base);
+      if (res) return res;
+    }
+    // Watches and civic-league feeds (watches.js): with WATCHES and
+    // LEAGUE_FEEDS off, none of this is reached and these paths are the 404.
+    if (watchesOn(env) || feedsOn(env)) {
+      const res = await watchRoute(req, env, path, base, url);
       if (res) return res;
     }
     return new Response('Not found', { status: 404 });
@@ -1069,6 +1176,16 @@ export default {
           sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200))),
           pingQuestionWatcher(env).catch((err) => console.error('question watcher: ping failed', String(err?.message || err).slice(0, 200))),
         );
+      }
+    }
+    // Watches and feeds (watches.js): once a day, the agenda snapshot, then
+    // each watch's email. With both off, nothing runs.
+    if (watchesOn(env) || feedsOn(env)) {
+      if (watchesOn(env) && watchesSetupError(env)) console.error('watches:', watchesSetupError(env));
+      if (env.LIMITS) {
+        const list = watchCities(env);
+        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config) })
+          .catch((err) => console.error('watch job failed', String(err?.message || err).slice(0, 200))));
       }
     }
     if (!jobs.length) return;

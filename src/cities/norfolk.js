@@ -105,6 +105,8 @@ export default {
       lat: 'parcel_centroid_latitude',
       lon: 'parcel_centroid_longitude',
       tract: 'census_tract_number',
+      // Checked 2026-11-16: 119 named civic leagues, plus addresses with none.
+      league: 'civic_league',
     },
     // Facts about the place, returned as-is.
     facts: [
@@ -213,6 +215,11 @@ export default {
     iqm2: 'https://norfolkcityva.iqm2.com',
     noticesDataset: 'dszu-h9cf',
     index: 'norfolk-legislation',
+    // Watches and civic-league feeds (worker/watches.js) read these bodies'
+    // posted agendas. Checked 2026-11-16: the notices name them exactly so
+    // ("City Council", "Planning Commission"), and each meeting_link carries
+    // the iqm2 meeting ID whose page lists the agenda items.
+    watchBodies: ['City Council', 'Planning Commission'],
   },
 
   // Verified 2026-10-06: Norfolk Cares on norfolk.gov/NorfolkCares; the Clerk's

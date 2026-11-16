@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your watches · {{APP_NAME}}</title>
+<link rel="stylesheet" href="{{ASSETS}}/watches.css">
+</head>
+<body>
+<main class="wpage">
+  <p class="back"><a href="{{BASE}}/">Back to {{APP_NAME}}</a></p>
+  <h1>Your watches</h1>
+  <p class="lede">Once a day, {{APP_NAME}} checks the agendas the City posts for {{BODIES}}, for the next three weeks of meetings, and emails you when a new item matches one of your watches. Ask for a watch in a conversation ("let me know if the Planning Commission takes up short-term rentals"), or start one here.</p>
+  <p class="msg" id="msg" role="status"></p>
+  <ul class="watches" id="list"></ul>
+  <p class="empty" id="empty" hidden>You have no watches yet.</p>
+  <section class="new" id="new" hidden aria-labelledby="new-title">
+    <h2 id="new-title">Start a watch</h2>
+    <form id="f" autocomplete="on">
+      <label>Words to look for in agenda titles, separated by commas
+        <input id="terms" name="terms" maxlength="400" placeholder="short-term rental, vacation rental, homestay"></label>
+      <label>Civic league (optional)
+        <select id="league" name="league"><option value="">Anywhere in the city</option></select></label>
+      <fieldset id="bodies"><legend>Bodies</legend></fieldset>
+      <label>The email you signed in with
+        <input id="email" name="email" type="email" maxlength="254" autocomplete="email" required></label>
+      <p><button type="submit">Start watching</button> <span class="msg" id="fmsg" role="status"></span></p>
+    </form>
+  </section>
+  <p class="fine">{{PRIVACY}}</p>
+  {{FEEDS_LINK}}
+</main>
+<script src="{{ASSETS}}/watches-page.js"></script>
+</body>
+</html>

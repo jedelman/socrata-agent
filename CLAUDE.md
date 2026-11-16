@@ -459,6 +459,35 @@ generic mode.
   Travel keeps withdrawn rows recoverable for 30 days: the spec says so.
   `plugins/case-file.js` serves a
   case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
+- Watches and civic-league feeds (`docs/watches.md`; Jason, 2026-11-16:
+  "let me know if planning commission or City Council take up any items
+  affecting short term rentals" by email, and "shift from per street to per
+  neighborhood league" for the public feeds). Behind `WATCHES` and
+  `LEAGUE_FEEDS`, both off; with both off nothing changes (routes, page,
+  session, prompt, tools, cron). `src/watches.js` is the pure part:
+  `checkWatch` (terms are words from the Zoning Ordinance and budget books,
+  telemetry's vocabulary, pass the public-text checks, and are never a
+  street, house number or civic league's name), `withholdApplicant` (the
+  iqm2 rule: an applicant not plainly an organization, or a name after a
+  courtesy title, is withheld), `matchesWatch` (on the withheld title, so a
+  name can't match), and `offerWatch`, the executor of `offer_watch`, a core
+  tool declared only when the Worker passes `watches` to `ask()` (a signed-in
+  member, `WATCHES` on, never a public thread; `WATCH_LINE` in the prompt
+  only then). The model only offers; the person starts a watch on the card,
+  typing the email they signed in with, checked against the account's HMAC.
+  `worker/watches.js`: once a day (cron, 11:00 UTC or later, or at once with
+  no snapshot), the next 21 days of the profile's `meetings.watchBodies`
+  from the notices, each iqm2 agenda, applicants withheld, each item tagged
+  by the civic league of the addresses its title names (the address list's
+  `civic_league` column only, never its president's name or email), kept as
+  `agenda-snapshot:<city>`; then one digest a day per watch for new matches
+  (Resend, `List-Unsubscribe` one-click, `WATCH_DAILY_EMAILS` default 100,
+  `WATCH_MAX` default 200, 5 a member, 365 days). A watch keeps the member's
+  email AES-GCM encrypted under a key derived from INVITE_SECRET, bound to
+  its id, until it stops; never logged or returned. Pages `/watches`,
+  `/watch/stop` (its token is the watch id and an HMAC; posted from script,
+  or POSTed one-click by a mail client before the JSON rule), `/feeds` and
+  `/feeds/<league>.atom` (public, from the snapshot).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each
