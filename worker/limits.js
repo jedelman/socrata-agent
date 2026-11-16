@@ -43,6 +43,10 @@ export function visitorId(ip) {
 // in the key's metadata), as each call is priced, and summed by listing.
 // Unlike a single read-modify-write counter, concurrent calls can't overwrite
 // each other's spend; a listing may lag a few seconds behind the newest writes.
+// The metadata also says which tier asked (t) and marks an answer's first
+// priced call (a: 1), for the steward's spend page (spend.js), which writes
+// each finished day's total to its own key; the call keys are kept 8 days so
+// a missed rollup can still be made.
 export async function spentToday(kv, day) {
   let micros = 0;
   let cursor;
@@ -54,8 +58,23 @@ export async function spentToday(kv, day) {
   return micros / 1e6;
 }
 
-export function recordSpend(kv, day, usd) {
+export function recordSpend(kv, day, usd, { tier, first = false } = {}) {
   const micros = Math.round(usd * 1e6);
   if (!micros) return Promise.resolve();
-  return kv.put(`spend:${day}:${crypto.randomUUID()}`, '', { metadata: { micros }, expirationTtl: 172800 });
+  const metadata = { micros, ...(tier ? { t: tier } : {}), ...(first ? { a: 1 } : {}) };
+  return kv.put(`spend:${day}:${crypto.randomUUID()}`, '', { metadata, expirationTtl: 8 * 86400 });
+}
+
+/**
+ * The onCost an answer passes to ask(): each priced call recorded as it's
+ * made (pushed to `spends` so the caller can wait for them), the first one
+ * marked as the answer's.
+ */
+export function spendRecorder(kv, day, tier, spends, onError = (err) => console.error('recording spend failed', err)) {
+  let first = true;
+  return (usd) => {
+    if (!kv || !usd || !Math.round(usd * 1e6)) return;
+    spends.push(recordSpend(kv, day, usd, { tier, first }).catch(onError));
+    first = false;
+  };
 }

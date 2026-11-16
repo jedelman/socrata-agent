@@ -22,8 +22,12 @@
 // Their status and headers must still match; their text can't. Nothing else
 // differs. The scheduled handler (the free tier's sweep, and its ping to the
 // Jetstream watcher, a Durable Object exported from index.js since the
-// instant-takedowns change) does nothing at all with the flag off: tested
-// below. The new export and binding change no route: the scenario's envs
+// instant-takedowns change) does none of the free tier's work with the flag
+// off: tested below. Since the steward's spend page (2026-11-16) it does one
+// thing then, the daily spend rollup, in KV alone. The steward pages it
+// added changed one existing route: GET /admin carries the steward pages'
+// header menu, so its three entries were retaken from a run on that change
+// (nothing else moved). The new export and binding change no route: the scenario's envs
 // don't carry the binding, and its snapshot is unchanged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -84,7 +88,7 @@ test('flag off: PUBLIC_ASK set to anything but "true" is the same as unset', { s
   for (const value of ['false', '1', 'TRUE', ' true', '']) compare(await publicAskOffScenario({ worker: w, extraEnv: { PUBLIC_ASK: value } }));
 });
 
-test('flag off: the scheduled handler (the free tier\'s sweep and the watcher\'s ping) does nothing: no D1 call, no fetch, no Durable Object, no log', { skip }, async () => {
+test('flag off: the scheduled handler does none of the free tier\'s work (no D1 call, fetch, Durable Object or log), only the spend rollup in KV', { skip }, async () => {
   const w = await loadWorker();
   const touched = [];
   const d1 = new Proxy({}, { get: (t, k) => () => { touched.push(`D1 ${String(k)}`); throw new Error('D1 touched'); } });
@@ -97,15 +101,30 @@ test('flag off: the scheduled handler (the free tier\'s sweep and the watcher\'s
   const limiter = { limit: async () => { touched.push('limiter'); return { success: true }; } };
   try {
     for (const flag of [undefined, 'false', '', 'TRUE']) {
-      const env = { PUBLIC_ASK: flag, BLUESKY_LOGIN: 'true', INVITE_REQUIRED: 'true', INVITE_SECRET: 's'.repeat(32), IP_SALT: 'x', LIMITS: {}, SIREN_DB: d1, QUESTION_WATCHER: watcher, PUBLIC_ORIGIN: 'https://ask-siren.jason-edelman.org', BSKY_VISITOR_RL: limiter, BSKY_INPUT_RL: limiter, BSKY_SITE_RL: limiter };
+      // A KV that records every key it's asked about: only the spend rollup's.
+      const store = new Map();
+      const LIMITS = {
+        async get(k) { touched.push(`kv get ${k}`); return store.get(k) ?? null; },
+        async put(k, v) { touched.push(`kv put ${k}`); store.set(k, v); },
+        async list({ prefix }) { touched.push(`kv list ${prefix}`); return { keys: [], list_complete: true }; },
+        async delete(k) { touched.push(`kv delete ${k}`); },
+      };
+      const env = { PUBLIC_ASK: flag, BLUESKY_LOGIN: 'true', INVITE_REQUIRED: 'true', INVITE_SECRET: 's'.repeat(32), IP_SALT: 'x', LIMITS, SIREN_DB: d1, QUESTION_WATCHER: watcher, PUBLIC_ORIGIN: 'https://ask-siren.jason-edelman.org', BSKY_VISITOR_RL: limiter, BSKY_INPUT_RL: limiter, BSKY_SITE_RL: limiter };
       const waits = [];
       await w.scheduled({ cron: '*/10 * * * *', scheduledTime: Date.now() }, env, { waitUntil: (p) => waits.push(p) });
-      assert.equal(waits.length, 0, String(flag));
+      assert.equal(waits.length, 1, `${flag}: one job, the rollup`);
+      await Promise.all(waits);
+      // Without a usable KV (none, or one without list), nothing at all.
+      const none = [];
+      await w.scheduled({ cron: '*/10 * * * *', scheduledTime: Date.now() }, { ...env, LIMITS: {} }, { waitUntil: (p) => none.push(p) });
+      assert.equal(none.length, 0, String(flag));
     }
   } finally {
     Object.assign(globalThis, { fetch: real.fetch });
     console.error = real.error;
     console.log = real.log;
   }
-  assert.deepEqual(touched, []);
+  // Only spend keys: the rollup's marker, its daily totals and the call records it sums.
+  assert.ok(touched.length > 0, 'the rollup ran');
+  for (const t of touched) assert.match(t, /^kv (get|put|list) (spend-since|spend-day:\d{4}-\d{2}-\d{2}|spend:\d{4}-\d{2}-\d{2}:)$/, t);
 });

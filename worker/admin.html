@@ -42,9 +42,19 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
 .msg { font-size: .9rem; color: var(--muted); }
 button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; font: inherit; font-size: .85rem; }
 .gate { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.adminhead { background: var(--surface); border-bottom: 1px solid var(--line); }
+.adminhead-in { max-width: 820px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.adminhead-brand { font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.adminhead-brand span { color: var(--muted); font-weight: 400; }
+.adminhead-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.adminhead-nav a { font-size: .9rem; color: var(--ink); text-decoration: none; border-radius: 999px; padding: 4px 11px; }
+.adminhead-nav a:hover, .adminhead-nav a:focus-visible { background: var(--chip); }
+.adminhead-nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+.adminhead-back { font-size: .85rem; color: var(--muted); white-space: nowrap; }
 </style>
 </head>
 <body>
+{{ADMIN_HEADER}}
 <div class="wrap">
   <h1>Steward review: source requests</h1>{{QUESTIONS_LINK}}
   <p class="lede">Accepting a request puts it on the <a href="requests">public list</a> and, at the next sync, on GitHub. People's notes are reviewed one by one, whatever the request's status: a pending note is shown publicly only after you approve it, and only once its request is accepted. Delete a note that names a person or a home. Private notes (sent before requests were public) are shown here only and need no review. Declining an accepted request takes it off the list, and the nightly sync then closes its GitHub issue as not planned. Close by hand the issue of a request withdrawn more than 30 days before 2026-11-09, when the sync began closing them. Once a request or note has been synced, declining or deleting it doesn't erase it from GitHub: the old title stays in the issue's timeline and old text in its edit history. For text that names a person or a home, delete the GitHub issue by hand. A note you write in the box below is shown publicly.</p>

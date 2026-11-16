@@ -290,6 +290,36 @@ generic mode.
   and bodies; only deleting an issue by hand removes them.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
   `docs/fulfilling-requests.md` is the contributor guide.
+  Two more steward pages (Jason, 2026-11-16), each under the strict CSP
+  (`admin.css`). Every steward page (`/admin`, the waitlist, spend, public
+  questions, shared sources) opens with one header (`adminHeader` in
+  `index.js`): the app's name to `/admin`, the menu with the current page
+  marked (public questions and shared sources only when on), and a link back
+  to the app. `/admin/waitlist` (`waitlist-admin.js`, `admin-waitlist.html`/`.js`)
+  lists the waitlist oldest first (the oldest 1,000 of up to 5,000, by bulk
+  gets). "Send a code" works only in invite mode (elsewhere the email's forms
+  don't exist). It mints a fresh invite (good in `SEND_USES` = 3 browsers,
+  labeled `Waitlist: n•••@example.org`, never the full address), marks the
+  entry `sent_maybe`, emails the code through Resend with a link from
+  `PUBLIC_ORIGIN` (refused without it), and only then deletes the entry.
+  Resend's own refusal (a 4xx) deletes the invite and clears the mark; an
+  unclear failure (a 5xx, a timeout) keeps both the invite and the marked
+  entry, since the mail may have arrived, and the page shows the mark. A
+  `waitlist-sending:<id>` token (60 s, re-read after writing) refuses a second
+  send under way; KV can't make it atomic. The code is never stored, returned
+  or logged. "Remove" deletes an entry without mail.
+  `/admin/spend` (`spend.js`, `admin-spend.html`/`.js`) shows model spend as
+  Siren prices each call (the numbers the daily cap sums; web searches
+  included): each priced call's `spend:<day>` key now carries its tier
+  (`t`: member, invite, public, visitor, person) and marks an answer's first
+  priced call (`a: 1`), and is kept 8 days (was 48 hours). Each finished day is
+  totaled once into `spend-day:<day>`, kept for good, with its summary in the
+  key's metadata so the history is one listing; the cron and opening the page
+  both roll up, an hour after midnight UTC, from `spend-since` (the first
+  rollup's yesterday). A day after that with no total, once its records have
+  expired, shows as lost, never $0. Cost per answer counts only days whose
+  calls were all marked. Not counted: Cloudflare, Resend, the domain; the Claude Console has
+  the invoice.
   Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
   `BLUESKY_LOGIN`; public-first by Jason's direction, 2026-11-09): an
   endorsement is a record in the endorser's own atproto repo, written and
@@ -390,7 +420,8 @@ generic mode.
   (a Durable Object lifecycle change): no earlier Siren version can be
   rolled back to. The backstop is the sweep (a Cron Trigger every ten
   minutes, `scheduled` in `index.js`, which also pings the watcher, both
-  no-ops with `PUBLIC_ASK` off and the object never reached: at most 40
+  no-ops with `PUBLIC_ASK` off and the object never reached; the same cron
+  rolls up the steward's daily spend totals first, in KV alone: at most 40
   questions unchecked for an hour, so 240 an hour, counted, behind the
   breaker, re-verifying handles) and a page's re-check of its thread. Every
   re-check withdraws only on a clear RecordNotFound, or when the PDS the

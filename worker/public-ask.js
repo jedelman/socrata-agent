@@ -38,7 +38,7 @@ import { publicOrigin, clientIds, clientMetadata } from './atproto-oauth.js';
 import { blueskyReady } from './bluesky.js';
 import { currentInvite, redeem, sessionCookie, signSession } from './invites.js';
 import { isAdmin, currentUser } from './accounts.js';
-import { setting, spentToday, recordSpend, visitorId } from './limits.js';
+import { setting, spentToday, spendRecorder, visitorId } from './limits.js';
 import { boundary, hmacHex } from './crypto.js';
 import { mapLimit } from './public-list.js';
 import { answerRecord, historyFrom } from './conversations.js';
@@ -451,9 +451,7 @@ export async function handlePublicAsk(req, env, ctx, deps) {
   }
 
   const spends = [];
-  const onCost = (usd) => {
-    if (usd) spends.push(recordSpend(kv, day, usd).catch((err) => console.error('recording spend failed', clip(err))));
-  };
+  const onCost = spendRecorder(kv, day, 'public', spends, (err) => console.error('recording spend failed', clip(err)));
   // Under waitUntil, so a reader who leaves doesn't stop it at once: the
   // answer is still stored if it finishes in Cloudflare's grace period.
   const work = (async () => {

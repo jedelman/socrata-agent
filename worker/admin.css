@@ -1,0 +1,68 @@
+/* The steward's waitlist and spend pages (admin-waitlist.html,
+   admin-spend.html), under the strict Content-Security-Policy: no inline
+   style, so every rule lives here. The tokens are the /admin page's; the
+   chart's bar color is its own, checked for the chart surfaces (light
+   #168a62, dark #1baf7a: lightness band, chroma floor and 3:1 contrast). */
+:root { --bg: #f6f7f4; --surface: #ffffff; --ink: #18211f; --muted: #58645f; --line: #d9ded9; --grid: #e6e9e6; --accent: #1d6b5c; --accent-ink: #ffffff; --chip: #e7efe9; --warn: #8a3b12; --bar: #168a62; --bar-hover: #0f7a57; --track: #d7ebe2; --meter-warn: #fab219; --meter-over: #d03b3b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0d1513; --surface: #14201d; --ink: #e5ece8; --muted: #a2b1aa; --line: #2a3934; --grid: #22302c; --accent: #7fd1bd; --accent-ink: #0d1513; --chip: #1c2c28; --warn: #f0a37a; --bar: #1baf7a; --bar-hover: #22c48a; --track: #1f3a31; } }
+:root[data-theme="dark"] { --bg: #0d1513; --surface: #14201d; --ink: #e5ece8; --muted: #a2b1aa; --line: #2a3934; --grid: #22302c; --accent: #7fd1bd; --accent-ink: #0d1513; --chip: #1c2c28; --warn: #f0a37a; --bar: #1baf7a; --bar-hover: #22c48a; --track: #1f3a31; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.45rem; margin: 0 0 4px; }
+h2 { font-size: 1.05rem; margin: 24px 0 8px; }
+a { color: var(--accent); }
+.adminhead { background: var(--surface); border-bottom: 1px solid var(--line); }
+.adminhead-in { max-width: 860px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.adminhead-brand { font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.adminhead-brand span { color: var(--muted); font-weight: 400; }
+.adminhead-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.adminhead-nav a { font-size: .9rem; color: var(--ink); text-decoration: none; border-radius: 999px; padding: 4px 11px; }
+.adminhead-nav a:hover, .adminhead-nav a:focus-visible { background: var(--chip); }
+.adminhead-nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+.adminhead-back { font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.lede, .meta { color: var(--muted); font-size: .95rem; margin: 0 0 12px; }
+.status { font-size: .92rem; color: var(--muted); min-height: 1.4em; margin: 0 0 12px; }
+.status.bad { color: var(--warn); }
+.small { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; }
+ol.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.who { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.email { font-weight: 600; overflow-wrap: anywhere; }
+.note { margin: 6px 0 0; font-size: .94rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.maybe { color: var(--warn); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: .55; cursor: default; }
+.msg { font-size: .88rem; color: var(--muted); }
+
+/* Spend: stat tiles, the budget meter, the daily chart, tables. */
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 720px) { .tiles { grid-template-columns: repeat(3, 1fr); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.tile .label { color: var(--muted); font-size: .85rem; margin: 0; }
+.tile .value { font-size: 1.6rem; font-weight: 600; margin: 2px 0 0; }
+.tile .sub { color: var(--muted); font-size: .82rem; margin: 2px 0 0; }
+.meter { height: 8px; border-radius: 999px; background: var(--track); margin-top: 8px; overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 999px; background: var(--bar); width: 0; }
+.meter.warn span { background: var(--meter-warn); }
+.meter.over span { background: var(--meter-over); }
+.chart { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px 4px; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .bar { fill: var(--bar); pointer-events: none; }
+.chart .cap { stroke: var(--muted); stroke-width: 1; }
+.chart .hit { fill: transparent; cursor: default; outline: none; }
+.chart .hit:hover + .bar, .chart .hit:focus + .bar { fill: var(--bar-hover); }
+.chart .gap { fill: var(--muted); font-size: 10px; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: .82rem; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); white-space: nowrap; }
+.tip strong { display: block; font-size: .95rem; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; background: var(--surface); }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+details { margin-top: 10px; }
+summary { cursor: pointer; color: var(--accent); font-size: .92rem; }
+.notes { color: var(--muted); font-size: .9rem; padding-left: 18px; }
+.notes li { margin-bottom: 4px; }

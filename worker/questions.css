@@ -62,3 +62,13 @@ footer { margin-top: 36px; color: var(--muted); font-size: .9rem; border-top: 1p
 .followup button:hover { border-color: var(--accent); }
 .followup small { color: var(--muted); font-size: .85rem; overflow-wrap: anywhere; min-width: 0; }
 .followup small a { color: inherit; }
+/* The steward pages' header (index.js adminHeader), shared with admin.css. */
+.adminhead { background: var(--surface); border-bottom: 1px solid var(--line); }
+.adminhead-in { max-width: 760px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.adminhead-brand { font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.adminhead-brand span { color: var(--muted); font-weight: 400; }
+.adminhead-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.adminhead-nav a { font-size: .9rem; color: var(--ink); text-decoration: none; border-radius: 999px; padding: 4px 11px; }
+.adminhead-nav a:hover, .adminhead-nav a:focus-visible { background: var(--chip); }
+.adminhead-nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+.adminhead-back { font-size: .85rem; color: var(--muted); white-space: nowrap; }

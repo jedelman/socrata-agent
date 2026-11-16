@@ -424,7 +424,8 @@ test('privacy: no D1 statement or KV write on the public routes puts an invite o
     for (const s of [W.DID, W.HANDLE, QUESTION_NSID, 'at://']) {
       assert.ok(!o.key.includes(s) && !String(value).includes(s), `${o.key} holds ${s}`);
     }
-    assert.match(o.key, /^(redeemed|inv-day|spend):/, `only an invite's use, its daily count and spend: ${o.key}`);
+    // spend-day and spend-since are the cron's daily spend totals (worker/spend.js): sums by day, nobody in them.
+    assert.match(o.key, /^(redeemed|inv-day|spend|spend-day):|^spend-since$/, `only an invite's use, its daily count and spend: ${o.key}`);
     // No exact time beside an invite: the count expires on a day boundary.
     if (o.key.startsWith('inv-day:')) assert.equal(o.opts.expirationTtl, undefined);
   }

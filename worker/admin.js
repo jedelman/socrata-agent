@@ -13,6 +13,10 @@ import { purgePublicList, liveCounts } from './public-list.js';
 import { blueskyReady } from './bluesky.js';
 import { constellationOrigin, countEndorsers, userAgent } from './constellation.js';
 import { endorseSubject } from './endorse-config.js';
+import { listWaitlist, sendWaitlistInvite, removeFromWaitlist } from './waitlist-admin.js';
+import { spendReport } from './spend.js';
+import { setting } from './limits.js';
+import { PRICES } from '../src/providers/anthropic.js';
 
 const DECIDED = new Set(['declined', 'fulfilled']);
 
@@ -31,9 +35,11 @@ async function readJson(req) {
 
 /**
  * The steward's API: GET /api/admin/requests, POST .../decide and .../note
- * (approve or delete one note). Every call checks that the signed-in account
- * is an admin (ADMIN_EMAILS secret); nothing here is cached.
- * `ctx.waitUntil` runs the background cache purges.
+ * (approve or delete one note); GET /api/admin/waitlist, POST .../invite
+ * (send a code) and .../remove; GET /api/admin/spend. Every call checks that
+ * the signed-in account is an admin (ADMIN_EMAILS secret); nothing here is
+ * cached. `ctx.waitUntil` runs the background cache purges. `deps.appName`
+ * and `deps.model` come from the deployment (index.js).
  */
 export async function handleAdmin(req, env, path, ctx, deps = {}) {
   const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
@@ -57,6 +63,13 @@ export async function handleAdmin(req, env, path, ctx, deps = {}) {
       counts = await liveCounts(env, listed, { base: basePath(env), origin: new URL(req.url).origin, fetchImpl, ...(deps.cache !== undefined ? { cache: deps.cache } : {}), ctx });
     }
     return json({ requests: await allRequests(kv, counts, { rows }), bluesky: on }, 200, headers);
+  }
+  if (req.method === 'GET' && path === '/api/admin/waitlist') return json(await listWaitlist(kv, env), 200, headers);
+  if (req.method === 'GET' && path === '/api/admin/spend') {
+    const model = deps.model || env.MODEL || null;
+    const price = model && PRICES[model] ? { input: PRICES[model].input, output: PRICES[model].output } : null;
+    const report = await spendReport(kv, { budgetUsd: setting(env.DAILY_BUDGET_USD, 2), ...(deps.now ? { now: deps.now } : {}) });
+    return json({ ...report, model, price_per_million_tokens: price }, 200, headers);
   }
   // Defense in depth over JSON-only and SameSite: a steward POST that names
   // an Origin must name this site.
@@ -84,6 +97,17 @@ export async function handleAdmin(req, env, path, ctx, deps = {}) {
     if (!out.ok) return json({ error: out.error }, out.status, headers);
     purge();
     return json({ ...out, ...(unfrozen ? { endorsements_frozen: false, warning: "Decided. The endorsement count couldn't be read just now, so none was frozen into the decision." } : {}) }, 200, headers);
+  }
+  if (req.method === 'POST' && path === '/api/admin/waitlist/invite') {
+    const body = (await readJson(req)) || {};
+    const out = await sendWaitlistInvite({ kv, env, id: body.id, appName: deps.appName || 'Siren', ...(deps.send ? { send: deps.send } : {}) });
+    if (!out.ok) return json({ error: out.error }, out.status, headers);
+    return json(out, 200, headers);
+  }
+  if (req.method === 'POST' && path === '/api/admin/waitlist/remove') {
+    const out = await removeFromWaitlist({ kv, id: ((await readJson(req)) || {}).id });
+    if (!out.ok) return json({ error: out.error }, out.status, headers);
+    return json(out, 200, headers);
   }
   if (req.method === 'POST' && path === '/api/admin/requests/note') {
     const out = await reviewNote(kv, (await readJson(req)) || {});

@@ -21,7 +21,7 @@ import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
-import { setting, askLimits, visitorId, spentToday, recordSpend } from './limits.js';
+import { setting, askLimits, visitorId, spentToday, spendRecorder } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, raiseResponse, publicRequests, PUBLIC_ID_RE } from './requests.js';
@@ -61,6 +61,10 @@ import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
 import QUESTIONS_PAGE from './questions.html';
 import ADMIN_QUESTIONS_PAGE from './admin-questions.html';
+import ADMIN_WAITLIST_PAGE from './admin-waitlist.html';
+import ADMIN_SPEND_PAGE from './admin-spend.html';
+import { SEND_USES } from './waitlist-admin.js';
+import { rollupSpend } from './spend.js';
 // The requests page's module and style, and the browser OAuth client with
 // the shared modules it imports, served as text (with { type: 'text' } is an
 // esbuild import attribute; the same files are imported as code elsewhere).
@@ -80,6 +84,10 @@ import QUESTIONS_JS from './questions-page.js' with { type: 'text' };
 import QUESTIONS_CSS from './questions.css' with { type: 'text' };
 import ADMIN_QUESTIONS_JS from './admin-questions.js' with { type: 'text' };
 import ADMIN_RESEARCH_JS from './admin-research.js' with { type: 'text' };
+// The steward's waitlist and spend pages: their scripts and style.
+import ADMIN_WAITLIST_JS from './admin-waitlist.js' with { type: 'text' };
+import ADMIN_SPEND_JS from './admin-spend.js' with { type: 'text' };
+import ADMIN_CSS from './admin.css' with { type: 'text' };
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
 import STORE_JS from './endorse-store.js' with { type: 'text' };
 import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
@@ -285,11 +293,10 @@ async function handleAsk(req, env, ctx) {
 
   // Spend is recorded per paid call, as it happens (one KV key each, so
   // concurrent writes can't overwrite each other), so a call already made is
-  // counted even if the rest of the answer never runs.
+  // counted even if the rest of the answer never runs. Each records the tier
+  // that asked, and the first marks the answer, for the spend page (spend.js).
   const spends = [];
-  const onCost = (usd) => {
-    if (kv && usd) spends.push(recordSpend(kv, day, usd).catch((err) => console.error('recording spend failed', err)));
-  };
+  const onCost = spendRecorder(kv, day, uid ? 'member' : who.kind, spends);
 
   // Streamed (worker/ask-stream.js): the same answer, limits, spend and save,
   // with the working notes sent as they come. It runs under ctx.waitUntil, so
@@ -403,7 +410,7 @@ async function researchRoute(req, env, path, base) {
   if (req.method === 'GET' && path === '/api/research') return handleResearchList(req, env, { cities: allowedCities(env) });
   if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin/research') {
     if (!sharedResearchReady(env)) return new Response("Shared research isn't set up here yet.", { status: 503, headers: { 'Cache-Control': 'no-store', ...NOINDEX } });
-    return new Response(ADMIN_RESEARCH_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base) })[k] ?? m), {
+    return new Response(ADMIN_RESEARCH_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), HEADER: adminHeader(env, base, '/research') })[k] ?? m), {
       headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' },
     });
   }
@@ -618,6 +625,26 @@ async function handleWaitlist(req, env) {
 
 const APP_NAME_OF = (env, config) => env.APP_NAME || config.name || 'socrata-agent';
 
+/**
+ * The steward pages' header: the app's name (to /admin), the menu of steward
+ * pages with the current one marked, and a link back to the app. Requests,
+ * waitlist and spend always; public questions and shared sources when
+ * they're on.
+ */
+function adminHeader(env, base, current) {
+  const appName = APP_NAME_OF(env, getDeployment(env).config);
+  const pages = [['', 'Requests'], ['/waitlist', 'Waitlist'], ['/spend', 'Spend']];
+  if (publicAskReady(env)) pages.push(['/questions', 'Public questions']);
+  if (sharedResearchReady(env)) pages.push(['/research', 'Shared sources']);
+  const links = pages.map(([p, label]) => `<a href="${esc(`${base}/admin${p}`)}"${p === current ? ' aria-current="page"' : ''}>${label}</a>`).join('');
+  return `<header class="adminhead"><div class="adminhead-in"><a class="adminhead-brand" href="${esc(`${base}/admin`)}">${esc(appName)} <span>steward</span></a><nav class="adminhead-nav" aria-label="Steward pages">${links}</nav><a class="adminhead-back" href="${esc(`${base}/`)}">Back to ${esc(appName)}</a></div></header>`;
+}
+/** What the steward's API needs from the deployment: its name (for the invite email) and model (for the spend page). */
+function adminDeps(env) {
+  const { config } = getDeployment(env);
+  return { appName: APP_NAME_OF(env, config), model: env.MODEL || config.model };
+}
+
 const JS = 'text/javascript; charset=utf-8';
 const ASSETS = {
   'requests-page.js': [PAGE_JS, JS],
@@ -634,6 +661,9 @@ const ASSETS = {
   'questions.css': [QUESTIONS_CSS, 'text/css; charset=utf-8'],
   'admin-questions.js': [ADMIN_QUESTIONS_JS, JS],
   'admin-research.js': [ADMIN_RESEARCH_JS, JS],
+  'admin-waitlist.js': [ADMIN_WAITLIST_JS, JS],
+  'admin-spend.js': [ADMIN_SPEND_JS, JS],
+  'admin.css': [ADMIN_CSS, 'text/css; charset=utf-8'],
 };
 // The free tier's files: served only with PUBLIC_ASK on (with it off,
 // nothing new is served).
@@ -861,7 +891,7 @@ async function publicAskRoute(req, env, ctx, path, base) {
   }
   if (get && path === '/admin/questions') {
     if (!publicAskReady(env)) return notReady(env);
-    return new Response(ADMIN_QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base) })[k] ?? m), {
+    return new Response(ADMIN_QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), HEADER: adminHeader(env, base, '/questions') })[k] ?? m), {
       headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' },
     });
   }
@@ -959,12 +989,20 @@ export default {
       const questionsLink = (publicAskReady(env) ? '\n  <p class="lede"><a href="admin/questions">Public questions</a>: hide or unhide a question asked in public.</p>' : '')
         // Shared research (docs/research-memory.md): only with it on, so with it off this page is as before.
         + (sharedResearchReady(env) ? '\n  <p class="lede"><a href="admin/research">Shared sources</a>: remove or restore a source someone shared from an answer.</p>' : '');
-      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace('{{QUESTIONS_LINK}}', questionsLink), {
+      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace('{{QUESTIONS_LINK}}', questionsLink).replace('{{ADMIN_HEADER}}', adminHeader(env, base, '')), {
         // Its buttons act for the signed-in steward, so it can't be framed.
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' },
       });
     }
     if (req.method === 'GET' && path === '/api/admin/requests') return handleAdmin(req, env, path, ctx);
+    // The steward's waitlist and spend pages; their API checks the steward.
+    if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/admin/waitlist' || path === '/admin/spend')) {
+      const { config } = getDeployment(env);
+      const page = path === '/admin/waitlist' ? ADMIN_WAITLIST_PAGE : ADMIN_SPEND_PAGE;
+      const fill = { ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), HEADER: adminHeader(env, base, path.slice('/admin'.length)), USES: String(SEND_USES), APP_NAME: esc(APP_NAME_OF(env, config)) };
+      return new Response(page.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => fill[k] ?? m), { headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' } });
+    }
+    if (req.method === 'GET' && (path === '/api/admin/waitlist' || path === '/api/admin/spend')) return handleAdmin(req, env, path, ctx, adminDeps(env));
     // The requests page, and with endorsements on a page per listed request
     // (the URL endorsement records point at). Served under a strict CSP.
     const permalink = /^\/requests\/([^/]{1,64})$/.exec(path);
@@ -982,6 +1020,7 @@ export default {
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
     if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path, ctx);
+    if (req.method === 'POST' && (path === '/api/admin/waitlist/invite' || path === '/api/admin/waitlist/remove')) return handleAdmin(req, env, path, ctx, adminDeps(env));
     if (req.method === 'POST' && path === '/api/bsky/resolve') return handleResolve(req, env);
     if (req.method === 'POST' && path === '/api/login/verify') return handleLoginVerify(req, env);
     if (req.method === 'POST' && path === '/api/logout') return json({ ok: true }, 200, { 'Set-Cookie': clearUserCookie(`${basePath(env)}/`), 'Cache-Control': 'no-store' });
@@ -1002,25 +1041,31 @@ export default {
     return new Response('Not found', { status: 404 });
   },
 
-  // The Cron Trigger ([env.siren.triggers], every ten minutes): the free
-  // tier's sweep, which re-checks public questions so a record deleted in
-  // the asker's own account comes off the site, and clears abandoned claims
-  // (public-ask.js sweepQuestions); and a ping to the Jetstream watcher
-  // (question-watcher.js), which takes such a record down as soon as it's
-  // deleted, so it starts after a deploy or an eviction (the sweep stays as
-  // the backstop). With PUBLIC_ASK anything but "true" it returns at once:
-  // no D1 call, no fetch, and the watcher is never reached. On but not
-  // ready, it logs why (names only) and does nothing else.
+  // The Cron Trigger ([env.siren.triggers], every ten minutes). First, each
+  // finished day's spend total for the steward's spend page (spend.js
+  // rollupSpend: KV only, never a fetch, D1 call or log line unless it
+  // fails). Then the free tier's sweep, which re-checks public questions so
+  // a record deleted in the asker's own account comes off the site, and
+  // clears abandoned claims (public-ask.js sweepQuestions); and a ping to the
+  // Jetstream watcher (question-watcher.js), which takes such a record down
+  // as soon as it's deleted, so it starts after a deploy or an eviction (the
+  // sweep stays as the backstop). With PUBLIC_ASK anything but "true" those
+  // two don't run: no D1 call, no fetch, and the watcher is never reached.
+  // On but not ready, it logs why (names only) and skips them.
   async scheduled(event, env, ctx) {
-    if (!publicAskOn(env)) return;
-    if (!publicAskReady(env)) {
-      console.error('public sweep:', publicAskSetupError(env));
-      return;
+    const jobs = [];
+    if (env.LIMITS && typeof env.LIMITS.list === 'function') jobs.push(rollupSpend(env.LIMITS).catch((err) => console.error('spend rollup failed', String(err?.message || err).slice(0, 200))));
+    if (publicAskOn(env)) {
+      if (!publicAskReady(env)) console.error('public sweep:', publicAskSetupError(env));
+      else {
+        jobs.push(
+          sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200))),
+          pingQuestionWatcher(env).catch((err) => console.error('question watcher: ping failed', String(err?.message || err).slice(0, 200))),
+        );
+      }
     }
-    const run = Promise.all([
-      sweepQuestions(env).catch((err) => console.error('public sweep failed', String(err?.message || err).slice(0, 200))),
-      pingQuestionWatcher(env).catch((err) => console.error('question watcher: ping failed', String(err?.message || err).slice(0, 200))),
-    ]);
+    if (!jobs.length) return;
+    const run = Promise.all(jobs);
     if (ctx?.waitUntil) ctx.waitUntil(run);
     else await run;
   },
