@@ -8,8 +8,9 @@ had approved: "Let's shift from per street to per neighborhood league."
 Two features share one daily read of the City's posted agendas:
 
 - **Watches** (`WATCHES = "true"`): a signed-in member keeps up to five
-  watches. A watch is topics from the city's reviewed list, a civic league, or
-  both, over City Council and/or the Planning Commission. When a newly posted
+  watches. A watch is topics from the city's reviewed list, phrases of their
+  own, a civic league, or a mix, over City Council and/or the Planning
+  Commission. When a newly posted
   agenda item matches, the member gets one email that day.
 - **Civic-league feeds** (`LEAGUE_FEEDS = "true"`): a public Atom feed per
   civic league, plus one for every item, at `/feeds`.
@@ -30,30 +31,47 @@ shape:
 - mixed-case applicants;
 - "Easement From … Over".
 
-So the design changed. **Siren never repeats an agenda title, and never keeps
-one.** Each item is described from parts code extracts (`src/watches.js`):
+So the design changed. **Siren never repeats an agenda title**, in a feed, an
+email or a response. (The snapshot keeps each title in one internal field,
+only to match members' phrases against; nothing reads it out.) Each item is
+described from parts code extracts (`src/watches.js`):
 
 - **the kind of action**: one of a fixed list of labels ("Conditional Use
   Permit", "Sale of City property", "Rezoning", "Lease", …);
 - **the topics it matches**: from the city's reviewed list;
-- **the addresses** its title names: property locations, as the address
-  tools already take;
+- **the addresses** its title names, and only those on one of the City's
+  streets (`cityAddresses`): a number, a direction, a street from the City's
+  address list and its suffix. A title's "$5,000 From Mary Lane" isn't one;
+  the third review showed the plain address extractor would have let it
+  through;
 - **its ordinance or resolution number**;
 - **a link to the City's own page** for the item, which has the full text.
 
 For example: "Conditional Use Permit: Short-term rentals, at 1210 Virgilina
 Avenue". A test runs over all 1,452 titles in the legislation index. It checks
-that every word of every description is a word of a fixed label, a count, or a
-word of an address the title names. Nothing else can get through, so no name
-can (`test/watches.test.js`).
+that every word of every description is a word of a fixed label, a number, or
+a word of the City's street list (not of the title itself). It also runs the
+reviewers' probes (`test/watches.test.js`). A street named for a person can
+still appear, as it would in any address.
 
-**Watches follow topics, never free words.** A watch picks from the city
-profile's `meetings.watchTopics`, 27 topics for Norfolk, each with the phrases
-it matches. "Short-term rentals" matches short-term rental, vacation rental,
-homestay and bed and breakfast, which is 159 titles since July 2023. So no
-watch can be keyed to a person's name. If someone asks for a topic that isn't
-on the list, Siren says a watch can't follow that yet. Adding a topic is a
-reviewed change to the list: never a phrase that could be someone's name.
+**Watches follow topics, and a member's own phrases.**
+- **Topics:** a watch can pick from the city profile's `meetings.watchTopics`,
+  27 topics for Norfolk, each with the phrases it matches. "Short-term
+  rentals" matches short-term rental, vacation rental, homestay and bed and
+  breakfast, which is 159 titles since July 2023. A test refuses any topic
+  phrase made only of common names; "ADU" and "flood" were dropped for this.
+- **Phrases:** a watch belongs to one signed-in member and mails only them.
+  Jason, 2026-11-16: "Free text for signed in and private conversations feels
+  like the right shape." So a member can add up to five phrases of their own
+  ("dog park"), matched against the title. A phrase is refused when it is:
+  - made only of common first names and surnames (Census lists,
+    `data/common-names.json`, built by `scripts/build-common-names.js`):
+    "John Smith", "price", "will price";
+  - holding a number, an address or contact details;
+  - a civic league's name.
+
+  This is a guard, not a wall: a rare surname alone gets through, as it would
+  in `find_legislation` in a private conversation. Feeds never use phrases.
 
 ## How a watch starts
 
@@ -61,10 +79,11 @@ reviewed change to the list: never a phrase that could be someone's name.
    takes up short-term rentals").
    - With watches on, a signed-in member's answer can call `offer_watch`
      (`src/tools.js`).
-   - It takes topic ids from the list (an enum) and/or a civic league, never
-     free words.
-2. The answer gets a card showing the chosen topics as checkboxes. The model
-   can't start a watch; it is told never to say one is set up.
+   - It takes topic ids from the list (an enum), and phrases when no topic
+     fits, and/or a civic league.
+2. The answer gets a card with the chosen topics as checkboxes and the
+   phrases in a box the member can edit. The model can't start a watch; it is
+   told never to say one is set up.
 3. On the card the member types the email they signed in with. The Worker
    checks that address against the account: the account id is
    HMAC(INVITE_SECRET, "user:" + email), so only the address that signed in can
@@ -73,7 +92,7 @@ reviewed change to the list: never a phrase that could be someone's name.
    on a posted agenda, described; the first email lists those items too.
 
 The Watches page (`/watches`) lists a member's watches, starts new ones (every
-topic as a checkbox), renews one for a year, or stops one.
+topic as a checkbox, and a phrases box), renews one for a year, or stops one.
 
 ## The daily read
 
@@ -84,12 +103,14 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
    bodies in `meetings.watchBodies`.
 2. Fetches each meeting's iqm2 page, whose agenda items are titled links.
    Agendas appear about a week before a meeting.
-3. Describes each item as above: its kind, number, topics and addresses. The
-   title is not kept.
+3. Describes each item as above: its kind, number, topics and City-street
+   addresses. It keeps the title in an internal field for phrase matching.
 4. Tags each item with the civic league of each address, from the City's
    address list (`ere7-kake`):
    - It reads the `civic_league` column only, at plugin access, so the
      league president's name and email are refused in code.
+   - The list's own "No Civic League" value counts as no league, not as a
+     league with a feed.
    - Many commercial addresses (much of Granby Street, Newtown Road, East
      Virginia Beach Boulevard) are in no civic league in the City's own list.
      Their items are in the citywide feed only.
@@ -102,17 +123,28 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
      (RFC 8058);
    - **watches at their end go first**: each gets a note if the day's cap
      allows, and is deleted, with its email, either way;
-   - **re-read before mailing and before writing**: a stop or a renewal made
-     while the run is going wins, and a stopped watch is never written back;
+   - **the job never writes a watch**: what a watch has been sent goes in its
+     own key (`watch-sent:<id>`). KV reads are cached at each location for
+     about a minute, so the job could be holding a stale copy; with a separate
+     key, that copy can't be written back to undo a stop or a renewal made
+     elsewhere. A stop clicked within that minute before the run may still
+     see one more email;
+   - **every watch key expires** a week after the watch ends. The watch and
+     its email go even if the job never runs again;
    - **one write per key per run**: KV refuses a second write to a key within
-     a second. Each watch is written at most once a run, the day's mail count
-     once at the end, and the run lock once. The lock lasts fifteen minutes,
-     judged by its own expiry, and is never deleted.
+     a second. Each sent key is written once a run. The day's mail count is
+     written at most every two seconds, and once at the end. The run lock is
+     written once: it lasts fifteen minutes, is judged by its own expiry, and
+     is never deleted;
+   - **a new order each day**, so no fixed set of watches always comes first;
+   - **the idempotency key comes from the items sent**, so the same items to
+     the same watch are one mail to Resend for a day, even across runs;
    - **Resend busy or down** (429, 5xx, a timeout): the round stops; the rest
      wait for tomorrow, unsent and unmarked;
    - **Resend refuses** (another 4xx): nothing is marked on the watch, since a
-     revoked key or an unverified domain looks the same. Three refusals in a
-     row stop the round.
+     revoked key or an unverified domain looks the same. Three refusals before
+     any mail goes through stop the round, since that's the setup, not an
+     address.
 
 A live run on 2026-11-16 took 5 seconds and 11 requests: five meetings, one of
 them with a posted agenda of 19 items. A short-term-rental watch matched both
@@ -128,10 +160,12 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
   Then the watch is deleted, and the email with it. The email is never logged,
   returned or shown. It is the one thing watches keep that sign-in doesn't;
   the chat page's privacy line says so while watches are on.
-- **The watch:** its topics, league, bodies, dates, how many emails, the last
-  400 item keys sent, and the account id (`u`, already an HMAC).
-- **The snapshot:** for each item, its kind, number, topics, addresses,
-  leagues, link and meeting. No title.
+- **The watch:** its topics, phrases, league, bodies, dates, and the account
+  id (`u`, already an HMAC). Its sent key holds how many emails and the last
+  400 item keys sent.
+- **The snapshot:** for each item, its kind, number, topics, City-street
+  addresses, leagues, link and meeting, and its title for phrase matching
+  (never served).
 
 ## What it can miss
 
@@ -144,11 +178,14 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
   missed. In practice agendas go up days ahead.
 - **Addresses in no league.** Their items are only in the citywide feed, and
   only a watch without a league finds them.
+- **Addresses the extractor misses.** Some title shapes defeat it: ", and"
+  lists, "2706 Through 2722 …", a street whose suffix is dropped ("3411
+  Sewells Point"). Those items get no address and no league.
 
 ## Limits
 
-- **Per member:** 5 watches (`MAX_PER_ACCOUNT`), 1 to 8 topics each. A watch
-  runs 365 days unless renewed.
+- **Per member:** 5 watches (`MAX_PER_ACCOUNT`), up to 8 topics and 5
+  phrases each. A watch runs 365 days unless renewed.
 - **Site-wide:** `WATCH_MAX` watches (default 200) and `WATCH_DAILY_EMAILS`
   emails a day (default 100). Set the email cap under the Resend plan's daily
   limit, with room for sign-in links. `"0"` pauses mail; `WATCH_MAX = "0"`
@@ -172,7 +209,12 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
   no email watches.
 - **Who can watch:** members only, meaning signed in with a bound invite.
 - **Which bodies:** City Council and the Planning Commission. The Board of
-  Zoning Appeals and the Architectural Review Board would be one line each.
+  Zoning Appeals and the Architectural Review Board aren't a config line: their
+  iqm2 meeting pages list no agenda items (checked 2026-11-16, three recent
+  meetings each), and the agenda is a posted file. Adding them means reading
+  those files.
+- **Phrases:** free text for a member's own watches, with the common-names
+  guard (Jason, 2026-11-16).
 - **The topic list:** 27 topics drawn from the legislation index's own wording,
   in `src/cities/norfolk.js`.
 - **The numbers:** 5 watches, 365 days, 100 emails a day, one digest a day,

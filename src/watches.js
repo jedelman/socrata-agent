@@ -7,22 +7,35 @@
 // builds the agenda snapshot, sends the mail and serves the civic-league
 // feeds (worker/watches.js).
 //
-// No people-finding, by construction rather than by guessing at names:
+// No people-finding:
 // - Agenda titles can name private people (a buyer of a City lot, a tenant,
-//   an applicant). Siren never repeats a title. It describes each item from
-//   parts code extracts: the kind of action, the topics it matches, the
-//   property's address, its civic league and its ordinance number, and
-//   links to the City's own page for the rest. Two independent reviews of
-//   an earlier version that withheld names from titles found it leaking
-//   in shape after shape; describing is the design that can't.
-// - A watch picks topics from the city profile's reviewed list
-//   (meetings.watchTopics), never free words, so no watch can be keyed to a
-//   person's name. A new topic is a reviewed change to that list.
+//   an applicant). Siren never repeats a title in a feed, an email or a
+//   response. It describes each item from parts code extracts: the kind of
+//   action, the topics it matches, the property's address, its civic league
+//   and its ordinance number, and links to the City's own page for the rest.
+//   Two independent reviews of an earlier version that withheld names from
+//   titles found it leaking in shape after shape; describing is the design
+//   that can't. (The snapshot keeps each title, internally, only to match
+//   watch phrases against.)
+// - A watch follows topics from the city profile's reviewed list
+//   (meetings.watchTopics), and, since a watch belongs to one signed-in
+//   member and mails only them (Jason, 2026-11-16: "Free text for signed in
+//   and private conversations feels like the right shape"), phrases they
+//   write. A phrase made only of common first names and surnames (Census
+//   lists, data/common-names.json) is refused, as is one with a number, an
+//   address or contact details, or a civic league's name. That's a guard,
+//   not a wall: a rare surname alone gets through, as it would in
+//   find_legislation in a private conversation.
+
+import { addressKey } from './block.js';
 
 export const WATCH_DAYS = 365;
 /** Agenda items a watch remembers having sent, newest kept. */
 export const SEEN_MAX = 400;
 export const MAX_TOPICS = 8;
+export const MAX_PHRASES = 5;
+export const PHRASE_CHARS = 40;
+export const PHRASE_WORDS = 4;
 const MAX_ADDRESSES = 3;
 
 /** Text for matching: NFKC, lower case, apostrophes dropped, anything else not a letter or digit a single space. */
@@ -84,6 +97,22 @@ export function itemNumber(text) {
 }
 
 /**
+ * The addresses a title names whose street is one of the City's: a number
+ * and a street from the City's address list (`streets`, the compiled list,
+ * src/public-text.js compileStreets). A title's "$5,000 From Mary Lane" or
+ * "5 Years With Robert Street" isn't one (review of #62), so only a number,
+ * a direction, a City street name and its suffix can reach a description.
+ */
+export function cityAddresses(addresses = [], streets = null) {
+  const names = streets?.names instanceof Set ? streets.names : null;
+  if (!names) return [];
+  return addresses.filter((a) => {
+    const k = addressKey(a);
+    return k.num && k.street && names.has(k.street.toLowerCase());
+  });
+}
+
+/**
  * How an item reads in a feed or an email: its kind, its topics and its
  * addresses, all from fixed labels and extracted addresses. `item` is a
  * snapshot item ({ kind, topics, addresses }).
@@ -101,17 +130,47 @@ export function describeItem(item, topics = []) {
 const leagueKey = (s) => normalizeText(s);
 
 /**
+ * A member's free-text phrases, checked: { phrases, refused: [{ phrase,
+ * reason }] }. `names` is { surnames, given } (Sets, lower case),
+ * `leagues` the civic leagues, `textCheck(text)` the public-text check
+ * (addresses, emails, phone numbers), returning true when the text is clean.
+ */
+export function checkPhrases(raw, { names = null, leagues = [], textCheck = () => true } = {}) {
+  const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(/[,;\n]/) : [];
+  const leagueKeys = new Set(leagues.map(leagueKey));
+  const phrases = [];
+  const refused = [];
+  for (const r of list.slice(0, 20)) {
+    const phrase = normalizeText(r);
+    if (!phrase || phrases.includes(phrase)) continue;
+    const words = phrase.split(' ');
+    let reason = null;
+    if (phrase.length < 3 || phrase.length > PHRASE_CHARS) reason = `a phrase is 3 to ${PHRASE_CHARS} characters`;
+    else if (words.length > PHRASE_WORDS) reason = `a phrase is at most ${PHRASE_WORDS} words`;
+    else if (/\d/.test(phrase)) reason = 'a phrase has no numbers (no house numbers or addresses)';
+    else if (leagueKeys.has(phrase)) reason = 'that is a civic league: watch it as the civic league instead';
+    else if (names && words.every((w) => names.surnames.has(w) || names.given.has(w))) reason = "that reads as a person's name; watches follow topics and words, not people";
+    else if (!textCheck(String(r))) reason = 'a phrase names no address, person or contact';
+    if (reason) refused.push({ phrase: String(r).trim().slice(0, PHRASE_CHARS + 20), reason });
+    else phrases.push(phrase);
+  }
+  return { phrases, refused };
+}
+
+/**
  * Check a watch as asked: { topics, civic_league | league, bodies }. Returns
  * { ok: true, watch: { topics, league, bodies } } or { ok: false, error,
  * refused }. `topics` (the option) is the city's reviewed list; `leagues` the
  * civic leagues items are tagged with; `bodies` the bodies a watch may name.
  */
-export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allowed = [] } = {}) {
+export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allowed = [], names = null, textCheck } = {}) {
   const ids = new Set(topics.map((t) => t.id));
   const asked = Array.isArray(input.topics) ? input.topics.map((x) => String(x).trim()).filter(Boolean) : [];
   const refused = asked.filter((x) => !ids.has(x)).slice(0, 10).map((x) => x.slice(0, 60));
   const chosen = topics.filter((t) => asked.includes(t.id)).map((t) => t.id);
   if (chosen.length > MAX_TOPICS) return { ok: false, error: `A watch has at most ${MAX_TOPICS} topics.`, refused };
+  const { phrases, refused: refusedPhrases } = checkPhrases(input.phrases, { names, leagues, textCheck });
+  if (phrases.length > MAX_PHRASES) return { ok: false, error: `A watch has at most ${MAX_PHRASES} phrases.`, refused, refusedPhrases };
   const askedLeague = String(input.civic_league ?? input.league ?? '').trim();
   let league = null;
   if (askedLeague) {
@@ -120,30 +179,38 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
   }
   const askedBodies = Array.isArray(input.bodies) && input.bodies.length ? input.bodies : allowed;
   const bodies = allowed.filter((b) => askedBodies.some((x) => String(x).toLowerCase() === b.toLowerCase()));
-  if (!bodies.length) return { ok: false, error: `A watch covers ${allowed.join(' or ')}.`, refused };
-  if (!chosen.length && !league) {
-    return { ok: false, error: refused.length ? "Those aren't topics a watch can follow yet." : 'A watch needs a topic, a civic league, or both.', refused };
+  if (!bodies.length) return { ok: false, error: `A watch covers ${allowed.join(' or ')}.`, refused, refusedPhrases };
+  if (!chosen.length && !phrases.length && !league) {
+    const error = refusedPhrases.length ? 'None of those phrases can be watched.' : refused.length ? "Those aren't topics a watch can follow yet." : 'A watch needs a topic, a phrase, a civic league, or a mix.';
+    return { ok: false, error, refused, refusedPhrases };
   }
-  return { ok: true, watch: { topics: chosen, league, bodies }, refused };
+  return { ok: true, watch: { topics: chosen, phrases, league, bodies }, refused, refusedPhrases };
 }
 
 /** A watch's one-line description, for the card, the page and the mail. */
-export function watchLabel({ topics: ids = [], league = null, bodies = [] } = {}, topics = []) {
-  const labels = ids.map((id) => topics.find((t) => t.id === id)?.label || id);
+export function watchLabel({ topics: ids = [], phrases = [], league = null, bodies = [] } = {}, topics = []) {
+  const labels = [...ids.map((id) => topics.find((t) => t.id === id)?.label || id), ...(phrases || []).map((p) => `"${p}"`)];
   return `${labels.length ? labels.join(', ') : 'everything'}${league ? ` in ${league}` : ''}, at ${bodies.join(' or ')}`;
+}
+
+/** The watch's phrases an item's title holds. */
+export function phrasesIn(watch, item) {
+  const t = normalizeText(item?.title);
+  return (watch?.phrases || []).filter((p) => termPattern(p)?.test(t));
 }
 
 /**
  * Whether an agenda item matches a watch. `item` is a snapshot item ({ body,
- * topics, leagues }). A watch with topics needs one of them; one with a league
+ * topics, title, leagues }). A watch with topics or phrases needs one of them
+ * (a topic in the item's topics, or a phrase in its title); one with a league
  * needs the item tagged with it; both, when it has both.
  */
 export function matchesWatch(watch, item) {
   if (!watch || !item) return false;
   if (!(watch.bodies || []).includes(item.body)) return false;
   if (watch.league && !(item.leagues || []).includes(watch.league)) return false;
-  if (!(watch.topics || []).length) return Boolean(watch.league);
-  return watch.topics.some((t) => (item.topics || []).includes(t));
+  if (!(watch.topics || []).length && !(watch.phrases || []).length) return Boolean(watch.league);
+  return (watch.topics || []).some((t) => (item.topics || []).includes(t)) || phrasesIn(watch, item).length > 0;
 }
 
 /** A key for one item on one meeting's agenda. */
@@ -151,12 +218,12 @@ export const itemKey = (meetingId, itemId) => `${meetingId}:${itemId}`;
 
 /** The same watch twice (topics in any order, the same league and bodies). */
 export function sameWatch(a, b) {
-  const k = (w) => JSON.stringify([[...(w.topics || [])].sort(), w.league || null, [...(w.bodies || [])].sort()]);
+  const k = (w) => JSON.stringify([[...(w.topics || [])].sort(), [...(w.phrases || [])].sort(), w.league || null, [...(w.bodies || [])].sort()]);
   return k(a) === k(b);
 }
 
 /** What the model is told when it offers a watch. */
-export const OFFERED_WATCH_NOTE = 'The person will see a card under your answer to start this watch: they can change the topics, and they confirm it with the email they signed in with. In your answer, say what the watch would follow and that they can start it on the card. Never say it is already set up.';
+export const OFFERED_WATCH_NOTE = 'The person will see a card under your answer to start this watch: they can change the topics and phrases, and they confirm it with the email they signed in with. In your answer, say what the watch would follow and that they can start it on the card. Never say it is already set up.';
 
 /**
  * offer_watch's executor. `ctx.watches.check(args)` is the Worker's checker
@@ -169,7 +236,8 @@ export function offerWatch(ctx, args = {}) {
   if (ctx.watchOffer) return { offered: true, note: 'A watch is already offered for this answer.' };
   const out = ctx.watches.check(args);
   if (!out.ok) {
-    return { offered: false, note: `${out.error}${out.refused?.length ? ` Not topics: ${out.refused.join(', ')}.` : ''} If nothing on the list fits, say a watch can't follow that yet.` };
+    const phrases = (out.refusedPhrases || []).map((r) => `"${r.phrase}": ${r.reason}`).join('; ');
+    return { offered: false, note: `${out.error}${out.refused?.length ? ` Not topics: ${out.refused.join(', ')}.` : ''}${phrases ? ` Refused phrases: ${phrases}.` : ''} Use a topic from the list, or a few plain words agenda titles would use; never a person's name.` };
   }
   const topics = ctx.watches.topics || [];
   ctx.watchOffer = { ...out.watch, labels: out.watch.topics.map((id) => topics.find((t) => t.id === id)?.label || id), label: watchLabel(out.watch, topics) };

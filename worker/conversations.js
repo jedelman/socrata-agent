@@ -117,7 +117,7 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
     // A watch the answer offered (worker/watches.js): its terms, league and
     // bodies, so a reopened conversation shows the card; only when there is one.
     ...(watchOffer && typeof watchOffer === 'object'
-      ? { watchOffer: { topics: (Array.isArray(watchOffer.topics) ? watchOffer.topics : []).slice(0, 8).map((t) => clip(t, 60)), labels: (Array.isArray(watchOffer.labels) ? watchOffer.labels : []).slice(0, 8).map((t) => clip(t, 120)), league: clip(watchOffer.league, 120) || null, bodies: (Array.isArray(watchOffer.bodies) ? watchOffer.bodies : []).slice(0, 4).map((b) => clip(b, 60)), label: clip(watchOffer.label, 600) } }
+      ? { watchOffer: { topics: (Array.isArray(watchOffer.topics) ? watchOffer.topics : []).slice(0, 8).map((t) => clip(t, 60)), labels: (Array.isArray(watchOffer.labels) ? watchOffer.labels : []).slice(0, 8).map((t) => clip(t, 120)), phrases: (Array.isArray(watchOffer.phrases) ? watchOffer.phrases : []).slice(0, 5).map((t) => clip(t, 60)), league: clip(watchOffer.league, 120) || null, bodies: (Array.isArray(watchOffer.bodies) ? watchOffer.bodies : []).slice(0, 4).map((b) => clip(b, 60)), label: clip(watchOffer.label, 600) } }
       : {}),
     ...(answerLinks && (answerLinks.kept || answerLinks.dropped)
       ? { answerLinks: { kept: count(answerLinks.kept), dropped: count(answerLinks.dropped) } }

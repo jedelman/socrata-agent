@@ -464,39 +464,48 @@ generic mode.
   affecting short term rentals" by email, and "shift from per street to per
   neighborhood league" for the public feeds). Behind `WATCHES` and
   `LEAGUE_FEEDS`, both off; with both off nothing changes (routes, page,
-  session, prompt, tools, cron). **Siren never repeats or keeps an agenda
-  title** (titles name buyers, tenants and applicants; two reviews found
+  session, prompt, tools, cron). **Siren never repeats an agenda title**
+  (titles name buyers, tenants and applicants; three reviews found
   name-withholding leaking, so it was dropped): each item is described from
-  fixed kind labels (`itemKind`), the city's topics (`topicsOf`), the
-  addresses the title names, its ordinance number and the City's link
+  fixed kind labels (`itemKind`), the city's topics (`topicsOf`), addresses
+  on one of the City's streets (`cityAddresses`, against
+  data/gaps/norfolk-streets.json), its ordinance number and the City's link
   (`describeItem` in `src/watches.js`); a test checks every word of every
-  description over the whole legislation index is a label, a count or an
-  address word. **Watches follow topics** from the city profile's reviewed
-  `meetings.watchTopics` (27 for Norfolk, phrases counted against the
-  index), never free words; a new topic is a reviewed PR and never a phrase
-  that could be a name. `offer_watch` (a core tool, declared only when the
-  Worker passes `watches` to `ask()`: a signed-in member, `WATCHES` on, never
-  a public thread) takes topic ids as an enum and/or a civic league; the
-  model only offers, and the person starts a watch on the card with the
-  email they signed in with (checked against the account's HMAC).
-  `worker/watches.js`: once a day (cron, 11:00 UTC or later, or at once with
-  no snapshot), the next 21 days of `meetings.watchBodies` from the notices,
-  each iqm2 agenda described, each item tagged by the civic league of its
-  addresses (the address list's `civic_league` column only, at plugin
-  access), kept as `agenda-snapshot:<city>` (an unreadable meeting keeps
-  yesterday's items); then one digest a day per watch (Resend,
-  `List-Unsubscribe` one-click, `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX`
-  default 200, either "0" to stop; 5 a member, 365 days). Ended watches go
-  first and are deleted either way; each watch is re-read before its mail
-  and before it's written (a stop mid-run wins); each KV key is written at
-  most once a run (the day's count once at the end; a 15-minute lock with
-  its own expiry, never deleted); Resend busy stops the round, a 4xx marks
-  nothing and three in a row stop it. A watch keeps the member's email
+  description over the whole legislation index is a label word, a number or
+  a word of the street list. The snapshot keeps each title in one internal
+  field to match phrases against; nothing serves it. **Watches follow
+  topics** from the city profile's reviewed `meetings.watchTopics` (27 for
+  Norfolk; a test refuses a topic phrase made only of common names) **and a
+  member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
+  private conversations"): up to five, refused when made only of common
+  first names and surnames (`data/common-names.json`, Census lists, built by
+  `scripts/build-common-names.js`), holding a number, address or contact, or
+  naming a civic league; a guard, not a wall. Feeds never use phrases.
+  `offer_watch` (a core tool, declared only when the Worker passes `watches`
+  to `ask()`: a signed-in member, `WATCHES` on, never a public thread) takes
+  topic ids as an enum, phrases and/or a civic league; the person starts the
+  watch on the card with the email they signed in with (checked against the
+  account's HMAC). `worker/watches.js`: once a day (cron, 11:00 UTC or later,
+  or at once with no snapshot), the next 21 days of `meetings.watchBodies`
+  from the notices, each iqm2 agenda described and tagged by the civic
+  league of its addresses (the `civic_league` column only, at plugin access;
+  "No Civic League" is none), kept as `agenda-snapshot:<city>`; then one
+  digest a day per watch (Resend, `List-Unsubscribe` one-click,
+  `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
+  stop; 5 a member, 365 days). **The job never writes a watch**: what it sent
+  goes in `watch-sent:<id>`, so a stale cached copy can't undo a stop or a
+  renewal; every watch key expires a week after its end. Ended watches go
+  first and are deleted either way; each key is written at most once a run
+  (the day's count every two seconds at most and at the end; a 15-minute lock
+  with its own expiry, never deleted); a new order each day; Resend busy
+  stops the round, a 4xx marks nothing and three before any delivery stop
+  it; idempotency keys hash the items sent. A watch keeps the member's email
   AES-GCM encrypted under a key derived from INVITE_SECRET, bound to its id,
   until it stops; never logged or returned. Pages `/watches`, `/watch/stop`
   (its token is the watch id and an HMAC; posted from script, or POSTed
   one-click by a mail client before the JSON rule), `/feeds` and
-  `/feeds/<league>.atom` (public, described items, `noindex`).
+  `/feeds/<league>.atom` (public, described items, `noindex`). BZA and ARB
+  aren't watchable yet: their iqm2 pages list no items (the agenda is a file).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each

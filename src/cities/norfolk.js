@@ -228,7 +228,7 @@ export default {
     // in a reviewed PR; never a phrase that could be someone's name.
     watchTopics: [
       { id: 'short_term_rentals', label: 'Short-term rentals', phrases: ['short-term rental', 'vacation rental', 'homestay', 'bed and breakfast'] }, // 159
-      { id: 'accessory_dwellings', label: 'Accessory dwelling units', phrases: ['accessory dwelling unit', 'ADU'] }, // 1 (and on the 11/19/2026 PC agenda)
+      { id: 'accessory_dwellings', label: 'Accessory dwelling units', phrases: ['accessory dwelling unit'] }, // 1, and on the 11/19/2026 PC agenda (not "ADU": also a surname)
       { id: 'housing_development', label: 'Apartments and multi-family housing', phrases: ['multi-family', 'multifamily', 'dwelling unit', 'apartment'] }, // 28
       { id: 'affordable_housing', label: 'Affordable and public housing', phrases: ['affordable housing', 'workforce housing', 'public housing', 'housing authority'] }, // 24
       { id: 'rezoning', label: 'Rezonings', phrases: ['rezone', 'rezoning', 'change of zoning', 'zoning map'] }, // 37
@@ -245,9 +245,9 @@ export default {
       { id: 'signs', label: 'Signs and billboards', phrases: ['sign', 'signage', 'billboard', 'electronic display'] }, // 32
       { id: 'encroachments', label: 'Encroachments into streets and sidewalks', phrases: ['encroach', 'encroachment'] }, // 54
       { id: 'city_property', label: 'Sales and leases of City property', phrases: ['sale and conveyance', 'conveyance to', 'lease', 'sublease'] }, // 140
-      { id: 'flooding', label: 'Flooding, stormwater and the shoreline', phrases: ['flood', 'stormwater', 'resilience', 'sea level', 'seawall', 'bulkhead', 'living shoreline', 'coastal storm'] }, // 22
+      { id: 'flooding', label: 'Flooding, stormwater and the shoreline', phrases: ['flooding', 'floodplain', 'flood zone', 'flood mitigation', 'flood control', 'flood protection', 'flood preparedness', 'floodwall', 'flood wall', 'stormwater', 'resilience', 'sea level', 'seawall', 'bulkhead', 'living shoreline', 'coastal storm'] }, // ~20 (not "flood" alone: also a surname)
       { id: 'trees_open_space', label: 'Trees and open space', phrases: ['tree', 'urban forest', 'green space', 'open space'] }, // 10
-      { id: 'parks', label: 'Parks and recreation', phrases: ['recreation center', 'parks and recreation', 'recreation department', 'recreation facility', 'playground', 'public park', 'athletic field'] }, // 19 ("recreation" alone caught the commercial-recreation land use)
+      { id: 'parks', label: 'Parks and recreation', phrases: ['recreation center', 'parks and recreation', 'recreation department', 'recreation facility', 'playground', 'public park', 'athletic field'] }, // 19; a "Commercial Recreation Center" still matches (a near miss the docs name)
       { id: 'streets_parking', label: 'Streets, traffic and parking', phrases: ['traffic', 'speed limit', 'sidewalk', 'bike', 'bicycle', 'crosswalk', 'street closure', 'parking'] }, // 37
       { id: 'transit', label: 'Transit', phrases: ['transit', 'light rail'] }, // 3
       { id: 'budget', label: 'Budget and grants', phrases: ['appropriations ordinance', 'annual budget', 'capital improvement', 'grant funds'] }, // ~190

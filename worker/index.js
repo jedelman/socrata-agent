@@ -15,7 +15,8 @@ import { cities, getCity } from '../src/cities/index.js';
 import norfolkLegislation from '../data/norfolk-legislation.json';
 import norfolkStreets from '../data/gaps/norfolk-streets.json';
 import norfolkGaps from '../data/gaps/norfolk.json';
-import { compileStreets } from '../src/public-text.js';
+import { compileStreets, publicTextViolations } from '../src/public-text.js';
+import commonNames from '../data/common-names.json';
 import UI from './ui.html';
 import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
@@ -353,8 +354,15 @@ async function handleAsk(req, env, ctx) {
   }
 }
 
+// Common first names and surnames (data/common-names.json), as Sets once per
+// isolate: a watch phrase made only of them is refused.
+let NAMES = null;
+const watchNames = () => (NAMES ||= { surnames: new Set(commonNames.surnames), given: new Set(commonNames.given) });
+// A phrase must pass the public-text checks: no address, email or phone number.
+const watchTextCheck = (cityId) => (text) => publicTextViolations(text, { streets: STREETS[cityId] }).length === 0;
+
 // What offer_watch checks a watch against: the city's bodies, its reviewed
-// topics and the civic leagues in the last snapshot.
+// topics, the civic leagues in the last snapshot, and the phrase guards.
 async function watchOptions(env, cityId) {
   const bodies = cities[cityId].meetings.watchBodies;
   const topics = cities[cityId].meetings.watchTopics || [];
@@ -362,7 +370,7 @@ async function watchOptions(env, cityId) {
   try {
     leagues = (await readSnapshot(env.LIMITS, cityId))?.leagues || [];
   } catch { /* no leagues: a league watch is refused with a reason */ }
-  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies }) };
+  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies, names: watchNames(), textCheck: watchTextCheck(cityId) }) };
 }
 const watchCities = (env) => {
   const { config } = getDeployment(env);
@@ -373,6 +381,8 @@ function watchDeps(env) {
   return {
     cityIds: Object.keys(list),
     cities: list,
+    names: watchNames,
+    textCheck: watchTextCheck,
     // Email sign-in exists only in invite mode, where asking needs a bound invite.
     canAsk: async (uid) => !inviteOnly(env) || Boolean(await memberInvite(env.LIMITS, uid)),
   };
@@ -424,7 +434,7 @@ async function watchRoute(req, env, path, base, url) {
   }
   return null;
 }
-const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. Watches follow topics from a reviewed list, and every email describes each agenda item without repeating its title, which can name private people.`;
+const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. A watch follows topics or words, never a person (a phrase made only of common names is refused), and every email describes each agenda item without repeating its title, which can name private people.`;
 
 // What every answer runs with, private or public: the deployment's city,
 // plugins, model and limits, for one city.
@@ -1183,7 +1193,7 @@ export default {
       if (watchesOn(env) && watchesSetupError(env)) console.error('watches:', watchesSetupError(env));
       if (env.LIMITS) {
         const list = watchCities(env);
-        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config) })
+        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config), streets: (c) => STREETS[c] })
           .catch((err) => console.error('watch job failed', String(err?.message || err).slice(0, 200))));
       }
     }
