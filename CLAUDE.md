@@ -468,11 +468,22 @@ generic mode.
   (titles name buyers, tenants and applicants; three reviews found
   name-withholding leaking, so it was dropped): each item is described from
   fixed kind labels (`itemKind`), the city's topics (`topicsOf`), addresses
-  on one of the City's streets (`cityAddresses`, against
-  data/gaps/norfolk-streets.json), its ordinance number and the City's link
-  (`describeItem` in `src/watches.js`); a test checks every word of every
-  description over the whole legislation index is a label word, a number or
-  a word of the street list. The snapshot keeps each title in one internal
+  on the City's address list, its ordinance number and the City's link
+  (`describeItem` in `src/watches.js`); a test checks, over the whole
+  legislation index, that every address shown is on the list and every word
+  of every description is a label word, a number or a word of that
+  address's street. **The address list** (Jason, 2026-11-16: "A trie
+  whitelist built from the address db", against streets named for people):
+  `data/norfolk-addresses.json`, every house number on every street of
+  Address Information with its civic league (two columns, grouped, at
+  GENERIC access; no names), built by `scripts/build-addresses.js` and
+  refreshed weekly by `refresh-addresses.yml` (league changes or more than
+  2% gone go to a pull request). `compileAddresses` keys it street then
+  number: an address shows only when that number is on that street (the
+  direction alone may differ, never guessed when both sides have the
+  number), leagues come from it (no address lookups), and a phrase the name
+  guard refuses that is a street's name ("hampton") is a street watch,
+  matched by an item's listed address, never by title words. The snapshot keeps each title in one internal
   field to match phrases against; nothing serves it. **Watches follow
   topics** from the city profile's reviewed `meetings.watchTopics` (27 for
   Norfolk; a test refuses a topic phrase made only of common names) **and a
@@ -485,17 +496,17 @@ generic mode.
   or holding a number, address or contact, or naming a civic league; without
   its lists no phrase is accepted. A guard, not a wall: a rare surname alone
   passes and works as a standing title search (Jason's call, in the docs).
-  Feeds never use phrases. Addresses come from `titleAddresses` (money taken
+  Feeds never use phrases. Addresses come from `titlePlaces` (money taken
   out first; apostrophes and St./Saint matched as the list spells them).
   `offer_watch` (a core tool, declared only when the Worker passes `watches`
   to `ask()`: a signed-in member, `WATCHES` on, never a public thread) takes
-  topic ids as an enum, phrases and/or a civic league; the person starts the
+  topic ids as an enum, phrases (streets among them) and/or a civic league; the person starts the
   watch on the card with the email they signed in with (checked against the
   account's HMAC). `worker/watches.js`: once a day (cron, 11:00 UTC or later,
   or at once with no snapshot), the next 21 days of `meetings.watchBodies`
   from the notices, each iqm2 agenda described and tagged by the civic
-  league of its addresses (the `civic_league` column only, at plugin access;
-  "No Civic League" is none), kept as `agenda-snapshot:<city>`; then one
+  league of its listed addresses ("No Civic League" is none), kept as
+  `agenda-snapshot:<city>`; then one
   digest a day per watch (Resend, `List-Unsubscribe` one-click,
   `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
   stop; 5 a member, 365 days). **The job never writes a watch**: what it sent

@@ -9,8 +9,8 @@ Two features share one daily read of the City's posted agendas:
 
 - **Watches** (`WATCHES = "true"`): a signed-in member keeps up to five
   watches. A watch is topics from the city's reviewed list, phrases of their
-  own, a civic league, or a mix, over City Council and/or the Planning
-  Commission. When a newly posted
+  own, a street, a civic league, or a mix, over City Council and/or the
+  Planning Commission. When a newly posted
   agenda item matches, the member gets one email that day.
 - **Civic-league feeds** (`LEAGUE_FEEDS = "true"`): a public Atom feed per
   civic league, plus one for every item, at `/feeds`.
@@ -39,24 +39,84 @@ described from parts code extracts (`src/watches.js`):
 - **the kind of action**: one of a fixed list of labels ("Conditional Use
   Permit", "Sale of City property", "Rezoning", "Lease", …);
 - **the topics it matches**: from the city's reviewed list;
-- **the addresses** its title names, and only those on one of the City's
-  streets (`titleAddresses`): a number, a direction, a street from the City's
-  address list and its suffix. Money comes out of the title first. A title's
-  "$5,000 From Mary Lane" or "$5,000 Betty Lane Scholarship" isn't an
-  address, though Betty and Lane are both on the street list; the third and
-  fourth reviews showed the plain extractor would have let these through.
-  Apostrophes and "St." for Saint are matched the way the list spells them
-  (Saint Paul's Boulevard is SAINT PAULS);
+- **the addresses** its title names, and only those on the City's address
+  list: that house number on that street (`titlePlaces`, below). Money comes
+  out of the title first. A title's "$5,000 From Mary Lane" or "$5,000 Betty
+  Lane Scholarship" isn't an address; the third and fourth reviews showed the
+  plain extractor would have let these through;
 - **its ordinance or resolution number**;
 - **a link to the City's own page** for the item, which has the full text.
 
 For example: "Conditional Use Permit: Short-term rentals, at 1210 Virgilina
 Avenue". A test runs over all 1,452 titles in the legislation index. It checks
-that every address is exactly a number, a direction, a street on the City's
-list and a suffix. It also checks that every word of every description is a
-word of a fixed label, a number, or a word of the City's street list (not of
-the title itself). It runs the reviewers' probes too (`test/watches.test.js`).
-A street named for a person can still appear, as it would in any address.
+that every address shown is on the City's address list, and that every word
+of every description is a word of a fixed label, a number, or a word of the
+street that address was found on. It runs the reviewers' probes too
+(`test/watches.test.js`).
+
+## Streets named for people: the address list
+
+Jason, 2026-11-16: "How do we know we're not getting false positives on
+names, since so many streets are named after people? (A trie whitelist built
+from the address db is my answer)". Measured that day, the false positives ran
+both ways:
+
+- **Names read as addresses.** Checking a title's address against the list of
+  street *names* let through a number followed by any street's name: 17 of the
+  877 addresses descriptions showed weren't addresses on the City's list. None
+  of the 17 was a person's name, but the check couldn't promise that.
+- **Streets read as names.** The phrase guard refused 576 of the City's 1,941
+  street names ("hampton", "colley") as people's names.
+
+So watches carry the City's own address list, `data/norfolk-addresses.json`,
+built by `scripts/build-addresses.js` from Address Information (`ere7-kake`).
+It holds every house number on every street, 78,552 on 2,209 streets, each with
+its civic league (118 of them). It's two columns of the City's list,
+`full_address` and `civic_league`, and holds no names. It weighs 645 KB, 197 KB
+gzipped, and compiles in about 17 ms the first time an isolate uses it.
+
+- **An address reaches a description only when that house number is on that
+  street in the list** (`compileAddresses` and `titlePlaces` in
+  `src/watches.js`). Street, then number: the trie Jason proposed. Abbreviations,
+  apostrophes and "St." for Saint are matched the way the list spells them.
+  The direction is the only thing allowed to differ: "628 West 35th Street" is
+  628 35TH STREET on the list, and "482 Main Street" is 482 E MAIN STREET,
+  because only the East side has a 482. When both sides have the number,
+  nothing is guessed.
+- **An item's civic league comes from the list**, so the daily job asks the
+  portal nothing per address.
+- **A street's name is watched as that street.** A phrase the name guard
+  refuses that is a street of the list ("hampton", "21st street") becomes a
+  street watch: it matches items whose listed address is on that street,
+  never words in a title. So "hampton" catches 4100 Hampton Boulevard and can
+  never catch a lease with someone named Hampton. A phrase the guard passes
+  stays a phrase matched in titles ("granby" still catches a Granby Street
+  streetscape item that names no address).
+
+Measured on 2026-11-16, over the 883 addresses the indexed titles name:
+- **On the list:** 860 are shown.
+- **Not on the list:** 23 are dropped. They're typos ("Berkeley Avenue"),
+  streets outside the city ("Nansemond Parkway"), the extractor's misreads
+  ("20 Foot Lane"), and numbers the list doesn't carry.
+
+Of the 1,941 street names, 553 are now watched as streets and 1,365 as phrases.
+The 23 still refused are the names of civic leagues ("Bayview", "Ocean View"),
+and the refusal says to watch the league.
+
+Tests check every street name and every indexed title against the list
+(`test/watches.test.js`), and the builder (`test/build-addresses.test.js`).
+
+**Keeping it current.** `.github/workflows/refresh-addresses.yml` rebuilds the
+list every Thursday. `scripts/build-addresses.js --compare` then decides where
+it goes:
+- **To main**, after the watch tests pass against the new list, when only
+  addresses came, went or changed league.
+- **To a pull request** when a civic league was added, removed or renamed.
+  That changes a feed's address, and a watch on a removed league stops
+  matching. Also when more than 2% of the addresses are gone, which looks more
+  like a short read from the portal than the City's list.
+
+To refresh it by hand, run `node scripts/build-addresses.js`.
 
 **Watches follow topics, and a member's own phrases.**
 - **Topics:** a watch can pick from the city profile's `meetings.watchTopics`,
@@ -64,6 +124,9 @@ A street named for a person can still appear, as it would in any address.
   rentals" matches short-term rental, vacation rental, homestay and bed and
   breakfast, which is 159 titles since July 2023. A test refuses any topic
   phrase made only of common names; "ADU" and "flood" were dropped for this.
+- **Streets:** a phrase that is a street's name and that the name guard
+  refuses is watched as that street, by listed address (above). Phrases and
+  streets together are at most five.
 - **Phrases:** a watch belongs to one signed-in member and mails only them.
   Jason, 2026-11-16: "Free text for signed in and private conversations feels
   like the right shape." So a member can add up to five phrases of their own
@@ -120,19 +183,19 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
    Agendas appear about a week before a meeting.
 3. Describes each item as above: its kind, number, topics and City-street
    addresses. It keeps the title in an internal field for phrase matching.
-4. Tags each item with the civic league of each address, from the City's
-   address list (`ere7-kake`):
-   - It reads the `civic_league` column only, at plugin access, so the
-     league president's name and email are refused in code.
+4. Tags each item with the civic league of each address, from the address
+   list the Worker carries (above), so no address is looked up:
+   - The list holds the `civic_league` column only, never the league
+     president's name and email.
    - The list's own "No Civic League" value counts as no league, not as a
      league with a feed.
    - Many commercial addresses (much of Granby Street, Newtown Road, East
      Virginia Beach Boulevard) are in no civic league in the City's own list.
      Their items are in the citywide feed only.
-   - Lookups are cached 90 days per address.
 5. Keeps the result as `agenda-snapshot:<city>` for four days. Each item keeps
    when it was first seen. A meeting whose page can't be read that day keeps
-   the day before's items, so an outage doesn't empty the feeds.
+   the day before's items, placed again against the current address list, so
+   an outage doesn't empty the feeds.
 6. With watches on, mails each watch the items it matches and hasn't been sent:
    - **one digest a day per watch**, with a `List-Unsubscribe` one-click stop
      (RFC 8058);
@@ -166,9 +229,11 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
      any mail goes through stop the round, since that's the setup, not an
      address.
 
-A live run on 2026-11-16 took 5 seconds and 11 requests: five meetings, one of
-them with a posted agenda of 19 items. A short-term-rental watch matched both
-of that hearing's short-term-rental items. 13 of the 19 got a civic league.
+A live run on 2026-11-16, before the address list, took 5 seconds and 11
+requests: five meetings, one of them with a posted agenda of 19 items. A
+short-term-rental watch matched both of that hearing's short-term-rental items.
+13 of the 19 got a civic league. The address lookups in those 11 requests are
+gone now: a run is the notices query and one page per meeting.
 
 ## What is kept, and where
 
@@ -183,9 +248,9 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
 - **The watch:** its topics, phrases, league, bodies, dates, and the account
   id (`u`, already an HMAC). Its sent key holds how many emails and the last
   400 item keys sent.
-- **The snapshot:** for each item, its kind, number, topics, City-street
-  addresses, leagues, link and meeting, and its title for phrase matching
-  (never served).
+- **The snapshot:** for each item, its kind, number, topics, listed addresses
+  and their streets, leagues, link and meeting, and its title for phrase
+  matching (never served).
 
 ## What it can miss
 
@@ -201,6 +266,10 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
 - **Addresses the extractor misses.** Some title shapes defeat it: ", and"
   lists, "2706 Through 2722 …", a street whose suffix is dropped ("3411
   Sewells Point"). Those items get no address and no league.
+- **Addresses not on the City's list.** A typo, a street outside the city or a
+  number the list doesn't carry gets no address and no league (23 of 883
+  measured), and so does an address whose direction the title leaves out when
+  both sides of the street have that number.
 
 ## Limits
 
@@ -210,7 +279,8 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
   emails a day (default 100). Set the email cap under the Resend plan's daily
   limit, with room for sign-in links. `"0"` pauses mail; `WATCH_MAX = "0"`
   takes no new watches.
-- **Requests:** about 11 requests a day, counted on their own budget of 300.
+- **Requests:** the notices query and one page per meeting each day, counted
+  on their own budget of 300.
 - **Known gap:** the per-member cap and the duplicate check read a KV listing,
   which can lag a few seconds. Two starts in quick succession could pass
   either.
@@ -221,7 +291,7 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
    and PUBLIC_ORIGIN must be set. Siren has all four.
 2. Set `WATCHES = "true"` and/or `LEAGUE_FEEDS = "true"` in `[env.siren.vars]`
    and deploy. Within ten minutes the cron builds the first snapshot. Until
-   then `/feeds` answers 503 and a league watch is refused, with a reason.
+   then `/feeds` answers 503.
 
 ## Decisions taken as defaults (Jason's to change)
 
@@ -234,7 +304,8 @@ of that hearing's short-term-rental items. 13 of the 19 got a civic league.
   meetings each), and the agenda is a posted file. Adding them means reading
   those files.
 - **Phrases:** free text for a member's own watches, with the common-names
-  guard (Jason, 2026-11-16).
+  guard (Jason, 2026-11-16), and a street's name watched as that street, from
+  the address list (Jason's trie, the same day).
 - **The topic list:** 27 topics drawn from the legislation index's own wording,
   in `src/cities/norfolk.js`.
 - **The numbers:** 5 watches, 365 days, 100 emails a day, one digest a day,

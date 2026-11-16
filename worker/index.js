@@ -17,6 +17,7 @@ import norfolkStreets from '../data/gaps/norfolk-streets.json';
 import norfolkGaps from '../data/gaps/norfolk.json';
 import { compileStreets, publicTextViolations } from '../src/public-text.js';
 import commonNames from '../data/common-names.json';
+import norfolkAddresses from '../data/norfolk-addresses.json';
 import UI from './ui.html';
 import deployments from '../deployments/index.js';
 import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
@@ -96,7 +97,7 @@ import WATCHES_JS from './watches-page.js' with { type: 'text' };
 import WATCH_STOP_JS from './watch-stop.js' with { type: 'text' };
 import WATCHES_CSS from './watches.css' with { type: 'text' };
 import { watchesOn, feedsOn, watchesReady, feedsReady, watchesSetupError, watchableCity, handleWatches, handleOneClickStop, runWatchJob, readSnapshot, atomFeed, leagueSlug, MAX_PER_ACCOUNT } from './watches.js';
-import { checkWatch } from '../src/watches.js';
+import { checkWatch, compileAddresses } from '../src/watches.js';
 import CLIENT_JS from './endorse-client.js' with { type: 'text' };
 import STORE_JS from './endorse-store.js' with { type: 'text' };
 import IDENTITY_JS from './atproto-identity.js' with { type: 'text' };
@@ -361,16 +362,21 @@ const watchNames = () => (NAMES ||= { surnames: new Set(commonNames.surnames), g
 // A phrase must pass the public-text checks: no address, email or phone number.
 const watchTextCheck = (cityId) => (text) => publicTextViolations(text, { streets: STREETS[cityId] }).length === 0;
 
+// The city's address list (scripts/build-addresses.js), compiled once per
+// isolate: watches show an agenda item's address only when it's on the list,
+// tag its civic league from it, and watch a street's name as that street.
+const ADDRESS_FILES = { norfolk: norfolkAddresses };
+const BOOKS = {};
+const watchBook = (cityId) => (cityId in BOOKS ? BOOKS[cityId] : (BOOKS[cityId] = compileAddresses(ADDRESS_FILES[cityId]) || null));
+
 // What offer_watch checks a watch against: the city's bodies, its reviewed
-// topics, the civic leagues in the last snapshot, and the phrase guards.
+// topics, the civic leagues and streets of its address list, and the phrase guards.
 async function watchOptions(env, cityId) {
   const bodies = cities[cityId].meetings.watchBodies;
   const topics = cities[cityId].meetings.watchTopics || [];
-  let leagues = [];
-  try {
-    leagues = (await readSnapshot(env.LIMITS, cityId))?.leagues || [];
-  } catch { /* no leagues: a league watch is refused with a reason */ }
-  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies, names: watchNames(), ordinary: ordinaryWords(), textCheck: watchTextCheck(cityId) }) };
+  const book = watchBook(cityId);
+  const leagues = [...(book?.leagues || [])];
+  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies, names: watchNames(), ordinary: ordinaryWords(), textCheck: watchTextCheck(cityId), book }) };
 }
 const watchCities = (env) => {
   const { config } = getDeployment(env);
@@ -384,6 +390,7 @@ function watchDeps(env) {
     names: watchNames,
     ordinary: ordinaryWords,
     textCheck: watchTextCheck,
+    book: watchBook,
     // Email sign-in exists only in invite mode, where asking needs a bound invite.
     canAsk: async (uid) => !inviteOnly(env) || Boolean(await memberInvite(env.LIMITS, uid)),
   };
@@ -1194,7 +1201,7 @@ export default {
       if (watchesOn(env) && watchesSetupError(env)) console.error('watches:', watchesSetupError(env));
       if (env.LIMITS) {
         const list = watchCities(env);
-        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config), streets: (c) => STREETS[c] })
+        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config), book: watchBook })
           .catch((err) => console.error('watch job failed', String(err?.message || err).slice(0, 200))));
       }
     }

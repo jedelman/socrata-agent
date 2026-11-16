@@ -5,15 +5,16 @@
 // repeats an agenda title (titles can name private people); it describes
 // each item from fixed labels and the property's address, and watches follow
 // topics from a reviewed list. The names in these fixtures are invented; the
-// addresses are made up.
+// addresses are on real streets with made-up numbers, in a small address
+// list (BOOK) standing in for the City's; the properties over every real
+// title and street name use the City's own (data/norfolk-addresses.json).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { topicsOf, itemKind, itemNumber, describeItem, cityAddresses, titleAddresses, streetCore, checkWatch, checkPhrases, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, MAX_TOPICS } from '../src/watches.js';
-import { addressKey } from '../src/block.js';
+import { topicsOf, itemKind, itemNumber, describeItem, cityAddresses, titleAddresses, titlePlaces, compileAddresses, streetKey, streetsIn, checkWatch, checkPhrases, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, MAX_TOPICS } from '../src/watches.js';
 import { ordinaryWords } from '../worker/telemetry.js';
-import { compileStreets } from '../src/public-text.js';
 import streetsFile from '../data/gaps/norfolk-streets.json' with { type: 'json' };
+import addressesFile from '../data/norfolk-addresses.json' with { type: 'json' };
 import commonNames from '../data/common-names.json' with { type: 'json' };
 import { extractAddresses } from '../src/adapters/iqm2.js';
 import { toolsFor } from '../src/tools.js';
@@ -28,11 +29,20 @@ const norfolk = getCity('norfolk');
 const TOPICS = norfolk.meetings.watchTopics;
 const BODIES = ['City Council', 'Planning Commission'];
 const LEAGUES = ['Ghent', 'Ocean View', 'Willoughby'];
-const streets = compileStreets(streetsFile.streets);
+// A stand-in for the City's address list: real streets, made-up numbers.
+const BOOK = compileAddresses({
+  leagues: LEAGUES,
+  streets: {
+    'COLLEY AVENUE': '100:0 4200:0', 'CHURCH STREET': '508 885:0', 'E MAIN STREET': '226', 'E VIRGINIA BEACH BOULEVARD': '6513',
+    'GRANBY STREET': '1210:2', 'HAMPTON BOULEVARD': '4100:0', 'SAINT PAULS BOULEVARD': '300 698', 'SHORE DRIVE': '8400:1',
+    'TIDEWATER DRIVE': '5660', 'W OCEAN VIEW AVENUE': '241:1', '35TH STREET': '628:0',
+  },
+});
+const CITY_BOOK = compileAddresses(addressesFile);
 const names = { surnames: new Set(commonNames.surnames), given: new Set(commonNames.given) };
 const textCheck = (t) => !/\d|@/.test(t);
-const opts = { topics: TOPICS, leagues: LEAGUES, bodies: BODIES, names, ordinary: ordinaryWords(), textCheck };
-const describe = (title) => describeItem({ kind: itemKind(title), topics: topicsOf(title, TOPICS), addresses: titleAddresses(title, streets) }, TOPICS);
+const opts = { topics: TOPICS, leagues: LEAGUES, bodies: BODIES, names, ordinary: ordinaryWords(), textCheck, book: BOOK };
+const describe = (title, book = BOOK) => describeItem({ kind: itemKind(title), topics: topicsOf(title, TOPICS), addresses: titleAddresses(title, book) }, TOPICS);
 
 test('items are described from fixed labels and the address, never the title: buyers, tenants and applicants stay out', () => {
   const cases = [
@@ -55,30 +65,42 @@ test('items are described from fixed labels and the address, never the title: bu
 // The property that makes the design safe, over every real title: each word
 // of a description is a word of a fixed kind or topic label, a connector, or
 // a word of an address the title names. Nothing else can get through.
-test('over all 1,452 indexed titles, every word of every description is a label word, a number, or a word of the City\'s street list', () => {
+test('over all 1,452 indexed titles, every address shown is on the City\'s address list, and every word of every description is a label word, a number, or a word of that address', () => {
   const idx = JSON.parse(readFileSync(new URL('../data/norfolk-legislation.json', import.meta.url), 'utf8'));
   const kinds = ['Conditional Use Permit renewal', 'Rezoning', 'Development Certificate', 'Zoning Ordinance amendment', 'Encroachment into a right-of-way', 'Sale of City property', 'Lease', 'Easement', 'Right of entry', 'Street or alley closure', 'Variance', 'Budget or appropriation', 'Design review', 'Resolution', 'Ordinance', 'Agenda item'];
   const words = (s) => String(s).toLowerCase().replace(/['’]/g, '').match(/[a-z0-9]+/g) || [];
-  // Address words come from the City's street list and the fixed suffixes and
-  // directions, never from the title being described (review of #62).
-  const streetWords = new Set(streetsFile.streets.flatMap(words));
-  const suffixes = 'street st avenue ave av boulevard blvd road rd drive dr lane ln court ct circle cir place pl way terrace ter parkway pkwy highway hwy crescent square trail arch landing point quay run walk n s e w north south east west'.split(' ');
-  const allowed = new Set([...kinds, ...TOPICS.map((t) => t.label), 'at and more', ...suffixes].flatMap(words));
+  // An address's words, as the title writes them, must be its number and the
+  // words of the street it was found on, abbreviated or not (streetKey);
+  // never another word of the title (reviews of #62).
+  const allowed = new Set([...kinds, ...TOPICS.map((t) => t.label), 'at and more'].flatMap(words));
   let n = 0;
+  let shown = 0;
   for (const item of idx.items) {
-    // Each address is exactly a number, maybe a direction, a street on the City's list, and maybe a suffix.
-    for (const a of titleAddresses(item.text, streets)) {
-      const k = addressKey(a);
-      assert.ok(/^[1-9]\d*[A-Z]?$/.test(k.num) && streets.names.has(streetCore(k.street).toLowerCase()), a);
-      const rest = words(a).filter((w) => w !== k.num.toLowerCase() && !suffixes.includes(w) && !words(k.street).includes(w) && !words(streetCore(k.street)).includes(w) && !['st', 'saint'].includes(w));
-      assert.deepEqual(rest, [], `${a} ← ${item.text.slice(0, 120)}`);
+    const places = titlePlaces(item.text, CITY_BOOK);
+    const addressWords = new Set();
+    for (const a of places.addresses) {
+      const [num, ...rest] = a.split(/\s+/);
+      const hit = CITY_BOOK.find(num, rest.join(' '));
+      assert.ok(hit, `${a} is on the list`);
+      const listed = new Set(words(streetKey(hit.street)));
+      const stray = words(streetKey(rest.join(' '))).filter((x) => !listed.has(x) && !['north', 'south', 'east', 'west'].includes(x));
+      assert.deepEqual(stray, [], `${a}: not words of ${hit.street}`);
+      for (const w of [num, ...rest].flatMap(words)) addressWords.add(w);
+      shown++;
     }
-    const desc = describe(item.text);
-    const stray = words(desc).filter((w) => !allowed.has(w) && !streetWords.has(w) && !/^\d+[a-z]?$/.test(w));
+    // Leagues come from the list, for listed addresses only.
+    for (const l of places.leagues) assert.ok(CITY_BOOK.leagues.includes(l), l);
+    if (!places.addresses.length) assert.deepEqual(places.leagues, []);
+    const desc = describe(item.text, CITY_BOOK);
+    // Numbers: the house numbers, and the code-written count of "and 2 more".
+    const stray = words(desc).filter((w) => !allowed.has(w) && !addressWords.has(w) && !/^\d+$/.test(w));
     assert.deepEqual(stray, [], `${desc} ← ${item.text.slice(0, 120)}`);
     n++;
   }
   assert.ok(n > 1400);
+  // Measured 2026-11-16: 860 of the 883 addresses titles name are on the list. The 23 that
+  // aren't: typos ("Berkeley"), streets outside the city, numbers the list doesn't carry.
+  assert.ok(shown > 840, `${shown} addresses shown`);
 });
 
 test('an "address" that isn\'t a number on one of the City\'s streets never reaches a description', () => {
@@ -94,11 +116,21 @@ test('an "address" that isn\'t a number on one of the City\'s streets never reac
     ['An Ordinance Accepting a Gift of 12,500 Albert Lane', 'Ordinance'],
   ];
   for (const [title, want] of probes) assert.equal(describe(title), want, title);
-  assert.deepEqual(cityAddresses(['241 W. Ocean View Avenue', '5 From Mary Lane', '6513 E. Virginia Beach Boulevard'], streets), ['241 W. Ocean View Avenue', '6513 E. Virginia Beach Boulevard']);
-  assert.deepEqual(cityAddresses(['241 W. Ocean View Avenue'], null), [], 'no street list, no addresses');
-  assert.deepEqual(cityAddresses(['000 Granby Street'], streets), [], 'a leading zero is never a house number');
+  // Against the City's own list too, the probes with no address find none.
+  for (const [title] of probes.filter(([, want]) => !want.includes(', at '))) assert.deepEqual(titleAddresses(title, CITY_BOOK), [], title);
+  assert.deepEqual(cityAddresses(['241 W. Ocean View Avenue', '5 From Mary Lane', '6513 E. Virginia Beach Boulevard'], BOOK), ['241 W. Ocean View Avenue', '6513 E. Virginia Beach Boulevard']);
+  assert.deepEqual(cityAddresses(['241 W. Ocean View Avenue'], null), [], 'no address list, no addresses');
+  assert.deepEqual(cityAddresses(['000 Granby Street'], BOOK), [], 'a leading zero is never a house number');
+  // Jason's question: a street named for a person is an address only with a house number the list has on it.
+  assert.deepEqual(cityAddresses(['1211 Granby Street', '4101 Hampton Boulevard', '1210 Granby Street'], BOOK), ['1210 Granby Street']);
   // A street the list spells without its apostrophe, or with Saint for St.
-  assert.deepEqual(titleAddresses('Property Located at 698 Saint Paul\'s Boulevard and 300 St. Paul\'s Boulevard', streets), ['698 Saint Paul\'s Boulevard', '300 St. Paul\'s Boulevard']);
+  assert.deepEqual(titleAddresses('Property Located at 698 Saint Paul\'s Boulevard and 300 St. Paul\'s Boulevard', BOOK), ['698 Saint Paul\'s Boulevard', '300 St. Paul\'s Boulevard']);
+  // A direction: one the list doesn't give is let go; one the title leaves out is supplied only when one direction has that number.
+  assert.deepEqual(titleAddresses('Property at 628 West 35th Street and 226 Main Street', BOOK), ['628 West 35th Street', '226 Main Street']);
+  assert.deepEqual(titlePlaces('Property at 628 West 35th Street', BOOK), { addresses: ['628 West 35th Street'], streets: ['35TH STREET'], leagues: ['Ghent'] });
+  const twoWays = compileAddresses({ leagues: [], streets: { 'E MAIN STREET': '226', 'W MAIN STREET': '226' } });
+  assert.deepEqual(titleAddresses('Property at 226 Main Street', twoWays), [], 'East or West: not guessed');
+  assert.deepEqual(titleAddresses('Property at 226 W. Main Street', twoWays), ['226 W. Main Street']);
 });
 
 test('topics: reviewed phrases matched as words, plurals and hyphens included; the list carries no free word', () => {
@@ -120,13 +152,13 @@ test('topics: reviewed phrases matched as words, plurals and hyphens included; t
 });
 
 test('checking a watch: topics from the list only; leagues by the City\'s spelling; bodies default to all', () => {
-  assert.deepEqual(checkWatch({ topics: ['short_term_rentals', 'harris', 'Jane Doe'] }, opts), { ok: true, watch: { topics: ['short_term_rentals'], phrases: [], league: null, bodies: BODIES }, refused: ['harris', 'Jane Doe'], refusedPhrases: [] });
+  assert.deepEqual(checkWatch({ topics: ['short_term_rentals', 'harris', 'Jane Doe'] }, opts), { ok: true, watch: { topics: ['short_term_rentals'], phrases: [], streets: [], league: null, bodies: BODIES }, refused: ['harris', 'Jane Doe'], refusedPhrases: [] });
   assert.match(checkWatch({ topics: ['price'] }, opts).error, /aren't topics a watch can follow yet/);
-  assert.deepEqual(checkWatch({ civic_league: 'ocean view' }, opts).watch, { topics: [], phrases: [], league: 'Ocean View', bodies: BODIES });
+  assert.deepEqual(checkWatch({ civic_league: 'ocean view' }, opts).watch, { topics: [], phrases: [], streets: [], league: 'Ocean View', bodies: BODIES });
   assert.match(checkWatch({ civic_league: 'Atlantis' }, opts).error, /don't know a civic league called "Atlantis"/);
   assert.deepEqual(checkWatch({ topics: ['tattoo'], bodies: ['planning commission'] }, opts).watch.bodies, ['Planning Commission']);
   assert.match(checkWatch({ topics: ['tattoo'], bodies: ['Board of Zoning Appeals'] }, opts).error, /covers City Council or Planning Commission/);
-  assert.match(checkWatch({}, opts).error, /needs a topic, a phrase, a civic league, or a mix/);
+  assert.match(checkWatch({}, opts).error, /needs a topic, a phrase, a street, a civic league, or a mix/);
   assert.match(checkWatch({ topics: TOPICS.slice(0, MAX_TOPICS + 1).map((t) => t.id) }, opts).error, /at most 8 topics/);
 });
 
@@ -155,6 +187,34 @@ test('phrases (a signed-in member\'s own words): plain words kept; names, addres
   assert.ok(!matchesWatch(w, { body: 'City Council', topics: [], title: 'An Ordinance About a Park', leagues: [] }));
   assert.equal(checkWatch({ phrases: ['John Smith'] }, opts).error, 'None of those phrases can be watched.');
   assert.equal(watchLabel({ topics: ['tattoo'], phrases: ['dog park'], bodies: BODIES }, TOPICS), 'Tattoo parlors, "dog park", at City Council or Planning Commission');
+});
+
+test('streets named for people (Jason, 2026-11-16): every street of the City\'s list can be watched, by its listed addresses, never by a title\'s words', () => {
+  const guard = { names, ordinary: ordinaryWords(), leagues: CITY_BOOK.leagues, textCheck };
+  // Without the address list the name guard refuses a street like Hampton; with it, it's watched as a street.
+  assert.match(checkPhrases(['hampton'], guard).refused[0].reason, /reads as a person's name/);
+  const out = checkPhrases(['hampton', '21st street', 'dog park', 'john smith'], { ...guard, book: CITY_BOOK });
+  assert.deepEqual(out.streets, ['hampton', '21st street']);
+  assert.deepEqual(out.phrases, ['dog park']);
+  assert.deepEqual(out.refused.map((r) => r.phrase), ['john smith'], 'a name that is no street stays refused');
+  // Every street name on the City's list is a phrase, a street, or (a civic league's name) the league.
+  let watched = 0;
+  for (const st of streetsFile.streets) {
+    const r = checkPhrases([st.toLowerCase()], { ...guard, book: CITY_BOOK });
+    if (r.streets.length) watched++;
+    assert.ok(r.phrases.length || r.streets.length || /civic league/.test(r.refused[0]?.reason), `${st}: ${r.refused[0]?.reason}`);
+  }
+  // Measured 2026-11-16: without the list, 576 of the 1,941 street names were refused as names; with it, 553 are streets.
+  assert.ok(watched > 500, `${watched} street names watched as streets`);
+  // A street watch matches by the street an item's listed address is on, never by its title.
+  const w = { topics: [], phrases: [], streets: ['hampton'], league: null, bodies: BODIES };
+  assert.ok(matchesWatch(w, { body: 'City Council', topics: [], title: 'An Ordinance for 4100 Hampton Boulevard', streets: ['HAMPTON BOULEVARD'], leagues: [] }));
+  assert.ok(!matchesWatch(w, { body: 'City Council', topics: [], title: 'An Ordinance Approving a Lease With John Hampton', streets: [], leagues: [] }), 'a person named Hampton is never matched');
+  assert.ok(!matchesWatch(w, { body: 'City Council', topics: [], title: 'Hampton', streets: ['NORTHAMPTON BOULEVARD'], leagues: [] }), 'a street, not a substring');
+  assert.deepEqual(streetsIn({ streets: ['virginia beach', '21st street', 'granby'] }, { streets: ['E VIRGINIA BEACH BOULEVARD', 'W 21ST STREET'] }), ['virginia beach', '21st street']);
+  assert.equal(watchLabel({ topics: [], phrases: ['dog park'], streets: ['21st street'], bodies: BODIES }, TOPICS), '"dog park", 21st Street (street), at City Council or Planning Commission');
+  assert.ok(!sameWatch({ streets: ['hampton'], bodies: BODIES }, { phrases: ['hampton'], bodies: BODIES }));
+  assert.match(checkWatch({ phrases: ['hampton', '21st street', '38th', 'dog park', 'food truck', 'bus stop'] }, { ...opts, book: CITY_BOOK }).error, /at most 5 phrases and streets/);
 });
 
 test('matching: the topics, the body and the league', () => {
@@ -215,21 +275,8 @@ function cityFetch({ extraItem = null, meetingDown = false } = {}) {
   const fetchImpl = async (input) => {
     const url = String(input?.url || input);
     calls.push(url);
-    const q = decodeURIComponent(url);
     if (url.includes('/resource/dszu-h9cf.json')) {
       return Response.json([{ date_and_time: '2026-11-19T14:30:00.000', organization: 'Planning Commission', type: 'Public Hearing', location: '11th floor Council Chamber', meeting_link: { url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4674' } }]);
-    }
-    if (url.includes('/api/views/ere7-kake.json')) return Response.json({ name: 'Address Information', columns: ['full_address', 'house_number', 'full_street_name', 'civic_league'].map((fieldName) => ({ fieldName, dataTypeName: 'text' })) });
-    if (url.includes('/resource/ere7-kake.json') && /GROUP BY/.test(q)) return Response.json(LEAGUES.map((l) => ({ civic_league: l, n: '10' })));
-    if (url.includes('/resource/ere7-kake.json')) {
-      // The league column only: the president's name and email are never asked for.
-      assert.doesNotMatch(q, /president|email/i);
-      return Response.json([
-        { full_address: '1210 GRANBY ST', civic_league: 'Willoughby' },
-        { full_address: '8400 SHORE DR', civic_league: 'Ocean View' },
-        { full_address: '4200 COLLEY AVE', civic_league: 'Ghent' },
-        { full_address: '885 CHURCH ST', civic_league: 'Ghent' },
-      ]);
     }
     if (url.includes('Detail_Meeting.aspx?ID=4674')) {
       if (meetingDown) return new Response('', { status: 503 });
@@ -245,7 +292,7 @@ test('the snapshot: described items, no titles kept, tagged by civic league, fir
   const kv = readyEnv().LIMITS;
   const { fetchImpl, calls } = cityFetch();
   const now = Date.parse('2026-11-16T12:00:00Z');
-  const snap = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl, now, streets });
+  const snap = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl, now, book: BOOK });
   assert.equal(snap.meetings.length, 1);
   assert.deepEqual(snap.items.map((i) => [i.id, i.kind, i.topics, i.leagues]), [
     ['6085', 'Conditional Use Permit', ['short_term_rentals'], ['Willoughby']],
@@ -256,13 +303,21 @@ test('the snapshot: described items, no titles kept, tagged by civic league, fir
   assert.ok(snap.items.every((i) => typeof i.title === 'string'));
   assert.doesNotMatch(JSON.stringify(snap.items.map(({ title, ...rest }) => rest)), NAMES, 'no title text outside the title field');
   assert.deepEqual(snap.leagues, LEAGUES);
+  assert.deepEqual(snap.items.map((i) => i.streets), [['GRANBY STREET'], ['SHORE DRIVE'], ['COLLEY AVENUE']]);
   assert.ok(calls.some((u) => /organization%20in%20\('City%20Council'%2C%20'Planning%20Commission'\)/.test(u)));
-  const again = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl, now: now + 864e5, streets });
+  // Addresses and leagues come from the address list: the portal is asked nothing per address.
+  assert.ok(!calls.some((u) => u.includes('ere7-kake')), 'no address lookups');
+  const again = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl, now: now + 864e5, book: BOOK });
   assert.equal(again.items[0].first_seen, snap.items[0].first_seen);
   assert.deepEqual(await readSnapshot(kv, 'norfolk'), again);
-  const down = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch({ meetingDown: true }).fetchImpl, now: now + 2 * 864e5, streets });
+  const down = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch({ meetingDown: true }).fetchImpl, now: now + 2 * 864e5, book: BOOK });
   assert.equal(down.failed, 1);
   assert.equal(down.items.length, 3, "yesterday's items carried");
+  assert.deepEqual(down.items.map((i) => i.leagues), [['Willoughby'], ['Ocean View'], ['Ghent']], 'carried items placed again against the list');
+  // With no address list, no item gets an address or a league.
+  const bare = await buildSnapshot({ kv: readyEnv().LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl, now });
+  assert.ok(bare.items.every((i) => !i.addresses.length && !i.leagues.length && !i.streets.length));
+  assert.deepEqual(bare.leagues, []);
 });
 
 const USER = 'member@example.org';
@@ -272,13 +327,13 @@ async function member(env) {
   return { uid, cookie: `${userCookieName('')}=${await signUser(SECRET, uid)}` };
 }
 const watchEnv = (over = {}) => readyEnv({ WATCHES: 'true', RESEND_API_KEY: 're_test', LOGIN_FROM: 'Siren <siren@example.org>', INVITE_REQUIRED: 'true', BLUESKY_LOGIN: undefined, ...over });
-const deps = { cityIds: ['norfolk'], cities: { norfolk }, names: () => names, ordinary: ordinaryWords, textCheck: () => textCheck, streets: () => streets };
+const deps = { cityIds: ['norfolk'], cities: { norfolk }, names: () => names, ordinary: ordinaryWords, textCheck: () => textCheck, book: () => BOOK };
 async function api(env, cookie, path, body, headers = {}) {
   const req = new Request(`https://ask-siren.jason-edelman.org${path}`, { method: body ? 'POST' : 'GET', headers: { Cookie: cookie, ...(body ? { 'Content-Type': 'application/json', Origin: 'https://ask-siren.jason-edelman.org' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const res = await handleWatches(req, env, path, deps);
   return { status: res.status, body: await res.json() };
 }
-const built = (env) => buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch().fetchImpl, now: Date.parse('2026-11-16T12:00:00Z'), streets });
+const built = (env) => buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch().fetchImpl, now: Date.parse('2026-11-16T12:00:00Z'), book: BOOK });
 
 // KV as Cloudflare runs it in one respect: a second write (put or delete) to
 // the same key within a second is refused with a 429 (Workers KV docs). A
@@ -492,7 +547,7 @@ test('the job is due once a day after the hour, or at once when there is no snap
 
 test('feeds: one per civic league and one for everything, described items, escaped', async () => {
   const kv = readyEnv().LIMITS;
-  const snapshot = await buildSnapshot({ kv, streets, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch({ extraItem: 'JOHN <b>"ROE"</b> &amp; Co, for a Conditional Use Permit to operate a Tattoo Parlor at 4200 Colley Avenue' }).fetchImpl, now: Date.parse('2026-11-16T12:00:00Z') });
+  const snapshot = await buildSnapshot({ kv, book: BOOK, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch({ extraItem: 'JOHN <b>"ROE"</b> &amp; Co, for a Conditional Use Permit to operate a Tattoo Parlor at 4200 Colley Avenue' }).fetchImpl, now: Date.parse('2026-11-16T12:00:00Z') });
   const origin = 'https://ask-siren.jason-edelman.org';
   const ghent = atomFeed({ snapshot, slug: leagueSlug('Ghent'), origin, appName: 'Siren', topics: TOPICS });
   assert.match(ghent, /<title>Ghent: upcoming City Council and Planning Commission agenda items<\/title>/);
@@ -516,5 +571,9 @@ test('sealing: the same address seals differently each time and opens only under
   const d = digest({ appName: 'Siren', watch: { topics: ['budget'], league: null, bodies: BODIES, ends: '2027-11-16T00:00:00Z' }, items: [{ meeting: '1', body: 'City Council', when: '2026-12-01T18:00:00.000', kind: 'Budget or appropriation', topics: ['budget'], addresses: [], url: 'https://example.org/1', number: 'Ordinance No. 1' }], meetings: [{ id: '1', body: 'City Council', type: 'Formal Session', when: '2026-12-01T18:00:00.000', location: 'Council Chamber', url: 'https://example.org/m' }], city: norfolk, stopUrl: 'https://s/stop', manageUrl: 'https://s/watches' });
   // The topic the kind already names isn't repeated.
   assert.match(d.text, /- Budget or appropriation \(Ordinance No\. 1\)/);
+  // A street watch's hit is named by the street, from the listed address.
+  const onStreet = digest({ appName: 'Siren', watch: { topics: [], streets: ['hampton'], league: null, bodies: BODIES, ends: '2027-11-16T00:00:00Z' }, items: [{ meeting: '1', body: 'City Council', when: '2026-12-01T18:00:00.000', kind: 'Encroachment into a right-of-way', topics: [], addresses: ['4100 Hampton Boulevard'], streets: ['HAMPTON BOULEVARD'], url: 'https://example.org/2' }], meetings: [{ id: '1', body: 'City Council', type: 'Formal Session', when: '2026-12-01T18:00:00.000', url: 'https://example.org/m' }], city: norfolk, stopUrl: 'https://s/stop', manageUrl: 'https://s/watches' });
+  assert.match(onStreet.text, /You asked Siren to watch Hampton \(street\), at City Council or Planning Commission\./);
+  assert.match(onStreet.text, /- Encroachment into a right-of-way, at 4100 Hampton Boulevard, on Hampton\n/);
   assert.match(d.text, /To speak at City Council: City Clerk, \(757\) 664-4253, ccouncil@norfolk\.gov \(register by 3 p\.m\. the day of the meeting\)\./);
 });

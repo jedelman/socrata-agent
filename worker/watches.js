@@ -32,8 +32,7 @@
 // (the same HMAC that names the account), so a watch can only ever mail the
 // address that signed in. It is never logged, returned or shown.
 
-import { checkWatch, matchesWatch, phrasesIn, sameWatch, watchLabel, topicsOf, itemKind, itemNumber, describeItem, titleAddresses, streetCore, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
-import { addressKey } from '../src/block.js';
+import { checkWatch, matchesWatch, phrasesIn, streetsIn, streetLabel, sameWatch, watchLabel, topicsOf, itemKind, itemNumber, describeItem, titlePlaces, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
 import { soqlString, ACCESS } from '../src/socrata.js';
 import { createContext } from '../src/agent.js';
 import { requestBudget } from '../src/request-budget.js';
@@ -47,8 +46,6 @@ export const MAX_PER_ACCOUNT = 5;
 export const DAYS_AHEAD = 21;
 export const RUN_HOUR_UTC = 11;
 const SNAPSHOT_TTL = 4 * 86400;
-const LEAGUE_TTL = 7 * 86400;
-const ADDRESS_TTL = 90 * 86400;
 const SNAPSHOT_FETCHES = 300;
 
 const flag = (v) => String(v ?? '').trim() === 'true';
@@ -76,77 +73,18 @@ export const readSnapshot = (kv, cityId) => kv.get(snapshotKey(cityId), 'json');
 const iso = (d) => d.toISOString().slice(0, 19);
 const meetingId = (url) => /[?&]ID=(\d+)/i.exec(String(url || ''))?.[1] || null;
 
-// The address list's own word for an address in no civic league (checked 2026-11-16).
-const NO_LEAGUE = /^no civic league$/i;
-
-/** The civic leagues the address list names, cached a week. */
-async function civicLeagues(kv, socrata, city, cityId) {
-  const key = `civic-leagues:${cityId}`;
-  const cached = await kv.get(key, 'json');
-  if (Array.isArray(cached) && cached.length) return cached;
-  const f = city.address.fields.league;
-  const rows = await socrata.query(city.address.dataset, `SELECT ${f}, count(*) AS n WHERE ${f} IS NOT NULL GROUP BY ${f} ORDER BY ${f} LIMIT 1000`, { access: ACCESS.PLUGIN, tool: 'civic leagues', name: city.address.name });
-  const names = [...new Set(rows.map((r) => String(r[f] ?? '').trim()).filter((l) => l && !NO_LEAGUE.test(l)))].sort();
-  if (names.length) await kv.put(key, JSON.stringify(names), { expirationTtl: LEAGUE_TTL });
-  return names;
-}
-
-/**
- * The civic league of each address, from the address list's league column
- * (never its president's name or email), cached 90 days per address. An
- * address that doesn't match exactly one row gets no league.
- */
-async function leaguesOf(kv, socrata, city, cityId, addresses) {
-  const cfg = city.address;
-  const f = cfg.fields;
-  const out = new Map();
-  // One cache key per address however it's spelled ("100 E. Main St", "100 East Main Street"):
-  // KV refuses a second write to a key within a second.
-  const byKey = new Map();
-  for (const a of addresses) {
-    const k = addressKey(a);
-    if (!k.num || !k.street) continue;
-    const cacheKey = `addr-league:${cityId}:${hex(await sha256(`${k.num} ${k.street}`)).slice(0, 32)}`;
-    if (!byKey.has(cacheKey)) byKey.set(cacheKey, { k, cacheKey, spellings: [] });
-    byKey.get(cacheKey).spellings.push(a);
-  }
-  const entries = [...byKey.values()];
-  const cached = await bulkGet(kv, entries.map((e) => e.cacheKey));
-  const todo = [];
-  for (const e of entries) {
-    const hit = cached.get(e.cacheKey);
-    if (typeof hit === 'string') for (const a of e.spellings) out.set(a, hit);
-    else todo.push(e);
-  }
-  for (let i = 0; i < todo.length; i += 8) {
-    const group = todo.slice(i, i + 8);
-    const where = group.map(({ k }) => {
-      const longest = streetCore(k.street).split(' ').sort((x, y) => y.length - x.length)[0];
-      return `(${f.number} = ${soqlString(k.num)} AND upper(${f.street}) like ${soqlString(`%${longest}%`)})`;
-    }).join(' OR ');
-    let rows;
-    try {
-      rows = await socrata.query(cfg.dataset, `SELECT ${f.full}, ${f.league} WHERE ${where} LIMIT 500`, { access: ACCESS.PLUGIN, tool: 'civic league of agenda addresses', name: cfg.name });
-    } catch {
-      continue;
-    }
-    for (const { k, cacheKey, spellings } of group) {
-      const leagues = new Set(rows.filter((r) => {
-        const rk = addressKey(r[f.full]);
-        return rk.num === k.num && streetCore(rk.street) === streetCore(k.street);
-      }).map((r) => String(r[f.league] ?? '').trim()).filter((l) => l && !NO_LEAGUE.test(l)));
-      const league = leagues.size === 1 ? [...leagues][0] : '';
-      for (const a of spellings) out.set(a, league);
-      try {
-        await kv.put(cacheKey, league, { expirationTtl: ADDRESS_TTL });
-      } catch { /* the cache is a convenience */ }
-    }
-  }
-  return out;
+// An item's places, from its title and the City's address list (`book`,
+// src/watches.js compileAddresses): the addresses on the list as the title
+// writes them, their streets as the list spells them (for street watches),
+// and their civic leagues. Only a listed address, never other words from
+// the title. No list, no places.
+function placesOf(title, book) {
+  const p = titlePlaces(title, book);
+  return { addresses: p.addresses.slice(0, 12), streets: p.streets.slice(0, 12), leagues: p.leagues };
 }
 
 // A snapshot item's fields, and only those (a carried item from an older snapshot keeps nothing else).
-const ITEM_FIELDS = ['key', 'meeting', 'id', 'body', 'when', 'url', 'kind', 'number', 'topics', 'addresses', 'leagues', 'title', 'first_seen'];
+const ITEM_FIELDS = ['key', 'meeting', 'id', 'body', 'when', 'url', 'kind', 'number', 'topics', 'addresses', 'streets', 'leagues', 'title', 'first_seen'];
 const knownFields = (x) => Object.fromEntries(ITEM_FIELDS.filter((f) => f in x).map((f) => [f, x[f]]));
 
 /** KV values for many keys, 100 a call (Workers KV's bulk get), as a Map. */
@@ -162,12 +100,14 @@ async function bulkGet(kv, keys, type = 'text') {
 /**
  * Build and store the snapshot for one city: the next DAYS_AHEAD days of
  * the bodies it watches, each posted agenda item described (never its
- * title) with its civic leagues. Items keep the time they were first
- * seen from the snapshot before; a meeting whose page can't be read today
- * keeps yesterday's items. No item keeps its title: only its kind, topics,
- * addresses, ordinance number, link and leagues. Returns the snapshot.
+ * title) with the civic leagues of its listed addresses. `book` is the
+ * city's address list (compileAddresses): with none, no item gets an
+ * address or a league. Items keep the time they were first seen from the
+ * snapshot before; a meeting whose page can't be read today keeps
+ * yesterday's items, placed again against today's list. Its title is kept
+ * only to match phrases; nothing serves it. Returns the snapshot.
  */
-export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now(), streets = null }) {
+export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now(), book = null }) {
   const budget = requestBudget({ limit: SNAPSHOT_FETCHES, fetchImpl });
   const ctx = createContext({ city, appToken, budget });
   const { socrata, iqm2 } = ctx;
@@ -181,10 +121,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
   );
   const before = await readSnapshot(kv, cityId);
   const firstSeen = new Map((before?.items || []).map((i) => [i.key, i.first_seen]));
-  let leagues = before?.leagues || [];
-  try {
-    leagues = await civicLeagues(kv, socrata, city, cityId);
-  } catch { /* keep the last list */ }
+  const leagues = [...(book?.leagues || [])];
   const topics = city.meetings.watchTopics || [];
   const meetings = [];
   const items = [];
@@ -204,7 +141,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
       const old = (before?.meetings || []).find((x) => x.id === id);
       if (old) {
         meetings.push(old);
-        carried.push(...(before.items || []).filter((x) => x.meeting === id).map(knownFields));
+        carried.push(...(before.items || []).filter((x) => x.meeting === id).map((x) => ({ ...knownFields(x), ...placesOf(x.title, book) })));
       }
       continue;
     }
@@ -214,17 +151,12 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
       items.push({
         key, meeting: id, id: it.id, body: n.organization, when: String(n.date_and_time || ''), url: it.url,
         kind: itemKind(it.text), number: itemNumber(it.text), topics: topicsOf(it.text, topics),
-        // Only a number and one of the City's streets (titleAddresses), never other words from the title.
-        addresses: titleAddresses(it.text, streets).slice(0, 12),
+        ...placesOf(it.text, book),
         // Kept to match members' phrases against (phrasesIn); never served, mailed or put in a feed.
         title: String(it.text || '').slice(0, 1000),
         first_seen: firstSeen.get(key) || new Date(now).toISOString(),
       });
     }
-  }
-  const leagueMap = await leaguesOf(kv, socrata, city, cityId, [...new Set(items.flatMap((i) => i.addresses))]);
-  for (const i of items) {
-    i.leagues = [...new Set(i.addresses.map((a) => leagueMap.get(a)).filter(Boolean))];
   }
   items.push(...carried);
   const snapshot = { city: cityId, built: new Date(now).toISOString(), through: iso(end), bodies, meetings, items, leagues, failed, requests: budget.used };
@@ -275,7 +207,7 @@ async function listAll(kv) {
 }
 
 /** What the member sees of a watch: never the email. */
-const shown = (w, topics = [], sent = null) => ({ id: w.id, city: w.city, topics: w.topics, phrases: w.phrases || [], league: w.league, bodies: w.bodies, label: watchLabel(w, topics), created: w.created, ends: w.ends, last_sent: sent?.last_sent || null, sent: sent?.sent || 0 });
+const shown = (w, topics = [], sent = null) => ({ id: w.id, city: w.city, topics: w.topics, phrases: w.phrases || [], streets: w.streets || [], league: w.league, bodies: w.bodies, label: watchLabel(w, topics), created: w.created, ends: w.ends, last_sent: sent?.last_sent || null, sent: sent?.sent || 0 });
 const topicsFor = (city) => city?.meetings?.watchTopics || [];
 
 export async function accountWatches(kv, uid) {
@@ -317,8 +249,10 @@ const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(b
  * The member's API: GET /api/watches; POST /api/watches (start one),
  * /api/watches/delete, /api/watches/renew, and /api/watches/stop (by a stop
  * link's token, signed in or not). `deps`: { cityIds, cities, canAsk(uid),
- * names() (common names, for phrases), textCheck(cityId) (the public-text
- * check: true when a phrase is clean), now }.
+ * names() (common names, for phrases), ordinary() (the books' lower-case
+ * words), textCheck(cityId) (the public-text check: true when a phrase is
+ * clean), book(cityId) (the address list, compileAddresses: its civic
+ * leagues, and street phrases), now }.
  */
 export async function handleWatches(req, env, path, deps = {}) {
   const setup = watchesSetupError(env);
@@ -351,7 +285,7 @@ export async function handleWatches(req, env, path, deps = {}) {
     const options = {};
     for (const c of cityIds) {
       const snap = await readSnapshot(kv, c);
-      options[c] = { bodies: deps.cities[c].meetings.watchBodies, topics: topicsFor(deps.cities[c]).map((t) => ({ id: t.id, label: t.label })), leagues: snap?.leagues || [], checked: snap?.built || null };
+      options[c] = { bodies: deps.cities[c].meetings.watchBodies, topics: topicsFor(deps.cities[c]).map((t) => ({ id: t.id, label: t.label })), leagues: [...(deps.book?.(c)?.leagues || [])], checked: snap?.built || null };
     }
     return json({ watches, max: MAX_PER_ACCOUNT, options });
   }
@@ -377,7 +311,8 @@ export async function handleWatches(req, env, path, deps = {}) {
   if (!email || (await userId(env.INVITE_SECRET, email)) !== uid) return json({ error: "Enter the email you signed in with. Watches mail only that address.", code: 'email' }, 400);
   const snap = await readSnapshot(kv, cityId);
   const topics = topicsFor(deps.cities[cityId]);
-  const checked = checkWatch(body, { topics, leagues: snap?.leagues || [], bodies: deps.cities[cityId].meetings.watchBodies, names: deps.names?.() || null, ordinary: deps.ordinary?.() || null, textCheck: deps.textCheck?.(cityId) || null });
+  const book = deps.book?.(cityId) || null;
+  const checked = checkWatch(body, { topics, leagues: [...(book?.leagues || [])], bodies: deps.cities[cityId].meetings.watchBodies, names: deps.names?.() || null, ordinary: deps.ordinary?.() || null, textCheck: deps.textCheck?.(cityId) || null, book });
   if (!checked.ok) return json({ error: checked.error, refused: checked.refused, refused_phrases: checked.refusedPhrases || [] }, 400);
   const all = await listAll(kv);
   const mineKeys = all.filter((k) => k.metadata?.u === uid);
@@ -448,7 +383,9 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
     html.push(`<h3>${esc(head)}</h3><ul>`);
     for (const i of list) {
       const hits = phrasesIn(watch, i);
-      const line = `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}${hits.length ? `, with ${hits.map((h) => `"${h}"`).join(', ')} in its title` : ''}`;
+      const on = streetsIn(watch, i);
+      const why = [hits.length ? `with ${hits.map((h) => `"${h}"`).join(', ')} in its title` : '', on.length ? `on ${on.map(streetLabel).join(', ')}` : ''].filter(Boolean).join(', ');
+      const line = `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}${why ? `, ${why}` : ''}`;
       text.push(`- ${line}`, `  ${i.url}`);
       html.push(`<li><a href="${esc(i.url)}">${esc(line)}</a></li>`);
     }
@@ -488,7 +425,7 @@ export async function jobDue(kv, cityIds, now = Date.now()) {
 /**
  * The daily job: build each city's snapshot, then (with watches on) mail
  * each watch the items it hasn't been sent. `deps`: { cityIds, cities,
- * appName, fetchImpl, send, now, streets(cityId) }. One run a day (`watch-run:<day>`), one at
+ * appName, fetchImpl, send, now, book(cityId) }. One run a day (`watch-run:<day>`), one at
  * a time: a fifteen-minute lock (a cron run's longest), re-read after
  * writing and judged by its own expiry, written once and never deleted (KV
  * refuses a second write to a key within a second).
@@ -506,7 +443,7 @@ export async function runWatchJob(env, deps = {}) {
   const result = { ran: true, cities: {}, sent: 0, ended: 0, failed: 0 };
   const snapshots = {};
   for (const c of cityIds) {
-    snapshots[c] = await buildSnapshot({ kv, city: deps.cities[c], cityId: c, appToken: env.SOCRATA_APP_TOKEN, fetchImpl: deps.fetchImpl, now, streets: deps.streets?.(c) || null });
+    snapshots[c] = await buildSnapshot({ kv, city: deps.cities[c], cityId: c, appToken: env.SOCRATA_APP_TOKEN, fetchImpl: deps.fetchImpl, now, book: deps.book?.(c) || null });
     result.cities[c] = { meetings: snapshots[c].meetings.length, items: snapshots[c].items.length, failed: snapshots[c].failed };
   }
   if (watchesReady(env)) Object.assign(result, await mailWatches(env, { ...deps, now, snapshots }));
@@ -699,7 +636,7 @@ export function atomFeed({ snapshot, slug, origin, appName, topics = [] }) {
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:${xml(host)},2026-11-16:feeds/${xml(slug)}</id>
   <title>${xml(title)}</title>
-  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each item is described from its title without repeating it (titles can name private people); its link is the City's page. Items are tagged by the civic league of the address their title names.`)}</subtitle>
+  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each item is described from its title without repeating it (titles can name private people); its link is the City's page. Items are tagged by the civic league of the address their title names, when that address is on the City's address list.`)}</subtitle>
   <link rel="self" href="${xml(self)}"/>
   <link rel="alternate" href="${xml(`${origin}/feeds`)}"/>
   <updated>${xml(snapshot.built)}</updated>

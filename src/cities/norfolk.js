@@ -105,7 +105,8 @@ export default {
       lat: 'parcel_centroid_latitude',
       lon: 'parcel_centroid_longitude',
       tract: 'census_tract_number',
-      // Checked 2026-11-16: 119 named civic leagues, plus addresses with none.
+      // Checked 2026-11-16: 118 named civic leagues, and "No Civic League" for
+      // addresses in none (data/norfolk-addresses.json, scripts/build-addresses.js).
       league: 'civic_league',
     },
     // Facts about the place, returned as-is.
