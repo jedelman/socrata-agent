@@ -108,18 +108,33 @@ $('#q').addEventListener('input', fitComposer);
 
 // ---- layout: the sidebar, the welcome screen, About ----
 // On a narrow screen the sidebar slides over the page; on a wide one it stays.
-const narrow = () => window.matchMedia('(max-width: 899px)').matches;
-function setSidebar(open) {
+// Closed on a narrow screen, the sidebar is inert (no Tab stop, nothing for
+// a screen reader); open, the page behind it is, so focus stays in the
+// sidebar until it closes. On a wide screen neither is.
+const NARROW = window.matchMedia('(max-width: 899px)');
+const narrow = () => NARROW.matches;
+function syncSidebar() {
+  const open = document.body.classList.contains('side-open');
+  $('#sidebar').inert = narrow() && !open;
+  $('.main').inert = narrow() && open;
+}
+// `focusTo`: where focus goes when it closes (the menu button by default;
+// false when the caller moves it itself).
+function setSidebar(open, focusTo) {
   document.body.classList.toggle('side-open', open);
   $('#scrim').hidden = !open;
   $('#side-open').setAttribute('aria-expanded', String(open));
+  syncSidebar();
   if (open) $('#conv-new').focus();
+  else if (focusTo !== false && narrow()) (focusTo || $('#side-open')).focus();
 }
 $('#side-open').addEventListener('click', () => setSidebar(true));
 $('#side-close').addEventListener('click', () => setSidebar(false));
 $('#scrim').addEventListener('click', () => setSidebar(false));
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('side-open')) { setSidebar(false); $('#side-open').focus(); } });
-const closeSidebarIfNarrow = () => { if (narrow()) setSidebar(false); };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('side-open')) setSidebar(false); });
+NARROW.addEventListener('change', () => { if (!narrow()) setSidebar(false, false); else syncSidebar(); });
+syncSidebar();
+const closeSidebarIfNarrow = (focusTo) => { if (narrow()) setSidebar(false, focusTo); };
 // The welcome screen shows on a new, empty conversation.
 function showWelcome() {
   $('#welcome').hidden = $('#log').children.length > 0;
@@ -131,12 +146,15 @@ function markActive() {
     else b.removeAttribute('aria-current');
   }
 }
-$('#about-open').addEventListener('click', () => {
+function openAbout() {
   $('#about').hidden = false;
-  closeSidebarIfNarrow();
+  closeSidebarIfNarrow(false);
   $('#about').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-$('#about-close').addEventListener('click', () => { $('#about').hidden = true; });
+  $('#about-title').focus({ preventScroll: true });
+}
+$('#about-open').addEventListener('click', openAbout);
+$('#about-note').addEventListener('click', openAbout);
+$('#about-close').addEventListener('click', () => { $('#about').hidden = true; $('#q').focus(); });
 
 function renderResources(r) {
   const parts = [];
@@ -307,12 +325,19 @@ function showSignIn() {
   $('#signin').hidden = false;
   $('#gate-code').hidden = true;
   $('#gate-close').hidden = false;
-  closeSidebarIfNarrow();
+  closeSidebarIfNarrow(false);
   $('#gate').scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('#login-email').focus();
 }
 $('#side-signin').addEventListener('click', showSignIn);
-$('#gate-close').addEventListener('click', () => { $('#gate').hidden = true; $('#q').focus(); });
+$('#gate-close').addEventListener('click', () => {
+  // Someone who can't ask (an invite refused mid-session) gets the invite
+  // form back, never a page with no way to ask.
+  if ($('#f').hidden) { showGate(true); return; }
+  $('#gate').hidden = true;
+  showWelcome();
+  $('#q').focus();
+});
 function newConversation() {
   // A new conversation can't race the old one's save.
   if (hold) { hold = null; $('#go').disabled = false; }
@@ -492,7 +517,7 @@ async function openConversation(id, turnIndex) {
     $('#conv-forget').hidden = false;
     showWelcome();
     markActive();
-    closeSidebarIfNarrow();
+    closeSidebarIfNarrow($('#q'));
     const found = turnIndex == null ? null : $('#log').children[turnIndex];
     if (found) {
       found.classList.add('found');
@@ -511,6 +536,7 @@ $('#conv-results').addEventListener('click', (e) => {
   openConversation(button.dataset.id, Number.isInteger(turn) ? turn : null);
 });
 $('#signout').addEventListener('click', async () => {
+  closeSidebarIfNarrow(false);
   await postJson('api/logout', {}).catch(() => {});
   newConversation();
   loadSession();
@@ -554,7 +580,10 @@ function showAnswer(turn, a, question, status, data) {
   if (status === 401 && data.gate === 'invite') {
     turn.remove();
     $('#q').value = question;
+    fitComposer();
+    $('#side-hint').hidden = true;
     showGate(true);
+    showWelcome();
     $('#redeem-msg').textContent = data.error || '';
     return;
   }
@@ -739,6 +768,7 @@ $('#f').addEventListener('submit', async (e) => {
           a.innerHTML = renderAnswer(t.answer, t.record || {}, t.at);
         } else {
           $('#q').value = $('#q').value || question;
+          fitComposer();
           a.innerHTML = '<p class="notice">The connection dropped before the answer arrived, and it has not been saved. Asking again counts as a new question.</p>';
         }
       });
@@ -746,6 +776,7 @@ $('#f').addEventListener('submit', async (e) => {
       // Nothing is saved for this reader, so nothing to race; asking again
       // still counts as a new question, so say so instead of retrying.
       $('#q').value = question;
+      fitComposer();
       a.innerHTML = '<p class="notice">The connection dropped before the answer arrived. Asking again counts as a new question.</p>';
     } else {
       a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;

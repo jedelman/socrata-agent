@@ -82,3 +82,38 @@ test('a deployment without welcome words gets plain ones, no points and no examp
   assert.doesNotMatch(html, /<ul class="points">/);
   assert.match(html, /data-examples="\{\}"/);
 });
+
+test('narrow screens: the closed sidebar is inert, the page is inert while it is open, and closing it puts focus on screen', () => {
+  const js = read('worker/chat-page.js');
+  assert.match(js, /\$\('#sidebar'\)\.inert = narrow\(\) && !open;/);
+  assert.match(js, /\$\('\.main'\)\.inert = narrow\(\) && open;/);
+  // Synced on load, on every open and close, and when the width crosses 900px.
+  assert.match(js, /\nsyncSidebar\(\);\n/);
+  assert.match(js, /NARROW\.addEventListener\('change'/);
+  // Closing sends focus to the menu button unless the caller moves it.
+  assert.match(js, /else if \(focusTo !== false && narrow\(\)\) \(focusTo \|\| \$\('#side-open'\)\)\.focus\(\);/);
+  // About takes focus to its heading; its Close returns it to the question box.
+  assert.match(read('worker/ui.html'), /<h2 id="about-title" tabindex="-1">/);
+  assert.match(js, /\$\('#about-title'\)\.focus\(/);
+  assert.match(js, /\$\('#about'\)\.hidden = true; \$\('#q'\)\.focus\(\);/);
+  // The closed sidebar casts no shadow onto the page's edge.
+  assert.match(read('worker/chat.css'), /body\.side-open \.sidebar \{ transform: none; box-shadow:/);
+});
+
+test('the question box shows focus in every skin, and the page prints in full', () => {
+  const css = read('worker/chat.css');
+  assert.match(css, /\.composer-box:focus-within \{ border-color: var\(--accent\); outline: 2px solid var\(--accent\);/);
+  // The siren skin's border rule must not undo the focus border.
+  const siren = css.indexOf('[data-skin="siren"] .composer-box { border-color: var(--line); }');
+  assert.ok(siren > 0 && css.indexOf('[data-skin="siren"] .composer-box:focus-within { border-color: var(--accent); }') > siren);
+  assert.match(css, /@media print \{\n  html, body \{ height: auto; overflow: visible; \}/);
+});
+
+test("the disclosures are one click from every screen, and Siren's welcome claims only what it does", () => {
+  assert.match(read('worker/ui.html'), /<footer class="composer-note">[\s\S]*id="about-note">About and privacy<\/button>/);
+  const words = [siren.ui.intro, ...siren.ui.points.map((p) => `${p.title} ${p.text}`)].join(' ');
+  // Tools run one after another, as the model chooses; additions are reviewed by a person.
+  assert.doesNotMatch(words, /at once|answers only from/i);
+  assert.match(words, /can reach/);
+  assert.match(words, /a person reviews each addition/);
+});
