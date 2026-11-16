@@ -479,8 +479,14 @@ generic mode.
   member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
   private conversations"): up to five, refused when made only of common
   first names and surnames (`data/common-names.json`, Census lists, built by
-  `scripts/build-common-names.js`), holding a number, address or contact, or
-  naming a civic league; a guard, not a wall. Feeds never use phrases.
+  `scripts/build-common-names.js`), or with a common name beside anything
+  but ordinary words (`ordinaryWords` in `telemetry.js`, words the books use
+  in lower case) or beside a title or entity word ("mr smith", "smith llc"),
+  or holding a number, address or contact, or naming a civic league; without
+  its lists no phrase is accepted. A guard, not a wall: a rare surname alone
+  passes and works as a standing title search (Jason's call, in the docs).
+  Feeds never use phrases. Addresses come from `titleAddresses` (money taken
+  out first; apostrophes and St./Saint matched as the list spells them).
   `offer_watch` (a core tool, declared only when the Worker passes `watches`
   to `ask()`: a signed-in member, `WATCHES` on, never a public thread) takes
   topic ids as an enum, phrases and/or a civic league; the person starts the
@@ -493,8 +499,10 @@ generic mode.
   digest a day per watch (Resend, `List-Unsubscribe` one-click,
   `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
   stop; 5 a member, 365 days). **The job never writes a watch**: what it sent
-  goes in `watch-sent:<id>`, so a stale cached copy can't undo a stop or a
-  renewal; every watch key expires a week after its end. Ended watches go
+  goes in `watch-sent:<id>` (expiring at the end plus a week or a month on,
+  whichever is later), so a stale cached copy can't undo a stop or a
+  renewal; every watch key expires a week after its end; an ended watch is
+  re-read before it's deleted; Resend's 409 is recorded as sent. Ended watches go
   first and are deleted either way; each key is written at most once a run
   (the day's count every two seconds at most and at the end; a 15-minute lock
   with its own expiry, never deleted); a new order each day; Resend busy

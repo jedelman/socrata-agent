@@ -56,7 +56,7 @@ import {
 // own imports), like every shared module.
 import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearchOn, handleShare, handleResearchList, handleAdminResearch } from './research.js';
 import { researchScopesFor } from '../src/agent.js';
-import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs } from './telemetry.js';
+import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs, ordinaryWords } from './telemetry.js';
 import { OTLP_PATH, otlpOn, handleOtlp } from './otlp.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
@@ -370,7 +370,7 @@ async function watchOptions(env, cityId) {
   try {
     leagues = (await readSnapshot(env.LIMITS, cityId))?.leagues || [];
   } catch { /* no leagues: a league watch is refused with a reason */ }
-  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies, names: watchNames(), textCheck: watchTextCheck(cityId) }) };
+  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies, names: watchNames(), ordinary: ordinaryWords(), textCheck: watchTextCheck(cityId) }) };
 }
 const watchCities = (env) => {
   const { config } = getDeployment(env);
@@ -382,6 +382,7 @@ function watchDeps(env) {
     cityIds: Object.keys(list),
     cities: list,
     names: watchNames,
+    ordinary: ordinaryWords,
     textCheck: watchTextCheck,
     // Email sign-in exists only in invite mode, where asking needs a bound invite.
     canAsk: async (uid) => !inviteOnly(env) || Boolean(await memberInvite(env.LIMITS, uid)),

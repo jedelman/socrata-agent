@@ -32,8 +32,7 @@
 // (the same HMAC that names the account), so a watch can only ever mail the
 // address that signed in. It is never logged, returned or shown.
 
-import { checkWatch, matchesWatch, phrasesIn, sameWatch, watchLabel, topicsOf, itemKind, itemNumber, describeItem, cityAddresses, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
-import { extractAddresses, normalizeAddress } from '../src/adapters/iqm2.js';
+import { checkWatch, matchesWatch, phrasesIn, sameWatch, watchLabel, topicsOf, itemKind, itemNumber, describeItem, titleAddresses, streetCore, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
 import { addressKey } from '../src/block.js';
 import { soqlString, ACCESS } from '../src/socrata.js';
 import { createContext } from '../src/agent.js';
@@ -122,7 +121,7 @@ async function leaguesOf(kv, socrata, city, cityId, addresses) {
   for (let i = 0; i < todo.length; i += 8) {
     const group = todo.slice(i, i + 8);
     const where = group.map(({ k }) => {
-      const longest = k.street.split(' ').sort((x, y) => y.length - x.length)[0];
+      const longest = streetCore(k.street).split(' ').sort((x, y) => y.length - x.length)[0];
       return `(${f.number} = ${soqlString(k.num)} AND upper(${f.street}) like ${soqlString(`%${longest}%`)})`;
     }).join(' OR ');
     let rows;
@@ -134,7 +133,7 @@ async function leaguesOf(kv, socrata, city, cityId, addresses) {
     for (const { k, cacheKey, spellings } of group) {
       const leagues = new Set(rows.filter((r) => {
         const rk = addressKey(r[f.full]);
-        return rk.num === k.num && rk.street === k.street;
+        return rk.num === k.num && streetCore(rk.street) === streetCore(k.street);
       }).map((r) => String(r[f.league] ?? '').trim()).filter((l) => l && !NO_LEAGUE.test(l)));
       const league = leagues.size === 1 ? [...leagues][0] : '';
       for (const a of spellings) out.set(a, league);
@@ -215,8 +214,8 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
       items.push({
         key, meeting: id, id: it.id, body: n.organization, when: String(n.date_and_time || ''), url: it.url,
         kind: itemKind(it.text), number: itemNumber(it.text), topics: topicsOf(it.text, topics),
-        // Only a number and one of the City's streets (cityAddresses), never other words from the title.
-        addresses: cityAddresses(extractAddresses(it.text), streets).slice(0, 12),
+        // Only a number and one of the City's streets (titleAddresses), never other words from the title.
+        addresses: titleAddresses(it.text, streets).slice(0, 12),
         // Kept to match members' phrases against (phrasesIn); never served, mailed or put in a feed.
         title: String(it.text || '').slice(0, 1000),
         first_seen: firstSeen.get(key) || new Date(now).toISOString(),
@@ -378,7 +377,7 @@ export async function handleWatches(req, env, path, deps = {}) {
   if (!email || (await userId(env.INVITE_SECRET, email)) !== uid) return json({ error: "Enter the email you signed in with. Watches mail only that address.", code: 'email' }, 400);
   const snap = await readSnapshot(kv, cityId);
   const topics = topicsFor(deps.cities[cityId]);
-  const checked = checkWatch(body, { topics, leagues: snap?.leagues || [], bodies: deps.cities[cityId].meetings.watchBodies, names: deps.names?.() || null, textCheck: deps.textCheck?.(cityId) });
+  const checked = checkWatch(body, { topics, leagues: snap?.leagues || [], bodies: deps.cities[cityId].meetings.watchBodies, names: deps.names?.() || null, ordinary: deps.ordinary?.() || null, textCheck: deps.textCheck?.(cityId) || null });
   if (!checked.ok) return json({ error: checked.error, refused: checked.refused, refused_phrases: checked.refusedPhrases || [] }, 400);
   const all = await listAll(kv);
   const mineKeys = all.filter((k) => k.metadata?.u === uid);
@@ -572,14 +571,20 @@ async function mailWatches(env, { snapshots, cities, appName = 'Siren', fetchImp
       return null;
     }
   };
+  // A sent key outlives what it guards: the watch's end plus a week, or a month
+  // from now, whichever is later (items stay on the 21-day snapshot; a renewal
+  // moves the end, and the job is the sent key's only writer).
+  const sentExpiry = (w) => Math.max(expiresAt(w.ends), Math.floor(now / 1000) + 30 * 86400);
   const ended = new Set();
   try {
     // 1. At their end.
     for (const key of keys) {
-      const w = watches.get(key);
-      if (!w || !(Date.parse(w.ends) <= now)) continue;
+      const first = watches.get(key);
+      if (!first || !(Date.parse(first.ends) <= now)) continue;
       ended.add(key);
       try {
+        const w = await kv.get(key, 'json');
+        if (!w || !(Date.parse(w.ends) <= now)) continue;
         const to = w.email && mailed < cap ? await opened(w) : null;
         if (to) {
           try {
@@ -629,8 +634,13 @@ async function mailWatches(env, { snapshots, cities, appName = 'Siren', fetchImp
         try {
           await send(env, { to, ...mail, headers, idempotencyKey }, fetchImpl);
         } catch (err) {
-          out.failed++;
           const status = resendStatus(err);
+          if (status === 409) {
+            // Resend already has this key (a rerun after a crash): the mail went; record it, don't count it again.
+            await kv.put(sentKey(w.id), JSON.stringify({ ...state, seen: [...new Set([...(state.seen || []), ...fresh.map((i) => i.key)])].slice(-SEEN_MAX) }), { expiration: sentExpiry(w) });
+            continue;
+          }
+          out.failed++;
           console.error('watch: a digest was not sent', status || String(err?.message || '').slice(0, 40));
           if (status >= 400 && status < 500 && status !== 429) {
             refusals++;
@@ -645,7 +655,7 @@ async function mailWatches(env, { snapshots, cities, appName = 'Siren', fetchImp
           seen: [...new Set([...(state.seen || []), ...fresh.map((i) => i.key)])].slice(-SEEN_MAX),
           sent: (state.sent || 0) + 1,
           last_sent: new Date(now).toISOString(),
-        }), { expiration: expiresAt(w.ends) });
+        }), { expiration: sentExpiry(w) });
         await saveCount();
       } catch (err) {
         console.error('watch: one watch could not be handled', String(err?.message || '').slice(0, 60));

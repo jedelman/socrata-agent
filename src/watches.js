@@ -21,13 +21,13 @@
 //   (meetings.watchTopics), and, since a watch belongs to one signed-in
 //   member and mails only them (Jason, 2026-11-16: "Free text for signed in
 //   and private conversations feels like the right shape"), phrases they
-//   write. A phrase made only of common first names and surnames (Census
-//   lists, data/common-names.json) is refused, as is one with a number, an
-//   address or contact details, or a civic league's name. That's a guard,
-//   not a wall: a rare surname alone gets through, as it would in
-//   find_legislation in a private conversation.
+//   write, checked by checkPhrases. That's a guard, not a wall: a rare
+//   surname alone ("zelinski") gets through, and works as a search of
+//   upcoming titles plus alerts, as find_legislation searches titles in a
+//   private conversation.
 
 import { addressKey } from './block.js';
+import { extractAddresses } from './adapters/iqm2.js';
 
 export const WATCH_DAYS = 365;
 /** Agenda items a watch remembers having sent, newest kept. */
@@ -97,19 +97,39 @@ export function itemNumber(text) {
 }
 
 /**
+ * A street name as the City's list spells it: upper case, apostrophes
+ * dropped, and a leading "St." (which address parsing reads as STREET) as
+ * SAINT ("698 St. Paul's Boulevard" is SAINT PAULS on the list).
+ */
+export function streetCore(street) {
+  return String(street ?? '').toUpperCase().replace(/['’]/g, '').replace(/\s+/g, ' ').trim().replace(/^(?:STREET|ST)\s+/, 'SAINT ');
+}
+
+/**
  * The addresses a title names whose street is one of the City's: a number
  * and a street from the City's address list (`streets`, the compiled list,
  * src/public-text.js compileStreets). A title's "$5,000 From Mary Lane" or
- * "5 Years With Robert Street" isn't one (review of #62), so only a number,
+ * "5 Years With Robert Street" isn't one (reviews of #62), so only a number,
  * a direction, a City street name and its suffix can reach a description.
+ * A number with a leading zero (the "000" of "$5,000") is never a house.
  */
 export function cityAddresses(addresses = [], streets = null) {
   const names = streets?.names instanceof Set ? streets.names : null;
   if (!names) return [];
   return addresses.filter((a) => {
     const k = addressKey(a);
-    return k.num && k.street && names.has(k.street.toLowerCase());
+    return k.num && !/^0/.test(k.num) && k.street && names.has(streetCore(k.street).toLowerCase());
   });
+}
+
+/**
+ * A title's City-street addresses, with money taken out first: "$5,000
+ * Betty Lane Scholarship" names no address, though Betty and Lane are both
+ * on the City's street list (fourth review of #62).
+ */
+export function titleAddresses(title, streets = null) {
+  const text = String(title ?? '').replace(/\$\s?[\d,]+(?:\.\d+)?/g, ' ').replace(/\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b/g, ' ');
+  return cityAddresses(extractAddresses(text), streets);
 }
 
 /**
@@ -129,18 +149,30 @@ export function describeItem(item, topics = []) {
 
 const leagueKey = (s) => normalizeText(s);
 
+// Words that, beside a name, make a phrase about a person or their entity.
+const PERSON_WORDS = new Set(['mr', 'mrs', 'ms', 'miss', 'dr', 'jr', 'sr', 'ii', 'iii', 'iv', 'esq', 'llc', 'inc', 'lp', 'llp', 'pllc', 'corp', 'co', 'trust', 'trustee', 'trustees', 'estate', 'family', 'et', 'al', 'heirs']);
+
 /**
  * A member's free-text phrases, checked: { phrases, refused: [{ phrase,
- * reason }] }. `names` is { surnames, given } (Sets, lower case),
- * `leagues` the civic leagues, `textCheck(text)` the public-text check
- * (addresses, emails, phone numbers), returning true when the text is clean.
+ * reason }] }. Refused, a phrase that:
+ * - has a number, an address or contact details (`textCheck(text)`, the
+ *   public-text check, true when clean), or names a civic league;
+ * - is made only of common first names and surnames (`names`, { surnames,
+ *   given } Sets from the Census lists; plurals too: "smiths");
+ * - has a common name beside anything but ordinary words (`ordinary`, the
+ *   words the City's books use in lower case): "john zelinski", "j smith";
+ *   or beside a title or an entity word: "mr smith", "smith llc", "estate
+ *   of smith".
+ * A rare surname alone ("zelinski") still passes: a guard, not a wall.
+ * Without `names`, `ordinary` or `textCheck` no phrase is accepted.
  */
-export function checkPhrases(raw, { names = null, leagues = [], textCheck = () => true } = {}) {
+export function checkPhrases(raw, { names = null, ordinary = null, leagues = [], textCheck = null } = {}) {
   const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(/[,;\n]/) : [];
   const leagueKeys = new Set(leagues.map(leagueKey));
   const phrases = [];
   const refused = [];
-  for (const r of list.slice(0, 20)) {
+  const isName = (w) => [w, w.replace(/s$/, ''), w.replace(/es$/, '')].some((x) => x.length > 1 && (names.surnames.has(x) || names.given.has(x)));
+  for (const r of list.slice(0, 20).map((x) => String(x ?? '').slice(0, 200))) {
     const phrase = normalizeText(r);
     if (!phrase || phrases.includes(phrase)) continue;
     const words = phrase.split(' ');
@@ -148,8 +180,10 @@ export function checkPhrases(raw, { names = null, leagues = [], textCheck = () =
     if (phrase.length < 3 || phrase.length > PHRASE_CHARS) reason = `a phrase is 3 to ${PHRASE_CHARS} characters`;
     else if (words.length > PHRASE_WORDS) reason = `a phrase is at most ${PHRASE_WORDS} words`;
     else if (/\d/.test(phrase)) reason = 'a phrase has no numbers (no house numbers or addresses)';
+    else if (!names || !ordinary || typeof textCheck !== 'function') reason = "phrases aren't available here";
     else if (leagueKeys.has(phrase)) reason = 'that is a civic league: watch it as the civic league instead';
-    else if (names && words.every((w) => names.surnames.has(w) || names.given.has(w))) reason = "that reads as a person's name; watches follow topics and words, not people";
+    else if (words.every(isName)) reason = "that reads as a person's name; watches follow topics and words, not people";
+    else if (words.some(isName) && words.some((w) => !isName(w) && (PERSON_WORDS.has(w) || w.length < 2 || !ordinary.has(w)))) reason = "that reads as a person's name; watches follow topics and words, not people";
     else if (!textCheck(String(r))) reason = 'a phrase names no address, person or contact';
     if (reason) refused.push({ phrase: String(r).trim().slice(0, PHRASE_CHARS + 20), reason });
     else phrases.push(phrase);
@@ -163,13 +197,13 @@ export function checkPhrases(raw, { names = null, leagues = [], textCheck = () =
  * refused }. `topics` (the option) is the city's reviewed list; `leagues` the
  * civic leagues items are tagged with; `bodies` the bodies a watch may name.
  */
-export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allowed = [], names = null, textCheck } = {}) {
+export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allowed = [], names = null, ordinary = null, textCheck = null } = {}) {
   const ids = new Set(topics.map((t) => t.id));
   const asked = Array.isArray(input.topics) ? input.topics.map((x) => String(x).trim()).filter(Boolean) : [];
   const refused = asked.filter((x) => !ids.has(x)).slice(0, 10).map((x) => x.slice(0, 60));
   const chosen = topics.filter((t) => asked.includes(t.id)).map((t) => t.id);
   if (chosen.length > MAX_TOPICS) return { ok: false, error: `A watch has at most ${MAX_TOPICS} topics.`, refused };
-  const { phrases, refused: refusedPhrases } = checkPhrases(input.phrases, { names, leagues, textCheck });
+  const { phrases, refused: refusedPhrases } = checkPhrases(input.phrases, { names, ordinary, leagues, textCheck });
   if (phrases.length > MAX_PHRASES) return { ok: false, error: `A watch has at most ${MAX_PHRASES} phrases.`, refused, refusedPhrases };
   const askedLeague = String(input.civic_league ?? input.league ?? '').trim();
   let league = null;

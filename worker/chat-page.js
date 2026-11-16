@@ -216,7 +216,7 @@ $('#log').addEventListener('submit', async (e) => {
   try { bodies = JSON.parse(f.bodies.value); } catch {}
   const topics = [...f.querySelectorAll('input[name="topic"]:checked')].map((i) => i.value);
   try {
-    const { res, data } = await postJson('api/watches', { city: $('#city').value, topics, phrases: f.phrases.value.split(','), league: f.league.value, bodies, email: f.email.value });
+    const { res, data } = await postJson('api/watches', { city: $('#city').value, topics, phrases: f.phrases.value.split(/[,;]/), league: f.league.value, bodies, email: f.email.value });
     if (!res.ok) {
       const refused = (data.refused_phrases || []).map((r) => `"${r.phrase}": ${r.reason}`).join('; ');
       msg.textContent = `${data.error || 'Something went wrong.'}${refused ? ` (${refused})` : ''}`;

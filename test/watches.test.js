@@ -9,7 +9,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { topicsOf, itemKind, itemNumber, describeItem, cityAddresses, checkWatch, checkPhrases, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, MAX_TOPICS } from '../src/watches.js';
+import { topicsOf, itemKind, itemNumber, describeItem, cityAddresses, titleAddresses, streetCore, checkWatch, checkPhrases, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, MAX_TOPICS } from '../src/watches.js';
+import { addressKey } from '../src/block.js';
+import { ordinaryWords } from '../worker/telemetry.js';
 import { compileStreets } from '../src/public-text.js';
 import streetsFile from '../data/gaps/norfolk-streets.json' with { type: 'json' };
 import commonNames from '../data/common-names.json' with { type: 'json' };
@@ -28,8 +30,9 @@ const BODIES = ['City Council', 'Planning Commission'];
 const LEAGUES = ['Ghent', 'Ocean View', 'Willoughby'];
 const streets = compileStreets(streetsFile.streets);
 const names = { surnames: new Set(commonNames.surnames), given: new Set(commonNames.given) };
-const opts = { topics: TOPICS, leagues: LEAGUES, bodies: BODIES, names };
-const describe = (title) => describeItem({ kind: itemKind(title), topics: topicsOf(title, TOPICS), addresses: cityAddresses(extractAddresses(title), streets) }, TOPICS);
+const textCheck = (t) => !/\d|@/.test(t);
+const opts = { topics: TOPICS, leagues: LEAGUES, bodies: BODIES, names, ordinary: ordinaryWords(), textCheck };
+const describe = (title) => describeItem({ kind: itemKind(title), topics: topicsOf(title, TOPICS), addresses: titleAddresses(title, streets) }, TOPICS);
 
 test('items are described from fixed labels and the address, never the title: buyers, tenants and applicants stay out', () => {
   const cases = [
@@ -55,7 +58,7 @@ test('items are described from fixed labels and the address, never the title: bu
 test('over all 1,452 indexed titles, every word of every description is a label word, a number, or a word of the City\'s street list', () => {
   const idx = JSON.parse(readFileSync(new URL('../data/norfolk-legislation.json', import.meta.url), 'utf8'));
   const kinds = ['Conditional Use Permit renewal', 'Rezoning', 'Development Certificate', 'Zoning Ordinance amendment', 'Encroachment into a right-of-way', 'Sale of City property', 'Lease', 'Easement', 'Right of entry', 'Street or alley closure', 'Variance', 'Budget or appropriation', 'Design review', 'Resolution', 'Ordinance', 'Agenda item'];
-  const words = (s) => String(s).toLowerCase().match(/[a-z0-9]+/g) || [];
+  const words = (s) => String(s).toLowerCase().replace(/['’]/g, '').match(/[a-z0-9]+/g) || [];
   // Address words come from the City's street list and the fixed suffixes and
   // directions, never from the title being described (review of #62).
   const streetWords = new Set(streetsFile.streets.flatMap(words));
@@ -63,6 +66,13 @@ test('over all 1,452 indexed titles, every word of every description is a label 
   const allowed = new Set([...kinds, ...TOPICS.map((t) => t.label), 'at and more', ...suffixes].flatMap(words));
   let n = 0;
   for (const item of idx.items) {
+    // Each address is exactly a number, maybe a direction, a street on the City's list, and maybe a suffix.
+    for (const a of titleAddresses(item.text, streets)) {
+      const k = addressKey(a);
+      assert.ok(/^[1-9]\d*[A-Z]?$/.test(k.num) && streets.names.has(streetCore(k.street).toLowerCase()), a);
+      const rest = words(a).filter((w) => w !== k.num.toLowerCase() && !suffixes.includes(w) && !words(k.street).includes(w) && !words(streetCore(k.street)).includes(w) && !['st', 'saint'].includes(w));
+      assert.deepEqual(rest, [], `${a} ← ${item.text.slice(0, 120)}`);
+    }
     const desc = describe(item.text);
     const stray = words(desc).filter((w) => !allowed.has(w) && !streetWords.has(w) && !/^\d+[a-z]?$/.test(w));
     assert.deepEqual(stray, [], `${desc} ← ${item.text.slice(0, 120)}`);
@@ -78,10 +88,17 @@ test('an "address" that isn\'t a number on one of the City\'s streets never reac
     ['An Ordinance Approving a Settlement of $25,000 With Jane Way', 'Ordinance'],
     ['An Ordinance Approving a Lease for 5 Years With Robert Street for Premises', 'Lease: Sales and leases of City property'],
     ['JANE DOE, for a Conditional Use Permit at 1210 Granby Street, Unit 2 Mary Smith Walk', 'Conditional Use Permit, at 1210 Granby Street'],
+    // The fourth review's: money right before a name that is also a City street.
+    ['A Resolution Approving a $5,000 Betty Lane Scholarship for the Norfolk Public Library', 'Resolution: Libraries'],
+    ['An Ordinance Approving a Settlement Agreement of $12,500 Albert Lane', 'Ordinance'],
+    ['An Ordinance Accepting a Gift of 12,500 Albert Lane', 'Ordinance'],
   ];
   for (const [title, want] of probes) assert.equal(describe(title), want, title);
   assert.deepEqual(cityAddresses(['241 W. Ocean View Avenue', '5 From Mary Lane', '6513 E. Virginia Beach Boulevard'], streets), ['241 W. Ocean View Avenue', '6513 E. Virginia Beach Boulevard']);
   assert.deepEqual(cityAddresses(['241 W. Ocean View Avenue'], null), [], 'no street list, no addresses');
+  assert.deepEqual(cityAddresses(['000 Granby Street'], streets), [], 'a leading zero is never a house number');
+  // A street the list spells without its apostrophe, or with Saint for St.
+  assert.deepEqual(titleAddresses('Property Located at 698 Saint Paul\'s Boulevard and 300 St. Paul\'s Boulevard', streets), ['698 Saint Paul\'s Boulevard', '300 St. Paul\'s Boulevard']);
 });
 
 test('topics: reviewed phrases matched as words, plurals and hyphens included; the list carries no free word', () => {
@@ -114,11 +131,21 @@ test('checking a watch: topics from the list only; leagues by the City\'s spelli
 });
 
 test('phrases (a signed-in member\'s own words): plain words kept; names, addresses, numbers and leagues refused', () => {
-  const textCheck = (t) => !/\d|@/.test(t);
-  const out = checkPhrases(['dog park', 'Food Truck', 'John Smith', 'price', 'will price', 'hope wells', '810 Union St', 'Ghent', 'a', 'food truck'], { names, leagues: LEAGUES, textCheck });
-  assert.deepEqual(out.phrases, ['dog park', 'food truck']);
+  const guard = { names, ordinary: ordinaryWords(), leagues: LEAGUES, textCheck };
+  const out = checkPhrases(['dog park', 'Food Truck', 'John Smith', 'price', 'will price', 'hope wells', '810 Union St', 'Ghent', 'a', 'food truck', 'community garden'], guard);
+  assert.deepEqual(out.phrases, ['dog park', 'food truck', 'community garden']);
   const why = Object.fromEntries(out.refused.map((r) => [r.phrase, r.reason]));
   for (const n of ['John Smith', 'price', 'will price', 'hope wells']) assert.match(why[n], /reads as a person's name/, n);
+  // The fourth review's: a common name beside anything but ordinary words, or beside a title or entity word.
+  for (const n of ['john zelinski', 'jason edelman', 'mr smith', 'dr patel', 'j smith', 'john q smith', 'smith jr', 'smith llc', 'smith trust', 'estate of smith', 'smith family', 'smith et al', 'smiths']) {
+    assert.equal(checkPhrases([n], guard).phrases.length, 0, n);
+  }
+  // What still passes, by design and in the docs: a rare surname alone.
+  assert.deepEqual(checkPhrases(['zelinski'], guard).phrases, ['zelinski']);
+  // Without its guards, no phrase is accepted.
+  assert.match(checkPhrases(['dog park'], { ...guard, names: null }).refused[0].reason, /aren't available here/);
+  assert.match(checkPhrases(['dog park'], { ...guard, textCheck: null }).refused[0].reason, /aren't available here/);
+  assert.match(checkPhrases(['dog park'], { ...guard, ordinary: null }).refused[0].reason, /aren't available here/);
   assert.match(why['810 Union St'], /no numbers/);
   assert.match(why.Ghent, /civic league/);
   assert.match(why.a, /3 to 40 characters/);
@@ -245,7 +272,7 @@ async function member(env) {
   return { uid, cookie: `${userCookieName('')}=${await signUser(SECRET, uid)}` };
 }
 const watchEnv = (over = {}) => readyEnv({ WATCHES: 'true', RESEND_API_KEY: 're_test', LOGIN_FROM: 'Siren <siren@example.org>', INVITE_REQUIRED: 'true', BLUESKY_LOGIN: undefined, ...over });
-const deps = { cityIds: ['norfolk'], cities: { norfolk }, names: () => names, textCheck: () => (t) => !/\d|@/.test(t), streets: () => streets };
+const deps = { cityIds: ['norfolk'], cities: { norfolk }, names: () => names, ordinary: ordinaryWords, textCheck: () => textCheck, streets: () => streets };
 async function api(env, cookie, path, body, headers = {}) {
   const req = new Request(`https://ask-siren.jason-edelman.org${path}`, { method: body ? 'POST' : 'GET', headers: { Cookie: cookie, ...(body ? { 'Content-Type': 'application/json', Origin: 'https://ask-siren.jason-edelman.org' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const res = await handleWatches(req, env, path, deps);
@@ -394,6 +421,28 @@ test('Resend: busy stops the round with no mark; a config refusal stops after th
   assert.equal(paused.length, 0);
   const req = new Request('https://ask-siren.jason-edelman.org/api/watches', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json', Origin: 'https://ask-siren.jason-edelman.org' }, body: JSON.stringify({ topics: ['tattoo'], email: USER }) });
   assert.equal((await handleWatches(req, { ...env, WATCH_MAX: '0' }, '/api/watches', deps)).status, 503);
+});
+
+test('a sent key outlives a renewal; Resend\'s 409 is recorded as sent; a phrase hit is named in the digest', async () => {
+  const env = watchEnv();
+  const { cookie } = await member(env);
+  await built(env);
+  const made = await api(env, cookie, '/api/watches', { topics: ['short_term_rentals'], phrases: ['vacation rental'], email: USER });
+  const now = Date.parse('2026-11-17T12:00:00Z');
+  const sent = [];
+  await runWatchJob(env, { ...deps, fetchImpl: cityFetch().fetchImpl, send: async (_e, m) => { sent.push(m); }, now: () => now });
+  const put = env.LIMITS.ops.filter((o) => o.op === 'put' && o.key === `watch-sent:${made.body.watch.id}`).at(-1);
+  assert.ok(put.opts.expiration >= Math.floor(now / 1000) + 30 * 86400, 'at least a month out, whatever the watch\'s end');
+  assert.match(sent[0].text, /with "vacation rental" in its title/);
+  // A rerun the same day that Resend answers 409 (it already has the key): recorded, not counted against anything.
+  const env2 = watchEnv();
+  const c2 = (await member(env2)).cookie;
+  await built(env2);
+  const w2 = await api(env2, c2, '/api/watches', { topics: ['short_term_rentals'], email: USER });
+  const out = await runWatchJob(env2, { ...deps, fetchImpl: cityFetch().fetchImpl, send: async () => { throw new Error('Resend 409'); }, now: () => now });
+  assert.equal(out.failed, 0);
+  assert.equal(out.stopped, false);
+  assert.equal(JSON.parse(await env2.LIMITS.get(`watch-sent:${w2.body.watch.id}`)).seen.length, 2);
 });
 
 test('a stop made while the run is mailing stays stopped', async () => {

@@ -40,19 +40,23 @@ described from parts code extracts (`src/watches.js`):
   Permit", "Sale of City property", "Rezoning", "Lease", …);
 - **the topics it matches**: from the city's reviewed list;
 - **the addresses** its title names, and only those on one of the City's
-  streets (`cityAddresses`): a number, a direction, a street from the City's
-  address list and its suffix. A title's "$5,000 From Mary Lane" isn't one;
-  the third review showed the plain address extractor would have let it
-  through;
+  streets (`titleAddresses`): a number, a direction, a street from the City's
+  address list and its suffix. Money comes out of the title first. A title's
+  "$5,000 From Mary Lane" or "$5,000 Betty Lane Scholarship" isn't an
+  address, though Betty and Lane are both on the street list; the third and
+  fourth reviews showed the plain extractor would have let these through.
+  Apostrophes and "St." for Saint are matched the way the list spells them
+  (Saint Paul's Boulevard is SAINT PAULS);
 - **its ordinance or resolution number**;
 - **a link to the City's own page** for the item, which has the full text.
 
 For example: "Conditional Use Permit: Short-term rentals, at 1210 Virgilina
 Avenue". A test runs over all 1,452 titles in the legislation index. It checks
-that every word of every description is a word of a fixed label, a number, or
-a word of the City's street list (not of the title itself). It also runs the
-reviewers' probes (`test/watches.test.js`). A street named for a person can
-still appear, as it would in any address.
+that every address is exactly a number, a direction, a street on the City's
+list and a suffix. It also checks that every word of every description is a
+word of a fixed label, a number, or a word of the City's street list (not of
+the title itself). It runs the reviewers' probes too (`test/watches.test.js`).
+A street named for a person can still appear, as it would in any address.
 
 **Watches follow topics, and a member's own phrases.**
 - **Topics:** a watch can pick from the city profile's `meetings.watchTopics`,
@@ -63,15 +67,26 @@ still appear, as it would in any address.
 - **Phrases:** a watch belongs to one signed-in member and mails only them.
   Jason, 2026-11-16: "Free text for signed in and private conversations feels
   like the right shape." So a member can add up to five phrases of their own
-  ("dog park"), matched against the title. A phrase is refused when it is:
-  - made only of common first names and surnames (Census lists,
-    `data/common-names.json`, built by `scripts/build-common-names.js`):
-    "John Smith", "price", "will price";
-  - holding a number, an address or contact details;
-  - a civic league's name.
+  ("dog park"), matched against the title. A phrase is refused when it:
+  - is made only of common first names and surnames, plurals included
+    (Census lists, `data/common-names.json`, built by
+    `scripts/build-common-names.js`): "John Smith", "price", "smiths";
+  - has a common name beside anything but ordinary words: "john zelinski",
+    "jason edelman", "j smith". Ordinary words are the ones the City's books
+    use in lower case;
+  - has a common name beside a title or an entity word: "mr smith",
+    "smith llc", "estate of smith";
+  - holds a number, an address or contact details;
+  - is a civic league's name.
 
-  This is a guard, not a wall: a rare surname alone gets through, as it would
-  in `find_legislation` in a private conversation. Feeds never use phrases.
+  Without the name list, the vocabulary or the text check, no phrase is
+  accepted.
+
+  This is a guard, not a wall. A rare surname alone ("zelinski") gets through.
+  It then works as a search of upcoming titles (the new watch shows what's
+  already posted) and as alerts for a year: what `find_legislation` already
+  does in a private conversation, made standing. That's the cost of free text
+  (Jason's call). Feeds never use phrases.
 
 ## How a watch starts
 
@@ -130,7 +145,11 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
      elsewhere. A stop clicked within that minute before the run may still
      see one more email;
    - **every watch key expires** a week after the watch ends. The watch and
-     its email go even if the job never runs again;
+     its email go even if the job never runs again. A sent key lasts until
+     the watch's end plus a week, or a month from its last write, whichever
+     is later, so a renewal can't lose what's been sent;
+   - **an ended watch is re-read before it's deleted**, so a renewal made just
+     before the run survives;
    - **one write per key per run**: KV refuses a second write to a key within
      a second. Each sent key is written once a run. The day's mail count is
      written at most every two seconds, and once at the end. The run lock is
@@ -138,7 +157,8 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
      is never deleted;
    - **a new order each day**, so no fixed set of watches always comes first;
    - **the idempotency key comes from the items sent**, so the same items to
-     the same watch are one mail to Resend for a day, even across runs;
+     the same watch are one mail to Resend for a day, even across runs. A 409
+     (Resend already has that key) is recorded as sent;
    - **Resend busy or down** (429, 5xx, a timeout): the round stops; the rest
      wait for tomorrow, unsent and unmarked;
    - **Resend refuses** (another 4xx): nothing is marked on the watch, since a

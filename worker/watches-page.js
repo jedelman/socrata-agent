@@ -47,7 +47,7 @@
     const bodies = [...f.querySelectorAll('input[name="body"]:checked')].map((i) => i.value);
     $('#fmsg').textContent = 'Starting…';
     const topics = [...f.querySelectorAll('input[name="topic"]:checked')].map((i) => i.value);
-    const { res, out } = await post('api/watches', { city: f.dataset.city, topics, phrases: $('#phrases').value.split(','), league: $('#league').value, bodies, email: $('#email').value });
+    const { res, out } = await post('api/watches', { city: f.dataset.city, topics, phrases: $('#phrases').value.split(/[,;]/), league: $('#league').value, bodies, email: $('#email').value });
     if (!res.ok) {
       const refused = (out.refused_phrases || []).map((r) => `"${r.phrase}": ${r.reason}`).join('; ');
       $('#fmsg').textContent = `${out.error || 'Something went wrong.'}${refused ? ` (${refused})` : ''}`;
