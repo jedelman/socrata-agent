@@ -2,98 +2,130 @@
 <html lang="en" data-skin="{{SKIN}}" data-loading="{{LOADING}}" data-app-name="{{APP_NAME}}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{APP_NAME}}: what's on my block?</title>
-<meta name="description" content="Ask your city's open data what's happening at an address, and who decided it. Every answer shows the queries behind it.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{APP_NAME}}</title>
+<meta name="description" content="Ask your city's public records a question in plain words. Every answer shows the sources and queries behind it.">
 <link rel="icon" href="{{FAVICON}}">
 {{FONTS}}
 <link rel="stylesheet" href="{{ASSETS}}/chat.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="masthead">
-    <div class="top">
-      <div class="brandblock"><a class="brand" href="./">{{MARK}}<span class="brand-name">{{APP_NAME}}</span></a><p class="tagline">{{TAGLINE}}</p><span class="badge">{{BADGE}}</span></div>
-      <label class="city">City <select id="city" aria-label="City"></select></label>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Conversations">
+    <div class="side-top">
+      <a class="brand" href="./">{{MARK}}<span class="brand-name">{{APP_NAME}}</span></a>
+      <button type="button" class="iconbtn side-close" id="side-close" aria-label="Close the menu">&times;</button>
     </div>
-    <h1>What's on my block, and who decided it?</h1>
-    <p id="intro">Ask about an address, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.</p>{{PUBLIC_DOOR}}
-  </header>
-
-  <section class="gate" id="gate" hidden aria-labelledby="gate-title">
-    <h2 id="gate-title">{{APP_NAME}} is in a private pre-alpha</h2>
-    <div id="signin" hidden>
-      <p>Sign in with your email, so your invite and your conversations follow you to any device. We'll send you a link.</p>
-      <form id="login" autocomplete="on">
-        <input id="login-email" name="email" type="email" placeholder="Email" aria-label="Email for sign-in" maxlength="254" required autocomplete="email">
-        <div class="hp" aria-hidden="true"><label>Website <input id="login-website" name="website" tabindex="-1" autocomplete="off"></label></div>
-        <button class="ask" type="submit">Email me a link</button>
-      </form>
-      <p class="msg" id="login-msg" role="status"></p>
-    </div>
-    <p id="code-intro">If someone gave you an invite code, enter it here.</p>
-    <form id="redeem" autocomplete="off">
-      <input id="code" name="code" placeholder="SIREN-XXXXX-XXXXX" aria-label="Invite code" maxlength="40" required>
-      <button class="ask" type="submit">Enter</button>
-    </form>
-    <p class="msg" id="redeem-msg" role="status"></p>
-    <h3>No code? Join the waitlist</h3>
-    <form id="wl">
-      <div class="fields">
-        <input id="wl-email" name="email" type="email" placeholder="Email" aria-label="Email" maxlength="254" required autocomplete="email">
-        <input id="wl-name" name="name" placeholder="Name (optional)" aria-label="Name (optional)" maxlength="120" autocomplete="name">
-        <input id="wl-org" name="org" placeholder="Organization or civic league (optional)" aria-label="Organization (optional)" maxlength="160" autocomplete="organization">
-        <textarea id="wl-note" name="note" placeholder="What would you ask {{APP_NAME}}? (optional)" aria-label="What would you ask? (optional)" maxlength="600"></textarea>
-        <div class="hp" aria-hidden="true"><label>Website <input id="wl-website" name="website" tabindex="-1" autocomplete="off"></label></div>
-        <div><button class="ask" type="submit">Join the waitlist</button></div>
-      </div>
-    </form>
-    <p class="msg" id="wl-msg" role="status"></p>
-    <p class="fine">{{OPERATOR}}We keep what you enter here only to tell you about {{APP_NAME}}: when you're invited, and what changes. It is never sold or shared. Please don't include a home address. To be removed, reply to any message from us.</p>
-  </section>
-
-  <form id="f">
-    <textarea id="q" name="q" placeholder="e.g. What's going on at 111 Pennsylvania Ave?" maxlength="600" required aria-label="Your question"></textarea>
-    <button class="ask" id="go" type="submit">Ask</button>
-  </form>
-  <div class="examples" id="examples" aria-label="Example questions"></div>
-
-  <p class="convbar" id="account" hidden></p>
-  <div class="convbar" id="convbar" hidden>
-    <span id="conv-state">New conversation</span>
-    <button type="button" id="conv-new">Start a new conversation</button>
-    <button type="button" id="conv-forget" hidden>Forget this conversation</button>
-    <details id="conv-recent" hidden><summary>Your conversations</summary>
+    <button type="button" class="newchat" id="conv-new"><span aria-hidden="true">+</span> New conversation</button>
+    <div class="convbar" id="convbar" hidden>
       <form id="conv-search" class="convsearch" role="search" autocomplete="off">
-        <input id="conv-q" name="q" type="search" placeholder="Search your questions and answers" aria-label="Search your conversations" minlength="2" maxlength="100" required autocomplete="off">
+        <input id="conv-q" name="q" type="search" placeholder="Search your conversations" aria-label="Search your conversations" minlength="2" maxlength="100" required autocomplete="off">
         <button type="submit">Search</button>
         <button type="button" id="conv-clear" hidden>Back to the list</button>
       </form>
       <p class="convmsg" id="conv-search-msg" role="status"></p>
       <ul id="conv-results" class="convhits" hidden></ul>
       <ul id="conv-list"></ul>
+      <p class="convempty" id="conv-empty" hidden>Your conversations will appear here.</p>
       <div class="convactions"><button type="button" id="conv-more" hidden>Show more</button><button type="button" id="conv-forget-all" class="textbtn">Forget all my conversations</button></div>
-    </details>
-  </div>
-  <main id="log" aria-live="polite"></main>
-  <template id="notes-tpl">
-    <details class="notes" open>
-      <summary>Working notes <small class="notes-state">(as they come)</small></summary>
-      <p class="fine">{{APP_NAME}}'s working notes, summarized by the model as it thinks. They are not the answer and aren't checked like answers.</p>
-      <div class="notes-body" aria-live="off"></div>
-    </details>
-  </template>
+    </div><!-- /convbar -->
+    <div class="side-hint" id="side-hint" hidden>
+      <p>Sign in to keep your conversations and pick them up on any device.</p>
+      <button type="button" class="textbtn" id="side-signin">Sign in</button>
+    </div>
+    <div class="side-foot">
+      <label class="city">City <select id="city" aria-label="City"></select></label>{{PUBLIC_DOOR}}
+      <p class="side-links"><a href="requests">Source requests</a> · <button type="button" class="textbtn" id="about-open">About {{APP_NAME}}</button></p>
+      <p class="account" id="account" hidden></p>
+      <span class="badge">{{BADGE}}</span>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
 
-  <footer>
-    <p class="footer-note">{{FOOTER_NOTE}}</p>
-    {{DATA_NOTE}}
-    <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
-    <p id="privacy-signed-in" hidden>Signed in, your conversations are kept until you delete them, with the queries behind each answer, so you can ask follow-ups and pick them up on another device. They're private: only your account can open them, nobody can look them up, {{PRIVACY_SHARED}} Forget one, or all of them, at any time. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" class="textbtn">Sign out</button></p>
-    <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
-    <p>Sources people have asked {{APP_NAME}} to learn: <a href="requests">the source request list</a>. Anyone can help fulfill one.</p>
-    <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
-  </footer>
+  <div class="main">
+    <header class="topbar">
+      <button type="button" class="iconbtn side-open" id="side-open" aria-label="Open the menu" aria-controls="sidebar" aria-expanded="false"><span aria-hidden="true">&#9776;</span></button>
+      <span class="conv-state" id="conv-state">New conversation</span>
+      <button type="button" class="textbtn" id="conv-forget" hidden>Forget this conversation</button>
+    </header>
+
+    <div class="scroller" id="scroller">
+      <section class="welcome" id="welcome">
+        <p class="tagline">{{TAGLINE}}</p>
+        <h1>What would you like to know?</h1>
+        <p id="intro">{{INTRO}}</p>
+        <div class="examples" id="examples" aria-label="Example questions" data-examples="{{EXAMPLES}}"></div>
+        {{POINTS}}
+      </section>
+
+      <section class="gate" id="gate" hidden aria-labelledby="gate-title">
+        <h2 id="gate-title">{{APP_NAME}} is in a private pre-alpha</h2>
+        <div id="signin" hidden>
+          <p>Sign in with your email, so your invite and your conversations follow you to any device. We'll send you a link.</p>
+          <form id="login" autocomplete="on">
+            <input id="login-email" name="email" type="email" placeholder="Email" aria-label="Email for sign-in" maxlength="254" required autocomplete="email">
+            <div class="hp" aria-hidden="true"><label>Website <input id="login-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+            <button class="ask" type="submit">Email me a link</button>
+          </form>
+          <p class="msg" id="login-msg" role="status"></p>
+        </div>
+        <div id="gate-code">
+          <p id="code-intro">If someone gave you an invite code, enter it here.</p>
+          <form id="redeem" autocomplete="off">
+            <input id="code" name="code" placeholder="SIREN-XXXXX-XXXXX" aria-label="Invite code" maxlength="40" required>
+            <button class="ask" type="submit">Enter</button>
+          </form>
+          <p class="msg" id="redeem-msg" role="status"></p>
+          <h3>No code? Join the waitlist</h3>
+          <form id="wl">
+            <div class="fields">
+              <input id="wl-email" name="email" type="email" placeholder="Email" aria-label="Email" maxlength="254" required autocomplete="email">
+              <input id="wl-name" name="name" placeholder="Name (optional)" aria-label="Name (optional)" maxlength="120" autocomplete="name">
+              <input id="wl-org" name="org" placeholder="Organization or civic league (optional)" aria-label="Organization (optional)" maxlength="160" autocomplete="organization">
+              <textarea id="wl-note" name="note" placeholder="What would you ask {{APP_NAME}}? (optional)" aria-label="What would you ask? (optional)" maxlength="600"></textarea>
+              <div class="hp" aria-hidden="true"><label>Website <input id="wl-website" name="website" tabindex="-1" autocomplete="off"></label></div>
+              <div><button class="ask" type="submit">Join the waitlist</button></div>
+            </div>
+          </form>
+          <p class="msg" id="wl-msg" role="status"></p>
+          <p class="fine">{{OPERATOR}}We keep what you enter here only to tell you about {{APP_NAME}}: when you're invited, and what changes. It is never sold or shared. Please don't include a home address. To be removed, reply to any message from us.</p>
+        </div>
+        <p class="gate-close"><button type="button" class="textbtn" id="gate-close" hidden>Not now</button></p>
+      </section>
+
+      <main id="log" aria-live="polite"></main>
+
+      <section class="about" id="about" hidden aria-labelledby="about-title">
+        <h2 id="about-title" tabindex="-1">About {{APP_NAME}}</h2>
+        <p class="footer-note">{{FOOTER_NOTE}}</p>
+        {{DATA_NOTE}}
+        <p>{{APP_NAME}} is an AI agent, not a person, and not a government service.</p>
+        <p id="privacy-signed-in" hidden>Signed in, your conversations are kept until you delete them, with the queries behind each answer, so you can ask follow-ups and pick them up on another device. They're private: only your account can open them, nobody can look them up, {{PRIVACY_SHARED}} Forget one, or all of them, at any time. Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link. <button type="button" id="signout" class="textbtn">Sign out</button></p>
+        <p>Answers say what the city's records returned, not what is true on the ground: "I found" means the query found it. Check anything that matters against the trace and the original records.</p>
+        <p>Sources people have asked {{APP_NAME}} to learn: <a href="requests">the source request list</a>. Anyone can help fulfill one.</p>
+        <p>Open source: <a href="https://github.com/jedelman/socrata-agent">github.com/jedelman/socrata-agent</a>. Developers can run it locally with their own model key, or use it as a Claude Code skill.</p>
+        <p><button type="button" class="textbtn" id="about-close">Close</button></p>
+      </section>
+    </div>
+
+    <form id="f" class="composer">
+      <div class="composer-box">
+        <textarea id="q" name="q" rows="1" placeholder="Ask {{APP_NAME}} a question" maxlength="600" required aria-label="Your question"></textarea>
+        <button class="ask" id="go" type="submit" aria-label="Ask"><span>Ask</span></button>
+      </div>
+    </form>
+    <footer class="composer-note">
+      <p>{{APP_NAME}} is an AI agent and can make mistakes. Every answer shows the queries and records behind it: check what matters there. <button type="button" class="textbtn" id="about-note">About and privacy</button></p>
+    </footer>
+  </div>
 </div>
+<template id="notes-tpl">
+  <details class="notes" open>
+    <summary>Working notes <small class="notes-state">(as they come)</small></summary>
+    <p class="fine">{{APP_NAME}}'s working notes, summarized by the model as it thinks. They are not the answer and aren't checked like answers.</p>
+    <div class="notes-body" aria-live="off"></div>
+  </details>
+</template>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js" integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js" integrity="sha384-+VfUPEb0PdtChMwmBcBmykRMDd+v6D/oFmB3rZM/puCMDYcIvF968OimRh4KQY9a" crossorigin="anonymous"></script>

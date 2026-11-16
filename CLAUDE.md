@@ -134,7 +134,19 @@ generic mode.
 - `worker/` is the Cloudflare chat app (`index.js` plus `ui.html`, whose
   script and style are `chat-page.js` and `chat.css`, served under
   `<base>/assets/<hash>/` so the page carries a strict CSP: no inline script,
-  style attribute or handler, and nothing that needs one). Siren is at
+  style attribute or handler, and nothing that needs one). It's laid out like
+  the chat apps people know (Jason, 2026-11-16): a sidebar on the left with
+  "New conversation", a signed-in member's conversations (search, the list
+  with the open one marked, paging) and the city, links and account at its
+  foot, sliding over the page below 900px (inert while closed, the page inert
+  while it's open); a new conversation by default,
+  whose welcome screen shows the deployment's `ui.intro`, `ui.examples` (by
+  city, in a data attribute the script reads; the script's own list
+  otherwise) and `ui.points`; the composer pinned at the bottom; About and
+  the privacy text in a panel. The old "what's on my block, and who decided
+  it?" copy is gone from the page; Siren's welcome leads with its metasearch
+  and the loop by which requests propose what it learns (a person reviews
+  each addition). Siren is at
   `https://ask-siren.jason-edelman.org`, its own origin (a Workers Custom
   Domain, `BASE_PATH` empty, since 2026-11-10); `moved.js` answers its old
   address, `jason-edelman.org/ask-siren` (`MOVED_FROM`), over http or https,
@@ -217,7 +229,8 @@ generic mode.
   City news), only when that text passes the public-text checks, and only
   words found in the adopted budget books and Zoning Ordinance (so a
   surname never gets through). Never the question, the answer, an account,
-  invite, conversation, IP or address; the footer says so when it's on.
+  invite, conversation, IP or address; the About panel says so when it's on
+  (one click from the note under the composer, "About and privacy").
   `[env.siren.observability]` keeps console output only: invocation logs
   (request URLs and headers: tokens, a GET search's words, cookies) and
   traces (outbound URLs: the addresses people look up) stay off.

@@ -9,11 +9,16 @@
 const LOADING = document.documentElement.dataset.loading || 'Looking it up. This usually takes 10 to 30 seconds';
 const APP_NAME = document.documentElement.dataset.appName || 'socrata-agent';
 const EXAMPLES = {
-  norfolk: ["What's on my block? 810 Union St", 'Who decided to allow a kennel at 111 Pennsylvania Ave?', 'What public meetings are coming up in the next two weeks?'],
+  norfolk: ["What's happening at 810 Union St?", 'What has City Council decided about short-term rentals this year?', 'What public meetings are coming up in the next two weeks?'],
   seattle: ['What datasets does Seattle publish about building permits?', 'How many building permits were issued in Seattle last month?'],
   chicago: ['How many pothole complaints did Chicago get in the last 30 days?', 'Which community areas had the most 311 rodent complaints this year?'],
 };
 const $ = (s) => document.querySelector(s);
+// The deployment's example questions by city (ui.examples, in a data
+// attribute the Worker writes), ahead of the built-in ones.
+const DEPLOYED_EXAMPLES = (() => { try { return JSON.parse(document.getElementById('examples')?.dataset.examples || '{}') || {}; } catch { return {}; } })();
+// The welcome text the Worker wrote for this deployment, kept for its own city.
+const INTRO = document.getElementById('intro')?.textContent || '';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 // Links come from city data, configs and plugins: allow only web links.
 const link = (u) => (/^https?:\/\//i.test(String(u || '')) ? esc(u) : '#');
@@ -82,15 +87,74 @@ async function loadCities() {
 }
 function setCity() {
   const c = cities.find((x) => x.id === $('#city').value) || cities[0];
-  $('#intro').textContent = c?.block
-    ? `Ask about an address in ${c.name}, or about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact.`
-    : `Ask about anything in ${c?.name}'s open data. (Address and "who decided" lookups are Norfolk-only for now.) Every answer lists the queries behind it and the data to download.`;
-  $('#examples').innerHTML = (EXAMPLES[c?.id] || []).map((e) => `<button type="button">${esc(e)}</button>`).join('');
+  $('#intro').textContent = c?.block || !c
+    ? INTRO
+    : `Ask about anything in ${c.name}'s open data. (Address lookups are Norfolk-only for now.) Every answer lists the queries behind it and the data to download.`;
+  const examples = Array.isArray(DEPLOYED_EXAMPLES[c?.id]) ? DEPLOYED_EXAMPLES[c.id] : EXAMPLES[c?.id] || [];
+  $('#examples').innerHTML = examples.map((e) => `<button type="button">${esc(e)}</button>`).join('');
   history = [];
 }
 $('#city').addEventListener('change', () => { newConversation(); setCity(); });
 $('#examples').addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { $('#q').value = e.target.textContent; $('#f').requestSubmit(); } });
 $('#q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#f').requestSubmit(); } });
+// The composer grows with what's typed, up to its CSS max-height (sized
+// through the CSSOM, which the page's CSP allows).
+function fitComposer() {
+  const q = $('#q');
+  q.style.height = 'auto';
+  q.style.height = `${Math.min(q.scrollHeight, 240)}px`;
+}
+$('#q').addEventListener('input', fitComposer);
+
+// ---- layout: the sidebar, the welcome screen, About ----
+// On a narrow screen the sidebar slides over the page; on a wide one it stays.
+// Closed on a narrow screen, the sidebar is inert (no Tab stop, nothing for
+// a screen reader); open, the page behind it is, so focus stays in the
+// sidebar until it closes. On a wide screen neither is.
+const NARROW = window.matchMedia('(max-width: 899px)');
+const narrow = () => NARROW.matches;
+function syncSidebar() {
+  const open = document.body.classList.contains('side-open');
+  $('#sidebar').inert = narrow() && !open;
+  $('.main').inert = narrow() && open;
+}
+// `focusTo`: where focus goes when it closes (the menu button by default;
+// false when the caller moves it itself).
+function setSidebar(open, focusTo) {
+  document.body.classList.toggle('side-open', open);
+  $('#scrim').hidden = !open;
+  $('#side-open').setAttribute('aria-expanded', String(open));
+  syncSidebar();
+  if (open) $('#conv-new').focus();
+  else if (focusTo !== false && narrow()) (focusTo || $('#side-open')).focus();
+}
+$('#side-open').addEventListener('click', () => setSidebar(true));
+$('#side-close').addEventListener('click', () => setSidebar(false));
+$('#scrim').addEventListener('click', () => setSidebar(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('side-open')) setSidebar(false); });
+NARROW.addEventListener('change', () => { if (!narrow()) setSidebar(false, false); else syncSidebar(); });
+syncSidebar();
+const closeSidebarIfNarrow = (focusTo) => { if (narrow()) setSidebar(false, focusTo); };
+// The welcome screen shows on a new, empty conversation.
+function showWelcome() {
+  $('#welcome').hidden = $('#log').children.length > 0;
+}
+// The conversation open in the page, marked in the list.
+function markActive() {
+  for (const b of document.querySelectorAll('#conv-list button[data-id]')) {
+    if (b.dataset.id === conversationId) b.setAttribute('aria-current', 'true');
+    else b.removeAttribute('aria-current');
+  }
+}
+function openAbout() {
+  $('#about').hidden = false;
+  closeSidebarIfNarrow(false);
+  $('#about').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('#about-title').focus({ preventScroll: true });
+}
+$('#about-open').addEventListener('click', openAbout);
+$('#about-note').addEventListener('click', openAbout);
+$('#about-close').addEventListener('click', () => { $('#about').hidden = true; $('#q').focus(); });
 
 function renderResources(r) {
   const parts = [];
@@ -243,6 +307,9 @@ function showGate(on) {
   $('#gate').hidden = !on;
   $('#f').hidden = on;
   $('#examples').hidden = on;
+  $('#gate-code').hidden = false;
+  $('#gate-close').hidden = true;
+  $('#gate-title').hidden = false;
   const signin = on && session.login && !session.signed_in;
   $('#signin').hidden = !signin;
   $('#code-intro').textContent = session.signed_in
@@ -250,6 +317,27 @@ function showGate(on) {
     : signin ? 'Or, if someone gave you an invite code, enter it here (it will work in this browser only).' : 'If someone gave you an invite code, enter it here.';
   if (on) (signin ? $('#login-email') : $('#code')).focus();
 }
+// Sign-in alone, from the sidebar, for someone who can already ask: the
+// invite code and the waitlist stay out of the way, and "Not now" closes it.
+function showSignIn() {
+  $('#gate').hidden = false;
+  $('#gate-title').hidden = true;
+  $('#signin').hidden = false;
+  $('#gate-code').hidden = true;
+  $('#gate-close').hidden = false;
+  closeSidebarIfNarrow(false);
+  $('#gate').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('#login-email').focus();
+}
+$('#side-signin').addEventListener('click', showSignIn);
+$('#gate-close').addEventListener('click', () => {
+  // Someone who can't ask (an invite refused mid-session) gets the invite
+  // form back, never a page with no way to ask.
+  if ($('#f').hidden) { showGate(true); return; }
+  $('#gate').hidden = true;
+  showWelcome();
+  $('#q').focus();
+});
 function newConversation() {
   // A new conversation can't race the old one's save.
   if (hold) { hold = null; $('#go').disabled = false; }
@@ -258,6 +346,8 @@ function newConversation() {
   $('#log').innerHTML = '';
   $('#conv-state').textContent = 'New conversation';
   $('#conv-forget').hidden = true;
+  showWelcome();
+  markActive();
 }
 // "Your conversations": one page at a time, newest first (the server's cursor
 // says where the next page starts), or search results in its place.
@@ -267,7 +357,7 @@ let searching = false;
 function renderRecent(list) {
   return (list || []).map((c) => {
     const n = Number(c.turns) || 0;
-    return `<li><button type="button" data-id="${esc(c.id)}">${esc(c.title)}</button> <small>${n} question${n === 1 ? '' : 's'} · ${esc(String(c.updated ?? '').slice(0, 10))}</small></li>`;
+    return `<li><button type="button" class="conv" data-id="${esc(c.id)}"><span class="conv-title">${esc(c.title)}</span><small>${n} question${n === 1 ? '' : 's'} · ${esc(String(c.updated ?? '').slice(0, 10))}</small></button></li>`;
   }).join('');
 }
 // Search matches: title, day and the snippet, every part escaped, the hit
@@ -296,7 +386,7 @@ async function loadRecent() {
   if (!session.conversations) {
     // Signed out: nothing of the account's stays on the page.
     recentNext = null;
-    $('#conv-recent').hidden = true;
+    $('#conv-empty').hidden = true;
     $('#conv-list').innerHTML = '';
     $('#conv-q').value = '';
     showList();
@@ -304,10 +394,12 @@ async function loadRecent() {
   }
   try {
     const { conversations = [], next = null } = await (await fetch('api/conversations', { cache: 'no-store' })).json();
-    $('#conv-recent').hidden = !conversations.length;
+    $('#conv-empty').hidden = conversations.length > 0;
     $('#conv-list').innerHTML = renderRecent(conversations);
     recentNext = next;
     $('#conv-more').hidden = searching || !recentNext;
+    $('#conv-forget-all').hidden = !conversations.length;
+    markActive();
   } catch {}
 }
 $('#conv-more').addEventListener('click', async () => {
@@ -320,6 +412,7 @@ $('#conv-more').addEventListener('click', async () => {
     if (res.ok) {
       $('#conv-list').insertAdjacentHTML('beforeend', renderRecent(data.conversations));
       recentNext = data.next || null;
+      markActive();
     } else {
       // An old cursor: start again from the newest.
       await loadRecent();
@@ -352,11 +445,13 @@ $('#conv-clear').addEventListener('click', () => { $('#conv-q').value = ''; show
 async function loadSession() {
   try {
     session = await (await fetch('api/session', { cache: 'no-store' })).json();
-    showGate(Boolean(session.invite_required && !session.invited));
+    const gated = Boolean(session.invite_required && !session.invited);
+    showGate(gated);
     $('#convbar').hidden = !session.conversations;
+    $('#side-hint').hidden = gated || !session.login || Boolean(session.signed_in);
     $('#privacy-signed-in').hidden = !session.signed_in;
     $('#account').hidden = !session.signed_in;
-    $('#account').innerHTML = session.signed_in ? `Signed in as <strong>${esc(session.account)}</strong>. Not you? <button type="button" id="signout-top">Sign out</button>` : '';
+    $('#account').innerHTML = session.signed_in ? `Signed in as <strong>${esc(session.account)}</strong> · <button type="button" class="textbtn" id="signout-top">Sign out</button>` : '';
     $('#signout-top')?.addEventListener('click', () => $('#signout').click());
     loadRecent();
   } catch { /* the ask call reports any problem */ }
@@ -383,7 +478,7 @@ $('#login').addEventListener('submit', async (e) => {
     msg.className = 'msg ok'; msg.textContent = 'Check your email for a sign-in link. It works once, for 15 minutes.';
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
-$('#conv-new').addEventListener('click', () => { newConversation(); $('#q').focus(); });
+$('#conv-new').addEventListener('click', () => { newConversation(); $('#about').hidden = true; closeSidebarIfNarrow(); $('#q').focus(); });
 // Search results can name a conversation just forgotten: forgetting clears them.
 $('#conv-forget').addEventListener('click', async () => {
   if (!conversationId) return;
@@ -418,9 +513,11 @@ async function openConversation(id, turnIndex) {
       turn.innerHTML = `<div class="q">${esc(t.question)}</div><div class="a">${renderAnswer(t.answer, t.record || {}, t.at)}</div>`;
       $('#log').append(turn);
     }
-    $('#conv-state').textContent = `Continuing: ${data.turns[0]?.question.slice(0, 60) || ''}`;
+    $('#conv-state').textContent = data.turns[0]?.question.slice(0, 80) || 'Conversation';
     $('#conv-forget').hidden = false;
-    $('#conv-recent').open = false;
+    showWelcome();
+    markActive();
+    closeSidebarIfNarrow($('#q'));
     const found = turnIndex == null ? null : $('#log').children[turnIndex];
     if (found) {
       found.classList.add('found');
@@ -439,6 +536,7 @@ $('#conv-results').addEventListener('click', (e) => {
   openConversation(button.dataset.id, Number.isInteger(turn) ? turn : null);
 });
 $('#signout').addEventListener('click', async () => {
+  closeSidebarIfNarrow(false);
   await postJson('api/logout', {}).catch(() => {});
   newConversation();
   loadSession();
@@ -482,15 +580,20 @@ function showAnswer(turn, a, question, status, data) {
   if (status === 401 && data.gate === 'invite') {
     turn.remove();
     $('#q').value = question;
+    fitComposer();
+    $('#side-hint').hidden = true;
     showGate(true);
+    showWelcome();
     $('#redeem-msg').textContent = data.error || '';
     return;
   }
   if (status < 200 || status >= 300) { a.innerHTML = `<p class="notice">${esc(data.error || 'Something went wrong.')}</p>`; return; }
   history.push({ role: 'user', content: question }, { role: 'assistant', content: data.answer });
   if (data.conversation) {
-    if (!conversationId) { $('#conv-state').textContent = `Conversation: ${question.slice(0, 60)}`; loadRecent(); }
+    const first = !conversationId;
+    if (first) $('#conv-state').textContent = question.slice(0, 80);
     conversationId = data.conversation;
+    if (first) loadRecent();
     $('#conv-forget').hidden = false;
   }
   a.innerHTML = renderAnswer(data.answer, data);
@@ -610,8 +713,11 @@ $('#f').addEventListener('submit', async (e) => {
   turn.className = 'turn';
   turn.innerHTML = `<div class="q">${esc(question)}</div><div class="a"><p class="loading">${esc(LOADING)}</p></div>`;
   $('#log').append(turn);
+  showWelcome();
+  $('#about').hidden = true;
   turn.scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('#q').value = '';
+  fitComposer();
   $('#go').disabled = true;
   const a = turn.querySelector('.a');
   let notes = null;
@@ -648,7 +754,7 @@ $('#f').addEventListener('submit', async (e) => {
       // that save, so new questions wait until it shows up or a minute passes.
       const mine = { id: started };
       hold = mine;
-      if (!conversationId) $('#conv-state').textContent = `Conversation: ${question.slice(0, 60)}`;
+      if (!conversationId) $('#conv-state').textContent = question.slice(0, 80);
       conversationId = started;
       $('#conv-forget').hidden = false;
       a.innerHTML = '<p class="notice">The connection dropped before the answer arrived. It may still finish: this page will show it here if it is saved. You can ask again in a minute.</p>';
@@ -662,6 +768,7 @@ $('#f').addEventListener('submit', async (e) => {
           a.innerHTML = renderAnswer(t.answer, t.record || {}, t.at);
         } else {
           $('#q').value = $('#q').value || question;
+          fitComposer();
           a.innerHTML = '<p class="notice">The connection dropped before the answer arrived, and it has not been saved. Asking again counts as a new question.</p>';
         }
       });
@@ -669,6 +776,7 @@ $('#f').addEventListener('submit', async (e) => {
       // Nothing is saved for this reader, so nothing to race; asking again
       // still counts as a new question, so say so instead of retrying.
       $('#q').value = question;
+      fitComposer();
       a.innerHTML = '<p class="notice">The connection dropped before the answer arrived. Asking again counts as a new question.</p>';
     } else {
       a.innerHTML = `<p class="notice">Couldn't reach the server. Check your connection and try again.</p>`;

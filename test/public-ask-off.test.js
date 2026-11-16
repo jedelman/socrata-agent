@@ -27,7 +27,10 @@
 // thing then, the daily spend rollup, in KV alone. The steward pages it
 // added changed one existing route: GET /admin carries the steward pages'
 // header menu, so its three entries were retaken from a run on that change
-// (nothing else moved). The new export and binding change no route: the scenario's envs
+// (nothing else moved). The chat page's new layout (2026-11-16: a sidebar of
+// conversations, the composer at the bottom, a welcome screen) retook GET /,
+// /index.html, /login and chat.css in each env the same way, from a run on
+// that change; HEAD / and everything else stayed as they were. The new export and binding change no route: the scenario's envs
 // don't carry the binding, and its snapshot is unchanged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
