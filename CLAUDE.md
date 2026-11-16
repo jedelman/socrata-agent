@@ -145,7 +145,8 @@ generic mode.
   otherwise) and `ui.points`; the composer pinned at the bottom; About and
   the privacy text in a panel. The old "what's on my block, and who decided
   it?" copy is gone from the page; Siren's welcome leads with its metasearch
-  and the loop by which requests decide what it learns. Siren is at
+  and the loop by which requests propose what it learns (a person reviews
+  each addition). Siren is at
   `https://ask-siren.jason-edelman.org`, its own origin (a Workers Custom
   Domain, `BASE_PATH` empty, since 2026-11-10); `moved.js` answers its old
   address, `jason-edelman.org/ask-siren` (`MOVED_FROM`), over http or https,
