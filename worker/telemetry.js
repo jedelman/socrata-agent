@@ -70,6 +70,24 @@ export function vocabulary() {
   return vocab;
 }
 
+let ordinary = null;
+/**
+ * Words those documents use in lower case (watches, worker/watches.js): an
+ * ordinary word, as opposed to a name. A surname or street the books only
+ * ever capitalize (Harris, Granby) isn't one; a name that is also a word
+ * (Park, Foster) is. Built once per isolate.
+ */
+export function ordinaryWords() {
+  if (ordinary) return ordinary;
+  ordinary = new Set();
+  for (const doc of [fy2027, fy2026, fy2025, fy2024, zoning]) {
+    for (const s of doc.sections || []) {
+      for (const m of String(s.text || '').matchAll(/(?<![A-Za-z])[a-z][a-z'-]*[a-z]/g)) ordinary.add(m[0]);
+    }
+  }
+  return ordinary;
+}
+
 /** Topic words from a tool call's arguments: public-text-checked, in the vocabulary, no stop words. */
 export function topicTerms(toolResults = [], streets) {
   const words = vocabulary();

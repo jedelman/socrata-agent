@@ -48,23 +48,72 @@ when there is no snapshot yet), `runWatchJob` (`worker/watches.js`) does this:
 2. Fetches each meeting's iqm2 page, whose agenda items are titled links.
    Agendas appear about a week before a meeting; a meeting with nothing posted
    yet has no items, and is read again the next day.
-3. Withholds a private applicant's name from each title (`withholdApplicant`),
-   by the rule `get_legislation` follows: an applicant that isn't plainly an
-   organization is withheld, and so is a name after a courtesy title. Business
-   names that don't say LLC, Inc. and the like are withheld too; that errs on
-   the safe side.
+3. Withholds private people's names from each title (`withholdNames`), in
+   three layers, each erring on the side of withholding:
+   - **The Planning Commission's applicant**, which opens its titles in capitals
+     ("JANE DOE, for a Conditional Use Permit …", or "…, to rezone …"), is
+     withheld unless plainly an organization. That is `get_legislation`'s
+     rule, judged on every "and"-joined party, so a person named beside an LLC
+     is withheld. A revocable, living or family trust, or an estate, counts as
+     a person.
+   - **The places Council titles name a party**, read from the legislation
+     index:
+     - a sale or conveyance to;
+     - an encroachment granted or permitted to;
+     - a lease, license, easement or agreement with;
+     - a tenant;
+     - a refund;
+     - a bidder;
+     - a conveyance from someone to the City.
+
+     The party is withheld unless plainly an organization or government, when
+     it holds a proper noun.
+   - **Anywhere, a person-shaped run:** a name with a middle initial ("Glen L.
+     East"), or two or more proper nouns where a title names a party (after
+     "to", "and", "by", "with", "Authorizing", "Granting" and the like), with
+     "Jr." and the like. A proper noun is a capitalized word the City's books
+     never use in lower case that isn't a place or an organization word. A run
+     before an organization, institution or program word ("Harrison Opera
+     House", "Edward Byrne Memorial Grant"), before a number ("Reordain
+     Chapter 34.2"), or in quotes (an establishment's or event's name) is
+     kept. So are "N.", "S.", "E." and "W." before a street, read as
+     directions. A name after a courtesy title is withheld too.
+
+   A title's "Staff Contact: … email" trailer is dropped.
+
+   Over all 1,452 titles in the legislation index, this withholds 125, nearly
+   all of them people: buyers of City lots, tenants, encroachment holders and
+   Planning Commission applicants. A few businesses not plainly named as one
+   ("PETCO Love", "Flock Safety") are withheld too, which errs on the safe
+   side. The name-shaped spans left are organizations, places and programs
+   ("Verizon Virginia", "Mowbray Arch", "King's Daughters"). It's a
+   heuristic: a name in a form the index doesn't hold yet could get through,
+   which is why matching and terms have their own guards (below).
 4. Tags each item with the civic league of each address its title names, from
    the City's address list (`ere7-kake`). It reads the `civic_league` column
    only; the league president's name and email in that dataset are never read.
    An address that doesn't match exactly one row gets no league. Many
    commercial addresses (much of Granby Street, Newtown Road, East Virginia
    Beach Boulevard) are in no civic league in the City's list; their items are
-   only in the citywide feed. League lookups are cached 90 days per address.
+   only in the citywide feed. League lookups are cached 90 days per address
+   and run at plugin access, so the dataset's denied columns are refused in
+   code.
 5. Keeps the result as `agenda-snapshot:<city>` (four days), with each item's
-   first-seen time carried over.
+   first-seen time carried over. A meeting whose page can't be read that day
+   keeps the day before's items, so an outage doesn't empty the feeds.
 6. With watches on, mails each watch the items it matches and hasn't been
    sent. It's one email per watch per day, with a `List-Unsubscribe` one-click
    stop (RFC 8058). A watch remembers the last 400 items it sent.
+   - **KV writes:** KV refuses a second write to a key within a second, so each
+     key is written at most once a run. Each watch is written once, the day's
+     mail count once at the end, and the run lock once (it expires in five
+     minutes, by its own clock and KV's).
+   - **Busy mail service:** if Resend is busy or down (429, 5xx, a timeout), the
+     round stops, and the rest wait for tomorrow, unsent and unmarked.
+   - **Refused address:** only Resend's refusal of an address (another 4xx)
+     counts against a watch. Five in a row stop it.
+   - **Watches at their end** get their note before anything else, even when
+     their city is no longer served.
 
 A live run on 2026-11-16 took 13 seconds and 10 requests: five meetings, one
 of them with a posted agenda of 19 items. Both short-term-rental items matched,
@@ -87,14 +136,22 @@ no league.
 
 ## No people-finding
 
-- **Terms:** a term must be made of words in Norfolk's Zoning Ordinance and
-  adopted budget books, the vocabulary telemetry uses, which holds no common
-  surname. It must also pass the public-text checks. It can't be a street
-  ("watch its civic league instead"), a house number or a civic league's name.
-- **Matching:** items are matched on the title with the applicant already
-  withheld, so a name can't match even if it slipped through as a word. A
-  watch on "park" won't match "JOHN PARK, for a Conditional Use Permit …"
-  (`test/watches.test.js`).
+- **Terms:** a term must be ordinary words: words Norfolk's Zoning Ordinance
+  and adopted budget books use in lower case (`ordinaryWords` in
+  `worker/telemetry.js`), plus a short reviewed list of topics the books only
+  capitalize (kennel, brewery, hookah, mural, seawall) and short words.
+  - That keeps out names that are only names. The review of #62 found 25 of
+    121 common surnames passing the old any-case vocabulary (harris, thomas,
+    taylor…). Now 13 pass, all of them also words (white, young, green, wood,
+    gray, price, long, foster, west, stone, park, grant, banks).
+  - It also keeps out proper-noun streets (granby, colley).
+  - A term must pass the public-text checks, and can't be a street with its
+    suffix, a house number or a civic league's name.
+- **Matching:** items are matched on the title with private people's names
+  already withheld. So a watch on a name that is also a word ("park") can't
+  match the person: it won't match "JOHN PARK, for a Conditional Use Permit
+  …" (`test/watches.test.js`). Feeds and emails carry only withheld titles,
+  and the feeds send `X-Robots-Tag: noindex`.
 - **Places:** civic leagues, not streets. A short street can be one or two
   houses, while a league is hundreds; the tiny leagues are no smaller than the
   public agenda item itself, which names the property.
@@ -120,6 +177,11 @@ no league.
   next day.
 - **Requests:** the daily read makes about 10 requests, counted on its own
   budget of 300.
+- **Zero:** `WATCH_DAILY_EMAILS = "0"` pauses mail, and `WATCH_MAX = "0"` takes
+  no new watches.
+- **Known gap:** the per-member cap and the duplicate check read a KV listing,
+  which can lag a few seconds. Two starts in quick succession could pass
+  either check.
 
 ## Turning it on
 

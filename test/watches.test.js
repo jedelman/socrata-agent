@@ -5,12 +5,13 @@
 // these fixtures are invented; the addresses are made up.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { withholdApplicant, checkWatch, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, WITHHELD, MAX_TERMS } from '../src/watches.js';
+import { withholdNames, namePlaces, isOrganization, checkWatch, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, WITHHELD, NAME_WITHHELD, MAX_TERMS } from '../src/watches.js';
 import { toolsFor } from '../src/tools.js';
 import { systemPrompt, WATCH_LINE } from '../src/prompt.js';
 import { getCity } from '../src/cities/index.js';
 import { compileStreets } from '../src/public-text.js';
-import { vocabulary } from '../worker/telemetry.js';
+import { ordinaryWords } from '../worker/telemetry.js';
+import { definePlugin } from '../src/plugins.js';
 import { buildSnapshot, runWatchJob, readSnapshot, sealEmail, openEmail, stopToken, digest, atomFeed, leagueSlug, meetingTime, jobDue, watchableCity, handleWatches } from '../worker/watches.js';
 import { signUser, userId, userCookieName } from '../worker/accounts.js';
 import { readyEnv, SECRET } from './fake-atproto.js';
@@ -20,7 +21,10 @@ const norfolk = getCity('norfolk');
 const streets = compileStreets(streetsFile.streets);
 const BODIES = ['City Council', 'Planning Commission'];
 const LEAGUES = ['Ghent', 'Ocean View', 'Willoughby'];
-const opts = { vocab: vocabulary(), streets, leagues: LEAGUES, bodies: BODIES };
+const opts = { vocab: ordinaryWords(), streets, leagues: LEAGUES, bodies: BODIES };
+// What the snapshot withholds with: the ordinary words, the streets and the civic leagues.
+const names = { ordinary: ordinaryWords(), ...namePlaces({ streets, leagues: ['Ghent', 'Ocean View', 'Willoughby', 'Lamberts Point'] }) };
+const withholdApplicant = (t) => withholdNames(t, names);
 
 test('applicants: a private applicant is withheld, an organization and the City are kept, and so is a Council title', () => {
   assert.equal(withholdApplicant('JANE DOE, for a Conditional Use Permit to operate a Short-Term Rental (Vacation Rental) at 1210 Sample Avenue'), `${WITHHELD}, for a Conditional Use Permit to operate a Short-Term Rental (Vacation Rental) at 1210 Sample Avenue`);
@@ -31,9 +35,46 @@ test('applicants: a private applicant is withheld, an organization and the City 
   // Not plainly an organization by name: withheld, as get_legislation's rule does.
   assert.match(withholdApplicant('HAPPY TAILS, for a Conditional Use Permit to operate a Kennel'), /^\[applicant's name withheld\], for a Conditional Use Permit to operate a Kennel/);
   // A name after a courtesy title, anywhere.
-  assert.equal(withholdApplicant('Design review requested by Mr. John Roe for 100 Sample Street'), `Design review requested by ${WITHHELD} for 100 Sample Street`);
-  const council = 'Ordinance No. 49330 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit (Vacation Rental) on Property Located at 1039 Sample Avenue.';
-  assert.equal(withholdApplicant(council), council);
+  assert.equal(withholdApplicant('Design review requested by Mr. John Roe for 100 Sample Street'), `Design review requested by ${NAME_WITHHELD} for 100 Sample Street`);
+  // A person beside an organization, a personal trust, and the "to rezone" form (review of #62).
+  assert.match(withholdApplicant('JOHN DOE AND SEASIDE RENTALS, LLC, for a Conditional Use Permit'), /^\[applicant's name withheld\], for/);
+  assert.match(withholdApplicant('MARY ROE REVOCABLE TRUST, for a Conditional Use Permit'), /^\[applicant's name withheld\], for/);
+  assert.match(withholdApplicant('JOHN DOE, to rezone property at 26 Sample Street'), /^\[applicant's name withheld\], to rezone/);
+  // A staff contact (a City employee, with an email built from the name) is dropped.
+  assert.equal(withholdApplicant('SEASIDE RENTALS, LLC, for a Development Certificate at 26 Sample Street. Staff Contact: Ann Example at (757) 555-0100, ann.example@norfolk.gov'), 'SEASIDE RENTALS, LLC, for a Development Certificate at 26 Sample Street.');
+  const council = 'Ordinance No. 49330 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit (Vacation Rental) on Property Located at 1039 W. Ocean View Avenue.';
+  assert.equal(withholdApplicant(council), council, 'a direction before a street is not a middle initial');
+});
+
+// Council titles name buyers, tenants and encroachment holders (the forms
+// read from the legislation index, 2026-11-16; the names here are invented).
+test('Council titles: a private party is withheld wherever a title names one; organizations, places and programs stay', () => {
+  const cases = [
+    ['An Ordinance Authorizing the Sale and Conveyance to Jane Q. Public of That Certain Parcel of Property Located at 885 Sample Street', `An Ordinance Authorizing the Sale and Conveyance to ${NAME_WITHHELD} of That Certain Parcel of Property Located at 885 Sample Street`],
+    ['An Ordinance Authorizing the Conveyance to Jorvan Quillfeather and Ressa Quillfeather of a Certain Parcel of Norfolk Property', `An Ordinance Authorizing the Conveyance to ${NAME_WITHHELD} of a Certain Parcel of Norfolk Property`],
+    ['An Ordinance Authorizing the Conveyance to Virginia Quillfeather of a Certain Parcel', `An Ordinance Authorizing the Conveyance to ${NAME_WITHHELD} of a Certain Parcel`],
+    ['An Ordinance Granting Aaron May Permission to Encroach Into the Right-of-Way', `An Ordinance Granting ${NAME_WITHHELD} Permission to Encroach Into the Right-of-Way`],
+    ['An Ordinance Permitting Jorvan Quillfeather and Ressa Quillfeather to Encroach Into City-Owned Property', `An Ordinance Permitting ${NAME_WITHHELD} to Encroach Into City-Owned Property`],
+    ['An Ordinance Permitting Jorvan Quillfeather, Jr. to Encroach into Sample Avenue', `An Ordinance Permitting ${NAME_WITHHELD} to Encroach into Sample Avenue`],
+    ['A Lease Agreement Between the City of Norfolk, as Landlord, and Ressa Quillfeather, as Tenant, for Premises', `A Lease Agreement Between the City of Norfolk, as Landlord, and ${NAME_WITHHELD}, as Tenant, for Premises`],
+    ['An Ordinance directing the City Treasurer to issue a refund to Jorvan Q. Quillfeather upon the overpayment', `An Ordinance directing the City Treasurer to issue a refund to ${NAME_WITHHELD} upon the overpayment`],
+    ['A Right of Entry Agreement Authorizing Ressa Quillfeather to Go Upon and Use City-Owned Property', `A Right of Entry Agreement Authorizing ${NAME_WITHHELD} to Go Upon and Use City-Owned Property`],
+    ['An Ordinance Authorizing the Conveyance to the Quillfeather Living Trust of a Certain Parcel', `An Ordinance Authorizing the Conveyance to ${NAME_WITHHELD} of a Certain Parcel`],
+  ];
+  for (const [title, want] of cases) assert.equal(withholdApplicant(title), want, title);
+  const kept = [
+    'An Ordinance Authorizing the Sale and Conveyance to Blue Sky Finishes Inc. of Those Certain Parcels of Property Located at 244 & 248 W. 28th Street',
+    'An Ordinance Granting Portside Improvements, LLC Permission to Encroach Into the Right-of-Way of Dunning Road',
+    'An Ordinance Approving an Agreement with the Virginia Department of Environmental Quality for Air Quality Monitoring',
+    'An Ordinance Accepting the Conveyance from Virginia Port Authority to the City of Norfolk of Property',
+    'A Resolution In Support of an Application to the Edward Byrne Memorial Justice Assistance Grant Program',
+    'An Ordinance to Amend and Reordain Chapter 34.2 of the Norfolk City Code',
+    'An Ordinance Granting a Conditional Use Permit for a Facility Named "Dutch Bros Coffee" at 1501 E. Little Creek Road',
+    'A Lease of Certain Portions of the Harrison Opera House',
+  ];
+  for (const title of kept) assert.equal(withholdApplicant(title), title, title);
+  assert.equal(isOrganization('Wilbanks Example & Roe Asset Management, LLC'), false, 'a name joined to a firm is not plainly an organization');
+  assert.equal(isOrganization('Azalea Little League, Incorporated and Fleet Park Little League, Inc.'), true);
 });
 
 test('terms: topic words are kept; names, streets, addresses and civic leagues are refused with a reason', () => {
@@ -43,6 +84,10 @@ test('terms: topic words are kept; names, streets, addresses and civic leagues a
   const why = Object.fromEntries(out.refused.map((r) => [r.term, r.reason]));
   assert.match(why['Jane Doe'], /never a name/);
   assert.match(why.smith, /never a name/);
+  // Names the City's books only ever capitalize (review of #62: harris, thomas…), and proper-noun streets.
+  for (const t of ['harris', 'thomas', 'taylor', 'washington', 'jordan', 'granby', 'colley']) assert.equal(checkWatch({ terms: [t] }, opts).ok, false, t);
+  // Topics the books only capitalize are on the reviewed list.
+  for (const t of ['kennel', 'brewery', 'mural', 'seawall', 'park']) assert.equal(checkWatch({ terms: [t] }, opts).ok, true, t);
   assert.match(why['Colley Avenue'], /street: watch its civic league/);
   assert.match(why['810 Union St'], /no numbers/);
   assert.match(why.Ghent, /civic league/);
@@ -105,6 +150,7 @@ test('without watches, the tools and the prompt are exactly as before; with them
   assert.ok(systemPrompt(norfolk, '2026-11-16', { watches: true }).includes(WATCH_LINE));
   // A plugin can't take the name.
   assert.ok(watchableCity(norfolk));
+  assert.throws(() => toolsFor(norfolk, [definePlugin({ name: 'offer_watch', description: 'x', run: () => null })]), /would replace a core tool/);
 });
 
 // ---- the snapshot, the job, the mail and the feeds, with the City faked ----
@@ -125,6 +171,7 @@ function cityFetch({ extraItem = null } = {}) {
     if (url.includes('/resource/dszu-h9cf.json')) {
       return Response.json([{ date_and_time: '2026-11-19T14:30:00.000', organization: 'Planning Commission', type: 'Public Hearing', location: '11th floor Council Chamber', meeting_link: { url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4674' } }]);
     }
+    if (url.includes('/api/views/ere7-kake.json')) return Response.json({ name: 'Address Information', columns: ['full_address', 'house_number', 'full_street_name', 'civic_league'].map((fieldName) => ({ fieldName, dataTypeName: 'text' })) });
     if (url.includes('/resource/ere7-kake.json') && /GROUP BY/.test(q)) return Response.json(LEAGUES.map((l) => ({ civic_league: l, n: '10' })));
     if (url.includes('/resource/ere7-kake.json')) {
       // The league column only: the president's name and email are never asked for.
@@ -168,7 +215,27 @@ async function member(env) {
   return { uid, cookie: `${userCookieName('')}=${await signUser(SECRET, uid)}` };
 }
 const watchEnv = (over = {}) => readyEnv({ WATCHES: 'true', RESEND_API_KEY: 're_test', LOGIN_FROM: 'Siren <siren@example.org>', INVITE_REQUIRED: 'true', BLUESKY_LOGIN: undefined, ...over });
-const deps = { cityIds: ['norfolk'], cities: { norfolk }, streets: () => streets, vocab: vocabulary };
+const deps = { cityIds: ['norfolk'], cities: { norfolk }, streets: () => streets, vocab: ordinaryWords, ordinary: ordinaryWords() };
+
+// KV as Cloudflare runs it in one respect: a second write (put or delete) to
+// the same key within a second is refused with a 429 (Workers KV docs). A
+// test's job run finishes well inside a second, so every key may be written
+// once per run. (Review of #62: the day's mail counter was written per send.)
+function strictKV(kv) {
+  let written = new Set();
+  const once = (key) => {
+    if (written.has(key)) throw new Error(`KV 429: ${key} written twice within a second`);
+    written.add(key);
+  };
+  return {
+    ...kv,
+    get: (...a) => kv.get(...a),
+    list: (...a) => kv.list(...a),
+    put: async (key, ...a) => { once(key); return kv.put(key, ...a); },
+    delete: async (key) => { once(key); return kv.delete(key); },
+    nextSecond: () => { written = new Set(); },
+  };
+}
 async function api(env, cookie, path, body, headers = {}) {
   const req = new Request(`https://ask-siren.jason-edelman.org${path}`, { method: body ? 'POST' : 'GET', headers: { Cookie: cookie, ...(body ? { 'Content-Type': 'application/json', Origin: 'https://ask-siren.jason-edelman.org' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const res = await handleWatches(req, env, path, deps);
@@ -231,17 +298,25 @@ test('a stop link works without signing in, and only for its own watch', async (
 test('the daily job: one digest a day per watch, never an item twice, to the address it keeps, with a one-click stop', async () => {
   const env = watchEnv();
   const { cookie } = await member(env);
-  await buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch().fetchImpl, now: Date.parse('2026-11-16T12:00:00Z') });
+  await buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch().fetchImpl, now: Date.parse('2026-11-16T12:00:00Z'), ordinary: ordinaryWords(), streets });
   const made = await api(env, cookie, '/api/watches', { terms: ['short-term rental'], email: USER });
   await api(env, cookie, '/api/watches', { league: 'Ghent', email: USER });
+  // A few more watches with matches, so the day's counter would be written many times if it were written per send.
+  for (const t of ['kennel', 'rental', 'conditional use']) await api(env, cookie, '/api/watches', { terms: [t], email: USER });
+  const strict = strictKV(env.LIMITS);
+  const jobEnv = { ...env, LIMITS: strict };
   const sent = [];
   const send = async (_env, msg) => { sent.push(msg); return { id: 'e' }; };
   let at = Date.parse('2026-11-17T11:30:00Z');
-  const run = (extraItem) => runWatchJob(env, { ...deps, appName: 'Siren', fetchImpl: cityFetch({ extraItem }).fetchImpl, send, now: () => at });
+  const run = (extraItem) => {
+    strict.nextSecond();
+    return runWatchJob(jobEnv, { ...deps, appName: 'Siren', fetchImpl: cityFetch({ extraItem }).fetchImpl, send, now: () => at });
+  };
   const first = await run();
   assert.equal(first.ran, true);
-  assert.equal(sent.length, 2);
-  const rentals = sent.find((m) => m.text.includes('short term rental'));
+  assert.equal(sent.length, 5);
+  assert.equal(await env.LIMITS.get('watch-mail:2026-11-17'), '5', 'the day\'s count, written once');
+  const rentals = sent.find((m) => m.text.includes('"short term rental"'));
   assert.equal(rentals.to, USER);
   assert.match(rentals.subject, /^Siren: 2 agenda items for your watch$/);
   assert.match(rentals.text, /Planning Commission Public Hearing, Thursday, November 19, 2026, 2:30 PM \(11th floor Council Chamber\)/);
@@ -255,14 +330,61 @@ test('the daily job: one digest a day per watch, never an item twice, to the add
   assert.match(ghent.text, /Kennel at 4200 Example Avenue/);
   // The same day: not due again.
   assert.equal((await run()).ran, false);
-  // The next day, nothing new: nothing sent. A new item: only it.
+  // The next day, nothing new: nothing sent. A new item: only it, to the watches it matches.
   at += 864e5;
   await run();
-  assert.equal(sent.length, 2);
+  assert.equal(sent.length, 5);
   at += 864e5;
-  await run('SEASIDE RENTALS, LLC, for a Conditional Use Permit to operate a Short-Term Rental at 8400 Sample Road');
-  assert.equal(sent.length, 3);
-  assert.match(sent[2].subject, /1 agenda item for/);
+  const lastRun = await run('SEASIDE RENTALS, LLC, for a Conditional Use Permit to operate a Short-Term Rental at 8400 Sample Road');
+  assert.equal(lastRun.ran, true);
+  const fresh = sent.slice(5);
+  assert.ok(fresh.length >= 1 && fresh.every((m) => /1 agenda item for/.test(m.subject)));
+});
+
+test('Resend busy or down stops the round without counting against anyone; a refused address counts; zero means zero', async () => {
+  const env = watchEnv();
+  const { cookie } = await member(env);
+  await buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch().fetchImpl, now: Date.parse('2026-11-16T12:00:00Z') });
+  await api(env, cookie, '/api/watches', { terms: ['rental'], email: USER });
+  await api(env, cookie, '/api/watches', { terms: ['kennel'], email: USER });
+  let calls = 0;
+  const busy = await runWatchJob(env, { ...deps, fetchImpl: cityFetch().fetchImpl, send: async () => { calls++; throw new Error('Resend 429'); }, now: () => Date.parse('2026-11-17T12:00:00Z') });
+  assert.equal(busy.stopped, true);
+  assert.equal(calls, 1, 'the round stops at the first 429');
+  const stored = await Promise.all((await env.LIMITS.list({ prefix: 'watch:' })).keys.map((k) => env.LIMITS.get(k.name, 'json')));
+  assert.ok(stored.every((w) => !w.fails), 'a 429 is no mark against the address');
+  const refused = await runWatchJob(env, { ...deps, fetchImpl: cityFetch().fetchImpl, send: async () => { throw new Error('Resend 422'); }, now: () => Date.parse('2026-11-18T12:00:00Z') });
+  assert.equal(refused.failed, 2);
+  const after = await Promise.all((await env.LIMITS.list({ prefix: 'watch:' })).keys.map((k) => env.LIMITS.get(k.name, 'json')));
+  assert.ok(after.every((w) => w.fails === 1));
+  // WATCH_DAILY_EMAILS = "0" pauses mail; WATCH_MAX = "0" takes no new watches.
+  const paused = [];
+  await runWatchJob({ ...env, WATCH_DAILY_EMAILS: '0' }, { ...deps, fetchImpl: cityFetch().fetchImpl, send: async (_e, m) => { paused.push(m); }, now: () => Date.parse('2026-11-19T12:00:00Z') });
+  assert.equal(paused.length, 0);
+  const full = await (async () => {
+    const req = new Request('https://ask-siren.jason-edelman.org/api/watches', { method: 'POST', headers: { Cookie: cookie, 'Content-Type': 'application/json', Origin: 'https://ask-siren.jason-edelman.org' }, body: JSON.stringify({ terms: ['tattoo'], email: USER }) });
+    return handleWatches(req, { ...env, WATCH_MAX: '0' }, '/api/watches', deps);
+  })();
+  assert.equal(full.status, 503);
+});
+
+test('a meeting whose page can\'t be read keeps yesterday\'s items; a watch for a city that left still ends', async () => {
+  const env = watchEnv();
+  await buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch().fetchImpl, now: Date.parse('2026-11-16T12:00:00Z') });
+  const { fetchImpl } = cityFetch();
+  const down = async (input) => (String(input?.url || input).includes('Detail_Meeting') ? new Response('', { status: 503 }) : fetchImpl(input));
+  const snap = await buildSnapshot({ kv: env.LIMITS, city: norfolk, cityId: 'norfolk', fetchImpl: down, now: Date.parse('2026-11-17T12:00:00Z') });
+  assert.equal(snap.failed, 1);
+  assert.equal(snap.items.length, 3, 'yesterday\'s items carried');
+  assert.equal(snap.meetings.length, 1);
+  // A watch in a city no longer served, at its end: the note goes out and the watch is deleted.
+  const id = 'gone-city-watch1';
+  await env.LIMITS.put(`watch:${id}`, JSON.stringify({ v: 1, id, u: 'u', city: 'atlantis', terms: ['rental'], league: null, bodies: BODIES, created: '2025-11-01T00:00:00Z', ends: '2026-11-01T00:00:00Z', email: await sealEmail(SECRET, id, USER), seen: [] }), { metadata: { u: 'u' } });
+  const notes = [];
+  const out = await runWatchJob(env, { ...deps, fetchImpl, send: async (_e, m) => { notes.push(m); }, now: () => Date.parse('2026-11-18T12:00:00Z') });
+  assert.equal(out.ended, 1);
+  assert.match(notes[0].subject, /has ended/);
+  assert.equal(await env.LIMITS.get(`watch:${id}`), null);
 });
 
 test('the daily cap, a watch at its end, and an address that keeps refusing', async () => {
@@ -284,6 +406,8 @@ test('the daily cap, a watch at its end, and an address that keeps refusing', as
   assert.ok(ended.every((m) => /has ended/.test(m.subject)));
   assert.equal((await env.LIMITS.list({ prefix: 'watch:' })).keys.length, 0);
   // An address the mail service refuses five days running: the watch stops.
+  // (This test goes back from 2027 to 2026, so the 2027 run's lock is cleared first.)
+  await env.LIMITS.delete('watch-lock');
   await api(env, cookie, '/api/watches', { terms: ['rental'], email: USER });
   for (let d = 0; d < 5; d++) {
     await runWatchJob(env2, { ...deps, fetchImpl: cityFetch().fetchImpl, send: async () => { throw new Error('Resend 422'); }, now: () => Date.parse('2026-11-20T12:00:00Z') + d * 864e5 });

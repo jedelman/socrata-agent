@@ -15,10 +15,11 @@
 // - LEAGUE_FEEDS = "true": a public Atom feed per civic league, and one for
 //   every item, at /feeds.
 //
-// Once a day (the cron, an hour or more after 11:00 UTC, or at once when no
+// Once a day (the cron, at or after 11:00 UTC, or at once when no
 // snapshot exists), the job reads the Public Meeting Notices for the next
 // three weeks of the bodies the city profile names, fetches each meeting's
-// agenda from iqm2, withholds private applicants' names, tags each item with
+// agenda from iqm2, withholds private people's names (src/watches.js
+// withholdNames), tags each item with
 // its civic league from the City's address list (the league column only:
 // that dataset's league-president name and email are never read), and keeps
 // the result as the snapshot both features read.
@@ -30,7 +31,7 @@
 // (the same HMAC that names the account), so a watch can only ever mail the
 // address that signed in. It is never logged, returned or shown.
 
-import { checkWatch, matchesWatch, sameWatch, watchLabel, withholdApplicant, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
+import { checkWatch, matchesWatch, sameWatch, watchLabel, withholdNames, namePlaces, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
 import { extractAddresses, normalizeAddress } from '../src/adapters/iqm2.js';
 import { addressKey } from '../src/block.js';
 import { soqlString, ACCESS } from '../src/socrata.js';
@@ -40,6 +41,7 @@ import { enc, b64url, unb64url, hmac, hex, sha256, randomToken } from './crypto.
 import { loginConfigured, sendWithResend, userId, currentUser } from './accounts.js';
 import { normalizeEmail, basePathOf } from './invites.js';
 import { publicOrigin } from './atproto-oauth.js';
+import { setting } from './limits.js';
 
 export const MAX_PER_ACCOUNT = 5;
 export const DAYS_AHEAD = 21;
@@ -81,7 +83,7 @@ async function civicLeagues(kv, socrata, city, cityId) {
   const cached = await kv.get(key, 'json');
   if (Array.isArray(cached) && cached.length) return cached;
   const f = city.address.fields.league;
-  const rows = await socrata.query(city.address.dataset, `SELECT ${f}, count(*) AS n WHERE ${f} IS NOT NULL GROUP BY ${f} ORDER BY ${f} LIMIT 1000`, { access: ACCESS.CORE, tool: 'civic leagues', name: city.address.name });
+  const rows = await socrata.query(city.address.dataset, `SELECT ${f}, count(*) AS n WHERE ${f} IS NOT NULL GROUP BY ${f} ORDER BY ${f} LIMIT 1000`, { access: ACCESS.PLUGIN, tool: 'civic leagues', name: city.address.name });
   const names = [...new Set(rows.map((r) => String(r[f] ?? '').trim()).filter(Boolean))].sort();
   if (names.length) await kv.put(key, JSON.stringify(names), { expirationTtl: LEAGUE_TTL });
   return names;
@@ -96,14 +98,23 @@ async function leaguesOf(kv, socrata, city, cityId, addresses) {
   const cfg = city.address;
   const f = cfg.fields;
   const out = new Map();
-  const todo = [];
+  // One cache key per address however it's spelled ("100 E. Main St", "100 East Main Street"):
+  // KV refuses a second write to a key within a second.
+  const byKey = new Map();
   for (const a of addresses) {
     const k = addressKey(a);
     if (!k.num || !k.street) continue;
     const cacheKey = `addr-league:${cityId}:${hex(await sha256(`${k.num} ${k.street}`)).slice(0, 32)}`;
-    const hit = await kv.get(cacheKey);
-    if (hit !== null) out.set(a, hit);
-    else todo.push({ a, k, cacheKey });
+    if (!byKey.has(cacheKey)) byKey.set(cacheKey, { k, cacheKey, spellings: [] });
+    byKey.get(cacheKey).spellings.push(a);
+  }
+  const entries = [...byKey.values()];
+  const cached = await bulkGet(kv, entries.map((e) => e.cacheKey));
+  const todo = [];
+  for (const e of entries) {
+    const hit = cached.get(e.cacheKey);
+    if (typeof hit === 'string') for (const a of e.spellings) out.set(a, hit);
+    else todo.push(e);
   }
   for (let i = 0; i < todo.length; i += 8) {
     const group = todo.slice(i, i + 8);
@@ -113,30 +124,45 @@ async function leaguesOf(kv, socrata, city, cityId, addresses) {
     }).join(' OR ');
     let rows;
     try {
-      rows = await socrata.query(cfg.dataset, `SELECT ${f.full}, ${f.league} WHERE ${where} LIMIT 500`, { access: ACCESS.CORE, tool: 'civic league of agenda addresses', name: cfg.name });
+      rows = await socrata.query(cfg.dataset, `SELECT ${f.full}, ${f.league} WHERE ${where} LIMIT 500`, { access: ACCESS.PLUGIN, tool: 'civic league of agenda addresses', name: cfg.name });
     } catch {
       continue;
     }
-    for (const { a, k, cacheKey } of group) {
+    for (const { k, cacheKey, spellings } of group) {
       const leagues = new Set(rows.filter((r) => {
         const rk = addressKey(r[f.full]);
         return rk.num === k.num && rk.street === k.street;
       }).map((r) => String(r[f.league] ?? '').trim()).filter(Boolean));
       const league = leagues.size === 1 ? [...leagues][0] : '';
-      out.set(a, league);
-      await kv.put(cacheKey, league, { expirationTtl: ADDRESS_TTL });
+      for (const a of spellings) out.set(a, league);
+      try {
+        await kv.put(cacheKey, league, { expirationTtl: ADDRESS_TTL });
+      } catch { /* the cache is a convenience */ }
     }
+  }
+  return out;
+}
+
+/** KV values for many keys, 100 a call (Workers KV's bulk get), as a Map. */
+async function bulkGet(kv, keys, type = 'text') {
+  const out = new Map();
+  for (let i = 0; i < keys.length; i += 100) {
+    const got = await kv.get(keys.slice(i, i + 100), type);
+    for (const [k, v] of got) out.set(k, v);
   }
   return out;
 }
 
 /**
  * Build and store the snapshot for one city: the next DAYS_AHEAD days of
- * the bodies it watches, each posted agenda item with its applicant
- * withheld and its civic leagues. Items keep the time they were first seen
- * from the snapshot before. Returns the snapshot.
+ * the bodies it watches, each posted agenda item with private people's
+ * names withheld and its civic leagues. Items keep the time they were first
+ * seen from the snapshot before; a meeting whose page can't be read today
+ * keeps yesterday's items. `ordinary` is the lower-case vocabulary
+ * (worker/telemetry.js ordinaryWords) and `streets` the city's compiled
+ * street names, both for withholdNames. Returns the snapshot.
  */
-export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now() }) {
+export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now(), ordinary = null, streets = null }) {
   const budget = requestBudget({ limit: SNAPSHOT_FETCHES, fetchImpl });
   const ctx = createContext({ city, appToken, budget });
   const { socrata, iqm2 } = ctx;
@@ -150,9 +176,16 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
   );
   const before = await readSnapshot(kv, cityId);
   const firstSeen = new Map((before?.items || []).map((i) => [i.key, i.first_seen]));
+  // The civic leagues first: their names are places to withholdNames.
+  let leagues = before?.leagues || [];
+  try {
+    leagues = await civicLeagues(kv, socrata, city, cityId);
+  } catch { /* keep the last list */ }
+  const names = { ordinary, ...namePlaces({ streets, leagues }) };
   const meetings = [];
   const items = [];
   let failed = 0;
+  const carried = [];
   const seenMeetings = new Set();
   for (const n of notices) {
     const id = meetingId(n.meeting_link?.url);
@@ -163,6 +196,12 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
       m = await iqm2.meeting(id);
     } catch {
       failed++;
+      // Yesterday's items for it, so an outage doesn't empty the feeds.
+      const old = (before?.meetings || []).find((x) => x.id === id);
+      if (old) {
+        meetings.push(old);
+        carried.push(...(before.items || []).filter((x) => x.meeting === id));
+      }
       continue;
     }
     meetings.push({ id, body: n.organization, type: String(n.type || m.type || '').slice(0, 80), when: String(n.date_and_time || ''), location: String(n.location || '').slice(0, 120), url: m.url, items: m.items.length });
@@ -170,7 +209,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
       const key = itemKey(id, it.id);
       items.push({
         key, meeting: id, id: it.id, body: n.organization, when: String(n.date_and_time || ''),
-        text: withholdApplicant(it.text).slice(0, ITEM_CHARS), url: it.url,
+        text: withholdNames(it.text, names).slice(0, ITEM_CHARS), url: it.url,
         addresses: extractAddresses(it.text).slice(0, 12),
         first_seen: firstSeen.get(key) || new Date(now).toISOString(),
       });
@@ -181,10 +220,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
     i.leagues = [...new Set(i.addresses.map((a) => leagueMap.get(a)).filter(Boolean))];
     delete i.addresses;
   }
-  let leagues = before?.leagues || [];
-  try {
-    leagues = await civicLeagues(kv, socrata, city, cityId);
-  } catch { /* keep the last list */ }
+  items.push(...carried);
   const snapshot = { city: cityId, built: new Date(now).toISOString(), through: iso(end), bodies, meetings, items, leagues, failed, requests: budget.used };
   await kv.put(snapshotKey(cityId), JSON.stringify(snapshot), { expirationTtl: SNAPSHOT_TTL });
   return snapshot;
@@ -225,9 +261,10 @@ const shown = (w) => ({ id: w.id, city: w.city, terms: w.terms, league: w.league
 
 export async function accountWatches(kv, uid) {
   const mine = (await listAll(kv)).filter((k) => k.metadata?.u === uid);
+  const got = await bulkGet(kv, mine.map((k) => k.name), 'json');
   const out = [];
   for (const k of mine) {
-    const w = await kv.get(k.name, 'json');
+    const w = got.get(k.name);
     if (w && w.u === uid) out.push(w);
   }
   return out.sort((a, b) => String(a.created).localeCompare(String(b.created)));
@@ -244,7 +281,11 @@ export async function stopToken(secret, id) {
 async function tokenId(secret, t) {
   const [id, mac] = String(t || '').split('.');
   if (!/^[A-Za-z0-9_-]{8,40}$/.test(id || '') || !mac) return null;
-  return (await stopToken(secret, id)) === `${id}.${mac}` ? id : null;
+  const want = (await stopToken(secret, id)).slice(id.length + 1);
+  if (want.length !== mac.length) return null;
+  let diff = 0;
+  for (let i = 0; i < want.length; i++) diff |= want.charCodeAt(i) ^ mac.charCodeAt(i);
+  return diff === 0 ? id : null;
 }
 
 // ---- watches: the member's routes ----
@@ -318,7 +359,7 @@ export async function handleWatches(req, env, path, deps = {}) {
   const all = await listAll(kv);
   const mineKeys = all.filter((k) => k.metadata?.u === uid);
   if (mineKeys.length >= MAX_PER_ACCOUNT) return json({ error: `You have ${MAX_PER_ACCOUNT} watches, the most an account can keep. Stop one to start another.` }, 409);
-  const max = Math.max(1, Number(env.WATCH_MAX) || 200);
+  const max = setting(env.WATCH_MAX, 200, { min: 0 });
   if (all.length >= max) return json({ error: 'This site has as many watches as it can send right now. Try again later.' }, 503);
   for (const k of mineKeys) {
     const w = await kv.get(k.name, 'json');
@@ -391,7 +432,7 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
     } else html.push('</ul>');
     text.push('');
   }
-  const note = 'Matched on agenda titles as the City posted them. An item can affect a topic without naming it, so a watch can miss one. Private applicants\' names are withheld.';
+  const note = 'Matched on agenda titles as the City posted them. An item can affect a topic without naming it, so a watch can miss one. Private people\'s names are withheld.';
   text.push(note);
   html.push(`<p>${esc(note)}</p>`);
   if (clerk) {
@@ -421,102 +462,147 @@ export async function jobDue(kv, cityIds, now = Date.now()) {
 /**
  * The daily job: build each city's snapshot, then (with watches on) mail
  * each watch the items it hasn't been sent. `deps`: { cityIds, cities,
- * appName, fetchImpl, send, now }. One run a day (`watch-run:<day>`), and
- * one at a time (a 15-minute lock, re-read after writing).
+ * appName, fetchImpl, send, now, ordinary, streets(cityId) }. One run a day
+ * (`watch-run:<day>`), one at a time (a five-minute lock, re-read after
+ * writing, left to expire: KV refuses a second write to a key within a
+ * second, so the lock is written once and never deleted).
  */
 export async function runWatchJob(env, deps = {}) {
   const kv = env.LIMITS;
   const now = deps.now ? deps.now() : Date.now();
   const cityIds = (deps.cityIds || []).filter((c) => watchableCity(deps.cities?.[c]));
   if (!cityIds.length || !(await jobDue(kv, cityIds, now))) return { ran: false };
-  const token = randomToken(9);
-  if (await kv.get('watch-lock')) return { ran: false, locked: true };
-  await kv.put('watch-lock', token, { expirationTtl: 900 });
+  // The lock carries its own expiry, so it's judged by the job's clock, not only KV's.
+  const held = String((await kv.get('watch-lock')) || '');
+  if (Number(held.split(':')[1]) > now) return { ran: false, locked: true };
+  const token = `${randomToken(9)}:${now + 300000}`;
+  await kv.put('watch-lock', token, { expirationTtl: 300 });
   if ((await kv.get('watch-lock')) !== token) return { ran: false, locked: true };
   const result = { ran: true, cities: {}, sent: 0, ended: 0, failed: 0 };
-  try {
-    const snapshots = {};
-    for (const c of cityIds) {
-      snapshots[c] = await buildSnapshot({ kv, city: deps.cities[c], cityId: c, appToken: env.SOCRATA_APP_TOKEN, fetchImpl: deps.fetchImpl, now });
-      result.cities[c] = { meetings: snapshots[c].meetings.length, items: snapshots[c].items.length, failed: snapshots[c].failed };
-    }
-    if (watchesReady(env)) Object.assign(result, await mailWatches(env, { ...deps, now, snapshots }));
-    await kv.put(`watch-run:${day(new Date(now).toISOString())}`, new Date(now).toISOString(), { expirationTtl: 3 * 86400 });
-  } finally {
-    await kv.delete('watch-lock');
+  const snapshots = {};
+  for (const c of cityIds) {
+    snapshots[c] = await buildSnapshot({ kv, city: deps.cities[c], cityId: c, appToken: env.SOCRATA_APP_TOKEN, fetchImpl: deps.fetchImpl, now, ordinary: deps.ordinary || null, streets: deps.streets?.(c) || null });
+    result.cities[c] = { meetings: snapshots[c].meetings.length, items: snapshots[c].items.length, failed: snapshots[c].failed };
   }
+  if (watchesReady(env)) Object.assign(result, await mailWatches(env, { ...deps, now, snapshots }));
+  await kv.put(`watch-run:${day(new Date(now).toISOString())}`, new Date(now).toISOString(), { expirationTtl: 3 * 86400 });
   return result;
 }
 
+/** Resend's refusal of an address (a 4xx other than 429) as opposed to a failure that may pass (429, 5xx, a timeout). */
+const refusedAddress = (err) => {
+  const status = Number(/Resend (\d{3})/.exec(String(err?.message || ''))?.[1]) || 0;
+  return status >= 400 && status < 500 && status !== 429;
+};
+
+/**
+ * Mail each watch once. Each watch is written at most once (KV refuses a
+ * second write to a key within a second), and the day's count once, at the
+ * end, whatever happened. A watch that has reached its end gets its note and
+ * is deleted first, whatever else. A failure that may pass (Resend busy or
+ * down) stops the round: the rest wait for tomorrow's run, unsent and
+ * unmarked. Only Resend's refusal of an address counts toward stopping a
+ * watch (five days running).
+ */
 async function mailWatches(env, { snapshots, cities, appName = 'Siren', fetchImpl, send = sendWithResend, now }) {
   const kv = env.LIMITS;
   const origin = `${publicOrigin(env).origin}${basePathOf(env)}`;
   const today = day(new Date(now).toISOString());
-  const cap = Math.max(0, Number(env.WATCH_DAILY_EMAILS) || 100);
-  let mailed = Number(await kv.get(`watch-mail:${today}`)) || 0;
-  const out = { sent: 0, ended: 0, failed: 0, capped: 0 };
-  for (const k of await listAll(kv)) {
-    const w = await kv.get(k.name, 'json');
-    if (!w?.email) continue;
-    const snap = snapshots[w.city];
-    if (!snap) continue;
-    const manageUrl = `${origin}/watches`;
-    const stopUrl = `${origin}/watch/stop?t=${encodeURIComponent(await stopToken(env.INVITE_SECRET, w.id))}`;
-    let to;
-    try {
-      to = await openEmail(env.INVITE_SECRET, w.id, w.email);
-    } catch {
-      console.error('watch: an email could not be opened');
-      continue;
-    }
-    const headers = { 'List-Unsubscribe': `<${stopUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
-    if (Date.parse(w.ends) <= now) {
-      if (mailed < cap) {
+  const counterKey = `watch-mail:${today}`;
+  const cap = setting(env.WATCH_DAILY_EMAILS, 100, { min: 0 });
+  const startCount = Number(await kv.get(counterKey)) || 0;
+  let mailed = startCount;
+  const out = { sent: 0, ended: 0, failed: 0, capped: 0, stopped: false };
+  const keys = (await listAll(kv)).map((k) => k.name);
+  const watches = await bulkGet(kv, keys, 'json');
+  try {
+    for (const key of keys) {
+      if (out.stopped) break;
+      const w = watches.get(key);
+      if (!w?.email) continue;
+      try {
+        const manageUrl = `${origin}/watches`;
+        const stopUrl = `${origin}/watch/stop?t=${encodeURIComponent(await stopToken(env.INVITE_SECRET, w.id))}`;
+        let to = null;
         try {
-          await send(env, { to, ...endedNote({ appName, watch: w, manageUrl }), idempotencyKey: `watch-end-${w.id}` }, fetchImpl);
-          mailed++;
-        } catch { /* ended either way */ }
+          to = await openEmail(env.INVITE_SECRET, w.id, w.email);
+        } catch {
+          console.error('watch: an email could not be opened');
+        }
+        // At its end: the note (when it can be sent today), then the watch goes.
+        if (Date.parse(w.ends) <= now) {
+          if (to) {
+            if (mailed >= cap) {
+              out.capped++;
+              continue;
+            }
+            try {
+              await send(env, { to, ...endedNote({ appName, watch: w, manageUrl }), idempotencyKey: `watch-end-${w.id}` }, fetchImpl);
+              mailed++;
+            } catch (err) {
+              if (!refusedAddress(err)) {
+                out.stopped = true;
+                continue;
+              }
+            }
+          }
+          await kv.delete(key);
+          out.ended++;
+          continue;
+        }
+        const snap = snapshots[w.city];
+        if (!snap || !to) continue;
+        const seen = new Set(w.seen || []);
+        const fresh = snap.items.filter((i) => !seen.has(i.key) && matchesWatch(w, i));
+        if (!fresh.length) continue;
+        if (mailed >= cap) {
+          out.capped++;
+          continue;
+        }
+        const mail = digest({ appName, watch: w, items: fresh, meetings: snap.meetings, city: cities[w.city], stopUrl, manageUrl });
+        const headers = { 'List-Unsubscribe': `<${stopUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
+        try {
+          await send(env, { to, ...mail, headers, idempotencyKey: `watch-${w.id}-${today}` }, fetchImpl);
+        } catch (err) {
+          out.failed++;
+          console.error('watch: a digest was not sent', String(err?.message || '').slice(0, 40));
+          if (!refusedAddress(err)) {
+            out.stopped = true;
+            continue;
+          }
+          w.fails = (w.fails || 0) + 1;
+          // Five refusals of the address in a row: the watch stops.
+          if (w.fails >= 5) await kv.delete(key);
+          else await putWatch(kv, w);
+          continue;
+        }
+        mailed++;
+        out.sent++;
+        w.seen = [...(w.seen || []), ...fresh.map((i) => i.key)].slice(-SEEN_MAX);
+        w.sent = (w.sent || 0) + 1;
+        w.last_sent = new Date(now).toISOString();
+        w.fails = 0;
+        await putWatch(kv, w);
+      } catch (err) {
+        console.error('watch: one watch could not be handled', String(err?.message || '').slice(0, 60));
       }
-      await kv.delete(k.name);
-      out.ended++;
-      continue;
     }
-    const seen = new Set(w.seen || []);
-    const fresh = snap.items.filter((i) => !seen.has(i.key) && matchesWatch(w, i));
-    if (!fresh.length) continue;
-    if (mailed >= cap) {
-      out.capped++;
-      continue;
+  } finally {
+    if (mailed !== startCount) {
+      try {
+        await kv.put(counterKey, String(mailed), { expirationTtl: 2 * 86400 });
+      } catch {
+        console.error("watch: the day's mail count could not be written");
+      }
     }
-    const mail = digest({ appName, watch: w, items: fresh, meetings: snap.meetings, city: cities[w.city], stopUrl, manageUrl });
-    try {
-      await send(env, { to, ...mail, headers, idempotencyKey: `watch-${w.id}-${today}` }, fetchImpl);
-    } catch (err) {
-      out.failed++;
-      w.fails = (w.fails || 0) + 1;
-      // Five days of refusals in a row (a dead address): the watch stops.
-      if (w.fails >= 5) await kv.delete(k.name);
-      else await putWatch(kv, w);
-      console.error('watch: a digest was not sent', String(err?.message || '').slice(0, 40));
-      continue;
-    }
-    mailed++;
-    out.sent++;
-    w.seen = [...(w.seen || []), ...fresh.map((i) => i.key)].slice(-SEEN_MAX);
-    w.sent = (w.sent || 0) + 1;
-    w.last_sent = new Date(now).toISOString();
-    w.fails = 0;
-    await putWatch(kv, w);
-    await kv.put(`watch-mail:${today}`, String(mailed), { expirationTtl: 2 * 86400 });
   }
-  await kv.put(`watch-mail:${today}`, String(mailed), { expirationTtl: 2 * 86400 });
   return out;
 }
 
 // ---- civic-league feeds ----
 
 export const leagueSlug = (league) => normalizeText(league).replace(/ /g, '-');
-const xml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
+const xml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[c]).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g, '');
 
 /**
  * One Atom feed: every upcoming item in the snapshot (slug "all") or those
@@ -545,7 +631,7 @@ export function atomFeed({ snapshot, slug, origin, appName }) {
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:${xml(host)},2026-11-16:feeds/${xml(slug)}</id>
   <title>${xml(title)}</title>
-  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Private applicants' names are withheld. Items are tagged by the civic league of the address their title names.`)}</subtitle>
+  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Private people's names are withheld. Items are tagged by the civic league of the address their title names.`)}</subtitle>
   <link rel="self" href="${xml(self)}"/>
   <link rel="alternate" href="${xml(`${origin}/feeds`)}"/>
   <updated>${xml(snapshot.built)}</updated>

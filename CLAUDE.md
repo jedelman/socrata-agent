@@ -465,12 +465,20 @@ generic mode.
   neighborhood league" for the public feeds). Behind `WATCHES` and
   `LEAGUE_FEEDS`, both off; with both off nothing changes (routes, page,
   session, prompt, tools, cron). `src/watches.js` is the pure part:
-  `checkWatch` (terms are words from the Zoning Ordinance and budget books,
-  telemetry's vocabulary, pass the public-text checks, and are never a
-  street, house number or civic league's name), `withholdApplicant` (the
-  iqm2 rule: an applicant not plainly an organization, or a name after a
-  courtesy title, is withheld), `matchesWatch` (on the withheld title, so a
-  name can't match), and `offerWatch`, the executor of `offer_watch`, a core
+  `checkWatch` (terms are ordinary words, ones the Zoning Ordinance and
+  budget books use in lower case, `ordinaryWords` in `telemetry.js`, plus a
+  short reviewed list; they pass the public-text checks and are never a
+  street with its suffix, a house number or a civic league's name; names
+  that are also words, like Park, still pass), `withholdNames` (private
+  people's names withheld in three layers: the Planning Commission's
+  capitalized applicant, by the iqm2 rule judged on every "and"-joined
+  party, a personal trust counted as a person; the places Council titles
+  name a party, a conveyance to, an encroachment granted or permitted to, a
+  lease or agreement with, a tenant, a refund, a bidder; and person-shaped
+  runs, a middle initial or two proper nouns at a party word, kept before an
+  organization, institution or program word, a number, or in quotes),
+  `matchesWatch` (on the withheld title, so a name can't match), and
+  `offerWatch`, the executor of `offer_watch`, a core
   tool declared only when the Worker passes `watches` to `ask()` (a signed-in
   member, `WATCHES` on, never a public thread; `WATCH_LINE` in the prompt
   only then). The model only offers; the person starts a watch on the card,
@@ -480,14 +488,19 @@ generic mode.
   from the notices, each iqm2 agenda, applicants withheld, each item tagged
   by the civic league of the addresses its title names (the address list's
   `civic_league` column only, never its president's name or email), kept as
-  `agenda-snapshot:<city>`; then one digest a day per watch for new matches
-  (Resend, `List-Unsubscribe` one-click, `WATCH_DAILY_EMAILS` default 100,
-  `WATCH_MAX` default 200, 5 a member, 365 days). A watch keeps the member's
+  `agenda-snapshot:<city>` (a meeting that can't be read keeps yesterday's
+  items); then one digest a day per watch for new matches (Resend,
+  `List-Unsubscribe` one-click, `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX`
+  default 200, either "0" to stop; 5 a member, 365 days). Each KV key is
+  written at most once a run (KV refuses a second write within a second): the
+  day's mail count once at the end, the run lock once, never deleted. Resend
+  busy or down stops the round; only a refused address counts toward
+  stopping a watch. A watch keeps the member's
   email AES-GCM encrypted under a key derived from INVITE_SECRET, bound to
   its id, until it stops; never logged or returned. Pages `/watches`,
   `/watch/stop` (its token is the watch id and an HMAC; posted from script,
   or POSTed one-click by a mail client before the JSON rule), `/feeds` and
-  `/feeds/<league>.atom` (public, from the snapshot).
+  `/feeds/<league>.atom` (public, from the snapshot, `noindex`).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each

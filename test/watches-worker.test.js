@@ -105,6 +105,7 @@ test('LEAGUE_FEEDS on: the feeds page and the Atom feeds, once the agendas have 
   const fetchImpl = async (input) => {
     const url = String(input?.url || input);
     if (url.includes('dszu-h9cf')) return Response.json([{ date_and_time: '2026-12-01T18:00:00.000', organization: 'City Council', type: 'Formal Session', location: 'Council Chamber', meeting_link: { url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4454' } }]);
+    if (url.includes('/api/views/ere7-kake.json')) return Response.json({ name: 'Address Information', columns: ['full_address', 'house_number', 'full_street_name', 'civic_league'].map((fieldName) => ({ fieldName, dataTypeName: 'text' })) });
     if (url.includes('ere7-kake') && /GROUP%20BY/.test(url)) return Response.json([{ civic_league: 'Ghent' }, { civic_league: 'Ocean View' }]);
     if (url.includes('ere7-kake')) return Response.json([{ full_address: '1039 SAMPLE AVE', civic_league: 'Ocean View' }]);
     if (url.includes('Detail_Meeting.aspx?ID=4454')) return new Response(`<a href='Detail_LegiFile.aspx?Frame=&MeetingID=4454&MediaPosition=&ID=7001&CssClass='>Ordinance No. 1 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit on Property Located at 1039 Sample Avenue.</a>`);
