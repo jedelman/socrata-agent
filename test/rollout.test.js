@@ -18,17 +18,18 @@ test('wrangler.toml: the flag off, three limiters, only the free tier\'s sweep c
   for (const kept of ['BSKY_VISITOR_RL', 'BSKY_INPUT_RL', 'BSKY_SITE_RL']) assert.match(toml, new RegExp(`name = "${kept}"`));
   assert.match(toml, /binding = "SIREN_DB"/);
   assert.match(toml, /then 0003 \(dropping them\), 0004 .* and 0005 .* were applied/s, 'the comment records 0003 to 0005 as applied, after the old tables were checked empty');
-  // The old endorsement purge cron is gone; the one cron is the free tier's
-  // sweep, and the scheduled handler does nothing but that and wake the
-  // Jetstream watcher (both no-ops with PUBLIC_ASK off:
-  // test/public-ask-off.test.js).
+  // The old endorsement purge cron is gone; the one cron runs the spend
+  // rollup (worker/spend.js, KV only, for the steward's spend page), then the
+  // free tier's sweep and the Jetstream watcher's wake-up (both no-ops with
+  // PUBLIC_ASK off: test/public-ask-off.test.js).
   assert.deepEqual([...toml.matchAll(/^crons = (.*)$/gm)].map((m) => m[1]), ['["*/10 * * * *"]']);
   assert.equal((toml.match(/\[env\.siren\.triggers\]/g) || []).length, 1);
   const index = read('worker/index.js');
   assert.match(index, /export default \{\n  async fetch/);
   const scheduled = index.slice(index.indexOf('  async scheduled(event, env, ctx) {'));
-  assert.match(scheduled, /^  async scheduled\(event, env, ctx\) \{\n    if \(!publicAskOn\(env\)\) return;/);
-  assert.deepEqual([...scheduled.matchAll(/await |sweepQuestions\(|ping[A-Z]\w*\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['sweepQuestions(', 'pingQuestionWatcher(']);
+  assert.match(scheduled, /^  async scheduled\(event, env, ctx\) \{\n    const jobs = \[\];\n    if \(env\.LIMITS && typeof env\.LIMITS\.list === 'function'\) jobs\.push\(rollupSpend\(env\.LIMITS\)/);
+  assert.match(scheduled, /\n    if \(publicAskOn\(env\)\) \{\n      if \(!publicAskReady\(env\)\)/, 'the sweep and the ping only with the free tier on');
+  assert.deepEqual([...scheduled.matchAll(/await |rollup[A-Z]\w*\(|sweepQuestions\(|ping[A-Z]\w*\(|handle[A-Z]\w*\(/g)].map((m) => m[0]).filter((x) => x !== 'await '), ['rollupSpend(', 'sweepQuestions(', 'pingQuestionWatcher(']);
 });
 
 test('migration 0003 drops every table and trigger 0001 and 0002 made', () => {

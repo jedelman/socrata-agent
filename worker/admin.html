@@ -42,10 +42,14 @@ input { font: inherit; color: inherit; background: var(--bg); border: 1px solid 
 .msg { font-size: .9rem; color: var(--muted); }
 button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; font: inherit; font-size: .85rem; }
 .gate { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.adminnav { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 16px; }
+.adminnav a { font-size: .9rem; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 12px; }
+.adminnav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 </style>
 </head>
 <body>
 <div class="wrap">
+  {{ADMIN_NAV}}
   <h1>Steward review: source requests</h1>{{QUESTIONS_LINK}}
   <p class="lede">Accepting a request puts it on the <a href="requests">public list</a> and, at the next sync, on GitHub. People's notes are reviewed one by one, whatever the request's status: a pending note is shown publicly only after you approve it, and only once its request is accepted. Delete a note that names a person or a home. Private notes (sent before requests were public) are shown here only and need no review. Declining an accepted request takes it off the list, and the nightly sync then closes its GitHub issue as not planned. Close by hand the issue of a request withdrawn more than 30 days before 2026-11-09, when the sync began closing them. Once a request or note has been synced, declining or deleting it doesn't erase it from GitHub: the old title stays in the issue's timeline and old text in its edit history. For text that names a person or a home, delete the GitHub issue by hand. A note you write in the box below is shown publicly.</p>
   <div id="gate" class="gate" hidden></div>

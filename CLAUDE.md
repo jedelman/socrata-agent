@@ -290,6 +290,27 @@ generic mode.
   and bodies; only deleting an issue by hand removes them.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
   `docs/fulfilling-requests.md` is the contributor guide.
+  Two more steward pages (Jason, 2026-11-16), each under the strict CSP
+  (`admin.css`), with a row of steward pages at the top of every one, `/admin`
+  included. `/admin/waitlist` (`waitlist-admin.js`, `admin-waitlist.html`/`.js`)
+  lists the waitlist oldest first. "Send a code" mints a fresh invite (good in
+  `SEND_USES` = 3 browsers, labeled `Waitlist: n•••@example.org`, never the
+  full address), emails the code through Resend with a link from
+  `PUBLIC_ORIGIN` (refused without it), and only then deletes the entry; a
+  failed email deletes the invite again and keeps the entry; a
+  `waitlist-sending:<id>` marker (60 s) stops a double send. The code is never
+  stored, returned or logged. "Remove" deletes an entry without mail.
+  `/admin/spend` (`spend.js`, `admin-spend.html`/`.js`) shows model spend as
+  Siren prices each call (the numbers the daily cap sums; web searches
+  included): each priced call's `spend:<day>` key now carries its tier
+  (`t`: member, invite, public, visitor, person) and marks an answer's first
+  priced call (`a: 1`), and is kept 8 days (was 48 hours). Each finished day is
+  totaled once into `spend-day:<day>`, kept for good, with its summary in the
+  key's metadata so the history is one listing; the cron and opening the page
+  both roll up, an hour after midnight UTC, from `spend-since` (the first
+  rollup's yesterday). Cost per answer counts only days whose calls were all
+  marked. Not counted: Cloudflare, Resend, the domain; the Claude Console has
+  the invoice.
   Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
   `BLUESKY_LOGIN`; public-first by Jason's direction, 2026-11-09): an
   endorsement is a record in the endorser's own atproto repo, written and
@@ -390,7 +411,8 @@ generic mode.
   (a Durable Object lifecycle change): no earlier Siren version can be
   rolled back to. The backstop is the sweep (a Cron Trigger every ten
   minutes, `scheduled` in `index.js`, which also pings the watcher, both
-  no-ops with `PUBLIC_ASK` off and the object never reached: at most 40
+  no-ops with `PUBLIC_ASK` off and the object never reached; the same cron
+  rolls up the steward's daily spend totals first, in KV alone: at most 40
   questions unchecked for an hour, so 240 an hour, counted, behind the
   breaker, re-verifying handles) and a page's re-check of its thread. Every
   re-check withdraws only on a clear RecordNotFound, or when the PDS the

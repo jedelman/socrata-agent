@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Steward: spend</title>
+<link rel="stylesheet" href="{{ASSETS}}/admin.css">
+<script type="module" src="{{ASSETS}}/admin-spend.js"></script>
+</head>
+<body data-base="{{BASE}}">
+<div class="wrap">
+  {{NAV}}
+  <h1>Spend</h1>
+  <p class="lede">What {{APP_NAME}}'s answers cost in model calls, as {{APP_NAME}} prices each call when it's made. Days are UTC, as the daily cap is.</p>
+  <p class="status" id="status" role="status">Loading…</p>
+  <div id="report" hidden>
+    <div class="tiles" id="tiles"></div>
+    <h2 id="chart-title">Each day, last 30 days</h2>
+    <div class="chart" id="chart"></div>
+    <details>
+      <summary>The days as a table</summary>
+      <table id="days-table"></table>
+    </details>
+    <h2>Who the spend served, last 30 days</h2>
+    <table id="tiers-table"></table>
+    <h2>What this counts</h2>
+    <ul class="notes" id="notes"></ul>
+  </div>
+</div>
+</body>
+</html>
