@@ -12,9 +12,15 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 syste
 h1 { font-size: 1.45rem; margin: 0 0 4px; }
 h2 { font-size: 1.05rem; margin: 24px 0 8px; }
 a { color: var(--accent); }
-.adminnav { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 16px; }
-.adminnav a { font-size: .9rem; text-decoration: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 12px; }
-.adminnav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.adminhead { background: var(--surface); border-bottom: 1px solid var(--line); }
+.adminhead-in { max-width: 860px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.adminhead-brand { font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.adminhead-brand span { color: var(--muted); font-weight: 400; }
+.adminhead-nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.adminhead-nav a { font-size: .9rem; color: var(--ink); text-decoration: none; border-radius: 999px; padding: 4px 11px; }
+.adminhead-nav a:hover, .adminhead-nav a:focus-visible { background: var(--chip); }
+.adminhead-nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+.adminhead-back { font-size: .85rem; color: var(--muted); white-space: nowrap; }
 .lede, .meta { color: var(--muted); font-size: .95rem; margin: 0 0 12px; }
 .status { font-size: .92rem; color: var(--muted); min-height: 1.4em; margin: 0 0 12px; }
 .status.bad { color: var(--warn); }
@@ -24,6 +30,7 @@ ol.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .who { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
 .email { font-weight: 600; overflow-wrap: anywhere; }
 .note { margin: 6px 0 0; font-size: .94rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+.maybe { color: var(--warn); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
 button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 6px 12px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

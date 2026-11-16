@@ -153,3 +153,18 @@ test('the page\'s helpers: money, a round axis, a column with a rounded top and 
   assert.equal(columnPath(10, 50, 20, 90), 'M10,90V54Q10,50 14,50H26Q30,50 30,54V90Z');
   assert.equal(columnPath(10, 88, 20, 90), 'M10,90V90Q10,88 12,88H28Q30,88 30,90V90Z', 'a short column rounds by its height');
 });
+
+test('a day whose total was never written, after its records expired, is lost, not $0', async () => {
+  const kv = fakeKV();
+  await kv.put('spend-since', '2026-11-15');
+  await kv.put('spend-day:2026-11-15', '{}', { metadata: { u: 500000, c: 2, a: 0, t: {}, x: 500000 } });
+  // Nothing ran from the 16th until the 26th: the 16th to the 18th's records are gone.
+  const r = await spendReport(kv, { now: T('2026-11-26T12:00:00Z'), budgetUsd: 2, days: 13 });
+  const status = Object.fromEntries(r.days.map((d) => [d.day, d.status]));
+  assert.equal(status['2026-11-14'], 'not_recorded');
+  assert.equal(status['2026-11-15'], 'final');
+  for (const d of ['2026-11-16', '2026-11-17', '2026-11-18']) assert.equal(status[d], 'lost', d);
+  assert.equal(status['2026-11-19'], 'final', 'inside the kept records: rolled up (as zero)');
+  assert.equal(r.days.find((d) => d.day === '2026-11-16').usd, null);
+  assert.equal(r.lost_days, 3);
+});

@@ -25,8 +25,8 @@
 // instant-takedowns change) does none of the free tier's work with the flag
 // off: tested below. Since the steward's spend page (2026-11-16) it does one
 // thing then, the daily spend rollup, in KV alone. The steward pages it
-// added changed one existing route: GET /admin carries the row of steward
-// pages, so its three entries were retaken from a run on that change
+// added changed one existing route: GET /admin carries the steward pages'
+// header menu, so its three entries were retaken from a run on that change
 // (nothing else moved). The new export and binding change no route: the scenario's envs
 // don't carry the binding, and its snapshot is unchanged.
 import { test } from 'node:test';

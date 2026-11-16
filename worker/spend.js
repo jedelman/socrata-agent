@@ -149,13 +149,18 @@ export function spendSummary({ history, live, since, now = Date.now(), budgetUsd
   for (let back = days - 1; back >= 0; back--) {
     const day = dayOf(startOf(today) - back * DAY_MS);
     const d = byDay.get(day);
+    // A day after spend-since always has a total (a day with no spend is
+    // written as zero) unless its records expired before one was written
+    // (neither the cron nor the page ran for a week): lost, never $0.
     const recorded = since && day >= since;
     series.push(d
       ? { day, usd: usd(d.micros), answers: d.answers, calls: d.calls, tiers: Object.fromEntries(Object.entries(d.tiers).map(([k, v]) => [k, usd(v)])), unlabeled_usd: usd(d.unlabeled), status: d.status }
-      : { day, usd: recorded ? 0 : null, answers: recorded ? 0 : null, calls: recorded ? 0 : null, tiers: {}, unlabeled_usd: 0, status: recorded ? 'none' : 'not_recorded' });
+      : { day, usd: null, answers: null, calls: null, tiers: {}, unlabeled_usd: 0, status: recorded ? 'lost' : 'not_recorded' });
   }
   const todayRow = byDay.get(today) || { micros: 0, calls: 0, answers: 0, tiers: {}, unlabeled: 0 };
+  const lost = series.filter((d) => d.status === 'lost').length;
   return {
+    lost_days: lost,
     today: { day: today, ...totals([todayRow]), budget_usd: budgetUsd, budget_used: budgetUsd > 0 ? Math.min(1, usd(todayRow.micros) / budgetUsd) : null },
     last_7_days: totals(window(7)),
     last_30_days: totals(window(30)),

@@ -291,15 +291,23 @@ generic mode.
   The steward reviews requests at `<base>/admin` (ADMIN_EMAILS secret).
   `docs/fulfilling-requests.md` is the contributor guide.
   Two more steward pages (Jason, 2026-11-16), each under the strict CSP
-  (`admin.css`), with a row of steward pages at the top of every one, `/admin`
-  included. `/admin/waitlist` (`waitlist-admin.js`, `admin-waitlist.html`/`.js`)
-  lists the waitlist oldest first. "Send a code" mints a fresh invite (good in
-  `SEND_USES` = 3 browsers, labeled `Waitlist: n•••@example.org`, never the
-  full address), emails the code through Resend with a link from
-  `PUBLIC_ORIGIN` (refused without it), and only then deletes the entry; a
-  failed email deletes the invite again and keeps the entry; a
-  `waitlist-sending:<id>` marker (60 s) stops a double send. The code is never
-  stored, returned or logged. "Remove" deletes an entry without mail.
+  (`admin.css`). Every steward page (`/admin`, the waitlist, spend, public
+  questions, shared sources) opens with one header (`adminHeader` in
+  `index.js`): the app's name to `/admin`, the menu with the current page
+  marked (public questions and shared sources only when on), and a link back
+  to the app. `/admin/waitlist` (`waitlist-admin.js`, `admin-waitlist.html`/`.js`)
+  lists the waitlist oldest first (the oldest 1,000 of up to 5,000, by bulk
+  gets). "Send a code" works only in invite mode (elsewhere the email's forms
+  don't exist). It mints a fresh invite (good in `SEND_USES` = 3 browsers,
+  labeled `Waitlist: n•••@example.org`, never the full address), marks the
+  entry `sent_maybe`, emails the code through Resend with a link from
+  `PUBLIC_ORIGIN` (refused without it), and only then deletes the entry.
+  Resend's own refusal (a 4xx) deletes the invite and clears the mark; an
+  unclear failure (a 5xx, a timeout) keeps both the invite and the marked
+  entry, since the mail may have arrived, and the page shows the mark. A
+  `waitlist-sending:<id>` token (60 s, re-read after writing) refuses a second
+  send under way; KV can't make it atomic. The code is never stored, returned
+  or logged. "Remove" deletes an entry without mail.
   `/admin/spend` (`spend.js`, `admin-spend.html`/`.js`) shows model spend as
   Siren prices each call (the numbers the daily cap sums; web searches
   included): each priced call's `spend:<day>` key now carries its tier
@@ -308,8 +316,9 @@ generic mode.
   totaled once into `spend-day:<day>`, kept for good, with its summary in the
   key's metadata so the history is one listing; the cron and opening the page
   both roll up, an hour after midnight UTC, from `spend-since` (the first
-  rollup's yesterday). Cost per answer counts only days whose calls were all
-  marked. Not counted: Cloudflare, Resend, the domain; the Claude Console has
+  rollup's yesterday). A day after that with no total, once its records have
+  expired, shows as lost, never $0. Cost per answer counts only days whose
+  calls were all marked. Not counted: Cloudflare, Resend, the domain; the Claude Console has
   the invoice.
   Bluesky endorsements (`docs/bluesky-endorsements.md`, behind
   `BLUESKY_LOGIN`; public-first by Jason's direction, 2026-11-09): an

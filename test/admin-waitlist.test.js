@@ -99,15 +99,70 @@ test('sending: a new invite, the code emailed with the site\'s own link, the ent
   assert.equal(r.ok, true);
 });
 
-test('sending: a failed email changes nothing: the invite is taken back and the entry stays', async () => {
+test('sending: a refusal from the email provider changes nothing: the invite is taken back and the entry stays', async () => {
   const w = await world();
   const id = await w.id('first@example.org');
-  const before = new Set(w.kv.store.keys());
-  const out = await sendWaitlistInvite({ kv: w.kv, env: w.env, id, send: async () => { throw new Error('Resend 500'); } });
+  const before = new Map([...w.kv.store].map(([k, v]) => [k, v.value]));
+  const out = await sendWaitlistInvite({ kv: w.kv, env: w.env, id, send: async () => { throw new Error('Resend 422'); } });
   assert.equal(out.ok, false);
   assert.equal(out.status, 502);
-  assert.match(out.error, /nothing changed/);
-  assert.deepEqual(new Set(w.kv.store.keys()), before, 'no invite, the entry kept, no lock');
+  assert.match(out.error, /refused the email, so nothing changed/);
+  assert.deepEqual(new Map([...w.kv.store].map(([k, v]) => [k, v.value])), before, 'no invite, the entry as it was, no marker');
+});
+
+test('sending: an unclear failure keeps the code (it may have arrived) and marks the entry', async () => {
+  for (const fail of [() => { throw new Error('Resend 500'); }, () => { throw new TypeError('network connection lost'); }]) {
+    const w = await world();
+    const id = await w.id('first@example.org');
+    let code;
+    const out = await sendWaitlistInvite({ kv: w.kv, env: w.env, id, now: Date.parse('2026-11-16T15:00:00Z'), send: async (_e, msg) => { code = CODE_RE.exec(msg.text)[0]; fail(); } });
+    assert.equal(out.ok, false);
+    assert.equal(out.maybe_sent, true);
+    assert.match(out.error, /may or may not have gone out/);
+    assert.ok(w.kv.store.has(await inviteKey(code)), 'the code still works if it arrived');
+    assert.equal(JSON.parse(w.kv.store.get(`waitlist:${id}`).value).sent_maybe, '2026-11-16T15:00:00.000Z');
+    assert.equal(w.kv.store.has(`waitlist-sending:${id}`), false);
+    const listed = (await listWaitlist(w.kv, w.env)).entries.find((e) => e.id === id);
+    assert.equal(listed.sent_maybe, '2026-11-16T15:00:00.000Z');
+    assert.match(entryHtml(listed), /may have gone out to them on 2026-11-16 15:00 UTC/);
+    assert.equal((await redeem({ code, env: w.env, kv: w.kv, visitor: 'x' })).ok, true);
+  }
+});
+
+test('sending: sent, but the entry couldn\'t be removed: still a success, with a warning', async () => {
+  const w = await world();
+  const id = await w.id('first@example.org');
+  const del = w.kv.delete;
+  w.kv.delete = async (k) => { if (k === `waitlist:${id}`) throw new Error('KV delete failed'); return del(k); };
+  const out = await sendWaitlistInvite({ kv: w.kv, env: w.env, id, send: w.send });
+  assert.equal(out.ok, true);
+  assert.match(out.warning, /couldn’t be taken off the list just now/);
+  assert.equal(w.sent.length, 1);
+  assert.ok(JSON.parse(w.kv.store.get(`waitlist:${id}`).value).sent_maybe, 'left marked, so nobody sends again blind');
+});
+
+test('sending: two at once send one email', async () => {
+  const w = await world();
+  const id = await w.id('first@example.org');
+  // KV with a little latency, so both requests are in flight together.
+  const slow = (f) => async (...a) => { await new Promise((r) => setTimeout(r, 5)); return f(...a); };
+  const kv = { ...w.kv, get: slow(w.kv.get), put: slow(w.kv.put), delete: slow(w.kv.delete), list: w.kv.list, store: w.kv.store };
+  const outs = await Promise.all([1, 2].map(() => sendWaitlistInvite({ kv, env: w.env, id, send: w.send })));
+  assert.deepEqual(outs.map((o) => o.ok).sort(), [false, true]);
+  assert.equal(w.sent.length, 1);
+  assert.equal([...w.kv.store.keys()].filter((k) => k.startsWith('invite:')).length, 1);
+});
+
+test('sending: refused when Siren isn\'t invite-only, where the email\'s forms don\'t exist', async () => {
+  const w = await world({ INVITE_REQUIRED: undefined });
+  const id = await w.id('first@example.org');
+  const out = await sendWaitlistInvite({ kv: w.kv, env: w.env, id, send: w.send });
+  assert.equal(out.status, 409);
+  assert.match(out.error, /isn’t invite-only/);
+  assert.equal(w.sent.length, 0);
+  const list = await listWaitlist(w.kv, w.env);
+  assert.equal(list.can_send, false);
+  assert.match(list.send_blocked, /isn’t invite-only/);
 });
 
 test('sending: refusals before anything is made', async () => {
@@ -171,4 +226,22 @@ test('the page: every typed field shown as text, never markup', () => {
   assert.match(html, /data-action="invite"/);
   assert.match(entryHtml({ id: 'a'.repeat(64), email: 'x@example.org' }, { canSend: false }), /data-action="invite" disabled/);
   assert.ok(!entryHtml({ id: 'bad', email: 'x@example.org' }).includes('data-action'), 'no buttons without a real id');
+});
+
+test('past 1,000 entries the list shows the oldest 1,000, and says how many wait in all', async () => {
+  const w = await world();
+  const at = (i) => new Date(Date.parse('2026-01-01T00:00:00Z') + i * 60e3).toISOString();
+  for (let i = 0; i < 1001; i++) await w.kv.put(`waitlist:${await sha256hex(`q${i}@example.org`)}`, JSON.stringify({ email: `q${i}@example.org`, at: at(i) }));
+  const out = await listWaitlist(w.kv, w.env);
+  assert.equal(out.total, 1003);
+  assert.equal(out.entries.length, 1000);
+  assert.equal(out.truncated, true);
+  assert.equal(out.entries[0].email, 'q0@example.org', 'oldest first');
+  assert.equal(out.entries[999].email, 'q999@example.org');
+  // Exactly 1,000 is all of them.
+  const w2 = await world();
+  for (let i = 0; i < 998; i++) await w2.kv.put(`waitlist:${await sha256hex(`r${i}@example.org`)}`, JSON.stringify({ email: `r${i}@example.org`, at: at(i) }));
+  const all = await listWaitlist(w2.kv, w2.env);
+  assert.equal(all.total, 1000);
+  assert.equal(all.truncated, false);
 });

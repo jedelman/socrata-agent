@@ -9,10 +9,10 @@
 <script type="module" src="{{ASSETS}}/admin-waitlist.js"></script>
 </head>
 <body data-base="{{BASE}}">
+{{HEADER}}
 <div class="wrap">
-  {{NAV}}
   <h1>Waitlist</h1>
-  <p class="lede">People who asked to join, oldest first. <strong>Send a code</strong> makes a new invite, good in up to {{USES}} browsers (signing in carries it to every device), emails it to the address they gave, and takes them off the waitlist. The code is shown to nobody else and stored only as a hash. If the email doesn't go through, nothing changes. <strong>Remove</strong> takes someone off without sending anything.</p>
+  <p class="lede">People who asked to join, oldest first. <strong>Send a code</strong> makes a new invite, good in up to {{USES}} browsers (signing in carries it to every device), emails it to the address they gave, and takes them off the waitlist. The code is shown to nobody else and stored only as a hash. If the email provider refuses the email, nothing changes; if it can't confirm it, the code is kept and the entry stays, marked, so you can check with them before sending another. <strong>Remove</strong> takes someone off without sending anything.</p>
   <p class="status" id="status" role="status">Loading…</p>
   <ol class="list" id="list"></ol>
 </div>

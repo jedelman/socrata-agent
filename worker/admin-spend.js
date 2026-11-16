@@ -63,8 +63,9 @@ function tile(label, value, sub, extra) {
   return t;
 }
 
+const GAPS = { not_recorded: ['Not recorded', 'before spend was kept by day'], lost: ['Lost', 'its total wasn’t written before its records expired'] };
 function dayWords(d) {
-  if (d.status === 'not_recorded') return 'Not recorded (before spend was kept by day)';
+  if (GAPS[d.status]) return `${GAPS[d.status][0]} (${GAPS[d.status][1]})`;
   const parts = [`${money(d.usd)}${d.status === 'today' ? ' so far' : ''}`, count(d.answers, 'answer', 'answers')];
   if (d.unlabeled_usd) parts.push('answers not counted (recorded before tiers were)');
   return parts.join(' · ');
@@ -102,13 +103,13 @@ function chart(container, days, budget) {
     svg.append(hit);
     const p = columnPath(x, y(d.usd || 0), bw, base);
     svg.append(el('path', { class: 'bar', d: p || `M${x},${base}Z` }));
-    if (d.status === 'not_recorded') svg.append(el('text', { class: 'gap', x: x + bw / 2, y: base - 3, 'text-anchor': 'middle' }, '·'));
+    if (GAPS[d.status]) svg.append(el('text', { class: 'gap', x: x + bw / 2, y: base - 3, 'text-anchor': 'middle' }, '·'));
     const every = W < 560 ? 10 : 7;
     if (i % every === (days.length - 1) % every) {
       svg.append(el('text', { class: 'axis', x: x + bw / 2, y: H - 8, 'text-anchor': 'middle' }, i === days.length - 1 ? 'today' : shortDay(d.day)));
     }
     const show = () => {
-      tip.replaceChildren(h('strong', d.status === 'not_recorded' ? 'Not recorded' : `${money(d.usd)}${d.status === 'today' ? ' so far' : ''}`), h('span', `${shortDay(d.day)} · ${d.status === 'not_recorded' ? 'before spend was kept by day' : count(d.answers, 'answer', 'answers')}`));
+      tip.replaceChildren(h('strong', GAPS[d.status] ? GAPS[d.status][0] : `${money(d.usd)}${d.status === 'today' ? ' so far' : ''}`), h('span', `${shortDay(d.day)} · ${GAPS[d.status] ? GAPS[d.status][1] : count(d.answers, 'answer', 'answers')}`));
       tip.hidden = false;
       const box = container.getBoundingClientRect();
       const r = hit.getBoundingClientRect();
@@ -169,7 +170,7 @@ export function render(data, $) {
     chart($('chart'), data.days, t.budget_usd);
   });
   table($('days-table'), [['Day (UTC)'], ['Spend', true], ['Answers', true], ['Model calls', true]],
-    [...data.days].reverse().map((d) => [d.day + (d.status === 'today' ? ' (so far)' : ''), d.status === 'not_recorded' ? 'not recorded' : money(d.usd), d.answers ?? '—', d.calls ?? '—']));
+    [...data.days].reverse().map((d) => [d.day + (d.status === 'today' ? ' (so far)' : ''), GAPS[d.status] ? GAPS[d.status][0].toLowerCase() : money(d.usd), d.answers ?? '—', d.calls ?? '—']));
   const m = data.last_30_days;
   const tierRows = Object.entries(m.tiers).sort((a, b) => b[1] - a[1]).map(([k, v]) => [TIER_LABELS[k] || k, money(v), m.usd ? `${Math.round((v / m.usd) * 100)}%` : '—']);
   if (m.unlabeled_usd) tierRows.push(['Before tiers were recorded', money(m.unlabeled_usd), m.usd ? `${Math.round((m.unlabeled_usd / m.usd) * 100)}%` : '—']);
@@ -181,6 +182,7 @@ export function render(data, $) {
     'Not counted here: Cloudflare (the Workers plan and usage), the email provider (Resend) and the domain. They bill separately.',
     s.since ? `Kept by day from ${s.since}. Before this page, call records lasted 48 hours, so earlier days aren't here.` : 'Days are kept from the first time this page or the scheduled job runs.',
     "A finished day's total is written once, an hour after midnight UTC; today, and any day not totaled yet, are summed live.",
+    ...(data.lost_days ? [`${count(data.lost_days, 'day', 'days')} in the last 30 ${data.lost_days === 1 ? 'is' : 'are'} lost: neither the scheduled job nor this page ran while ${data.lost_days === 1 ? 'its' : 'their'} records lasted (8 days), so ${data.lost_days === 1 ? 'it is' : 'they are'} left out of the totals.`] : []),
   ];
   $('notes').replaceChildren(...notes.map((n) => h('li', n)));
 }

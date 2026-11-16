@@ -18,6 +18,7 @@ export function entryHtml(e, { canSend = true } = {}) {
     <div class="who"><span class="email">${esc(e.email)}</span><span class="small">joined ${esc(when || '?')}${e.source ? ` · from ${esc(e.source)}` : ''}</span></div>
     ${who ? `<p class="small">${who}</p>` : ''}
     ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}
+    ${e.sent_maybe ? `<p class="small maybe">A code may have gone out to them on ${esc(String(e.sent_maybe).slice(0, 16).replace('T', ' '))} UTC, unconfirmed. Check with them before sending another.</p>` : ''}
     ${buttons}
   </li>`;
 }
@@ -36,9 +37,9 @@ async function main() {
   };
   const summary = () => {
     const n = data.entries.length;
-    const parts = [`${n} ${n === 1 ? 'person' : 'people'} waiting${data.truncated ? ' (the first 1,000 shown)' : ''}.`];
+    const total = Number(data.total) || n;
+    const parts = [`${total.toLocaleString('en-US')} ${total === 1 ? 'person' : 'people'} waiting${data.truncated ? ` (the oldest ${n.toLocaleString('en-US')} shown)` : ''}.`];
     if (data.send_blocked) parts.push(data.send_blocked);
-    if (data.invite_only === false) parts.push("Siren isn't invite-only right now, so anyone can ask without a code; a code sent now still works if invite-only is turned back on.");
     return parts.join(' ');
   };
   async function load() {
@@ -72,13 +73,20 @@ async function main() {
       const res = await fetch(`${base}/api/admin/waitlist/${invite ? 'invite' : 'remove'}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: b.dataset.id }) });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
+        // An unconfirmed send leaves the entry marked: reload to show it.
+        if (body.maybe_sent) {
+          await load();
+          say(body.error, true);
+          return;
+        }
         msg.textContent = body.error || "That didn't work.";
         for (const x of li.querySelectorAll('button')) x.disabled = invite && data.can_send === false && x.dataset.action === 'invite';
         return;
       }
       data.entries = data.entries.filter((x) => x.id !== b.dataset.id);
+      if (data.total) data.total -= 1;
       render();
-      say(`${invite ? `Sent a code to ${body.email || entry?.email || 'them'}; they're off the waitlist.` : 'Removed.'} ${summary()}`);
+      say(`${invite ? `Sent a code to ${body.email || entry?.email || 'them'}; they're off the waitlist.` : 'Removed.'} ${body.warning ? `${body.warning} ` : ''}${summary()}`, Boolean(body.warning));
     } catch {
       msg.textContent = "Couldn't reach the server. Reload to see whether it went through before trying again.";
     }

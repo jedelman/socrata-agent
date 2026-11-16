@@ -410,7 +410,7 @@ async function researchRoute(req, env, path, base) {
   if (req.method === 'GET' && path === '/api/research') return handleResearchList(req, env, { cities: allowedCities(env) });
   if ((req.method === 'GET' || req.method === 'HEAD') && path === '/admin/research') {
     if (!sharedResearchReady(env)) return new Response("Shared research isn't set up here yet.", { status: 503, headers: { 'Cache-Control': 'no-store', ...NOINDEX } });
-    return new Response(ADMIN_RESEARCH_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base) })[k] ?? m), {
+    return new Response(ADMIN_RESEARCH_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), HEADER: adminHeader(env, base, '/research') })[k] ?? m), {
       headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' },
     });
   }
@@ -626,15 +626,18 @@ async function handleWaitlist(req, env) {
 const APP_NAME_OF = (env, config) => env.APP_NAME || config.name || 'socrata-agent';
 
 /**
- * The row of steward pages at the top of each: requests, waitlist and spend
- * always; public questions and shared sources when they're on.
+ * The steward pages' header: the app's name (to /admin), the menu of steward
+ * pages with the current one marked, and a link back to the app. Requests,
+ * waitlist and spend always; public questions and shared sources when
+ * they're on.
  */
-function adminNav(env, base, current) {
+function adminHeader(env, base, current) {
+  const appName = APP_NAME_OF(env, getDeployment(env).config);
   const pages = [['', 'Requests'], ['/waitlist', 'Waitlist'], ['/spend', 'Spend']];
   if (publicAskReady(env)) pages.push(['/questions', 'Public questions']);
   if (sharedResearchReady(env)) pages.push(['/research', 'Shared sources']);
   const links = pages.map(([p, label]) => `<a href="${esc(`${base}/admin${p}`)}"${p === current ? ' aria-current="page"' : ''}>${label}</a>`).join('');
-  return `<nav class="adminnav" aria-label="Steward pages">${links}</nav>`;
+  return `<header class="adminhead"><div class="adminhead-in"><a class="adminhead-brand" href="${esc(`${base}/admin`)}">${esc(appName)} <span>steward</span></a><nav class="adminhead-nav" aria-label="Steward pages">${links}</nav><a class="adminhead-back" href="${esc(`${base}/`)}">Back to ${esc(appName)}</a></div></header>`;
 }
 /** What the steward's API needs from the deployment: its name (for the invite email) and model (for the spend page). */
 function adminDeps(env) {
@@ -888,7 +891,7 @@ async function publicAskRoute(req, env, ctx, path, base) {
   }
   if (get && path === '/admin/questions') {
     if (!publicAskReady(env)) return notReady(env);
-    return new Response(ADMIN_QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base) })[k] ?? m), {
+    return new Response(ADMIN_QUESTIONS_PAGE.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => ({ ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), HEADER: adminHeader(env, base, '/questions') })[k] ?? m), {
       headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' },
     });
   }
@@ -986,7 +989,7 @@ export default {
       const questionsLink = (publicAskReady(env) ? '\n  <p class="lede"><a href="admin/questions">Public questions</a>: hide or unhide a question asked in public.</p>' : '')
         // Shared research (docs/research-memory.md): only with it on, so with it off this page is as before.
         + (sharedResearchReady(env) ? '\n  <p class="lede"><a href="admin/research">Shared sources</a>: remove or restore a source someone shared from an answer.</p>' : '');
-      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace('{{QUESTIONS_LINK}}', questionsLink).replace('{{ADMIN_NAV}}', adminNav(env, base, '')), {
+      return new Response(ADMIN_PAGE.replace(/\{\{APP_NAME\}\}/g, esc(APP_NAME_OF(env, config))).replace('{{QUESTIONS_LINK}}', questionsLink).replace('{{ADMIN_HEADER}}', adminHeader(env, base, '')), {
         // Its buttons act for the signed-in steward, so it can't be framed.
         headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex', 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' },
       });
@@ -996,7 +999,7 @@ export default {
     if ((req.method === 'GET' || req.method === 'HEAD') && (path === '/admin/waitlist' || path === '/admin/spend')) {
       const { config } = getDeployment(env);
       const page = path === '/admin/waitlist' ? ADMIN_WAITLIST_PAGE : ADMIN_SPEND_PAGE;
-      const fill = { ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), NAV: adminNav(env, base, path.slice('/admin'.length)), USES: String(SEND_USES), APP_NAME: esc(APP_NAME_OF(env, config)) };
+      const fill = { ASSETS: esc(`${base}/assets/${ASSET_HASH}`), BASE: esc(base), HEADER: adminHeader(env, base, path.slice('/admin'.length)), USES: String(SEND_USES), APP_NAME: esc(APP_NAME_OF(env, config)) };
       return new Response(page.replace(/\{\{([A-Z_]+)\}\}/g, (m, k) => fill[k] ?? m), { headers: { ...PAGE_HEADERS(ADMIN_QUESTIONS_CSP), 'Cache-Control': 'no-store' } });
     }
     if (req.method === 'GET' && (path === '/api/admin/waitlist' || path === '/api/admin/spend')) return handleAdmin(req, env, path, ctx, adminDeps(env));
