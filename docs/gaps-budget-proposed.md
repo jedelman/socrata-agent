@@ -355,7 +355,7 @@ Setting a program’s revenue against its cost from these records takes the same
 
 **Statement**
 
-The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-10, says: “The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.” Its description of current_expense_budget, in its words: “Total annual budgeted expenditures for this department/fund/unit/object line”. I found no column for an adopted operating budget amount, an amendment or transfer, or a date it took effect in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), as I read them on 2026-11-10. I found 3 more columns matching it that a reviewer cleared as holding something else (7jsp-eyjg fy_2027_adopted, 6njp-hen5 adopted_amount_fy_25, 6njp-hen5 adopted_amount_fy_25_fy_29), each with its reason in the record, as I read them on 2026-11-10. I found 224 of 1,437 agenda items in Siren's agenda index (built 2026-11-09) with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, counted 2026-11-10.
+The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-10, says: “The data also contains current budget information. Current budget reflects budget transfers and amendments during the fiscal year that have transpired since City Council adopted the budget prior to the beginning of the current fiscal year.” Its description of current_expense_budget, in its words: “Total annual budgeted expenditures for this department/fund/unit/object line”. I found no column for an adopted operating budget amount, an amendment or transfer, or a date it took effect in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), as I read them on 2026-11-10. I found 3 more columns matching it that a reviewer cleared as holding something else (7jsp-eyjg fy_2027_adopted, 6njp-hen5 adopted_amount_fy_25, 6njp-hen5 adopted_amount_fy_25_fy_29), each with its reason in the record, as I read them on 2026-11-10. I found 231 of 1,453 agenda items in Siren's agenda index (built 2026-11-16) with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-27, counted 2026-11-16.
 
 **Short:** I found no column for an adopted operating budget amount or an amendment date in any of the 8 budget datasets I read, measured 2026-11-10.
 
@@ -371,7 +371,7 @@ The Annual Expenditures description (mdwe-dquf), as I read it on 2026-11-10, say
 - What operating budget did the City Council adopt for a department, before any amendments this year? (can’t answer)  
   I found no column for an adopted operating budget amount, an amendment or transfer, or a date it took effect in any of the 8 budget datasets I read (mdwe-dquf, id3i-2az4, 7jsp-eyjg, 6tqj-4az3, dpv9-3yq2, 6njp-hen5, jbfz-2t3g, fumf-ph9r), measured 2026-11-10, so I can't answer this from them.
 - When during the year was a department's budget changed, and by how much? (only in part; half-answered by norfolk-legislation.text)  
-  With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 224 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-13, in the index built 2026-11-09, measured 2026-11-10, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-10.
+  With Siren's agenda index (norfolk-legislation) I can answer this only in part: I found 231 agenda items with titles amending an annual appropriations ordinance or annual budget, at meetings 2023-07-11 through 2026-10-27, in the index built 2026-11-16, measured 2026-11-16, which gives each ordinance's meeting date, not each budget line's change, and I found no column for an amendment or its date among the 8 columns of the City's Annual Expenditures records (mdwe-dquf), measured 2026-11-10.
 
 **Proposed actions**
 
@@ -396,7 +396,7 @@ The dataset’s own description says its budget figure reflects transfers and am
 - metadata of 6njp-hen5, read 2026-11-10T17:58:51.473Z (trace step 24): 11 columns
 - metadata of jbfz-2t3g, read 2026-11-10T17:58:51.569Z (trace step 25): 11 columns
 - metadata of fumf-ph9r, read 2026-11-10T17:58:51.654Z (trace step 26): 13 columns
-- count over data/norfolk-legislation.json, built 2026-11-09T19:47:48.378Z: 224 of 1,437 items
+- count over data/norfolk-legislation.json, built 2026-11-16T19:36:18.047Z: 231 of 1,453 items
 
 </details>
 
