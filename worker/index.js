@@ -855,6 +855,13 @@ function page(env) {
     // it keeps), when the deployment states it.
     DATA_NOTE: (ui.dataNote ? `<p>${esc(ui.dataNote)}</p>` : '') + (telemetryOn(env) ? `<p>${esc(TELEMETRY_NOTE(APP_NAME_OF(env, config)))}</p>` : ''),
     BADGE: esc(ui.badge),
+    // The welcome screen: the deployment's own words, else plain ones.
+    INTRO: esc(ui.intro || "Ask about anything in the city's open data. Every answer lists the queries behind it, the data to download, and who to contact."),
+    POINTS: Array.isArray(ui.points) && ui.points.length
+      ? `<ul class="points">${ui.points.map((p) => `<li><strong>${esc(p.title)}</strong> ${esc(p.text)}</li>`).join('')}</ul>`
+      : '',
+    // Example questions by city, as JSON in a data attribute the page script reads.
+    EXAMPLES: esc(JSON.stringify(ui.examples && typeof ui.examples === 'object' ? ui.examples : {})),
     OPERATOR: esc(ui.operator ? `${APP_NAME_OF(env, config)} is run by ${ui.operator}. ` : ''),
     MARK: skin.mark,
     FONTS: skin.fonts,

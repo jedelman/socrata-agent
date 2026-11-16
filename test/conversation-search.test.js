@@ -495,7 +495,8 @@ test('page: the query goes in a POST body, the box keeps no history, and the pan
   assert.match(html, /<button type="button" id="conv-more" hidden>Show more<\/button>/);
   assert.match(html, /<button type="button" id="conv-forget-all" class="textbtn">Forget all my conversations<\/button>/);
   // Everything sits inside the panel that only a signed-in member sees.
-  const panel = html.slice(html.indexOf('<div class="convbar" id="convbar" hidden>'), html.indexOf('<main id="log"'));
+  const panel = html.slice(html.indexOf('<div class="convbar" id="convbar" hidden>'), html.indexOf('<!-- /convbar -->'));
+  assert.ok(panel.length > 0 && html.indexOf('<!-- /convbar -->') > html.indexOf('id="convbar"'), 'the panel is marked where it ends');
   for (const id of ['conv-search', 'conv-q', 'conv-results', 'conv-list', 'conv-more', 'conv-forget-all']) assert.ok(panel.includes(`id="${id}"`), id);
   assert.ok(!/\son[a-z]+=/i.test(panel) && !/\sstyle=/.test(panel), 'no inline handler or style');
 });

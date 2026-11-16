@@ -48,6 +48,25 @@ export default {
     // "Inputs, Outputs, and other data are retained for 30 days by default
     // and may be accessed by Anthropic for safety and security purposes."
     dataNote: 'Each question, and what Siren finds for it, goes to Anthropic, whose model writes the answer. Anthropic keeps them for 30 days and may review them for safety and security.',
+    // The welcome screen (Jason, 2026-11-16: drop "what's on my block and who
+    // decided it?"; lead with the automatic metasearch and the
+    // self-improvement loop). Each point names only what Siren runs: the
+    // plugins below, research memory, source requests and the twice-weekly
+    // case-file routine (docs/case-file-routine.md).
+    intro: 'Ask a question in plain words. Siren searches Norfolk\'s public records for you and answers only from what they say, with every source behind the answer.',
+    points: [
+      { title: 'Searches it all at once.', text: 'One question reaches open data and City maps, Council records, budget books, the Zoning Ordinance, City news, case files and the research behind earlier answers.' },
+      { title: 'Shows its work.', text: 'Each answer lists the queries it ran and the records it read, with the data to download, so you can check it.' },
+      { title: 'Learns what it can\'t answer.', text: 'When the records fall short, the answer says so and you can request the missing source. Requests and a twice-weekly research routine decide what Siren learns next.' },
+    ],
+    examples: {
+      norfolk: [
+        "What's the plan for the old Military Circle Mall site?",
+        "What share of Ghent's homes are on Graydon between Colley and Colonial?",
+        'How much does Norfolk budget for tree care?',
+        'What public meetings are coming up in the next two weeks?',
+      ],
+    },
   },
   // Web search (Claude models only): official public sites, enforced by the
   // API as the tool's allowed_domains (src/web-search.js). Only Jason widens

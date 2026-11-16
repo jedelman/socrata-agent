@@ -134,7 +134,17 @@ generic mode.
 - `worker/` is the Cloudflare chat app (`index.js` plus `ui.html`, whose
   script and style are `chat-page.js` and `chat.css`, served under
   `<base>/assets/<hash>/` so the page carries a strict CSP: no inline script,
-  style attribute or handler, and nothing that needs one). Siren is at
+  style attribute or handler, and nothing that needs one). It's laid out like
+  the chat apps people know (Jason, 2026-11-16): a sidebar on the left with
+  "New conversation", a signed-in member's conversations (search, the list
+  with the open one marked, paging) and the city, links and account at its
+  foot, sliding over the page below 900px; a new conversation by default,
+  whose welcome screen shows the deployment's `ui.intro`, `ui.examples` (by
+  city, in a data attribute the script reads; the script's own list
+  otherwise) and `ui.points`; the composer pinned at the bottom; About and
+  the privacy text in a panel. The old "what's on my block, and who decided
+  it?" copy is gone from the page; Siren's welcome leads with its metasearch
+  and the loop by which requests decide what it learns. Siren is at
   `https://ask-siren.jason-edelman.org`, its own origin (a Workers Custom
   Domain, `BASE_PATH` empty, since 2026-11-10); `moved.js` answers its old
   address, `jason-edelman.org/ask-siren` (`MOVED_FROM`), over http or https,
