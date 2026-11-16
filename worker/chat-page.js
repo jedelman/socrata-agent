@@ -194,13 +194,16 @@ function renderFollowups(list) {
 // card, heading, why, the source, the note at full width with the public
 // notice under it, then the button and its status.
 // A watch the answer offered (offer_watch; worker/watches.js): a card the
-// person edits and confirms with the email they signed in with. Shown only
-// when this site has watches on and the person is signed in.
+// person edits (the topics Siren chose, as checkboxes) and confirms with the
+// email they signed in with. Shown only when this site has watches on and
+// the person is signed in.
 function renderWatchOffer(w) {
   if (!w || !session?.watches || !session.signed_in) return '';
-  const terms = (Array.isArray(w.terms) ? w.terms : []).join(', ');
+  const ids = Array.isArray(w.topics) ? w.topics : [];
+  const labels = Array.isArray(w.labels) ? w.labels : [];
   const bodies = (Array.isArray(w.bodies) ? w.bodies : []).join(' or ');
-  return `<form class="watchcard"><h3>Get an email when this comes up</h3><p class="why">Once a day, ${esc(APP_NAME)} checks the agendas the City posts for ${esc(bodies)}${w.league ? `, for items in <strong>${esc(w.league)}</strong>` : ''}, and emails you when a new item matches.</p><label class="note">Words to look for in agenda titles, separated by commas${w.league ? ' (leave empty for every item in the civic league)' : ''}<input name="terms" maxlength="400" value="${esc(terms)}"></label><label class="note">The email you signed in with<input name="email" type="email" maxlength="254" autocomplete="email" required></label><input type="hidden" name="league" value="${esc(w.league || '')}"><input type="hidden" name="bodies" value="${esc(JSON.stringify(w.bodies || []))}"><p class="fine">The watch keeps that address, encrypted, only while it runs. Private people's names are withheld from every email. <a href="watches" target="_blank" rel="noopener">Your watches</a></p><div class="row"><button class="ask" type="submit">Start watching</button><span class="msg" role="status"></span></div></form>`;
+  const boxes = ids.map((id, i) => `<label class="topic"><input type="checkbox" name="topic" value="${esc(id)}" checked> ${esc(labels[i] || id)}</label>`).join('');
+  return `<form class="watchcard"><h3>Get an email when this comes up</h3><p class="why">Once a day, ${esc(APP_NAME)} checks the agendas the City posts for ${esc(bodies)}${w.league ? `, for items in <strong>${esc(w.league)}</strong>` : ''}, and emails you when a new item matches.</p>${boxes ? `<fieldset class="topics"><legend>Topics</legend>${boxes}</fieldset>` : ''}<label class="note">The email you signed in with<input name="email" type="email" maxlength="254" autocomplete="email" required></label><input type="hidden" name="league" value="${esc(w.league || '')}"><input type="hidden" name="bodies" value="${esc(JSON.stringify(w.bodies || []))}"><p class="fine">The watch keeps that address, encrypted, only while it runs. Emails describe each agenda item without repeating its title, which can name private people. <a href="watches" target="_blank" rel="noopener">Your watches</a></p><div class="row"><button class="ask" type="submit">Start watching</button><span class="msg" role="status"></span></div></form>`;
 }
 $('#log').addEventListener('submit', async (e) => {
   const f = e.target.closest('form.watchcard');
@@ -211,17 +214,14 @@ $('#log').addEventListener('submit', async (e) => {
   msg.textContent = 'Starting…';
   let bodies = [];
   try { bodies = JSON.parse(f.bodies.value); } catch {}
+  const topics = [...f.querySelectorAll('input[name="topic"]:checked')].map((i) => i.value);
   try {
-    const { res, data } = await postJson('api/watches', { city: $('#city').value, terms: f.terms.value.split(','), league: f.league.value, bodies, email: f.email.value });
-    if (!res.ok) {
-      const refused = (data.refused || []).map((r) => `"${r.term}": ${r.reason}`).join('; ');
-      msg.textContent = `${data.error || 'Something went wrong.'}${refused ? ` (${refused})` : ''}`;
-      return;
-    }
+    const { res, data } = await postJson('api/watches', { city: $('#city').value, topics, league: f.league.value, bodies, email: f.email.value });
+    if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; return; }
     const done = document.createElement('div');
     done.className = 'watchcard done';
-    const already = (data.already || []).map((i) => `<li><a href="${link(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.text)}</a> <small>${esc(i.body)}</small></li>`).join('');
-    done.innerHTML = `<h3>Watching</h3><p>${esc(data.watch.label)}. You'll get an email when a newly posted agenda lists a match, at most one a day, until ${esc(String(data.watch.ends).slice(0, 10))}.</p>${already ? `<p>Already on a posted agenda (in your first email too):</p><ul class="plain">${already}</ul>` : ''}${data.refused?.length ? `<p class="fine">Left out: ${esc(data.refused.map((r) => `"${r.term}" (${r.reason})`).join(', '))}.</p>` : ''}<p class="fine"><a href="watches" target="_blank" rel="noopener">Your watches</a></p>`;
+    const already = (data.already || []).map((i) => `<li><a href="${link(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.description)}</a> <small>${esc(i.body)}</small></li>`).join('');
+    done.innerHTML = `<h3>Watching</h3><p>${esc(data.watch.label)}. You'll get an email when a newly posted agenda lists a match, at most one a day, until ${esc(String(data.watch.ends).slice(0, 10))}.</p>${already ? `<p>Already on a posted agenda (in your first email too):</p><ul class="plain">${already}</ul>` : ''}<p class="fine"><a href="watches" target="_blank" rel="noopener">Your watches</a></p>`;
     f.replaceWith(done);
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });

@@ -227,10 +227,10 @@ export async function ask({
   if (researchScopes.length) ctx.priorResearch = { scopes: researchScopes, search: priorResearch.search, private: !publicThread && priorResearch.private === true, streets: priorResearch.streets };
   // Watches (worker/watches.js): a private answer for a signed-in member
   // only; a public thread never offers one.
-  const watchesOn = Boolean(watches && typeof watches.check === 'function' && Array.isArray(watches.bodies) && watches.bodies.length && !publicThread);
-  if (watchesOn) ctx.watches = { check: watches.check };
+  const watchesOn = Boolean(watches && typeof watches.check === 'function' && Array.isArray(watches.bodies) && watches.bodies.length && Array.isArray(watches.topics) && watches.topics.length && !publicThread);
+  if (watchesOn) ctx.watches = { check: watches.check, topics: watches.topics };
   const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}), ...(researchScopes.length ? { priorResearch: true } : {}), ...(watchesOn ? { watches: true } : {}) };
-  const toolOpts = { ...(gapsOn ? { gaps: gaps.data } : {}), ...(researchScopes.length ? { priorResearch: { scopes: researchScopes } } : {}), ...(watchesOn ? { watches: { bodies: watches.bodies } } : {}) };
+  const toolOpts = { ...(gapsOn ? { gaps: gaps.data } : {}), ...(researchScopes.length ? { priorResearch: { scopes: researchScopes } } : {}), ...(watchesOn ? { watches: { bodies: watches.bodies, topics: watches.topics } } : {}) };
   llm.init({
     systemPrompt: Object.keys(promptOpts).length ? systemPrompt(city, today, promptOpts) : systemPrompt(city, today),
     history,

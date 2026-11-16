@@ -18,8 +18,9 @@
 // Once a day (the cron, at or after 11:00 UTC, or at once when no
 // snapshot exists), the job reads the Public Meeting Notices for the next
 // three weeks of the bodies the city profile names, fetches each meeting's
-// agenda from iqm2, withholds private people's names (src/watches.js
-// withholdNames), tags each item with
+// agenda from iqm2, describes each item from parts code extracts (its kind,
+// its topics from the city's reviewed list, its addresses and its ordinance
+// number; never the title, which can name private people), tags each item with
 // its civic league from the City's address list (the league column only:
 // that dataset's league-president name and email are never read), and keeps
 // the result as the snapshot both features read.
@@ -31,7 +32,7 @@
 // (the same HMAC that names the account), so a watch can only ever mail the
 // address that signed in. It is never logged, returned or shown.
 
-import { checkWatch, matchesWatch, sameWatch, watchLabel, withholdNames, namePlaces, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
+import { checkWatch, matchesWatch, sameWatch, watchLabel, topicsOf, itemKind, itemNumber, describeItem, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
 import { extractAddresses, normalizeAddress } from '../src/adapters/iqm2.js';
 import { addressKey } from '../src/block.js';
 import { soqlString, ACCESS } from '../src/socrata.js';
@@ -49,7 +50,6 @@ export const RUN_HOUR_UTC = 11;
 const SNAPSHOT_TTL = 4 * 86400;
 const LEAGUE_TTL = 7 * 86400;
 const ADDRESS_TTL = 90 * 86400;
-const ITEM_CHARS = 600;
 const SNAPSHOT_FETCHES = 300;
 
 const flag = (v) => String(v ?? '').trim() === 'true';
@@ -155,14 +155,13 @@ async function bulkGet(kv, keys, type = 'text') {
 
 /**
  * Build and store the snapshot for one city: the next DAYS_AHEAD days of
- * the bodies it watches, each posted agenda item with private people's
- * names withheld and its civic leagues. Items keep the time they were first
+ * the bodies it watches, each posted agenda item described (never its
+ * title) with its civic leagues. Items keep the time they were first
  * seen from the snapshot before; a meeting whose page can't be read today
- * keeps yesterday's items. `ordinary` is the lower-case vocabulary
- * (worker/telemetry.js ordinaryWords) and `streets` the city's compiled
- * street names, both for withholdNames. Returns the snapshot.
+ * keeps yesterday's items. No item keeps its title: only its kind, topics,
+ * addresses, ordinance number, link and leagues. Returns the snapshot.
  */
-export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now(), ordinary = null, streets = null }) {
+export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now() }) {
   const budget = requestBudget({ limit: SNAPSHOT_FETCHES, fetchImpl });
   const ctx = createContext({ city, appToken, budget });
   const { socrata, iqm2 } = ctx;
@@ -176,12 +175,11 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
   );
   const before = await readSnapshot(kv, cityId);
   const firstSeen = new Map((before?.items || []).map((i) => [i.key, i.first_seen]));
-  // The civic leagues first: their names are places to withholdNames.
   let leagues = before?.leagues || [];
   try {
     leagues = await civicLeagues(kv, socrata, city, cityId);
   } catch { /* keep the last list */ }
-  const names = { ordinary, ...namePlaces({ streets, leagues }) };
+  const topics = city.meetings.watchTopics || [];
   const meetings = [];
   const items = [];
   let failed = 0;
@@ -208,8 +206,8 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
     for (const it of m.items) {
       const key = itemKey(id, it.id);
       items.push({
-        key, meeting: id, id: it.id, body: n.organization, when: String(n.date_and_time || ''),
-        text: withholdNames(it.text, names).slice(0, ITEM_CHARS), url: it.url,
+        key, meeting: id, id: it.id, body: n.organization, when: String(n.date_and_time || ''), url: it.url,
+        kind: itemKind(it.text), number: itemNumber(it.text), topics: topicsOf(it.text, topics),
         addresses: extractAddresses(it.text).slice(0, 12),
         first_seen: firstSeen.get(key) || new Date(now).toISOString(),
       });
@@ -218,7 +216,6 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
   const leagueMap = await leaguesOf(kv, socrata, city, cityId, [...new Set(items.flatMap((i) => i.addresses))]);
   for (const i of items) {
     i.leagues = [...new Set(i.addresses.map((a) => leagueMap.get(a)).filter(Boolean))];
-    delete i.addresses;
   }
   items.push(...carried);
   const snapshot = { city: cityId, built: new Date(now).toISOString(), through: iso(end), bodies, meetings, items, leagues, failed, requests: budget.used };
@@ -257,7 +254,8 @@ async function listAll(kv) {
 }
 
 /** What the member sees of a watch: never the email. */
-const shown = (w) => ({ id: w.id, city: w.city, terms: w.terms, league: w.league, bodies: w.bodies, label: watchLabel(w), created: w.created, ends: w.ends, last_sent: w.last_sent || null, sent: w.sent || 0 });
+const shown = (w, topics = []) => ({ id: w.id, city: w.city, topics: w.topics, league: w.league, bodies: w.bodies, label: watchLabel(w, topics), created: w.created, ends: w.ends, last_sent: w.last_sent || null, sent: w.sent || 0 });
+const topicsFor = (city) => city?.meetings?.watchTopics || [];
 
 export async function accountWatches(kv, uid) {
   const mine = (await listAll(kv)).filter((k) => k.metadata?.u === uid);
@@ -295,8 +293,7 @@ const json = (body, status = 200, headers = {}) => new Response(JSON.stringify(b
 /**
  * The member's API: GET /api/watches; POST /api/watches (start one),
  * /api/watches/delete, /api/watches/renew, and /api/watches/stop (by a stop
- * link's token, signed in or not). `deps`: { cityIds, cities, streets(cityId),
- * vocab(), canAsk(uid), now }.
+ * link's token, signed in or not). `deps`: { cityIds, cities, canAsk(uid), now }.
  */
 export async function handleWatches(req, env, path, deps = {}) {
   const setup = watchesSetupError(env);
@@ -325,11 +322,11 @@ export async function handleWatches(req, env, path, deps = {}) {
   if (!uid) return json({ error: 'Sign in to keep watches.', code: 'signin' }, 401);
   const cityIds = (deps.cityIds || []).filter((c) => watchableCity(deps.cities?.[c]));
   if (req.method === 'GET' && path === '/api/watches') {
-    const watches = (await accountWatches(kv, uid)).map(shown);
+    const watches = (await accountWatches(kv, uid)).map((w) => shown(w, topicsFor(deps.cities?.[w.city])));
     const options = {};
     for (const c of cityIds) {
       const snap = await readSnapshot(kv, c);
-      options[c] = { bodies: deps.cities[c].meetings.watchBodies, leagues: snap?.leagues || [], checked: snap?.built || null };
+      options[c] = { bodies: deps.cities[c].meetings.watchBodies, topics: topicsFor(deps.cities[c]).map((t) => ({ id: t.id, label: t.label })), leagues: snap?.leagues || [], checked: snap?.built || null };
     }
     return json({ watches, max: MAX_PER_ACCOUNT, options });
   }
@@ -344,7 +341,7 @@ export async function handleWatches(req, env, path, deps = {}) {
     }
     w.ends = new Date(now + WATCH_DAYS * 864e5).toISOString();
     await putWatch(kv, w);
-    return json({ ok: true, watch: shown(w) });
+    return json({ ok: true, watch: shown(w, topicsFor(deps.cities?.[w.city])) });
   }
   if (path !== '/api/watches') return json({ error: 'Not found' }, 404);
   if (deps.canAsk && !(await deps.canAsk(uid))) return json({ error: 'Watches come with an invite. Enter yours on the main page first.' }, 403);
@@ -354,7 +351,8 @@ export async function handleWatches(req, env, path, deps = {}) {
   const email = normalizeEmail(body?.email);
   if (!email || (await userId(env.INVITE_SECRET, email)) !== uid) return json({ error: "Enter the email you signed in with. Watches mail only that address.", code: 'email' }, 400);
   const snap = await readSnapshot(kv, cityId);
-  const checked = checkWatch(body, { vocab: deps.vocab?.(), streets: deps.streets?.(cityId), leagues: snap?.leagues || [], bodies: deps.cities[cityId].meetings.watchBodies });
+  const topics = topicsFor(deps.cities[cityId]);
+  const checked = checkWatch(body, { topics, leagues: snap?.leagues || [], bodies: deps.cities[cityId].meetings.watchBodies });
   if (!checked.ok) return json({ error: checked.error, refused: checked.refused }, 400);
   const all = await listAll(kv);
   const mineKeys = all.filter((k) => k.metadata?.u === uid);
@@ -363,7 +361,7 @@ export async function handleWatches(req, env, path, deps = {}) {
   if (all.length >= max) return json({ error: 'This site has as many watches as it can send right now. Try again later.' }, 503);
   for (const k of mineKeys) {
     const w = await kv.get(k.name, 'json');
-    if (w && w.city === cityId && sameWatch(w, checked.watch)) return json({ error: 'You already have this watch.', watch: shown(w) }, 409);
+    if (w && w.city === cityId && sameWatch(w, checked.watch)) return json({ error: 'You already have this watch.', watch: shown(w, topics) }, 409);
   }
   const id = randomToken(12);
   const w = {
@@ -373,8 +371,8 @@ export async function handleWatches(req, env, path, deps = {}) {
   };
   await putWatch(kv, w);
   // What's already on a posted agenda: shown now, and sent in the first email.
-  const already = (snap?.items || []).filter((i) => matchesWatch(w, i)).slice(0, 10).map((i) => ({ body: i.body, when: i.when, text: i.text, url: i.url }));
-  return json({ ok: true, watch: shown(w), already, refused: checked.refused });
+  const already = (snap?.items || []).filter((i) => matchesWatch(w, i)).slice(0, 10).map((i) => ({ body: i.body, when: i.when, description: describeItem(i, topics), number: i.number || null, url: i.url }));
+  return json({ ok: true, watch: shown(w, topics), already, refused: checked.refused });
 }
 
 /** The one-click stop from a mail client (RFC 8058): POST to the link, form-encoded. */
@@ -413,18 +411,20 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
   const clerk = council ? (city.contacts || []).find((c) => /clerk/i.test(c.role)) : null;
   const n = items.length;
   const subject = `${appName}: ${n} agenda item${n === 1 ? '' : 's'} for your watch`;
+  const topics = topicsFor(city);
   const text = [];
   const html = [];
-  text.push(`You asked ${appName} to watch ${watchLabel(watch)}.`, '');
-  html.push(`<p>You asked ${esc(appName)} to watch ${esc(watchLabel(watch))}.</p>`);
+  text.push(`You asked ${appName} to watch ${watchLabel(watch, topics)}.`, '');
+  html.push(`<p>You asked ${esc(appName)} to watch ${esc(watchLabel(watch, topics))}.</p>`);
   for (const [mid, list] of byMeeting) {
     const m = meetingOf.get(mid) || {};
     const head = `${m.body || list[0].body} ${m.type || ''}, ${meetingTime(m.when || list[0].when)}${m.location ? ` (${m.location})` : ''}`.replace(/\s+,/, ',');
     text.push(head);
     html.push(`<h3>${esc(head)}</h3><ul>`);
     for (const i of list) {
-      text.push(`- ${i.text}`, `  ${i.url}`);
-      html.push(`<li><a href="${esc(i.url)}">${esc(i.text)}</a></li>`);
+      const line = `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}`;
+      text.push(`- ${line}`, `  ${i.url}`);
+      html.push(`<li><a href="${esc(i.url)}">${esc(line)}</a></li>`);
     }
     if (m.url) {
       text.push(`  The meeting and its agenda: ${m.url}`);
@@ -432,7 +432,7 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
     } else html.push('</ul>');
     text.push('');
   }
-  const note = 'Matched on agenda titles as the City posted them. An item can affect a topic without naming it, so a watch can miss one. Private people\'s names are withheld.';
+  const note = `Each item is described from its agenda title, without repeating it: titles can name private people. The City's page for each item has the full text. ${appName} matches topics in the titles as the City posted them, and an item can affect a topic without naming it, so a watch can miss one.`;
   text.push(note);
   html.push(`<p>${esc(note)}</p>`);
   if (clerk) {
@@ -446,8 +446,8 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
 }
 
 /** The note when a watch reaches its end. */
-function endedNote({ appName, watch, manageUrl }) {
-  const line = `Your ${appName} watch for ${watchLabel(watch)} has ended, a year after it started. To keep watching, start it again: ${manageUrl}`;
+function endedNote({ appName, watch, manageUrl, topics = [] }) {
+  const line = `Your ${appName} watch for ${watchLabel(watch, topics)} has ended, a year after it started. To keep watching, start it again: ${manageUrl}`;
   return { subject: `${appName}: your watch has ended`, text: line, html: `<p>${esc(line)}</p>` };
 }
 
@@ -462,26 +462,25 @@ export async function jobDue(kv, cityIds, now = Date.now()) {
 /**
  * The daily job: build each city's snapshot, then (with watches on) mail
  * each watch the items it hasn't been sent. `deps`: { cityIds, cities,
- * appName, fetchImpl, send, now, ordinary, streets(cityId) }. One run a day
- * (`watch-run:<day>`), one at a time (a five-minute lock, re-read after
- * writing, left to expire: KV refuses a second write to a key within a
- * second, so the lock is written once and never deleted).
+ * appName, fetchImpl, send, now }. One run a day (`watch-run:<day>`), one at
+ * a time: a fifteen-minute lock (a cron run's longest), re-read after
+ * writing and judged by its own expiry, written once and never deleted (KV
+ * refuses a second write to a key within a second).
  */
 export async function runWatchJob(env, deps = {}) {
   const kv = env.LIMITS;
   const now = deps.now ? deps.now() : Date.now();
   const cityIds = (deps.cityIds || []).filter((c) => watchableCity(deps.cities?.[c]));
   if (!cityIds.length || !(await jobDue(kv, cityIds, now))) return { ran: false };
-  // The lock carries its own expiry, so it's judged by the job's clock, not only KV's.
   const held = String((await kv.get('watch-lock')) || '');
   if (Number(held.split(':')[1]) > now) return { ran: false, locked: true };
-  const token = `${randomToken(9)}:${now + 300000}`;
-  await kv.put('watch-lock', token, { expirationTtl: 300 });
+  const token = `${randomToken(9)}:${now + 900000}`;
+  await kv.put('watch-lock', token, { expirationTtl: 900 });
   if ((await kv.get('watch-lock')) !== token) return { ran: false, locked: true };
   const result = { ran: true, cities: {}, sent: 0, ended: 0, failed: 0 };
   const snapshots = {};
   for (const c of cityIds) {
-    snapshots[c] = await buildSnapshot({ kv, city: deps.cities[c], cityId: c, appToken: env.SOCRATA_APP_TOKEN, fetchImpl: deps.fetchImpl, now, ordinary: deps.ordinary || null, streets: deps.streets?.(c) || null });
+    snapshots[c] = await buildSnapshot({ kv, city: deps.cities[c], cityId: c, appToken: env.SOCRATA_APP_TOKEN, fetchImpl: deps.fetchImpl, now });
     result.cities[c] = { meetings: snapshots[c].meetings.length, items: snapshots[c].items.length, failed: snapshots[c].failed };
   }
   if (watchesReady(env)) Object.assign(result, await mailWatches(env, { ...deps, now, snapshots }));
@@ -489,24 +488,26 @@ export async function runWatchJob(env, deps = {}) {
   return result;
 }
 
-/** Resend's refusal of an address (a 4xx other than 429) as opposed to a failure that may pass (429, 5xx, a timeout). */
-const refusedAddress = (err) => {
-  const status = Number(/Resend (\d{3})/.exec(String(err?.message || ''))?.[1]) || 0;
-  return status >= 400 && status < 500 && status !== 429;
-};
+const resendStatus = (err) => Number(/Resend (\d{3})/.exec(String(err?.message || ''))?.[1]) || 0;
 
 /**
- * Mail each watch once. Each watch is written at most once (KV refuses a
- * second write to a key within a second), and the day's count once, at the
- * end, whatever happened. A watch that has reached its end gets its note and
- * is deleted first, whatever else. A failure that may pass (Resend busy or
- * down) stops the round: the rest wait for tomorrow's run, unsent and
- * unmarked. Only Resend's refusal of an address counts toward stopping a
- * watch (five days running).
+ * Mail each watch once. Each watch key is written at most once a run (KV
+ * refuses a second write to a key within a second), and the day's count
+ * once, at the end, whatever happened.
+ * 1. Watches at their end, first: a note if the day's cap allows, and the
+ *    watch (with the email it keeps) is deleted either way.
+ * 2. The rest: a watch is re-read just before its mail and again before it's
+ *    written, so a stop or a renewal made while the run is going wins; a
+ *    stopped watch is never written back.
+ * A failure that may pass (Resend busy or down: 429, 5xx, no answer) stops
+ * the round; the rest wait for tomorrow, unsent and unmarked. A 4xx marks
+ * nothing on the watch (a revoked key or an unverified domain is one too, and
+ * would otherwise count against every watch); three in a row stop the round.
  */
 async function mailWatches(env, { snapshots, cities, appName = 'Siren', fetchImpl, send = sendWithResend, now }) {
   const kv = env.LIMITS;
   const origin = `${publicOrigin(env).origin}${basePathOf(env)}`;
+  const manageUrl = `${origin}/watches`;
   const today = day(new Date(now).toISOString());
   const counterKey = `watch-mail:${today}`;
   const cap = setting(env.WATCH_DAILY_EMAILS, 100, { min: 0 });
@@ -515,74 +516,85 @@ async function mailWatches(env, { snapshots, cities, appName = 'Siren', fetchImp
   const out = { sent: 0, ended: 0, failed: 0, capped: 0, stopped: false };
   const keys = (await listAll(kv)).map((k) => k.name);
   const watches = await bulkGet(kv, keys, 'json');
+  const opened = async (w) => {
+    try {
+      return await openEmail(env.INVITE_SECRET, w.id, w.email);
+    } catch {
+      console.error('watch: an email could not be opened');
+      return null;
+    }
+  };
+  const ended = new Set();
   try {
+    // 1. At their end.
+    for (const key of keys) {
+      const w = watches.get(key);
+      if (!w || !(Date.parse(w.ends) <= now)) continue;
+      ended.add(key);
+      try {
+        const to = w.email && mailed < cap ? await opened(w) : null;
+        if (to) {
+          try {
+            await send(env, { to, ...endedNote({ appName, watch: w, manageUrl, topics: topicsFor(cities[w.city]) }), idempotencyKey: `watch-end-${w.id}` }, fetchImpl);
+            mailed++;
+          } catch { /* the watch ends either way */ }
+        }
+        await kv.delete(key);
+        out.ended++;
+      } catch (err) {
+        console.error('watch: an ended watch could not be removed', String(err?.message || '').slice(0, 60));
+      }
+    }
+    // 2. The rest.
+    let refusals = 0;
     for (const key of keys) {
       if (out.stopped) break;
-      const w = watches.get(key);
-      if (!w?.email) continue;
-      try {
-        const manageUrl = `${origin}/watches`;
-        const stopUrl = `${origin}/watch/stop?t=${encodeURIComponent(await stopToken(env.INVITE_SECRET, w.id))}`;
-        let to = null;
-        try {
-          to = await openEmail(env.INVITE_SECRET, w.id, w.email);
-        } catch {
-          console.error('watch: an email could not be opened');
-        }
-        // At its end: the note (when it can be sent today), then the watch goes.
-        if (Date.parse(w.ends) <= now) {
-          if (to) {
-            if (mailed >= cap) {
-              out.capped++;
-              continue;
-            }
-            try {
-              await send(env, { to, ...endedNote({ appName, watch: w, manageUrl }), idempotencyKey: `watch-end-${w.id}` }, fetchImpl);
-              mailed++;
-            } catch (err) {
-              if (!refusedAddress(err)) {
-                out.stopped = true;
-                continue;
-              }
-            }
-          }
-          await kv.delete(key);
-          out.ended++;
-          continue;
-        }
-        const snap = snapshots[w.city];
-        if (!snap || !to) continue;
+      if (ended.has(key)) continue;
+      const first = watches.get(key);
+      const snap = first ? snapshots[first.city] : null;
+      if (!snap) continue;
+      const wanted = (w) => {
         const seen = new Set(w.seen || []);
-        const fresh = snap.items.filter((i) => !seen.has(i.key) && matchesWatch(w, i));
+        return snap.items.filter((i) => !seen.has(i.key) && matchesWatch(w, i));
+      };
+      if (!wanted(first).length) continue;
+      if (mailed >= cap) {
+        out.capped++;
+        continue;
+      }
+      try {
+        // A stop or a renewal since the run began wins.
+        const w = await kv.get(key, 'json');
+        if (!w?.email) continue;
+        const fresh = wanted(w);
         if (!fresh.length) continue;
-        if (mailed >= cap) {
-          out.capped++;
-          continue;
-        }
+        const to = await opened(w);
+        if (!to) continue;
+        const stopUrl = `${origin}/watch/stop?t=${encodeURIComponent(await stopToken(env.INVITE_SECRET, w.id))}`;
         const mail = digest({ appName, watch: w, items: fresh, meetings: snap.meetings, city: cities[w.city], stopUrl, manageUrl });
         const headers = { 'List-Unsubscribe': `<${stopUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
         try {
           await send(env, { to, ...mail, headers, idempotencyKey: `watch-${w.id}-${today}` }, fetchImpl);
         } catch (err) {
           out.failed++;
-          console.error('watch: a digest was not sent', String(err?.message || '').slice(0, 40));
-          if (!refusedAddress(err)) {
-            out.stopped = true;
-            continue;
-          }
-          w.fails = (w.fails || 0) + 1;
-          // Five refusals of the address in a row: the watch stops.
-          if (w.fails >= 5) await kv.delete(key);
-          else await putWatch(kv, w);
+          const status = resendStatus(err);
+          console.error('watch: a digest was not sent', status || String(err?.message || '').slice(0, 40));
+          if (status >= 400 && status < 500 && status !== 429) {
+            refusals++;
+            if (refusals >= 3) out.stopped = true;
+          } else out.stopped = true;
           continue;
         }
+        refusals = 0;
         mailed++;
         out.sent++;
-        w.seen = [...(w.seen || []), ...fresh.map((i) => i.key)].slice(-SEEN_MAX);
-        w.sent = (w.sent || 0) + 1;
-        w.last_sent = new Date(now).toISOString();
-        w.fails = 0;
-        await putWatch(kv, w);
+        // Written onto the watch as it is now; a watch stopped while its mail went isn't brought back.
+        const latest = await kv.get(key, 'json');
+        if (!latest) continue;
+        latest.seen = [...new Set([...(latest.seen || []), ...fresh.map((i) => i.key)])].slice(-SEEN_MAX);
+        latest.sent = (latest.sent || 0) + 1;
+        latest.last_sent = new Date(now).toISOString();
+        await putWatch(kv, latest);
       } catch (err) {
         console.error('watch: one watch could not be handled', String(err?.message || '').slice(0, 60));
       }
@@ -608,7 +620,7 @@ const xml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
  * One Atom feed: every upcoming item in the snapshot (slug "all") or those
  * tagged with one civic league. Returns null for an unknown league.
  */
-export function atomFeed({ snapshot, slug, origin, appName }) {
+export function atomFeed({ snapshot, slug, origin, appName, topics = [] }) {
   const league = slug === 'all' ? null : (snapshot.leagues || []).find((l) => leagueSlug(l) === slug);
   if (slug !== 'all' && !league) return null;
   const items = snapshot.items.filter((i) => !league || (i.leagues || []).includes(league));
@@ -621,17 +633,17 @@ export function atomFeed({ snapshot, slug, origin, appName }) {
     const when = `${i.body} ${m.type || ''}, ${meetingTime(i.when)}${m.location ? ` (${m.location})` : ''}`.replace(/\s+,/, ',');
     return `  <entry>
     <id>tag:${xml(host)},2026-11-16:agenda/${xml(i.meeting)}/${xml(i.id)}</id>
-    <title>${xml(i.text.length > 200 ? `${i.text.slice(0, 197).replace(/\s+\S*$/, '')}…` : i.text)}</title>
+    <title>${xml(`${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}`)}</title>
     <link rel="alternate" href="${xml(i.url)}"/>
     <updated>${xml(i.first_seen)}</updated>
-    <summary>${xml(`${when}. ${i.text}`)}</summary>
+    <summary>${xml(`${when}. ${describeItem(i, topics)}${i.number ? `, ${i.number}` : ''}. The City's page has the full agenda item.`)}</summary>
   </entry>`;
   });
   return `<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:${xml(host)},2026-11-16:feeds/${xml(slug)}</id>
   <title>${xml(title)}</title>
-  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Private people's names are withheld. Items are tagged by the civic league of the address their title names.`)}</subtitle>
+  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each item is described from its title without repeating it (titles can name private people); its link is the City's page. Items are tagged by the civic league of the address their title names.`)}</subtitle>
   <link rel="self" href="${xml(self)}"/>
   <link rel="alternate" href="${xml(`${origin}/feeds`)}"/>
   <updated>${xml(snapshot.built)}</updated>

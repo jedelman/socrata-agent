@@ -55,7 +55,7 @@ import {
 // own imports), like every shared module.
 import { priorResearchFor, sharedResearchOn, sharedResearchReady, accountResearchOn, handleShare, handleResearchList, handleAdminResearch } from './research.js';
 import { researchScopesFor } from '../src/agent.js';
-import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs, ordinaryWords } from './telemetry.js';
+import { logAnswer, telemetryOn, TELEMETRY_NOTE, newTrace, traceArgs } from './telemetry.js';
 import { OTLP_PATH, otlpOn, handleOtlp } from './otlp.js';
 import REQUESTS_PAGE from './requests.html';
 import ADMIN_RESEARCH_PAGE from './admin-research.html';
@@ -321,7 +321,7 @@ async function handleAsk(req, env, ctx) {
         const args = askArgs();
         // The tools this answer declares: a tool line names only one of these.
         const scopes = researchScopesFor(priorResearch);
-        const known = new Set(toolsFor(args.city, plugins, { ...(gapsOn ? { gaps: GAPS[cityId] } : {}), ...(scopes.length ? { priorResearch: { scopes } } : {}), ...(watchArgs.watches ? { watches: { bodies: watchArgs.watches.bodies } } : {}) }).map((t) => t.function.name));
+        const known = new Set(toolsFor(args.city, plugins, { ...(gapsOn ? { gaps: GAPS[cityId] } : {}), ...(scopes.length ? { priorResearch: { scopes } } : {}), ...(watchArgs.watches ? { watches: { bodies: watchArgs.watches.bodies, topics: watchArgs.watches.topics } } : {}) }).map((t) => t.function.name));
         const { save, body } = finish(await ask({ ...args, onCost, onEvent: noteEvents(send, { known }), thinkingEvents: true, ...traceArgs(trace) }));
         if (save) await save;
         send({ type: 'final', body });
@@ -353,15 +353,16 @@ async function handleAsk(req, env, ctx) {
   }
 }
 
-// What offer_watch checks a watch against: the city's bodies, the
-// vocabulary, its street names and the civic leagues in the last snapshot.
+// What offer_watch checks a watch against: the city's bodies, its reviewed
+// topics and the civic leagues in the last snapshot.
 async function watchOptions(env, cityId) {
   const bodies = cities[cityId].meetings.watchBodies;
+  const topics = cities[cityId].meetings.watchTopics || [];
   let leagues = [];
   try {
     leagues = (await readSnapshot(env.LIMITS, cityId))?.leagues || [];
   } catch { /* no leagues: a league watch is refused with a reason */ }
-  return { bodies, check: (args) => checkWatch(args, { vocab: ordinaryWords(), streets: STREETS[cityId], leagues, bodies }) };
+  return { bodies, topics, check: (args) => checkWatch(args, { topics, leagues, bodies }) };
 }
 const watchCities = (env) => {
   const { config } = getDeployment(env);
@@ -372,8 +373,6 @@ function watchDeps(env) {
   return {
     cityIds: Object.keys(list),
     cities: list,
-    streets: (c) => STREETS[c],
-    vocab: ordinaryWords,
     // Email sign-in exists only in invite mode, where asking needs a bound invite.
     canAsk: async (uid) => !inviteOnly(env) || Boolean(await memberInvite(env.LIMITS, uid)),
   };
@@ -411,7 +410,7 @@ async function watchRoute(req, env, path, base, url) {
       if (!snapshot) return new Response("The agendas haven't been read yet. Try again in an hour.", { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '3600' } });
       const origin = `${siteOrigin(env, url)}${base}`;
       if (feed) {
-        const body = atomFeed({ snapshot, slug: feed[1], origin, appName: APP_NAME_OF(env, config) });
+        const body = atomFeed({ snapshot, slug: feed[1], origin, appName: APP_NAME_OF(env, config), topics: list[first].meetings.watchTopics || [] });
         if (!body) return new Response('No such civic league.', { status: 404 });
         return new Response(body, { headers: { 'Content-Type': 'application/atom+xml; charset=utf-8', 'Cache-Control': 'public, max-age=900', 'Access-Control-Allow-Origin': '*', 'X-Content-Type-Options': 'nosniff', ...NOINDEX } });
       }
@@ -425,7 +424,7 @@ async function watchRoute(req, env, path, base, url) {
   }
   return null;
 }
-const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. Matching reads only the agenda titles the City posts, and private people's names are withheld from every email.`;
+const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. Watches follow topics from a reviewed list, and every email describes each agenda item without repeating its title, which can name private people.`;
 
 // What every answer runs with, private or public: the deployment's city,
 // plugins, model and limits, for one city.
@@ -1184,7 +1183,7 @@ export default {
       if (watchesOn(env) && watchesSetupError(env)) console.error('watches:', watchesSetupError(env));
       if (env.LIMITS) {
         const list = watchCities(env);
-        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config), ordinary: ordinaryWords(), streets: (c) => STREETS[c] })
+        jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config) })
           .catch((err) => console.error('watch job failed', String(err?.message || err).slice(0, 200))));
       }
     }

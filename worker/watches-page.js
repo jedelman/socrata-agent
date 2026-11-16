@@ -19,6 +19,7 @@
     const opt = data.options[city] || { bodies: [], leagues: [] };
     $('#league').innerHTML = '<option value="">Anywhere in the city</option>' + opt.leagues.map((l) => `<option>${esc(l)}</option>`).join('');
     $('#bodies').innerHTML = '<legend>Bodies</legend>' + opt.bodies.map((b) => `<label><input type="checkbox" name="body" value="${esc(b)}" checked> ${esc(b)}</label>`).join('');
+    $('#topics').innerHTML = '<legend>Topics</legend>' + (opt.topics || []).map((t) => `<label><input type="checkbox" name="topic" value="${esc(t.id)}"> ${esc(t.label)}</label>`).join('');
     $('#f').dataset.city = city || '';
   }
   async function load() {
@@ -45,10 +46,10 @@
     const f = e.target;
     const bodies = [...f.querySelectorAll('input[name="body"]:checked')].map((i) => i.value);
     $('#fmsg').textContent = 'Starting…';
-    const { res, out } = await post('api/watches', { city: f.dataset.city, terms: $('#terms').value.split(','), league: $('#league').value, bodies, email: $('#email').value });
+    const topics = [...f.querySelectorAll('input[name="topic"]:checked')].map((i) => i.value);
+    const { res, out } = await post('api/watches', { city: f.dataset.city, topics, league: $('#league').value, bodies, email: $('#email').value });
     if (!res.ok) {
-      const refused = (out.refused || []).map((r) => `"${r.term}": ${r.reason}`).join('; ');
-      $('#fmsg').textContent = `${out.error || 'Something went wrong.'}${refused ? ` (${refused})` : ''}`;
+      $('#fmsg').textContent = out.error || 'Something went wrong.';
       return;
     }
     $('#fmsg').textContent = '';

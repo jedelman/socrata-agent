@@ -10,15 +10,14 @@
 <main class="wpage">
   <p class="back"><a href="{{BASE}}/">Back to {{APP_NAME}}</a></p>
   <h1>Your watches</h1>
-  <p class="lede">Once a day, {{APP_NAME}} checks the agendas the City posts for {{BODIES}}, for the next three weeks of meetings, and emails you when a new item matches one of your watches. Ask for a watch in a conversation ("let me know if the Planning Commission takes up short-term rentals"), or start one here.</p>
+  <p class="lede">Once a day, {{APP_NAME}} checks the agendas the City posts for {{BODIES}}, for the next three weeks of meetings, and emails you when a new item matches one of your watches. Ask for a watch in a conversation ("let me know if the Planning Commission takes up short-term rentals"), or start one here. Watches follow topics from a reviewed list.</p>
   <p class="msg" id="msg" role="status"></p>
   <ul class="watches" id="list"></ul>
   <p class="empty" id="empty" hidden>You have no watches yet.</p>
   <section class="new" id="new" hidden aria-labelledby="new-title">
     <h2 id="new-title">Start a watch</h2>
     <form id="f" autocomplete="on">
-      <label>Words to look for in agenda titles, separated by commas
-        <input id="terms" name="terms" maxlength="400" placeholder="short-term rental, vacation rental, homestay"></label>
+      <fieldset id="topics"><legend>Topics</legend></fieldset>
       <label>Civic league (optional)
         <select id="league" name="league"><option value="">Anywhere in the city</option></select></label>
       <fieldset id="bodies"><legend>Bodies</legend></fieldset>

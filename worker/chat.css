@@ -293,11 +293,14 @@ form.suggest .msg.ok { color: var(--accent); }
 .watchcard .why { font-size: .93rem; }
 .watchcard .fine { font-size: .84rem; margin-top: 6px; }
 .watchcard label.note { display: block; margin-top: 12px; font-size: .9rem; font-weight: 600; }
-.watchcard input:not([type="hidden"]) { display: block; width: 100%; margin-top: 4px; font-weight: 400; font-size: .95rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.watchcard input:not([type="hidden"]):not([type="checkbox"]) { display: block; width: 100%; margin-top: 4px; font-weight: 400; font-size: .95rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .watchcard .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
 .watchcard button.ask { padding: 8px 16px; font-size: .93rem; }
 .watchcard .msg { font-size: .9rem; color: var(--muted); }
 .watchcard ul.plain li { overflow-wrap: anywhere; }
+.watchcard fieldset.topics { border: 1px solid var(--line); border-radius: 8px; margin: 12px 0 0; padding: 6px 12px 8px; }
+.watchcard fieldset.topics legend { font-size: .9rem; font-weight: 600; padding: 0 4px; }
+.watchcard label.topic { display: inline-flex; align-items: center; gap: 6px; margin: 4px 16px 4px 0; font-size: .93rem; }
 [data-skin="siren"] .watchcard h3 { font-family: var(--display); font-weight: 600; }
 /* Share these sources (research memory): a quiet stacked card, not the page's flex-row form. */
 form.share-sources { display: block; border-top: 1px dashed var(--line); padding: 10px 0 0; margin: 12px 0 4px; }

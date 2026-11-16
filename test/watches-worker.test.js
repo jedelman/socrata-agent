@@ -53,7 +53,7 @@ test('both flags off: every watches and feeds path is a 404, the one-click path 
   const cookie = await member(env);
   for (const p of PATHS) assert.equal((await call(env, p, { cookie })).status, 404, p);
   assert.equal((await call(env, '/watch/stop?t=x.y', { method: 'POST', body: 'List-Unsubscribe=One-Click', type: 'application/x-www-form-urlencoded' })).status, 415);
-  assert.equal((await call(env, '/api/watches', { method: 'POST', cookie, body: { terms: ['rental'] } })).status, 404);
+  assert.equal((await call(env, '/api/watches', { method: 'POST', cookie, body: { topics: ['short_term_rentals'] } })).status, 404);
   const page = await (await call(env, '/')).text();
   assert.doesNotMatch(page, /Your watches|Neighborhood feeds|\{\{/);
   assert.match(page, /Your email address is not stored; it's sent to our mail provider only to deliver your sign-in link\./);
@@ -88,7 +88,7 @@ test('WATCHES on: the page links them and says what a watch keeps, the session s
 test('the one-click stop: a form POST from a mail client stops the watch it names, and only that one', { skip }, async () => {
   const env = base({ WATCHES: 'true' });
   const cookie = await member(env);
-  const made = await (await call(env, '/api/watches', { method: 'POST', cookie, body: { terms: ['kennel'], email: USER }, headers: { Origin: ORIGIN } })).json();
+  const made = await (await call(env, '/api/watches', { method: 'POST', cookie, body: { topics: ['animals'], email: USER }, headers: { Origin: ORIGIN } })).json();
   assert.ok(made.ok, JSON.stringify(made));
   const t = await stopToken(SECRET, made.watch.id);
   assert.equal((await call(env, `/watch/stop?t=${made.watch.id}.nope`, { method: 'POST', body: 'List-Unsubscribe=One-Click', type: 'application/x-www-form-urlencoded' })).status, 400);
@@ -120,7 +120,9 @@ test('LEAGUE_FEEDS on: the feeds page and the Atom feeds, once the agendas have 
   assert.doesNotMatch(page.headers.get('Content-Security-Policy'), /script-src/);
   const feed = await call(env, '/feeds/ocean-view.atom');
   assert.equal(feed.headers.get('Content-Type'), 'application/atom+xml; charset=utf-8');
-  assert.match(await feed.text(), /Short-Term Rental Unit on Property Located at 1039 Sample Avenue/);
+  const atom = await feed.text();
+  assert.match(atom, /<title>Conditional Use Permit: Short-term rentals, at 1039 Sample Avenue \(Ordinance No\. 1\)<\/title>/);
+  assert.doesNotMatch(atom, /Authorize a Short-Term Rental Unit on Property/, 'the title itself is never repeated');
   assert.equal((await call(env, '/feeds/atlantis.atom')).status, 404);
   assert.equal((await call(env, '/watches')).status, 404, 'watches stay off');
   // The chat page links the feeds.
@@ -132,7 +134,7 @@ async function askWith(env, cookie) {
   const usage = { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
   const msg = (content, stop_reason) => ({ id: 'msg_1', type: 'message', role: 'assistant', model: MODEL, content, stop_reason, stop_sequence: null, stop_details: null, usage });
   const replies = [
-    msg([{ type: 'tool_use', id: 'toolu_1', name: 'offer_watch', input: { terms: ['short-term rental', 'vacation rental', 'Jane Doe'] } }], 'tool_use'),
+    msg([{ type: 'tool_use', id: 'toolu_1', name: 'offer_watch', input: { topics: ['short_term_rentals', 'Jane Doe'] } }], 'tool_use'),
     msg([{ type: 'text', text: 'I can watch the agendas for short-term rental items. Start the watch on the card below.' }], 'end_turn'),
   ];
   const real = globalThis.fetch;
@@ -159,7 +161,8 @@ test('offer_watch reaches the model only for a signed-in member with WATCHES on,
   const { body, model } = await askWith(on, await member(on));
   assert.ok(model[0].tools.some((t) => t.name === 'offer_watch'));
   assert.match(model[0].system.map ? model[0].system.map((b) => b.text).join('') : model[0].system, /call offer_watch/);
-  assert.deepEqual(body.watchOffer.terms, ['short term rental', 'vacation rental']);
+  assert.deepEqual(body.watchOffer.topics, ['short_term_rentals']);
+  assert.deepEqual(body.watchOffer.labels, ['Short-term rentals']);
   assert.deepEqual(body.watchOffer.bodies, ['City Council', 'Planning Commission']);
   const off = base();
   const plain = await askWith(off, await member(off));

@@ -7,7 +7,7 @@ import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
 import { NOTE_UNANSWERED_TOOL, noteUnanswered } from './gaps/answer.js';
 import { offerFollowup, FOLLOWUP_LABEL, MAX_FOLLOWUPS, FOLLOWUP_QUESTION_CHARS } from './followups.js';
 import { priorResearch, RESEARCH_SCOPES } from './prior-research.js';
-import { offerWatch, MAX_TERMS } from './watches.js';
+import { offerWatch, MAX_TOPICS } from './watches.js';
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
@@ -78,8 +78,8 @@ export function toolsFor(city, plugins = [], opts = {}) {
   // a signed-in member with WATCHES on. Without it the tool list is as before.
   if (opts.watches) {
     tools.push(
-      T('offer_watch', `When the person asks to be told, notified or emailed when ${opts.watches.bodies.join(' or ')} take up a topic, or anything in a neighborhood, offer a watch: the person sees a card under your answer to start it, and gets one email a day when a newly posted agenda item matches. Terms are matched against agenda titles, so give the words the City uses and its synonyms (for short-term rentals: "short-term rental", "vacation rental", "homestay", "bed and breakfast"). For a neighborhood, give its civic league. Never a person's or business's name, or an address. At most one per answer.`, {
-        terms: { type: 'array', items: { type: 'string' }, description: `Up to ${MAX_TERMS} topic terms of 1 to 4 words, as agenda titles word them. Leave empty to watch everything in a civic league.` },
+      T('offer_watch', `When the person asks to be told, notified or emailed when ${opts.watches.bodies.join(' or ')} take up a topic, or anything in a neighborhood, offer a watch: the person sees a card under your answer to start it, and gets one email a day when a newly posted agenda item matches. A watch follows topics from this list only (id: what it covers): ${opts.watches.topics.map((t) => `${t.id}: ${t.label}`).join('; ')}. For a neighborhood, give its civic league. If no topic fits, don't offer one; say a watch can't follow that yet. At most one per answer.`, {
+        topics: { type: 'array', items: { type: 'string', enum: opts.watches.topics.map((t) => t.id) }, description: `Up to ${MAX_TOPICS} topic ids from the list. Leave empty to watch everything in a civic league.` },
         civic_league: { type: 'string', description: "Optional: a civic league's name, as the City's address list gives it (lookup_address or area_lookup shows it)." },
         bodies: { type: 'array', items: { type: 'string', enum: opts.watches.bodies }, description: 'Optional: which bodies to watch. All of them by default.' },
       })
