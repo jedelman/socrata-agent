@@ -66,7 +66,7 @@ both ways:
   877 addresses descriptions showed weren't addresses on the City's list. None
   of the 17 was a person's name, but the check couldn't promise that.
 - **Streets read as names.** The phrase guard refused 576 of the City's 1,941
-  street names ("hampton", "colley") as people's names.
+  street names ("hampton", "washington", "duke") as people's names.
 
 So watches carry the City's own address list, `data/norfolk-addresses.json`,
 built by `scripts/build-addresses.js` from Address Information (`ere7-kake`).
