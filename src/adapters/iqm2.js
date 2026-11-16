@@ -40,7 +40,7 @@ const field = (html, label) => {
 // organization is a person, and their name is withheld wherever it appears;
 // so is a name after a courtesy title.
 const LETTER_KEEP = { request: /^request$/, description: /^description$/, analysis: /^analysis$/, financial_impact: /^financial impact$/ };
-const ORG = /\b(?:llc|l\.l\.c|inc|incorporated|corp|corporation|company|co\.|lp|llp|ltd|trust|association|church|ministries|university|college|school|foundation|partners|partnership|group|hospital|bank|authority|commission|department|city of|county|commonwealth|board|council|society|club|center|centre|properties|holdings|ventures|realty|development|enterprises|services|restaurant|cafe|hotel|museum)\b/i;
+export const ORG = /\b(?:llc|l\.l\.c|inc|incorporated|corp|corporation|company|co\.|lp|llp|ltd|trust|association|church|ministries|university|college|school|foundation|partners|partnership|group|hospital|bank|authority|commission|department|city of|county|commonwealth|board|council|society|club|center|centre|properties|holdings|ventures|realty|development|enterprises|services|restaurant|cafe|hotel|museum)\b/i;
 const LETTER_MAX = 1200;
 const letterText = (s) =>
   decode(s.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))))
