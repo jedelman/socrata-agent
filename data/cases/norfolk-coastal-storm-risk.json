@@ -1,0 +1,680 @@
+{
+  "id": "norfolk-coastal-storm-risk",
+  "title": "What is Norfolk's plan to protect the city from coastal storm flooding (the floodwall project), and how far along is it?",
+  "summary": "What the records show as of November 16, 2026 about Resilient Norfolk, the Coastal Storm Risk Management (CSRM) project the City is building with the U.S. Army Corps of Engineers. The City's project page says Congress authorized it in 2020, that under the Corps' January 2022 infrastructure-law plan the City will receive $399,331,000, and that it has four phases: a floodwall and levees around downtown (Phase 1, split into 1A to 1D) and protection for the Pretty Lake, Lafayette River and Broad Creek areas, plus a voluntary Nonstructural Program that elevates or floodproofs individual buildings. WHRO reported that Council approved the partnership agreement with the Corps in April 2023, with the federal government paying 65% and Norfolk just over $931 million, and that City staff called that obligation daunting. The adopted FY 2027-2031 capital plan shows $159.2 million appropriated to date ($126.2 million of it general capital, the rest water and wastewater utility money), $25 million for FY 2027 (anticipated state grant money) and $6.2 million for FY 2028, and says the City's ability to pay its match depends on the state; the City reported a $25 million state Community Flood Preparedness Fund grant in April 2026. Council has since approved a right of entry for the Corps to investigate City land for the downtown wall (September 2025), a design-build contract for the Nonstructural Program (April 2026; about 1,000 pre-eligible buildings, with welcome letters sent to Tier 1 owners in February 2026), and an $85,000 review agreement with Norfolk Southern for a flood gate across its tracks near Lamberts Point (June 2026). WHRO reported on November 12, 2026 that first-phase sitework is underway with wall construction set for 2027, and that Council unanimously approved a $1.5 million study with the Corps of coastal protections for Southside communities, which WHRO reported in July 2025 the current design leaves with home elevations but no wall. What isn't settled: WHRO reported in 2025 that the cost is expected to rise beyond the $2.6 billion Congress approved and the finish date moved to 2037, and that the City asked to move the wall's path along the Freemason waterfront, which the City's chief resilience officer said requires federal authorization. WHRO also reported that the Southside study agreement doesn't mention the local stormwater drainage that flooded underpasses on August 4, 2026. City Council approves the City's agreements for the project.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "reviewed": "2026-11-16",
+  "findings": [
+    {
+      "id": "phases",
+      "stance": "context",
+      "claim": "The City divides the CSRM project into four phases: Phase 1 (split into 1A to 1D), Phase 2 in the Pretty Lake area, Phase 3 for the Lafayette River watershed and Phase 4 for the Broad Creek watershed.",
+      "source": {
+        "title": "Norfolk Coastal Storm Risk Management (CSRM) Project (City of Norfolk, Office of Resilience)",
+        "url": "https://www.norfolk.gov/5282/Norfolk-Coastal-Storm-Risk-Management-CS"
+      },
+      "quote": "The CSRM Project has been divided into 4 individual phases: Phase 1 (further divided into Phases 1A-1D), Phase 2 in the Pretty Lake Area, Phase 3 to protect the Lafayette River Watershed, and Phase 4 protecting the Broad Creek Watershed.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigx5nyqew5beafh46rx43e4rnrdaz3ttbiml6w4pwrxdnxvlr46jq",
+        "bytes": 114582,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The CSRM Project has been divided into 4 individual phases: Phase 1 (further divided into Phases 1A-1D), Phase 2 in the Pretty Lake Area, Phase 3 to protect the Lafayette River Watershed, and Phase 4 protecting the Broad Creek Watershed.",
+        "prefix": "to the protection that it provides. ",
+        "suffix": " Simultaneously, the Nonstructural"
+      }
+    },
+    {
+      "id": "federal-funding",
+      "stance": "confirms",
+      "claim": "The City's page says that under the Army Corps' January 2022 plan for Bipartisan Infrastructure Law money, the City will receive $399,331,000 for the project.",
+      "source": {
+        "title": "Norfolk Coastal Storm Risk Management (CSRM) Project (City of Norfolk, Office of Resilience)",
+        "url": "https://www.norfolk.gov/5282/Norfolk-Coastal-Storm-Risk-Management-CS"
+      },
+      "quote": "As part of the plan, the City of Norfolk will receive $399,331,000 to increase community resilience to flooding.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigx5nyqew5beafh46rx43e4rnrdaz3ttbiml6w4pwrxdnxvlr46jq",
+        "bytes": 114582,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "As part of the plan, the City of Norfolk will receive $399,331,000 to increase community resilience to flooding.",
+        "prefix": "chains and bolster climate resilience. ",
+        "suffix": " The city will use the funding for the"
+      }
+    },
+    {
+      "id": "authorized",
+      "stance": "context",
+      "claim": "The City says Congress authorized the project in the Water Resources Development Act of 2020.",
+      "source": {
+        "title": "Norfolk Coastal Storm Risk Management (CSRM) Project (City of Norfolk, Office of Resilience)",
+        "url": "https://www.norfolk.gov/5282/Norfolk-Coastal-Storm-Risk-Management-CS"
+      },
+      "quote": "The project was authorized by congress in the bipartisan Water Resources Development Act of 2020.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigx5nyqew5beafh46rx43e4rnrdaz3ttbiml6w4pwrxdnxvlr46jq",
+        "bytes": 114582,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The project was authorized by congress in the bipartisan Water Resources Development Act of 2020.",
+        "prefix": "Report completed in February 2019. ",
+        "suffix": " In January 2022, the United States"
+      }
+    },
+    {
+      "id": "ppa-approved",
+      "stance": "who_decides",
+      "claim": "WHRO reported (April 25, 2023) that City Council's unanimous vote let the City sign a Project Partnership Agreement with the Army Corps' Norfolk District.",
+      "source": {
+        "title": "WHRO, April 25, 2023: Norfolk OKs $2.6 billion federal floodwall agreement with new funding and equity stipulations",
+        "url": "https://www.whro.org/2023-04-25/norfolk-oks-2-6-billion-federal-floodwall-agreement-with-new-funding-and-equity-stipulations"
+      },
+      "quote": "Council’s decision allows the city to sign a Project Partnership Agreement with the Norfolk District of the U.S. Army Corps of Engineers.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigkxp6vw65ntl2fekthscxt4s3l25jgsoxh4v3zdn7pqm36ejkx7a",
+        "bytes": 153953,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Council’s decision allows the city to sign a Project Partnership Agreement with the Norfolk District of the U.S. Army Corps of Engineers.",
+        "prefix": "storms in the face of climate change. ",
+        "suffix": " That unlocks $400 million awarded"
+      }
+    },
+    {
+      "id": "cost-share",
+      "stance": "context",
+      "claim": "WHRO reported (April 25, 2023) that the federal government plans to pay 65% of the cost, leaving Norfolk just over $931 million.",
+      "source": {
+        "title": "WHRO, April 25, 2023: Norfolk OKs $2.6 billion federal floodwall agreement with new funding and equity stipulations",
+        "url": "https://www.whro.org/2023-04-25/norfolk-oks-2-6-billion-federal-floodwall-agreement-with-new-funding-and-equity-stipulations"
+      },
+      "quote": "The federal government plans to pay for 65% of the total project cost, leaving Norfolk on the hook for the rest, just over $931 million.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigkxp6vw65ntl2fekthscxt4s3l25jgsoxh4v3zdn7pqm36ejkx7a",
+        "bytes": 153953,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The federal government plans to pay for 65% of the total project cost, leaving Norfolk on the hook for the rest, just over $931 million.",
+        "prefix": "called such a change \"unprecedented.\" ",
+        "suffix": " Those looming costs led the city to"
+      }
+    },
+    {
+      "id": "funding-daunting",
+      "stance": "weakens",
+      "claim": "WHRO reported (April 25, 2023) that City staff, in a resolution Council passed with the agreement, called the City's funding obligations daunting.",
+      "source": {
+        "title": "WHRO, April 25, 2023: Norfolk OKs $2.6 billion federal floodwall agreement with new funding and equity stipulations",
+        "url": "https://www.whro.org/2023-04-25/norfolk-oks-2-6-billion-federal-floodwall-agreement-with-new-funding-and-equity-stipulations"
+      },
+      "quote": "the funding obligations of the City of Norfolk under the Project Partnership Agreement are daunting and will present challenges throughout the construction",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigkxp6vw65ntl2fekthscxt4s3l25jgsoxh4v3zdn7pqm36ejkx7a",
+        "bytes": 153953,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "the funding obligations of the City of Norfolk under the Project Partnership Agreement are daunting and will present challenges throughout the construction",
+        "prefix": "CSRM Project are worthy of investment, ",
+        "suffix": ",\" city staff wrote in the resolution,"
+      }
+    },
+    {
+      "id": "match-depends-on-state",
+      "stance": "weakens",
+      "claim": "The adopted FY 2027-2031 capital plan says the City's ability to pay the required non-federal match depends on the state's support.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan (City of Norfolk, adopted budget)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "Our ability to pay the required non-federal match is dependent on the state’s support.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Our ability to pay the required non-federal match is dependent on the state’s support.",
+        "prefix": "with the U.S. Army Corps of Engineers. ",
+        "suffix": " The Adopted FY 2027 CIP includes"
+      }
+    },
+    {
+      "id": "cip-funding",
+      "stance": "confirms",
+      "claim": "In general capital, the adopted FY 2027-2031 capital plan shows $126,207,887 appropriated to date for the project, $25,000,000 adopted for FY 2027 and $6,000,000 planned for FY 2028, and no more general capital after that.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan (City of Norfolk, adopted budget)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "Construct Coastal Storm Risk Management Project $126,207,887 $25,000,000 $6,000,000 $0 $0 $0 $31,000,000",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Construct Coastal Storm Risk Management Project $126,207,887 $25,000,000 $6,000,000 $0 $0 $0 $31,000,000",
+        "prefix": "(DCIP) - $500,000 $0 $0 $0 $0 $500,000 ",
+        "suffix": " 492 - Capital Improvement Plan Summary"
+      }
+    },
+    {
+      "id": "cip-total",
+      "stance": "context",
+      "claim": "Across all funds, the plan's project page shows $159,207,887 appropriated to date (with water and wastewater utility money besides general capital), and $31,600,000 over the five years, including $200,000 a year of storm water utility money in FY 2028 to FY 2030.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan (City of Norfolk, adopted budget)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "Total $159,207,887 $25,000,000 $6,200,000 $200,000 $200,000 $0 $31,600,000",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Total $159,207,887 $25,000,000 $6,200,000 $200,000 $200,000 $0 $31,600,000",
+        "prefix": "Utility $26,400,000 $0 $0 $0 $0 $0 $0 ",
+        "suffix": " Description: The Coastal Risk"
+      }
+    },
+    {
+      "id": "cip-state-grant",
+      "stance": "context",
+      "claim": "The adopted plan's FY 2027 money is anticipated state grant funding.",
+      "source": {
+        "title": "FY 2027-2031 Adopted Capital Improvement Plan (City of Norfolk, adopted budget)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/113999/14-Capital-Improvement-Plan"
+      },
+      "quote": "The Adopted FY 2027 CIP includes $25,000,000 in anticipated grant funding from the state",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreialxouolmwymuywmjn72rp3cbjr5cxsdzmrv34zrwnks3gzc4a5ya",
+        "bytes": 987745,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Adopted FY 2027 CIP includes $25,000,000 in anticipated grant funding from the state",
+        "prefix": "is dependent on the state's support. ",
+        "suffix": "; already appropriated local funding"
+      }
+    },
+    {
+      "id": "cfpf-grant",
+      "stance": "confirms",
+      "claim": "The City told Council in April 2026 that it had been awarded a $25 million Virginia Community Flood Preparedness Fund grant for the project.",
+      "source": {
+        "title": "Resolution No. 1975 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5762"
+      },
+      "quote": "The City of Norfolk has been awarded a $25 million grant by the Virginia Community Flood Preparedness Fund (CFPF) - Round 6 Awards, to advance the Office of Resilience’s Coastal Storm Risk Management (CSRM) project, Resilient Norfolk.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifikqkybd772jza243yoa43croyt5t5uipec5pamhxlifpar6i5su",
+        "bytes": 37299,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The City of Norfolk has been awarded a $25 million grant by the Virginia Community Flood Preparedness Fund (CFPF) - Round 6 Awards, to advance the Office of Resilience’s Coastal Storm Risk Management (CSRM) project, Resilient Norfolk.",
+        "prefix": "",
+        "suffix": " As required by the grant, the City of"
+      }
+    },
+    {
+      "id": "nonstructural-contract",
+      "stance": "who_decides",
+      "claim": "City Council adopted a resolution on April 28, 2026 (recorded as unanimous in the portal's draft minutes) approving a design-build contract for the project's Nonstructural Program.",
+      "source": {
+        "title": "Resolution No. 1975 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5762"
+      },
+      "quote": "A Resolution Approving and Authorizing the City Manager to Enter Into a Design-Build Contract for the Norfolk Coastal Storm Risk Management Nonstructural Flood Mitigation Program.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifikqkybd772jza243yoa43croyt5t5uipec5pamhxlifpar6i5su",
+        "bytes": 37299,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A Resolution Approving and Authorizing the City Manager to Enter Into a Design-Build Contract for the Norfolk Coastal Storm Risk Management Nonstructural Flood Mitigation Program.",
+        "prefix": "Resolution No. 1975 ",
+        "suffix": " - City of Norfolk, VA &laquo;Back to"
+      }
+    },
+    {
+      "id": "nonstructural-goal",
+      "stance": "context",
+      "claim": "The City describes the voluntary Nonstructural Program as reducing flood damage to individual private properties, not preventing flooding as walls and levees do.",
+      "source": {
+        "title": "Resolution No. 1975 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5762"
+      },
+      "quote": "The primary goal of the Nonstructural Program is to reduce the damage to private properties from flooding rather than to prevent flooding that Structural measures such as levees and floodwalls offer.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifikqkybd772jza243yoa43croyt5t5uipec5pamhxlifpar6i5su",
+        "bytes": 37299,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The primary goal of the Nonstructural Program is to reduce the damage to private properties from flooding rather than to prevent flooding that Structural measures such as levees and floodwalls offer.",
+        "prefix": "of flooding from coastal storms. ",
+        "suffix": " Pre-eligible structures within the"
+      }
+    },
+    {
+      "id": "nonstructural-areas",
+      "stance": "context",
+      "claim": "The City counts about 1,000 pre-eligible structures, in neighborhoods including Elizabeth Park, Ingleside, Willoughby Spit, Woodbine, Pleasant Point, Easton Place, Wayside Manor and River Forrest Shores.",
+      "source": {
+        "title": "Resolution No. 1975 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5762"
+      },
+      "quote": "There are about 1,000 pre-eligible structures in multiple areas of the city, including Elizabeth Park, Ingleside, Willoughby Spit, Woodbine, Pleasant Point, Easton Place, Wayside Manor, and River Forrest Shores.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifikqkybd772jza243yoa43croyt5t5uipec5pamhxlifpar6i5su",
+        "bytes": 37299,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "There are about 1,000 pre-eligible structures in multiple areas of the city, including Elizabeth Park, Ingleside, Willoughby Spit, Woodbine, Pleasant Point, Easton Place, Wayside Manor, and River Forrest Shores.",
+        "prefix": "interval) floodplain elevation. ",
+        "suffix": " Within the Program, there are four"
+      }
+    },
+    {
+      "id": "nonstructural-tier1",
+      "stance": "confirms",
+      "claim": "The City told Council that in February 2026 its Office of Resilience sent welcome letters to the owners of pre-eligible Tier 1 properties.",
+      "source": {
+        "title": "Resolution No. 1975 (City Council, April 28, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5762"
+      },
+      "quote": "In February 2026, the Office of Resilience sent welcome letters to pre-eligible Tier 1 property owners and placed informational doorknockers at pre-eligible properties.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifikqkybd772jza243yoa43croyt5t5uipec5pamhxlifpar6i5su",
+        "bytes": 37299,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "In February 2026, the Office of Resilience sent welcome letters to pre-eligible Tier 1 property owners and placed informational doorknockers at pre-eligible properties.",
+        "prefix": "provide information about the program. ",
+        "suffix": " Case managers are working with"
+      }
+    },
+    {
+      "id": "rail-flood-gate",
+      "stance": "confirms",
+      "claim": "The City told Council that the project will design and build a flood gate across Norfolk Southern's tracks near Lamberts Point yard.",
+      "source": {
+        "title": "Ordinance No. 50394 (City Council, June 9, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5826"
+      },
+      "quote": "a flood gate will be designed and constructed across the Norfolk Southern owned and operated railroad tracks located near Lamberts Point yard",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiecwx7xneh63cmn6ykfyu2puhydp72gl6vne4nqeamlyrgyuv7eme",
+        "bytes": 36936,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "a flood gate will be designed and constructed across the Norfolk Southern owned and operated railroad tracks located near Lamberts Point yard",
+        "prefix": "As part of the Norfolk CSRM Project , ",
+        "suffix": " . Norfolk Southern requires external"
+      }
+    },
+    {
+      "id": "rail-review-cost",
+      "stance": "confirms",
+      "claim": "Council approved (June 9, 2026) an agreement with Norfolk Southern under which the City pays $85,000, from the project's capital funds, for the railroad's review of the flood gate designs.",
+      "source": {
+        "title": "Ordinance No. 50394 (City Council, June 9, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5826"
+      },
+      "quote": "The cost for Norfolk Southern’s review of the flood gate designs is $85,000.00 and will be paid with the Norfolk CSRM CIP funds.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiecwx7xneh63cmn6ykfyu2puhydp72gl6vne4nqeamlyrgyuv7eme",
+        "bytes": 36936,
+        "read": "2026-11-16",
+        "via": "live"
+      }
+    },
+    {
+      "id": "usace-right-of-entry",
+      "stance": "confirms",
+      "claim": "Council approved (September 23, 2025) a right of entry letting the Army Corps survey, bore and investigate City land to build a new downtown floodwall.",
+      "source": {
+        "title": "Ordinance No. 50129 (City Council, September 23, 2025)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5396"
+      },
+      "quote": "The purpose of the right of entry is to allow USA CE to conduct survey’s, make test borings, and carry out other exploratory work as may be necessary to the complete the investigation of the lands to build a new floodwall in downtown Norfolk.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigxbboxrljx3yh23gtqldg5xphaqhsrtaikgabcnt67w4lbsjqyje",
+        "bytes": 36890,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The purpose of the right of entry is to allow USA CE to conduct survey’s, make test borings, and carry out other exploratory work as may be necessary to the complete the investigation of the lands to build a new floodwall in downtown Norfolk.",
+        "prefix": "after Norfolk City Council approval. ",
+        "suffix": " Any tools and equipment of USA CE or"
+      }
+    },
+    {
+      "id": "phase1-sitework",
+      "stance": "confirms",
+      "claim": "WHRO reported (November 12, 2026) that sitework for the floodwall's first phase (Phase 1A, Berkley Bridge to Chesterfield Heights, in WHRO's July 2025 report) is underway, with construction set to start in 2027.",
+      "source": {
+        "title": "WHRO, November 12, 2026: Norfolk council approves $1.5 million to study Southside flood protections, major flood fixes remain years away",
+        "url": "https://www.whro.org/local-government/2026-11-12/norfolk-council-approves-1-5-million-to-study-southside-flood-protections-major-flood-fixes-remain-years-away"
+      },
+      "quote": "Sitework for the first phase of that floodwall effort is underway and set to start construction next year.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyof6ujy4fj2f6igqwy24gzbksfqnknv5auflrnpqayvhpoakh7e",
+        "bytes": 156870,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Sitework for the first phase of that floodwall effort is underway and set to start construction next year.",
+        "prefix": "areas along the Elizabeth River. ",
+        "suffix": " Meanwhile, residents have demanded"
+      }
+    },
+    {
+      "id": "cost-rising",
+      "stance": "weakens",
+      "claim": "WHRO reported (May 22, 2025) that officials expect the cost to rise beyond the $2.6 billion Congress approved in 2020.",
+      "source": {
+        "title": "WHRO, May 22, 2025: Norfolk floodwall project will take more time and money than originally planned, officials say",
+        "url": "https://www.whro.org/environment/2025-05-22/norfolk-floodwall-project-will-take-more-time-and-money-than-originally-planned-officials-say"
+      },
+      "quote": "But officials now estimate the cost will rise beyond what Congress approved in 2020.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigv44qy4jronuvuxealc66urpfrw5nekhmpmrgytotabfkfsp7hvi",
+        "bytes": 173669,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "But officials now estimate the cost will rise beyond what Congress approved in 2020.",
+        "prefix": "on the hook for about $931 million. ",
+        "suffix": " Mark Haviland, spokesperson with the"
+      }
+    },
+    {
+      "id": "timeline-2037",
+      "stance": "weakens",
+      "claim": "WHRO reported (May 22, 2025) that the estimated end date for the whole project moved to 2037, five years later than first planned.",
+      "source": {
+        "title": "WHRO, May 22, 2025: Norfolk floodwall project will take more time and money than originally planned, officials say",
+        "url": "https://www.whro.org/environment/2025-05-22/norfolk-floodwall-project-will-take-more-time-and-money-than-originally-planned-officials-say"
+      },
+      "quote": "The estimated end date for all parts of the project is 2037, five years later than the original timeline.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigv44qy4jronuvuxealc66urpfrw5nekhmpmrgytotabfkfsp7hvi",
+        "bytes": 173669,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The estimated end date for all parts of the project is 2037, five years later than the original timeline.",
+        "prefix": "during construction,\" Haviland wrote. ",
+        "suffix": " The first section of the seawall will"
+      }
+    },
+    {
+      "id": "freemason-path",
+      "stance": "weakens",
+      "claim": "WHRO reported (July 14, 2025) that the City asked the Army Corps to consider moving the wall's path out into the water along the Freemason waterfront, a change the City's chief resilience officer said requires federal authorization.",
+      "source": {
+        "title": "WHRO, July 14, 2025: Norfolk cleared to start construction on first phase of floodwall",
+        "url": "https://www.whro.org/environment/2025-07-14/norfolk-cleared-to-start-construction-on-first-phase-of-floodwall"
+      },
+      "quote": "The city is now asking the Army Corps to consider a different path that would place the wall further out in the water from roughly the USS Wisconsin to PETA headquarters. The potential change requires federal authorization and will likely trigger additional environmental reviews",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiflwvtju2b37y5fdo3mmugkdwjpgpfu465fv5jxago4gk6v2o7aw4",
+        "bytes": 182458,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The city is now asking the Army Corps to consider a different path that would place the wall further out in the water from roughly the USS Wisconsin to PETA headquarters. The potential change requires federal authorization and will likely trigger additional environmental reviews",
+        "prefix": "values and community character. ",
+        "suffix": ", Spencer said. Extending to the"
+      }
+    },
+    {
+      "id": "southside-no-wall",
+      "stance": "weakens",
+      "claim": "WHRO reported (July 14, 2025) that the current design offers five historically Black Southside communities home elevations for some homeowners but no seawall or other structures.",
+      "source": {
+        "title": "WHRO, July 14, 2025: Norfolk cleared to start construction on first phase of floodwall",
+        "url": "https://www.whro.org/environment/2025-07-14/norfolk-cleared-to-start-construction-on-first-phase-of-floodwall"
+      },
+      "quote": "Residents of five historically Black communities on Norfolk’s Southside, across the Elizabeth River, have been fighting to be included in the project. The current design offers home elevations to some homeowners but no structures such as a seawall.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiflwvtju2b37y5fdo3mmugkdwjpgpfu465fv5jxago4gk6v2o7aw4",
+        "bytes": 182458,
+        "read": "2026-11-16",
+        "via": "live"
+      }
+    },
+    {
+      "id": "southside-study",
+      "stance": "who_decides",
+      "claim": "WHRO reported (November 12, 2026) that City Council unanimously approved a $1.5 million agreement with the Army Corps to study coastal storm risk protections for Southside communities.",
+      "source": {
+        "title": "WHRO, November 12, 2026: Norfolk council approves $1.5 million to study Southside flood protections, major flood fixes remain years away",
+        "url": "https://www.whro.org/local-government/2026-11-12/norfolk-council-approves-1-5-million-to-study-southside-flood-protections-major-flood-fixes-remain-years-away"
+      },
+      "quote": "city leaders unanimously approved a $1.5 million agreement with the U.S. Army Corps of Engineers on Tuesday to study coastal storm risk protections for Southside communities, including Berkley, Campostella, Campostella Heights, Diggs Town and Oakwood.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyof6ujy4fj2f6igqwy24gzbksfqnknv5auflrnpqayvhpoakh7e",
+        "bytes": 156870,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "city leaders unanimously approved a $1.5 million agreement with the U.S. Army Corps of Engineers on Tuesday to study coastal storm risk protections for Southside communities, including Berkley, Campostella, Campostella Heights, Diggs Town and Oakwood.",
+        "prefix": "shape. The multi-year wait comes as ",
+        "suffix": " This ties into the massive planned"
+      }
+    },
+    {
+      "id": "not-stormwater",
+      "stance": "context",
+      "claim": "WHRO reported (November 12, 2026) that the Southside study agreement describes coastal storm risk measures and does not mention local stormwater drainage, which is what flooded underpasses on August 4, 2026.",
+      "source": {
+        "title": "WHRO, November 12, 2026: Norfolk council approves $1.5 million to study Southside flood protections, major flood fixes remain years away",
+        "url": "https://www.whro.org/local-government/2026-11-12/norfolk-council-approves-1-5-million-to-study-southside-flood-protections-major-flood-fixes-remain-years-away"
+      },
+      "quote": "The agreement describes the new study as looking at coastal storm risk measures for Southside and does not mention local stormwater drainage, which is what flooded the underpasses on Aug. 4.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyof6ujy4fj2f6igqwy24gzbksfqnknv5auflrnpqayvhpoakh7e",
+        "bytes": 156870,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The agreement describes the new study as looking at coastal storm risk measures for Southside and does not mention local stormwater drainage, which is what flooded the underpasses on Aug. 4.",
+        "prefix": "future planning should address. ",
+        "suffix": " \"The water has no place to go except"
+      }
+    },
+    {
+      "id": "cfpf-purpose",
+      "stance": "rules",
+      "claim": "State law limits the Virginia Community Flood Preparedness Fund, which granted the City $25 million for the project, to flood prevention or protection and coastal resilience.",
+      "source": {
+        "title": "Code of Virginia § 10.1-603.25 (Virginia Community Flood Preparedness Fund)",
+        "url": "https://law.lis.virginia.gov/vacode/title10.1/chapter6/section10.1-603.25/"
+      },
+      "quote": "Moneys in the Fund shall be used solely for the purposes of enhancing flood prevention or protection and coastal resilience as required by this article.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-16",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibmguyr6ygwjupztcx7bkkbt3x4na37k7dsuwsvkdl6manp2hgqym",
+        "bytes": 35266,
+        "read": "2026-11-16",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Moneys in the Fund shall be used solely for the purposes of enhancing flood prevention or protection and coastal resilience as required by this article.",
+        "prefix": "protection and coastal resilience. B. ",
+        "suffix": " The Authority shall manage the Fund"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Watch Council's agendas for the Southside study agreement's text (not yet posted on the meeting portal) and for any revised cost estimate or change to the Freemason alignment, which WHRO reports need federal approval.",
+      "finding": "southside-study"
+    },
+    {
+      "text": "The City's share depends on state support: the adopted capital plan says so, and the FY 2027 money is an anticipated state grant. The state's Community Flood Preparedness Fund has already granted the City $25 million for the project; watch for further state awards.",
+      "finding": "match-depends-on-state"
+    },
+    {
+      "text": "Owners of buildings that may be pre-eligible for elevation, basement fill or floodproofing can check with the Office of Resilience; the program is voluntary and enrolls in tiers.",
+      "finding": "nonstructural-tier1"
+    },
+    {
+      "text": "For street and underpass flooding from heavy rain, also look at the stormwater projects in the capital plan: WHRO reports the new Southside study agreement doesn't mention local stormwater drainage, which flooded the underpasses in August 2026.",
+      "finding": "not-stormwater"
+    }
+  ],
+  "records_to_request": [
+    "The Project Partnership Agreement between the City and the U.S. Army Corps of Engineers for the Norfolk CSRM project (2023) and any amendments, with the resolutions Council adopted alongside it.",
+    "The Army Corps' current cost estimate and schedule for the Norfolk CSRM project as provided to the City, including any revised estimate since the 2019 Chief's Report.",
+    "The agreement approved on November 10, 2026 with the Army Corps for the Southside coastal storm risk study, with its scope, schedule and cost share.",
+    "The design-build contract for the Nonstructural Program approved April 28, 2026: the contractor, contract amount and schedule, and the number of properties enrolled to date.",
+    "The City's Community Flood Preparedness Fund Round 6 grant agreement for the CSRM project and its match commitments."
+  ],
+  "pending": [
+    "The November 10, 2026 Council agenda and the Southside study agreement were not yet available on the meeting portal on November 16, 2026; the study is reported by WHRO only.",
+    "The capital plan describes the project as \"five phases over the next decade\"; the City's project page lists four phases plus the Nonstructural Program. Which count is current isn't stated.",
+    "The Corps' revised cost estimate, which WHRO reported in May 2025 was awaiting certification, was not found.",
+    "The Project Partnership Agreement's own text (2023) is not yet a finding; Siren's legislation index starts with July 2023 meetings.",
+    "Phase 1B (Berkley Bridge west to Freemason) design progress and the surge barriers' design status were reported in 2025 (WHRO); nothing newer was found."
+  ]
+}

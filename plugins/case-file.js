@@ -10,9 +10,10 @@ import zoning from '../data/cases/norfolk-zoning-restaurant-ghent.json' with { t
 import zoningRules from '../data/cases/norfolk-zoning-use-tables-cup.json' with { type: 'json' };
 import macarthur from '../data/cases/norfolk-macarthur-center.json' with { type: 'json' };
 import militaryCircle from '../data/cases/norfolk-military-circle.json' with { type: 'json' };
+import coastalStorm from '../data/cases/norfolk-coastal-storm-risk.json' with { type: 'json' };
 
 // Every file in data/cases/ belongs here; test/plugins.test.js checks it.
-export const CASES = { [trees.id]: trees, [litter.id]: litter, [zoning.id]: zoning, [macarthur.id]: macarthur, [militaryCircle.id]: militaryCircle, [zoningRules.id]: zoningRules };
+export const CASES = { [trees.id]: trees, [litter.id]: litter, [zoning.id]: zoning, [macarthur.id]: macarthur, [militaryCircle.id]: militaryCircle, [zoningRules.id]: zoningRules, [coastalStorm.id]: coastalStorm };
 
 export default definePlugin({
   name: 'case_file',
