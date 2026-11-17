@@ -156,9 +156,9 @@ export function streetForms(street) {
  * about.
  * - find(num, street): the address's { street (as the list spells it),
  *   leagues } when that number is on that street, else null. Exact but for
- *   a direction: one the title adds that the list doesn't give, or one it
- *   leaves out when only one direction of that street has that number.
- *   Never a near miss in the name or the number.
+ *   a direction: one the title adds when the list has no street of that
+ *   direction, or one it leaves out when only one direction of that street
+ *   has that number. Never a near miss in the name or the number.
  * - street(phrase): the street form a phrase is (streetForms), or null.
  * - leagues: the civic leagues the list names.
  */
@@ -191,13 +191,15 @@ export function compileAddresses(file) {
     find(num, street) {
       const n = String(num ?? '').toUpperCase();
       if (!/^[1-9]\d*[A-Z]?$/.test(n)) return null;
-      const on = (key) => (byKey.get(key) || []).flatMap((s) => (numbers(s).has(n) ? [{ street: s, leagues: numbers(s).get(n) }] : []));
+      const on = (key) => (byKey.get(key) || []).flatMap((s) => (numbers(s).has(n) ? [{ street: s, leagues: [...numbers(s).get(n)] }] : []));
       const key = streetKey(street);
       const exact = on(key);
       if (exact.length) return exact[0];
       const w = key.split(' ');
       // A direction the list doesn't give ("628 West 35th Street" is 628 35TH STREET on it).
-      if (w.length > 2 && DIRECTIONS.has(w[0])) return on(w.slice(1).join(' '))[0] || null;
+      // Only when the list has no street of that direction: "102 North Blake Road" isn't 102 BLAKE ROAD,
+      // since NORTH BLAKE ROAD is a street of its own (review of #62).
+      if (w.length > 2 && DIRECTIONS.has(w[0])) return byKey.has(key) ? null : on(w.slice(1).join(' '))[0] || null;
       // A direction the title leaves out ("482 Main Street" is 482 E MAIN STREET), only when one direction has that number.
       const one = [...DIRECTIONS].flatMap((d) => on(`${d} ${key}`));
       return one.length === 1 ? one[0] : null;
@@ -232,14 +234,16 @@ export function cityAddresses(addresses = [], book = null) {
 /**
  * The places a title names, each checked against the City's address list:
  * { addresses (as the title writes them), streets (as the list spells
- * them), leagues }. Money comes out first: "$5,000 Betty Lane Scholarship"
- * names no address (fourth review of #62).
+ * them), leagues }, from the first `max` listed addresses. Money comes out
+ * first: "$5,000 Betty Lane Scholarship" names no address (fourth review of
+ * #62).
  */
-export function titlePlaces(title, book = null) {
+export function titlePlaces(title, book = null, { max = Infinity } = {}) {
   const out = { addresses: [], streets: [], leagues: [] };
   if (!book?.find) return out;
   const text = String(title ?? '').replace(/\$\s?[\d,]+(?:\.\d+)?/g, ' ').replace(/\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b/g, ' ');
   for (const a of extractAddresses(text)) {
+    if (out.addresses.length >= max) break;
     const p = splitAddress(a);
     const hit = p && book.find(p.num, p.street);
     if (!hit) continue;
@@ -295,11 +299,12 @@ export const streetLabel = (phrase) => String(phrase ?? '').replace(/(^|\s)(\p{L
  * Many streets are named for people (Jason, 2026-11-16: "How do we know
  * we're not getting false positives on names"), so a phrase refused only for
  * reading as a name or holding a number, that is a street of the City's
- * address list (`book`, compileAddresses: "hampton", "colley avenue",
- * "21st street"), is kept in `streets`. A street phrase matches only items
- * whose address is on the list and on that street, never a title's words,
- * so it can't follow a person of that name. A phrase that passes stays a
- * phrase, matched in titles ("granby" catches "Granby Street streetscape").
+ * address list (`book`, compileAddresses: "hampton", "21st street"), is kept
+ * in `streets`. A street phrase matches only items whose address is on the
+ * list and on that street, never a title's words, so it can't follow a
+ * person of that name. A phrase that passes stays a phrase, matched in
+ * titles ("granby" catches "Granby Street streetscape"), and, when it names
+ * a street with its type ("hampton boulevard"), by listed address too.
  */
 export function checkPhrases(raw, { names = null, ordinary = null, leagues = [], textCheck = null, book = null } = {}) {
   const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(/[,;\n]/) : [];
@@ -377,18 +382,30 @@ export function phrasesIn(watch, item) {
   return (watch?.phrases || []).filter((p) => termPattern(p)?.test(t));
 }
 
-/** The watch's streets an item's listed addresses are on (item.streets, as the address list spells them). */
+// A phrase that names a street with its type ("hampton boulevard", "colley ave").
+const namesStreet = (phrase) => {
+  const w = streetKey(phrase).split(' ');
+  return w.length > 1 && STREET_TYPES.has(w.at(-1));
+};
+
+/**
+ * The watch's streets an item's listed addresses are on (item.streets, as
+ * the address list spells them): its street watches, and its phrases that
+ * name a street with its type ("hampton boulevard" is matched in titles and
+ * by listed address both; review of #62).
+ */
 export function streetsIn(watch, item) {
   const forms = new Set((item?.streets || []).flatMap(streetForms));
-  return (watch?.streets || []).filter((s) => forms.has(streetKey(s)));
+  return [...(watch?.streets || []), ...(watch?.phrases || []).filter(namesStreet)].filter((s) => forms.has(streetKey(s)));
 }
 
 /**
  * Whether an agenda item matches a watch. `item` is a snapshot item ({ body,
  * topics, title, streets, leagues }). A watch with topics, phrases or
  * streets needs one of them (a topic in the item's topics, a phrase in its
- * title, a street its listed address is on); one with a league needs the
- * item tagged with it; both, when it has both.
+ * title, a street its listed address is on, which a phrase naming a street
+ * with its type also counts as); one with a league needs the item tagged
+ * with it; both, when it has both.
  */
 export function matchesWatch(watch, item) {
   if (!watch || !item) return false;

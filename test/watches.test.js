@@ -131,6 +131,18 @@ test('an "address" that isn\'t a number on one of the City\'s streets never reac
   const twoWays = compileAddresses({ leagues: [], streets: { 'E MAIN STREET': '226', 'W MAIN STREET': '226' } });
   assert.deepEqual(titleAddresses('Property at 226 Main Street', twoWays), [], 'East or West: not guessed');
   assert.deepEqual(titleAddresses('Property at 226 W. Main Street', twoWays), ['226 W. Main Street']);
+  // A title's direction is let go only when the list has no street of that direction (fifth review):
+  // "102 North Blake Road" is not 102 BLAKE ROAD while NORTH BLAKE ROAD is a street of its own.
+  const blake = compileAddresses({ leagues: [], streets: { 'BLAKE ROAD': '102', 'N BLAKE ROAD': '200' } });
+  assert.equal(blake.find('102', 'North Blake Road'), null);
+  assert.deepEqual(blake.find('200', 'N. Blake Road'), { street: 'N BLAKE ROAD', leagues: [] });
+  assert.equal(CITY_BOOK.find('102', 'North Blake Road'), null);
+  assert.equal(CITY_BOOK.find('2910', 'South Cape Henry Avenue'), null);
+  // The first `max` listed addresses, and only their streets and leagues.
+  assert.deepEqual(titlePlaces('Property at 4200 Colley Avenue and 1210 Granby Street', BOOK, { max: 1 }), { addresses: ['4200 Colley Avenue'], streets: ['COLLEY AVENUE'], leagues: ['Ghent'] });
+  // A caller can't change the list through what find returns.
+  BOOK.find('4200', 'Colley Avenue').leagues.push('Atlantis');
+  assert.deepEqual(BOOK.find('4200', 'Colley Avenue').leagues, ['Ghent']);
 });
 
 test('topics: reviewed phrases matched as words, plurals and hyphens included; the list carries no free word', () => {
@@ -212,6 +224,17 @@ test('streets named for people (Jason, 2026-11-16): every street of the City\'s 
   assert.ok(!matchesWatch(w, { body: 'City Council', topics: [], title: 'An Ordinance Approving a Lease With John Hampton', streets: [], leagues: [] }), 'a person named Hampton is never matched');
   assert.ok(!matchesWatch(w, { body: 'City Council', topics: [], title: 'Hampton', streets: ['NORTHAMPTON BOULEVARD'], leagues: [] }), 'a street, not a substring');
   assert.deepEqual(streetsIn({ streets: ['virginia beach', '21st street', 'granby'] }, { streets: ['E VIRGINIA BEACH BOULEVARD', 'W 21ST STREET'] }), ['virginia beach', '21st street']);
+  // A phrase that names a street with its type stays a phrase, and matches by listed address too
+  // ("Hampton Boulevard" against a title's "Hampton Blvd."; fifth review). One without a type doesn't:
+  // "granby" never matches an item just for being on Granby Street.
+  const full = checkWatch({ phrases: ['Hampton Boulevard', 'granby'] }, { ...opts, book: CITY_BOOK });
+  assert.deepEqual([full.watch.phrases, full.watch.streets], [['hampton boulevard', 'granby'], []]);
+  const blvd = { body: 'City Council', topics: [], title: 'A Conditional Use Permit at 1209 Hampton Blvd.', streets: ['HAMPTON BOULEVARD'], leagues: [] };
+  assert.ok(matchesWatch(full.watch, blvd));
+  assert.deepEqual(streetsIn(full.watch, blvd), ['hampton boulevard']);
+  assert.ok(!matchesWatch({ ...full.watch, phrases: ['granby'] }, { body: 'City Council', topics: [], title: 'A Sign Permit Downtown', streets: ['GRANBY STREET'], leagues: [] }));
+  // A word that is both a common surname and a street ("church", "park") was refused before the list; now it watches that street.
+  assert.deepEqual(checkPhrases(['church'], { ...guard, book: CITY_BOOK }).streets, ['church']);
   assert.equal(watchLabel({ topics: [], phrases: ['dog park'], streets: ['21st street'], bodies: BODIES }, TOPICS), '"dog park", 21st Street (street), at City Council or Planning Commission');
   assert.ok(!sameWatch({ streets: ['hampton'], bodies: BODIES }, { phrases: ['hampton'], bodies: BODIES }));
   assert.match(checkWatch({ phrases: ['hampton', '21st street', '38th', 'dog park', 'food truck', 'bus stop'] }, { ...opts, book: CITY_BOOK }).error, /at most 5 phrases and streets/);

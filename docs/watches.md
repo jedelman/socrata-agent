@@ -79,19 +79,33 @@ gzipped, and compiles in about 17 ms the first time an isolate uses it.
   street in the list** (`compileAddresses` and `titlePlaces` in
   `src/watches.js`). Street, then number: the trie Jason proposed. Abbreviations,
   apostrophes and "St." for Saint are matched the way the list spells them.
-  The direction is the only thing allowed to differ: "628 West 35th Street" is
-  628 35TH STREET on the list, and "482 Main Street" is 482 E MAIN STREET,
-  because only the East side has a 482. When both sides have the number,
-  nothing is guessed.
+  The direction is the only thing allowed to differ:
+  - "628 West 35th Street" is 628 35TH STREET on the list, which has no West
+    35th Street. A direction is let go only when the list has no street of
+    that direction: "102 North Blake Road" isn't 102 BLAKE ROAD, since NORTH
+    BLAKE ROAD is a street of its own.
+  - "482 Main Street" is 482 E MAIN STREET, because only the East side has a
+    482. When both sides have the number, nothing is guessed.
+- **A description shows at most the first 12 listed addresses**, and an item's
+  streets and civic leagues come from those 12 only.
 - **An item's civic league comes from the list**, so the daily job asks the
   portal nothing per address.
-- **A street's name is watched as that street.** A phrase the name guard
-  refuses that is a street of the list ("hampton", "21st street") becomes a
-  street watch: it matches items whose listed address is on that street,
-  never words in a title. So "hampton" catches 4100 Hampton Boulevard and can
-  never catch a lease with someone named Hampton. A phrase the guard passes
-  stays a phrase matched in titles ("granby" still catches a Granby Street
-  streetscape item that names no address).
+- **A street's name is watched as that street.** Some phrases are refused for
+  reading as a name or for holding a number. When one of those is a street of
+  the list ("hampton", "21st street"), it becomes a street watch instead:
+  - It matches items whose listed address is on that street, never words in a
+    title. So "hampton" catches 1209 Hampton Boulevard and can never catch a
+    lease with someone named Hampton.
+  - A word that is both a common surname and a street ("church", "park") was
+    refused before the list; now it watches that street. Its label says
+    "(street)".
+- **A phrase the guard passes stays a phrase**, matched in titles ("granby"
+  still catches a Granby Street streetscape item that names no address).
+  - One that names a street with its type ("hampton boulevard", "colley ave")
+    also matches by listed address, so a title's "1209 Hampton Blvd." is
+    caught too.
+  - One without a type doesn't: "granby" never matches an item just for its
+    Granby Street address.
 
 Measured on 2026-11-16, over the 883 addresses the indexed titles name:
 - **On the list:** 860 are shown.
@@ -124,13 +138,14 @@ To refresh it by hand, run `node scripts/build-addresses.js`.
   rentals" matches short-term rental, vacation rental, homestay and bed and
   breakfast, which is 159 titles since July 2023. A test refuses any topic
   phrase made only of common names; "ADU" and "flood" were dropped for this.
-- **Streets:** a phrase that is a street's name and that the name guard
-  refuses is watched as that street, by listed address (above). Phrases and
+- **Streets:** a phrase refused as a name or for a number, that is a street's
+  name, is watched as that street, by listed address (above). Phrases and
   streets together are at most five.
 - **Phrases:** a watch belongs to one signed-in member and mails only them.
   Jason, 2026-11-16: "Free text for signed in and private conversations feels
   like the right shape." So a member can add up to five phrases of their own
-  ("dog park"), matched against the title. A phrase is refused when it:
+  ("dog park"), matched against the title. A phrase is refused when it (unless
+  it is a street's name, above):
   - is made only of common first names and surnames, plurals included
     (Census lists, `data/common-names.json`, built by
     `scripts/build-common-names.js`): "John Smith", "price", "smiths";

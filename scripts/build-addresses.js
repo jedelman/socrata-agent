@@ -58,15 +58,18 @@ export async function buildAddresses({ cityId = 'norfolk', appToken, fetchImpl, 
   if (!read) {
     const ctx = createContext({ city, appToken, fetchImpl });
     read = [];
-    for (let page = 0; page < MAX_PAGES; page++) {
+    // Paged until a page comes back empty, by the rows each page held, so a lower cap in the
+    // client (src/socrata.js MAX_LIMIT) means more pages, never a list cut short (review of #62).
+    for (let page = 0, offset = 0; ; page++) {
+      if (page === MAX_PAGES) throw new Error(`More than ${MAX_PAGES} pages of addresses: raise MAX_PAGES after checking why.`);
       const got = await ctx.socrata.query(
         cfg.dataset,
-        `SELECT ${full}, ${league}, count(*) AS n WHERE ${full} IS NOT NULL GROUP BY ${full}, ${league} ORDER BY ${full}, ${league} LIMIT ${PAGE} OFFSET ${page * PAGE}`,
+        `SELECT ${full}, ${league}, count(*) AS n WHERE ${full} IS NOT NULL GROUP BY ${full}, ${league} ORDER BY ${full}, ${league} LIMIT ${PAGE} OFFSET ${offset}`,
         { tool: 'address list for watches', access: ACCESS.GENERIC, name: cfg.name }
       );
+      if (!got.length) break;
       read.push(...got.map((r) => ({ full_address: r[full], civic_league: r[league] })));
-      if (got.length < PAGE) break;
-      if (page === MAX_PAGES - 1) throw new Error(`More than ${MAX_PAGES * PAGE} addresses: raise MAX_PAGES after checking why.`);
+      offset += got.length;
     }
   }
   const leagueNames = [...new Set(read.map((r) => String(r.civic_league ?? '').trim()).filter((l) => l && !NO_LEAGUE.test(l)))].sort();

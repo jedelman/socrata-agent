@@ -25,7 +25,9 @@ test('the build reads the full address and the civic league only, grouped, at th
     const url = String(input?.url || input);
     urls.push(url);
     if (url.includes('/api/views/ere7-kake.json')) return Response.json({ name: 'Address Information', columns: ['full_address', 'civic_league', 'civic_league_president', 'civic_league_email'].map((fieldName) => ({ fieldName, dataTypeName: 'text' })) });
-    return Response.json(ROWS.map((r) => ({ ...r, n: '1' })));
+    // Two rows a page, whatever the query asked for: the build pages by what came back, until a page is empty.
+    const offset = Number(/OFFSET\s+(\d+)/.exec(decodeURIComponent(url))?.[1] || 0);
+    return Response.json(ROWS.slice(offset, offset + 2).map((r) => ({ ...r, n: '1' })));
   };
   const file = await buildAddresses({ fetchImpl, today: '2026-11-16' });
   const q = decodeURIComponent(urls.find((u) => u.includes('/resource/ere7-kake.json')));
@@ -34,6 +36,7 @@ test('the build reads the full address and the civic league only, grouped, at th
   assert.deepEqual(file.leagues, ['Ghent', 'Willoughby'], '"No Civic League" is no league');
   assert.deepEqual(file.streets, { 'COLLEY AVENUE': '100 4200:0', 'E MAIN STREET': '226', 'GRANBY STREET': '1210:1' });
   assert.equal(file.counts.skipped, 1);
+  assert.equal(urls.filter((u) => u.includes('/resource/ere7-kake.json')).length, 4, 'three short pages, then an empty one');
 });
 
 test('the file as written compiles back to the same lookups, one street a line', async () => {

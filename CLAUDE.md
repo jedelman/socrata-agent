@@ -480,15 +480,19 @@ generic mode.
   refreshed weekly by `refresh-addresses.yml` (league changes or more than
   2% gone go to a pull request). `compileAddresses` keys it street then
   number: an address shows only when that number is on that street (the
-  direction alone may differ, never guessed when both sides have the
-  number), leagues come from it (no address lookups), and a phrase the name
-  guard refuses that is a street's name ("hampton") is a street watch,
-  matched by an item's listed address, never by title words. The snapshot keeps each title in one internal
+  direction alone may differ: let go only when the list has no street of
+  that direction, supplied only when one side has the number), leagues come
+  from it (no address lookups), a phrase refused as a name or for a number
+  that is a street's name ("hampton", "21st street") is a street watch,
+  matched by an item's listed address, never by title words, and a passing
+  phrase that names a street with its type ("hampton boulevard") matches by
+  title and by listed address. The snapshot keeps each title in one internal
   field to match phrases against; nothing serves it. **Watches follow
   topics** from the city profile's reviewed `meetings.watchTopics` (27 for
   Norfolk; a test refuses a topic phrase made only of common names) **and a
   member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
-  private conversations"): up to five, refused when made only of common
+  private conversations"): up to five, refused (unless a street's name, as
+  above) when made only of common
   first names and surnames (`data/common-names.json`, Census lists, built by
   `scripts/build-common-names.js`), or with a common name beside anything
   but ordinary words (`ordinaryWords` in `telemetry.js`, words the books use

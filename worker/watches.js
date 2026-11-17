@@ -79,8 +79,8 @@ const meetingId = (url) => /[?&]ID=(\d+)/i.exec(String(url || ''))?.[1] || null;
 // and their civic leagues. Only a listed address, never other words from
 // the title. No list, no places.
 function placesOf(title, book) {
-  const p = titlePlaces(title, book);
-  return { addresses: p.addresses.slice(0, 12), streets: p.streets.slice(0, 12), leagues: p.leagues };
+  // The first 12 listed addresses, and only their streets and leagues: a description shows the addresses a match comes from.
+  return titlePlaces(title, book, { max: 12 });
 }
 
 // A snapshot item's fields, and only those (a carried item from an older snapshot keeps nothing else).
@@ -383,7 +383,7 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
     html.push(`<h3>${esc(head)}</h3><ul>`);
     for (const i of list) {
       const hits = phrasesIn(watch, i);
-      const on = streetsIn(watch, i);
+      const on = streetsIn(watch, i).filter((s) => !hits.includes(s));
       const why = [hits.length ? `with ${hits.map((h) => `"${h}"`).join(', ')} in its title` : '', on.length ? `on ${on.map(streetLabel).join(', ')}` : ''].filter(Boolean).join(', ');
       const line = `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}${why ? `, ${why}` : ''}`;
       text.push(`- ${line}`, `  ${i.url}`);

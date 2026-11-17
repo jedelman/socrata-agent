@@ -26,6 +26,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        # bash -eo pipefail: a failed compare piped into tee fails the step (review of #62).
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,7 +46,9 @@ jobs:
         id: decide
         run: |
           node scripts/build-addresses.js --compare "$RUNNER_TEMP/addresses-before.json" --result "$RUNNER_TEMP/addresses.json" | tee "$RUNNER_TEMP/addresses.md"
-          echo "decision=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).decision" "$RUNNER_TEMP/addresses.json")" >> "$GITHUB_OUTPUT"
+          decision=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).decision" "$RUNNER_TEMP/addresses.json")
+          case "$decision" in none|main|pr) ;; *) echo "::error::No decision from the compare ($decision)."; exit 1 ;; esac
+          echo "decision=$decision" >> "$GITHUB_OUTPUT"
       - name: Test the watches against the new list
         if: steps.decide.outputs.decision != 'none'
         run: node --test test/watches.test.js
@@ -67,8 +73,12 @@ jobs:
               echo "::error title=No pull request::Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."
               exit 1
             fi
-          else
+          elif [ "$DECISION" = main ]; then
             git add data/norfolk-addresses.json
             git commit -q -F "$RUNNER_TEMP/message.txt"
             git push
+          else
+            # Fail closed: anything but a clear decision pushes nothing.
+            echo "::error::Unknown decision '$DECISION'; nothing pushed."
+            exit 1
           fi
