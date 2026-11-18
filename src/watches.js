@@ -362,6 +362,7 @@ export function checkPhrases(raw, { names = null, ordinary = null, leagues = [],
   const phrases = [];
   const streets = [];
   const found = [];
+  const typed = [];
   const refused = [];
   const isName = (w) => [w, w.replace(/s$/, ''), w.replace(/es$/, '')].some((x) => x.length > 1 && (names.surnames.has(x) || names.given.has(x)));
   const NAME = "that reads as a person's name; watches follow topics and words, not people";
@@ -371,15 +372,20 @@ export function checkPhrases(raw, { names = null, ordinary = null, leagues = [],
     const words = phrase.split(' ');
     let reason = null;
     let street = false;
+    // A civic league's name is the league to watch (Jason, 2026-11-18: "a pretty common ask"), whatever
+    // its length, and with or without the name lists: it's on the City's own list of leagues.
+    if (leagueKeys.has(leagueKey(phrase))) {
+      const league = leagues.find((l) => leagueKey(l) === leagueKey(phrase));
+      if (!found.includes(league)) {
+        found.push(league);
+        typed.push({ phrase: String(r).trim().slice(0, 120), league, street: Boolean(book?.street?.(phrase)) });
+      }
+      continue;
+    }
     if (phrase.length < 3 || phrase.length > PHRASE_CHARS) reason = `a phrase is 3 to ${PHRASE_CHARS} characters`;
     else if (words.length > PHRASE_WORDS) reason = `a phrase is at most ${PHRASE_WORDS} words`;
     else if (!names || !ordinary || typeof textCheck !== 'function') reason = "phrases aren't available here";
-    else if (leagueKeys.has(phrase)) {
-      // A civic league's name is the league to watch (Jason, 2026-11-18: "a pretty common ask").
-      const league = leagues.find((l) => leagueKey(l) === phrase);
-      if (!found.includes(league)) found.push(league);
-      continue;
-    } else {
+    else {
       if (/\d/.test(phrase)) reason = 'a phrase has no numbers (no house numbers or addresses)';
       else if (words.every(isName)) reason = NAME;
       else if (words.some(isName) && words.some((w) => !isName(w) && (PERSON_WORDS.has(w) || w.length < 2 || !ordinary.has(w)))) reason = NAME;
@@ -391,7 +397,7 @@ export function checkPhrases(raw, { names = null, ordinary = null, leagues = [],
     else if (reason) refused.push({ phrase: String(r).trim().slice(0, PHRASE_CHARS + 20), reason });
     else phrases.push(phrase);
   }
-  return { phrases, streets, leagues: found, refused };
+  return { phrases, streets, leagues: found, typed, refused };
 }
 
 /**
@@ -407,7 +413,7 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
   const refused = asked.filter((x) => !ids.has(x)).slice(0, 10).map((x) => x.slice(0, 60));
   const chosen = topics.filter((t) => asked.includes(t.id)).map((t) => t.id);
   if (chosen.length > MAX_TOPICS) return { ok: false, error: `A watch has at most ${MAX_TOPICS} topics.`, refused };
-  const { phrases, streets, leagues: typedLeagues, refused: refusedPhrases } = checkPhrases(input.phrases, { names, ordinary, leagues, textCheck, book });
+  const { phrases, streets, leagues: typedLeagues, typed, refused: refusedPhrases } = checkPhrases(input.phrases, { names, ordinary, leagues, textCheck, book });
   if (phrases.length + streets.length > MAX_PHRASES) return { ok: false, error: `A watch has at most ${MAX_PHRASES} phrases and streets.`, refused, refusedPhrases };
   const askedLeague = String(input.civic_league ?? input.league ?? '').trim();
   let league = null;
@@ -425,7 +431,13 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
     const error = refusedPhrases.length ? 'None of those phrases can be watched.' : refused.length ? "Those aren't topics a watch can follow yet." : 'A watch needs a topic, a phrase, a street, a civic league, or a mix.';
     return { ok: false, error, refused, refusedPhrases };
   }
-  return { ok: true, watch: { topics: chosen, phrases, streets, league, bodies }, refused, refusedPhrases };
+  // A league typed as a phrase narrows the watch rather than adding to it: say so.
+  const others = chosen.length + phrases.length + streets.length > 0;
+  const notes = typed.map((t) => ({
+    phrase: t.phrase,
+    note: `taken as the civic league ${t.league}: ${others ? `only matches in ${t.league} will come` : `every item in ${t.league} will come`}${t.street ? '; to follow the street of that name instead, write it with its type (avenue, road and so on)' : ''}`,
+  }));
+  return { ok: true, watch: { topics: chosen, phrases, streets, league, bodies }, refused, refusedPhrases, notes };
 }
 
 /** A watch's one-line description, for the card, the page and the mail. */
@@ -435,9 +447,21 @@ export function watchLabel({ topics: ids = [], phrases = [], streets = [], leagu
   return `${labels.length ? labels.join(', ') : 'everything'}${league ? ` in ${league}` : ''}, at ${at}`;
 }
 
-/** The watch's phrases an item's words hold: its title, and the City's own description of it (`details`, the full text). */
+/**
+ * An item's words without the applicant's name that leads a land-use title
+ * or a BZA entry ("TERRIE PYEATT, for a Conditional Use Permit …",
+ * "BLACK SHEEP INVESTMENTS, INC – for an appeal …"): the City prints it in
+ * capitals before ", for" or " – for". Shown in content, it is never matched,
+ * so a rare surname can't follow an applicant (the name guard's limit; review
+ * of #63).
+ */
+export function withoutApplicant(text) {
+  return String(text ?? '').replace(/^\s*[^a-z]{2,160}?(?:,\s*|\s+[–—-]\s+)(?=for\b)/, '');
+}
+
+/** The watch's phrases an item's words hold: its title (less a leading applicant), and the City's description of it (`summary`, `details`). */
 export function phrasesIn(watch, item) {
-  const t = normalizeText(`${item?.title || ''} ${item?.details || ''}`);
+  const t = normalizeText(`${withoutApplicant(item?.title)} ${withoutApplicant(item?.summary)} ${item?.details || ''}`);
   return (watch?.phrases || []).filter((p) => termPattern(p)?.test(t));
 }
 
@@ -502,5 +526,6 @@ export function offerWatch(ctx, args = {}) {
   }
   const topics = ctx.watches.topics || [];
   ctx.watchOffer = { ...out.watch, labels: out.watch.topics.map((id) => topics.find((t) => t.id === id)?.label || id), label: watchLabel(out.watch, topics) };
-  return { offered: true, watch: ctx.watchOffer, note: OFFERED_WATCH_NOTE };
+  const notes = (out.notes || []).map((n) => `"${n.phrase}" is ${n.note}.`).join(' ');
+  return { offered: true, watch: ctx.watchOffer, note: notes ? `${OFFERED_WATCH_NOTE} ${notes} Say so.` : OFFERED_WATCH_NOTE };
 }

@@ -55,6 +55,8 @@ const ITEM_PAGES = 600;
 const READERS = 4;
 // The agenda file itself, never the packet (iqm2's packets run past 100 MB).
 const AGENDA_FILE_MAX = 5 * 1024 * 1024;
+// Kept with what the cache made of a file: a change to the reader reads every file again.
+const AGENDA_FILE_VERSION = 'pdf-2+agenda-file-3';
 
 const flag = (v) => String(v ?? '').trim() === 'true';
 export const watchesOn = (env) => flag(env?.WATCHES);
@@ -92,7 +94,7 @@ function placesOf(text, book) {
 }
 
 // A snapshot item's fields, and only those (a carried item from an older snapshot keeps nothing else).
-const ITEM_FIELDS = ['key', 'meeting', 'id', 'body', 'when', 'url', 'kind', 'number', 'topics', 'addresses', 'streets', 'leagues', 'title', 'summary', 'details', 'source', 'first_seen'];
+const ITEM_FIELDS = ['key', 'meeting', 'id', 'body', 'when', 'url', 'kind', 'number', 'topics', 'addresses', 'streets', 'leagues', 'title', 'summary', 'request', 'details', 'source', 'first_seen'];
 
 // The City's own description of an item, from its page: the full title
 // (the meeting page's link stops before its "The purpose of this request is
@@ -104,23 +106,28 @@ const ITEM_FIELDS = ['key', 'meeting', 'id', 'body', 'when', 'url', 'kind', 'num
 // never read.
 function itemTexts(rec, linkText = '') {
   const letter = rec?.cover_letter || {};
-  const full = rec?.title && rec.title.length > String(linkText).length ? rec.title.slice(String(linkText).length).trim() : '';
+  // The page's title when the meeting page's link doesn't already hold it (Council links add "Ordinance No. N :").
+  const full = rec?.title && !normalizeText(linkText).includes(normalizeText(rec.title)) ? rec.title : '';
+  // `request`: what the item asks, the only part of the letter places come from (a description can
+  // name another property the applicant runs: "Vino Culture Wine Bar, located at 130 Granby Street").
+  const request = String(letter.request || '').slice(0, 1200);
   const summary = [full, letter.request, letter.description, letter.letter].filter(Boolean).join(' ').slice(0, 2000);
-  const details = [full, letter.request, letter.description, letter.analysis, letter.financial_impact, letter.letter].filter(Boolean).join(' ').slice(0, 4000);
-  return { summary, details };
+  const details = [letter.analysis, letter.financial_impact].filter(Boolean).join(' ').slice(0, 2400);
+  return { summary, details, request };
 }
 
 // One snapshot item, described from its words: the kind and number from its
 // title; topics from its title and its summary less zoning-district and
-// citation boilerplate (topicText); places from both, through the address
-// list. An agenda file's item is all summary: its title is its text.
-function describeFrom({ title, summary, fileItem, topics, book }) {
+// citation boilerplate (topicText); places from its title and the letter's
+// request only, through the address list. An agenda file's item is all
+// summary: its title is its text.
+function describeFrom({ title, summary, request = '', fileItem, topics, book }) {
   const topicIds = new Set([...(fileItem ? [] : topicsOf(title, topics)), ...topicsOf(topicText(summary), topics)]);
   return {
     kind: itemKind(title),
     number: itemNumber(title),
     topics: topics.filter((t) => topicIds.has(t.id)).map((t) => t.id),
-    ...placesOf(fileItem ? summary : `${title} ${summary}`, book),
+    ...placesOf(fileItem ? summary : `${title} ${request}`, book),
   };
 }
 
@@ -173,6 +180,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
   );
   const before = await readSnapshot(kv, cityId);
   const firstSeen = new Map((before?.items || []).map((i) => [i.key, i.first_seen]));
+  const previous = new Map((before?.items || []).map((i) => [i.key, i]));
   const leagues = [...(book?.leagues || [])];
   const topics = city.meetings.watchTopics || [];
   const meetings = [];
@@ -185,6 +193,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
   const seenMeetings = new Set();
   const read = new Date(now).toISOString().slice(0, 10);
   const publisher = `City of ${String(city.name || cityId).split(',')[0]}`;
+  const fileBodies = city.meetings.fileBodies || [];
   for (const n of notices) {
     const id = meetingId(n.meeting_link?.url);
     if (!id || seenMeetings.has(id) || !bodies.includes(n.organization)) continue;
@@ -201,7 +210,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
         carried.push(...(before.items || []).filter((x) => x.meeting === id).map((x) => {
           const kept = knownFields(x);
           const fileItem = kept.source?.document === 'agenda file';
-          return { ...kept, ...describeFrom({ title: kept.title || '', summary: kept.summary || '', fileItem, topics, book }) };
+          return { ...kept, ...describeFrom({ title: kept.title || '', summary: kept.summary || '', request: kept.request || '', fileItem, topics, book }) };
         }));
       }
       continue;
@@ -209,14 +218,15 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
     const when = String(n.date_and_time || '');
     const meeting = { id, body: n.organization, type: String(n.type || m.type || '').slice(0, 80), when, location: String(n.location || '').slice(0, 120), url: m.url, items: m.items.length };
     meetings.push(meeting);
-    const item = ({ itemId, url, title, summary, details, fileItem, document }) => {
+    const item = ({ itemId, url, title, summary, request = '', details, fileItem, document }) => {
       const key = itemKey(id, itemId);
       return {
         key, meeting: id, id: itemId, body: n.organization, when, url,
-        ...describeFrom({ title, summary, fileItem, topics, book }),
+        ...describeFrom({ title, summary, request, fileItem, topics, book }),
         // The City's words: the title and summary are quoted in emails and feeds (quoteItem); details only match phrases.
         title: String(title || '').slice(0, 1000),
         summary,
+        request,
         details,
         // Where it came from: the City's posted agenda, a public record (Jason, 2026-11-18: keep sources annotated).
         source: { publisher, record: 'public', document, url, read },
@@ -225,33 +235,50 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
     };
     if (m.items.length) {
       // Each item's own page: titles are often not descriptive (Jason, 2026-11-18: "read the full agenda").
-      // Those pages say no-store, so they're read again each day (src/http-cache.js).
+      // Those pages say no-store and carry no validators, so they're read in full each day. A page
+      // that can't be read today keeps yesterday's text for that item.
       const read_ = await eachLimited(m.items, READERS, async (it) => {
-        if (pagesRead >= ITEM_PAGES) return {};
+        if (pagesRead >= ITEM_PAGES) return null;
         pagesRead++;
         try {
           return itemTexts(await iqm2.legislation(it.id), it.text);
         } catch {
           pagesFailed++;
-          return {};
+          return null;
         }
       });
-      m.items.forEach((it, i) => items.push(item({ itemId: it.id, url: it.url, title: it.text, summary: read_[i].summary || '', details: read_[i].details || '', fileItem: false, document: 'agenda item page' })));
-    } else if (m.agenda_file) {
-      // An agenda posted only as a file (the BZA's, the ARB's): read it, through the conditional-GET cache.
+      m.items.forEach((it, i) => {
+        const was = previous.get(itemKey(id, it.id));
+        const t = read_[i] || { summary: was?.summary || '', details: was?.details || '', request: was?.request || '' };
+        items.push(item({ itemId: it.id, url: it.url, title: it.text, summary: t.summary, request: t.request, details: t.details, fileItem: false, document: 'agenda item page' }));
+      });
+    } else if (m.agenda_file && fileBodies.includes(n.organization)) {
+      // An agenda posted only as a file, for the bodies that post them that way (the BZA, the ARB;
+      // `meetings.fileBodies`), never a Council informal session's or a task force's slide deck.
+      // Read through the conditional-GET cache; a file that can't be read today keeps yesterday's items.
       try {
         const { value } = await cachedGet({
-          store: kv, fetchImpl: budget.tool, trace: ctx.trace, url: m.agenda_file, tool: 'read agenda file', maxBytes: AGENDA_FILE_MAX, now,
-          parse: async (res) => agendaFileItems((await pdfText(await res.arrayBuffer())).pages.join('\n')),
+          store: kv, fetchImpl: budget.tool, trace: ctx.trace, url: m.agenda_file, tool: 'read agenda file', maxBytes: AGENDA_FILE_MAX, now, version: AGENDA_FILE_VERSION,
+          // By page, so the page's own header and footer can be told from an item running across the break.
+          parse: async (res) => agendaFileItems((await pdfText(await res.arrayBuffer())).pages),
         });
+        const used = new Set();
         for (const f of value || []) {
-          const itemId = `f${hex(await sha256(normalizeText(f.text))).slice(0, 12)}`;
-          items.push(item({ itemId, url: m.agenda_file, title: f.text, summary: f.text, details: f.text, fileItem: true, document: 'agenda file' }));
+          // Keyed by the City's case number when it gives one, else by the item's letters and digits
+          // alone: steady across rewraps and line-break hyphens. A repeat gets the next free key.
+          const base = itemNumber(f.text) || normalizeText(f.text).replace(/[^\p{L}\p{N}]+/gu, '');
+          let itemId = `f${hex(await sha256(base)).slice(0, 12)}`;
+          for (let k = 2; used.has(itemId); k++) itemId = `f${hex(await sha256(`${base}#${k}`)).slice(0, 12)}`;
+          used.add(itemId);
+          items.push(item({ itemId, url: m.agenda_file, title: f.text, summary: f.text, details: '', fileItem: true, document: 'agenda file' }));
         }
         meeting.items = (value || []).length;
         meeting.file = m.agenda_file;
       } catch {
         filesFailed++;
+        const old = (before?.items || []).filter((x) => x.meeting === id);
+        carried.push(...old.map((x) => ({ ...knownFields(x), ...describeFrom({ title: x.title || '', summary: x.summary || '', fileItem: true, topics, book }) })));
+        meeting.items = old.length;
       }
     }
   }
@@ -430,7 +457,7 @@ export async function handleWatches(req, env, path, deps = {}) {
   // What's already on a posted agenda: shown now, and sent in the first email.
   // The City's title as posted (names allowed in content, Jason 2026-11-18), with Siren's summary beside it.
   const already = (snap?.items || []).filter((i) => matchesWatch(w, i)).slice(0, 10).map((i) => ({ body: i.body, when: i.when, description: quoteItem(i).title || describeItem(i, topics), summary: describeItem(i, topics), number: i.number || null, url: i.url }));
-  return json({ ok: true, watch: shown(w, topics), already, refused: checked.refused, refused_phrases: checked.refusedPhrases || [] });
+  return json({ ok: true, watch: shown(w, topics), already, refused: checked.refused, refused_phrases: checked.refusedPhrases || [], notes: checked.notes || [] });
 }
 
 /** The one-click stop from a mail client (RFC 8058): POST to the link, form-encoded. */
@@ -739,7 +766,7 @@ export function atomFeed({ snapshot, slug, origin, appName, topics = [] }) {
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:${xml(host)},2026-11-16:feeds/${xml(slug)}</id>
   <title>${xml(title)}</title>
-  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each entry is the City's own title for the item (a public record), with ${appName}'s summary; its link is the City's page. Items are tagged by the civic league of the address their title names, when that address is on the City's address list.`)}</subtitle>
+  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each entry is the City's own title for the item (a public record), with ${appName}'s summary; its link is the City's page. Items are tagged by the civic league of the addresses the item names (its title, the request in the City's cover letter, or a posted agenda's entry), when those addresses are on the City's address list.`)}</subtitle>
   <link rel="self" href="${xml(self)}"/>
   <link rel="alternate" href="${xml(`${origin}/feeds`)}"/>
   <updated>${xml(snapshot.built)}</updated>

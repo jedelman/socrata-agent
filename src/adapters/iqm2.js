@@ -42,6 +42,16 @@ const field = (html, label) => {
 const LETTER_KEEP = { request: /^request$/, description: /^description$/, analysis: /^analysis$/, financial_impact: /^financial impact$/ };
 const ORG = /\b(?:llc|l\.l\.c|inc|incorporated|corp|corporation|company|co\.|lp|llp|ltd|trust|association|church|ministries|university|college|school|foundation|partners|partnership|group|hospital|bank|authority|commission|department|city of|county|commonwealth|board|council|society|club|center|centre|properties|holdings|ventures|realty|development|enterprises|services|restaurant|cafe|hotel|museum)\b/i;
 const LETTER_MAX = 1200;
+// Where a kept section ends even when the next heading wasn't found: a later
+// numbered heading ("V. Communications/Outreach;", which has no colon), or
+// the outreach, staff-contact and attachments parts, whose "Proponents and
+// Opponents" list names speakers with their home addresses (review of #63,
+// item 5878).
+const SECTION_END = /\s(?:X{0,3}(?:IX|IV|V?I{1,3}|V|X))\.\s+(?=[A-Z])|\b(?:Communications?\s*\/\s*Outreach|Coordination\b|Staff contact|Attachments\s*:|Proponents and Opponents)/;
+const endSection = (s) => {
+  const m = SECTION_END.exec(s);
+  return (m ? s.slice(0, m.index) : s).replace(/[\s;:]+$/, '');
+};
 const letterText = (s) =>
   decode(s.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d))))
     .replace(/\u00a0/g, ' ')
@@ -68,13 +78,13 @@ export function parseTransmittal(html) {
       const to = i + 1 < heads.length ? heads[i + 1].index : text.length;
       const body = text.slice(from, to).replace(/^[\s:;]+/, '').trim();
       if (name === 'applicant') applicant = body;
-      for (const [key, re] of Object.entries(LETTER_KEEP)) if (re.test(name) && body) sections[key] = body;
+      for (const [key, re] of Object.entries(LETTER_KEEP)) if (re.test(name) && body) sections[key] = endSection(body);
     });
   } else {
     // Words in these letters are sometimes split by markup ("Re spectfully").
     const loose = (w) => w.split('').map((c) => (c === ' ' ? '\\s+' : `${c}\\s?`)).join('');
     const body = text.match(new RegExp(`${loose('Dear Ladies and Gentlemen')}:\\s*([\\s\\S]*?)\\s*${loose('Respectfully')},`, 'i'))?.[1];
-    if (body) sections.letter = body.trim();
+    if (body) sections.letter = endSection(body.trim());
   }
   if (!Object.keys(sections).length) return null;
   // The applicant's name, when the applicant isn't plainly an organization:

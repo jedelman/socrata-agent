@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { makePdf } from './fake-pdf.js';
-import { topicsOf, itemKind, itemNumber, describeItem, cityAddresses, titleAddresses, titlePlaces, compileAddresses, streetKey, streetsIn, checkWatch, checkPhrases, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, MAX_TOPICS } from '../src/watches.js';
+import { topicsOf, itemKind, itemNumber, describeItem, cityAddresses, titleAddresses, titlePlaces, compileAddresses, streetKey, streetsIn, checkWatch, checkPhrases, matchesWatch, termPattern, offerWatch, sameWatch, watchLabel, withoutApplicant, phrasesIn, MAX_TOPICS } from '../src/watches.js';
 import { ordinaryWords } from '../worker/telemetry.js';
 import streetsFile from '../data/gaps/norfolk-streets.json' with { type: 'json' };
 import addressesFile from '../data/norfolk-addresses.json' with { type: 'json' };
@@ -165,7 +165,7 @@ test('topics: reviewed phrases matched as words, plurals and hyphens included; t
 });
 
 test('checking a watch: topics from the list only; leagues by the City\'s spelling; bodies default to all', () => {
-  assert.deepEqual(checkWatch({ topics: ['short_term_rentals', 'harris', 'Jane Doe'] }, opts), { ok: true, watch: { topics: ['short_term_rentals'], phrases: [], streets: [], league: null, bodies: BODIES }, refused: ['harris', 'Jane Doe'], refusedPhrases: [] });
+  assert.deepEqual(checkWatch({ topics: ['short_term_rentals', 'harris', 'Jane Doe'] }, opts), { ok: true, watch: { topics: ['short_term_rentals'], phrases: [], streets: [], league: null, bodies: BODIES }, refused: ['harris', 'Jane Doe'], refusedPhrases: [], notes: [] });
   assert.match(checkWatch({ topics: ['price'] }, opts).error, /aren't topics a watch can follow yet/);
   assert.deepEqual(checkWatch({ civic_league: 'ocean view' }, opts).watch, { topics: [], phrases: [], streets: [], league: 'Ocean View', bodies: BODIES });
   assert.match(checkWatch({ civic_league: 'Atlantis' }, opts).error, /don't know a civic league called "Atlantis"/);
@@ -205,6 +205,35 @@ test('phrases (a signed-in member\'s own words): plain words kept; names, addres
   assert.ok(!matchesWatch(w, { body: 'City Council', topics: [], title: 'An Ordinance About a Park', leagues: [] }));
   assert.equal(checkWatch({ phrases: ['John Smith'] }, opts).error, 'None of those phrases can be watched.');
   assert.equal(watchLabel({ topics: ['tattoo'], phrases: ['dog park'], bodies: BODIES }, TOPICS), 'Tattoo parlors, "dog park", at City Council or Planning Commission');
+});
+
+test("a civic league typed as a phrase: taken whatever its length, without the name lists, and the narrowing said", () => {
+  const leagues = [...LEAGUES, 'Lindenwood and Barraud Park and Cottage Heights', 'Bayview'];
+  const o = { ...opts, leagues };
+  // Longer than a phrase may be, and more words: still the league (10 of the City's 118 are).
+  assert.equal(checkWatch({ phrases: ['Lindenwood and Barraud Park and Cottage Heights'] }, o).watch.league, 'Lindenwood and Barraud Park and Cottage Heights');
+  // Without the name lists phrases aren't accepted, but a league is on the City's own list.
+  assert.equal(checkWatch({ phrases: ['ghent'] }, { ...o, names: null }).watch.league, 'Ghent');
+  // Alone, it's every item in the league; with other words, it narrows them, and the note says so.
+  assert.deepEqual(checkWatch({ phrases: ['ghent'] }, o).notes, [{ phrase: 'ghent', note: 'taken as the civic league Ghent: every item in Ghent will come' }]);
+  assert.deepEqual(checkWatch({ phrases: ['ghent', 'dog park'] }, o).notes, [{ phrase: 'ghent', note: 'taken as the civic league Ghent: only matches in Ghent will come' }]);
+  // A league that is also a street's name says how to follow the street.
+  const book = { street: (p) => (p === 'bayview' ? 'bayview' : null) };
+  assert.match(checkWatch({ phrases: ['bayview'] }, { ...o, book }).notes[0].note, /write it with its type/);
+  assert.deepEqual(checkWatch({ topics: ['tattoo'] }, o).notes, []);
+  // The model is told, to say so.
+  const ctx = { watches: { check: (a) => checkWatch(a, o), topics: TOPICS } };
+  assert.match(offerWatch(ctx, { phrases: ['ghent', 'dog park'] }).note, /"ghent" is taken as the civic league Ghent: only matches in Ghent will come\. Say so\./);
+});
+
+test("a phrase never matches the applicant's name that leads a BZA entry or a land-use title (review 6)", () => {
+  assert.equal(withoutApplicant('LEILA EXAMPLE-LABRADOR - for a variance from minimum lot area'), 'for a variance from minimum lot area');
+  assert.equal(withoutApplicant('MADELINE EXAMPLE – for a variance from the front façade'), 'for a variance from the front façade');
+  assert.equal(withoutApplicant('TERRIE EXAMPLE, for a Conditional Use Permit'), 'for a Conditional Use Permit');
+  assert.equal(withoutApplicant('An Ordinance to Build a Dog Park, for the City'), 'An Ordinance to Build a Dog Park, for the City', 'only a leading name in capitals');
+  const item = { body: 'Board of Zoning Appeals', topics: [], title: 'ZELINSKI HOLDINGS – for a variance on property located at 2612 Munson St', summary: 'ZELINSKI HOLDINGS – for a variance on property located at 2612 Munson St', leagues: [] };
+  assert.deepEqual(phrasesIn({ phrases: ['zelinski'] }, item), []);
+  assert.deepEqual(phrasesIn({ phrases: ['variance'] }, item), ['variance']);
 });
 
 test('streets named for people (Jason, 2026-11-16): every street of the City\'s list can be watched, by its listed addresses, never by a title\'s words', () => {
@@ -304,7 +333,7 @@ const NAMES = /JANE DOE|SEASIDE RENTALS|HAPPY TAILS|WILL PRICE/i;
 
 // The BZA posts its agenda as a file, and iqm2 answers If-Modified-Since with a 304 (checked 2026-11-18).
 const FILE_DATE = 'Wed, 14 Oct 2026 19:41:26 GMT';
-function cityFetch({ extraItem = null, meetingDown = false, itemPages = {}, bza = null } = {}) {
+function cityFetch({ extraItem = null, meetingDown = false, itemPages = {}, bza = null, bzaDown = false, council = false } = {}) {
   const calls = [];
   const conditional = [];
   const fetchImpl = async (input, init) => {
@@ -314,12 +343,18 @@ function cityFetch({ extraItem = null, meetingDown = false, itemPages = {}, bza 
       return Response.json([
         { date_and_time: '2026-11-19T14:30:00.000', organization: 'Planning Commission', type: 'Public Hearing', location: '11th floor Council Chamber', meeting_link: { url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4674' } },
         ...(bza ? [{ date_and_time: '2026-11-19T10:00:00.000', organization: 'Board of Zoning Appeals', type: 'Public Hearing', location: '11th floor Council Chamber', meeting_link: { url: 'https://norfolkcityva.iqm2.com//Citizens/Detail_Meeting.aspx?ID=4560' } }] : []),
+        // A task force the notices list under City Council, whose agenda is only a slide deck (review 6: meeting 4293).
+        ...(council ? [{ date_and_time: '2026-11-20T15:00:00.000', organization: 'City Council', type: 'Task Force', location: 'Room 1001', meeting_link: { url: 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=4293' } }] : []),
       ]);
+    }
+    if (council && url.includes('Detail_Meeting.aspx?ID=4293')) {
+      return new Response(`<span id="ContentPlaceholder1_lblMeetingGroup">City Council</span><a href="FileOpen.aspx?Type=14&amp;ID=3448&amp;Inline=True" target="_blank">Agenda</a>`);
     }
     if (bza && url.includes('Detail_Meeting.aspx?ID=4560')) {
       return new Response(`<span id="ContentPlaceholder1_lblMeetingGroup">Board of Zoning Appeals</span><a href="FileOpen.aspx?Type=14&amp;ID=3431&amp;Inline=True" target="_blank">Agenda</a><a href="FileOpen.aspx?Type=1&amp;ID=3431&amp;Inline=True">Agenda Packet</a>`);
     }
     if (bza && url.includes('FileOpen.aspx?Type=14&ID=3431')) {
+      if (bzaDown) return new Response('', { status: 503 });
       const since = init?.headers?.['If-Modified-Since'];
       if (since) conditional.push(since);
       if (since === FILE_DATE) return new Response(null, { status: 304, headers: { 'Last-Modified': FILE_DATE } });
@@ -383,8 +418,10 @@ test('each item\'s own page: the City\'s description adds topics, places and phr
   const snap = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl, now, book: BOOK });
   const kennel = snap.items.find((i) => i.id === '6014');
   assert.deepEqual([...kennel.topics].sort(), ['animals', 'design_historic']);
-  assert.match(kennel.details, /outdoor dog runs/);
-  assert.doesNotMatch(kennel.details, /Jane Roe/, 'the applicant section is never kept');
+  // The description is in the summary (quoted); details holds the rest kept (the analysis), for phrases only.
+  assert.match(kennel.summary, /outdoor dog runs/);
+  assert.equal(kennel.details, 'The use is consistent with the plan.');
+  assert.doesNotMatch(JSON.stringify(kennel), /Jane Roe/, 'the applicant section is never kept');
   assert.ok(matchesWatch({ topics: [], phrases: ['dog runs'], bodies: BODIES }, kennel), 'a phrase found in the description');
   assert.ok(!matchesWatch({ topics: [], phrases: ['dog runs'], bodies: BODIES }, snap.items.find((i) => i.id === '6085')));
   // Quoted as the City posted it: the title, and the description (request and description; the analysis stays out).
@@ -421,6 +458,34 @@ test('a board that posts its agenda as a file (the BZA): items read from the PDF
   assert.deepEqual(city.conditional, [FILE_DATE], 'the second read asked If-Modified-Since and got a 304');
   assert.deepEqual(again.items.filter((i) => i.body === 'Board of Zoning Appeals').map((i) => [i.key, i.first_seen]), bza.map((i) => [i.key, i.first_seen]));
   assert.match(atomFeed({ snapshot: again, slug: 'willoughby', origin: 'https://ask-siren.jason-edelman.org', appName: 'Siren', topics: TOPICS }), /<title>JANE EXAMPLE - for a variance from minimum lot area of Table 3\.2\.9\.B of the Norfolk Zoning Ordinance on property located at 1210 Granby Street, zoned MF-NS \(Multi-Family – Neighborhood-Scale\) &amp; Park Place NRO \(Neighborhood Resilience Overlay\)<\/title>[\s\S]*Variance, at 1210 Granby Street\.[\s\S]*Source: City of Norfolk, posted agenda \(public record\)/);
+});
+
+test("files: only the boards that post them (never a Council task force's slide deck); a file that can't be read keeps yesterday's items", async () => {
+  const kv = readyEnv().LIMITS;
+  const now = Date.parse('2026-11-16T12:00:00Z');
+  const pdf = await makePdf([['BOARD OF ZONING APPEALS', 'I. Public Hearing', '1. JANE EXAMPLE – for a variance on property located at 1210 Granby Street, zoned R-8 (Single-Family).']]);
+  const city = cityFetch({ bza: pdf, council: true });
+  const snap = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl: city.fetchImpl, now, book: BOOK });
+  assert.ok(!city.calls.some((u) => /ID=3448/.test(u)), 'the task force file is never read');
+  assert.equal(snap.meetings.find((m) => m.id === '4293').items, 0);
+  const bza = snap.items.filter((i) => i.body === 'Board of Zoning Appeals');
+  assert.equal(bza.length, 1);
+  const down = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch({ bza: pdf, bzaDown: true }).fetchImpl, now: now + 864e5, book: BOOK });
+  assert.equal(down.files_failed, 1);
+  const carried = down.items.filter((i) => i.body === 'Board of Zoning Appeals');
+  assert.deepEqual(carried.map((i) => [i.key, i.first_seen, i.addresses, i.leagues]), bza.map((i) => [i.key, i.first_seen, i.addresses, i.leagues]), "yesterday's items, placed again");
+  assert.equal(down.meetings.find((m) => m.id === '4560').items, 1);
+});
+
+test("places come from the title and the letter's request, never another property its description mentions (review 6, item 5961)", async () => {
+  const kv = readyEnv().LIMITS;
+  const now = Date.parse('2026-11-16T12:00:00Z');
+  const letter = `<h4>Council Transmittal Letter</h4><div>I. Recommendation: Adopt. II. Request: To operate a kennel at 4200 Colley Avenue. III. Description: The applicant also operates a shop located at 1210 Granby Street. IV. Analysis: Fine.</div><h4>History</h4>`;
+  const snap = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl: cityFetch({ itemPages: { 6014: letter } }).fetchImpl, now, book: BOOK });
+  const kennel = snap.items.find((i) => i.id === '6014');
+  assert.deepEqual(kennel.addresses, ['4200 Colley Avenue']);
+  assert.deepEqual(kennel.leagues, ['Ghent']);
+  assert.match(kennel.summary, /1210 Granby Street/, 'still quoted as the City wrote it');
 });
 
 const USER = 'member@example.org';

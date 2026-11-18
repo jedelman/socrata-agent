@@ -225,7 +225,7 @@ $('#log').addEventListener('submit', async (e) => {
     const done = document.createElement('div');
     done.className = 'watchcard done';
     const already = (data.already || []).map((i) => `<li><a href="${link(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.description)}</a> <small>${esc(i.body)}</small></li>`).join('');
-    done.innerHTML = `<h3>Watching</h3><p>${esc(data.watch.label)}. You'll get an email when a newly posted agenda lists a match, at most one a day, until ${esc(String(data.watch.ends).slice(0, 10))}.</p>${already ? `<p>Already on a posted agenda (in your first email too):</p><ul class="plain">${already}</ul>` : ''}${data.refused_phrases?.length ? `<p class="fine">Left out: ${esc(data.refused_phrases.map((r) => `"${r.phrase}" (${r.reason})`).join(', '))}.</p>` : ''}<p class="fine"><a href="watches" target="_blank" rel="noopener">Your watches</a></p>`;
+    done.innerHTML = `<h3>Watching</h3><p>${esc(data.watch.label)}. You'll get an email when a newly posted agenda lists a match, at most one a day, until ${esc(String(data.watch.ends).slice(0, 10))}.</p>${already ? `<p>Already on a posted agenda (in your first email too):</p><ul class="plain">${already}</ul>` : ''}${data.notes?.length ? `<p class="fine">${esc(data.notes.map((n) => `"${n.phrase}" is ${n.note}.`).join(' '))}</p>` : ''}${data.refused_phrases?.length ? `<p class="fine">Left out: ${esc(data.refused_phrases.map((r) => `"${r.phrase}" (${r.reason})`).join(', '))}.</p>` : ''}<p class="fine"><a href="watches" target="_blank" rel="noopener">Your watches</a></p>`;
     f.replaceWith(done);
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });

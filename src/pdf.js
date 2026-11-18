@@ -13,6 +13,22 @@
 // counts the strings in fonts it couldn't map. Runs in Node and Workers
 // (DecompressionStream, no Node APIs).
 
+// Limits, so a small hostile file can't exhaust a Worker's 128 MB or its CPU
+// (review of #63 measured each: an object stream claiming a billion objects,
+// a Flate bomb, ToUnicode and /W ranges, a form that draws itself, an inline
+// image with no data, a run of digits, a page tree of inline pages).
+export const LIMITS = Object.freeze({
+  streamBytes: 16 * 1024 * 1024, // inflated, one stream
+  totalBytes: 48 * 1024 * 1024, // inflated, the whole file
+  objectsPerStream: 50000,
+  mapEntries: 65536, // ToUnicode codes, all ranges together; and CID widths
+  operators: 2000000, // content operators, the whole file, forms included
+  forms: 2000, // form XObjects drawn, the whole file
+  pages: 2000,
+  treeNodes: 10000,
+  textChars: 2 * 1024 * 1024,
+});
+
 const WS = new Set([0, 9, 10, 12, 13, 32]);
 const DELIM = new Set([...'()<>[]{}/%'].map((c) => c.charCodeAt(0)));
 
@@ -23,8 +39,11 @@ export function latin1(bytes) {
   return s;
 }
 
-/** Inflate a zlib stream, keeping what came out before any error (a truncated stream still gives its text). */
-export async function inflate(bytes) {
+/**
+ * Inflate a zlib stream, keeping what came out before any error (a truncated
+ * stream still gives its text), and stopping at `max` bytes out.
+ */
+export async function inflate(bytes, max = LIMITS.streamBytes) {
   const tryFormat = async (format, data) => {
     let reader;
     try {
@@ -40,6 +59,10 @@ export async function inflate(bytes) {
         if (done) break;
         chunks.push(value);
         size += value.length;
+        if (size >= max) {
+          await reader.cancel().catch(() => {});
+          break;
+        }
       }
     } catch {
       if (!size) return null;
@@ -255,7 +278,7 @@ export function parseCMap(text) {
   for (const block of text.matchAll(/begincodespacerange([\s\S]*?)endcodespacerange/g)) for (const h of hexes(block[1])) lengths.add(h.length / 2);
   for (const block of text.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
     const h = hexes(block[1]);
-    for (let i = 0; i + 1 < h.length; i += 2) {
+    for (let i = 0; i + 1 < h.length && map.size < LIMITS.mapEntries; i += 2) {
       map.set(parseInt(h[i], 16), utf16(h[i + 1]));
       if (!lengths.size) lengths.add(h[i].length / 2);
     }
@@ -266,11 +289,11 @@ export function parseCMap(text) {
       const hi = Math.min(parseInt(m[2], 16), lo + 0xffff);
       if (m[3][0] === '[') {
         const list = hexes(m[3]);
-        for (let c = lo; c <= hi && c - lo < list.length; c++) map.set(c, utf16(list[c - lo]));
+        for (let c = lo; c <= hi && c - lo < list.length && map.size < LIMITS.mapEntries; c++) map.set(c, utf16(list[c - lo]));
       } else {
         const base = m[3].slice(1, -1);
         const units = utf16(base);
-        for (let c = lo; c <= hi; c++) {
+        for (let c = lo; c <= hi && map.size < LIMITS.mapEntries; c++) {
           const last = units.charCodeAt(units.length - 1) + (c - lo);
           map.set(c, units.slice(0, -1) + String.fromCharCode(last & 0xffff));
         }
@@ -289,7 +312,8 @@ export async function pdfText(bytes) {
   const s = latin1(b);
   if (!s.startsWith('%PDF-')) throw new Error('not a PDF');
   const objects = new Map(); // number -> { value, stream (Latin-1 raw), at }
-  const objRe = /(\d+)\s+(\d+)\s+obj\b/g;
+  // Bounded and anchored at a word boundary, so a long run of digits can't make it backtrack.
+  const objRe = /\b(\d{1,10})\s+(\d{1,5})\s+obj\b/g;
   let m;
   while ((m = objRe.exec(s))) {
     const lex = new Lexer(s, m.index + m[0].length);
@@ -316,6 +340,7 @@ export async function pdfText(bytes) {
   }
   const get = (v, depth = 0) => (v instanceof Ref && depth < 32 ? get(objects.get(v.n)?.value, depth + 1) : v);
   const decoded = new Map();
+  let inflated = 0;
   const streamOf = async (num) => {
     if (decoded.has(num)) return decoded.get(num);
     const o = objects.get(num);
@@ -324,8 +349,10 @@ export async function pdfText(bytes) {
       const filters = [].concat(get(o.value?.Filter) ?? []).map(get);
       let data = Uint8Array.from(o.stream, (c) => c.charCodeAt(0));
       for (const f of filters) {
-        if (f === '/FlateDecode' || f === '/Fl') data = data && (await inflate(data));
-        else data = null;
+        if ((f === '/FlateDecode' || f === '/Fl') && data && inflated < LIMITS.totalBytes) {
+          data = await inflate(data, Math.min(LIMITS.streamBytes, LIMITS.totalBytes - inflated));
+          inflated += data ? data.length : 0;
+        } else data = null;
       }
       out = data ? latin1(data) : null;
     }
@@ -340,9 +367,13 @@ export async function pdfText(bytes) {
     if (!text) continue;
     const first = get(o.value.First) || 0;
     const head = new Lexer(text);
-    const n = get(o.value.N) || 0;
+    const n = Math.min(Number(get(o.value.N)) || 0, LIMITS.objectsPerStream);
     const pairs = [];
-    for (let i = 0; i < n; i++) pairs.push([head.value(), head.value()]);
+    for (let i = 0; i < n; i++) {
+      const pair = [head.value(), head.value()];
+      if (typeof pair[0] !== 'number' || typeof pair[1] !== 'number') break;
+      pairs.push(pair);
+    }
     for (const [objNum, offset] of pairs) {
       if (typeof objNum !== 'number' || typeof offset !== 'number') continue;
       const held = objects.get(objNum);
@@ -365,9 +396,10 @@ export async function pdfText(bytes) {
 
   // Pages in order, each with its inherited resources.
   const pages = [];
+  let nodes = 0;
   const walk = (ref, inherited, depth, seen) => {
     const node = get(ref);
-    if (!node || depth > 32) return;
+    if (!node || depth > 32 || ++nodes > LIMITS.treeNodes || pages.length >= LIMITS.pages) return;
     if (ref instanceof Ref) {
       if (seen.has(ref.n)) return;
       seen.add(ref.n);
@@ -379,7 +411,7 @@ export async function pdfText(bytes) {
   const root = get(trailer?.Root);
   if (root?.Pages) walk(root.Pages, null, 0, new Set());
   if (!pages.length) {
-    for (const [, o] of [...objects].sort((a, z) => a[0] - z[0])) if (get(o.value?.Type) === '/Page') pages.push({ node: o.value, resources: get(o.value.Resources) });
+    for (const [, o] of [...objects].sort((a, z) => a[0] - z[0])) if (get(o.value?.Type) === '/Page' && pages.length < LIMITS.pages) pages.push({ node: o.value, resources: get(o.value.Resources) });
   }
 
   // Fonts, decoded once each.
@@ -416,14 +448,14 @@ export async function pdfText(bytes) {
       const cid = get(get(font.DescendantFonts)?.[0]) || {};
       fallback = typeof get(cid.DW) === 'number' ? get(cid.DW) : 1000;
       const w = get(cid.W) || [];
-      for (let i = 0; i < w.length;) {
+      for (let i = 0; i < w.length && widths.size < LIMITS.mapEntries;) {
         const first = get(w[i]);
         const next = get(w[i + 1]);
         if (Array.isArray(next)) {
           next.forEach((x, j) => widths.set(first + j, get(x)));
           i += 2;
         } else {
-          for (let c = first; c <= next && c - first < 65536; c++) widths.set(c, get(w[i + 2]));
+          for (let c = first; c <= next && widths.size < LIMITS.mapEntries; c++) widths.set(c, get(w[i + 2]));
           i += 3;
         }
       }
@@ -452,12 +484,20 @@ export async function pdfText(bytes) {
   };
 
   let unreadable = 0;
+  let operators = 0;
+  let forms = 0;
+  let chars = 0;
   const texts = [];
   for (const { node, resources } of pages) {
     const lines = [];
     let line = '';
+    const drawing = new Set();
     const newline = () => {
-      if (line.trim()) lines.push(line.replace(/\s+/g, ' ').trim());
+      if (line.trim()) {
+        const l = line.replace(/\s+/g, ' ').trim();
+        chars += l.length;
+        lines.push(l);
+      }
       line = '';
     };
     const run = async (content, res, depth) => {
@@ -507,7 +547,8 @@ export async function pdfText(bytes) {
         }
         lastEnd = cmX + tx;
       };
-      for (let guard = 0; guard < 2e6; guard++) {
+      for (;;) {
+        if (++operators > LIMITS.operators || chars > LIMITS.textChars) break;
         const v = lex.value(true);
         if (v === undefined) break;
         if (!(v instanceof Op)) {
@@ -518,8 +559,9 @@ export async function pdfText(bytes) {
         const num = (i) => Number(stack[stack.length - i]) || 0;
         switch (op) {
           case 'BI': {
-            // An inline image: skip its data to "EI".
-            const end = content.indexOf('EI', content.indexOf('ID', lex.pos));
+            // An inline image: skip its data to "EI", only ever forward.
+            const id = content.indexOf('ID', lex.pos);
+            const end = id < 0 ? -1 : content.indexOf('EI', id + 2);
             lex.pos = end < 0 ? content.length : end + 2;
             break;
           }
@@ -591,9 +633,12 @@ export async function pdfText(bytes) {
           case 'Do': {
             const xo = get(get(res?.XObject)?.[String(stack.at(-1)).slice(1)]);
             const ref = get(res?.XObject)?.[String(stack.at(-1)).slice(1)];
-            if (get(xo?.Subtype) === '/Form' && ref instanceof Ref) {
+            // A form not already being drawn (a form that draws itself is drawn once), within the file's count.
+            if (get(xo?.Subtype) === '/Form' && ref instanceof Ref && !drawing.has(ref.n) && ++forms <= LIMITS.forms) {
               saved.push([cmX, cmY]);
+              drawing.add(ref.n);
               await run(await streamOf(ref.n), get(xo.Resources) || res, depth + 1);
+              drawing.delete(ref.n);
               [cmX, cmY] = saved.pop() || [0, 0];
             }
             break;

@@ -496,8 +496,10 @@ generic mode.
   Norfolk; a test refuses a topic phrase made only of common names) **and a
   member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
   private conversations"), matched against the title and the City's
-  description: up to five, a civic league's name taken as the watch's league
-  (Jason, 2026-11-18), refused (unless a street's name, as above) when made
+  description (never the applicant's name leading a BZA entry or land-use
+  title, `withoutApplicant`): up to five, a civic league's name taken as the
+  watch's league whatever its length (Jason, 2026-11-18; it narrows the
+  watch, and the confirmation says so), refused (unless a street's name, as above) when made
   only of common
   first names and surnames (`data/common-names.json`, Census lists, built by
   `scripts/build-common-names.js`), or with a common name beside anything
@@ -516,19 +518,22 @@ generic mode.
   or at once with no snapshot), the next 21 days of `meetings.watchBodies`
   (Council, Planning Commission, BZA, ARB) from the notices, read in full
   (Jason, 2026-11-18: "read the full agenda"): each Council and Planning
-  Commission item's own page (full title and cover letter, never
-  attachments), and the BZA's and ARB's agenda PDF (iqm2 lists no items for
-  them; never the packet), read by `src/pdf.js` (a PDF text reader with no
+  Commission item's own page (full title and cover letter up to its end
+  matter, never the speakers list or attachments), and the BZA's and ARB's
+  agenda PDF (`meetings.fileBodies` only; iqm2 lists no items for them;
+  never the packet), read by `src/pdf.js` (a PDF text reader with no
   dependencies: Flate, object streams, WinAnsi and Identity-H/ToUnicode
-  fonts, spacing by glyph widths; encrypted files refused) and split by
-  `src/agenda-file.js`; topics from title and description less zoning-district
+  fonts, spacing by glyph widths; encrypted files refused; `LIMITS` on
+  bytes, objects, operators, forms and pages against a hostile file) and
+  split page by page by `src/agenda-file.js`; topics from title and description less zoning-district
   and citation boilerplate (`topicText`); each item described, tagged by the
   civic league of its listed addresses ("No Civic League" is none), and
   annotated with its source (`{ publisher, record: 'public', document, url,
   read }`), kept as `agenda-snapshot:<city>`. Files go through
   `src/http-cache.js` (conditional GET by the origin's own validators, a
-  fresh lifetime honored, `no-store` honored: one request either way, never
-  HEAD then GET; what was parsed is kept, never the body); then one
+  fresh lifetime honored less `Age`, `no-store` honored: one request either
+  way, never HEAD then GET; what was parsed is kept, never the body, keyed
+  with the reader's version; bodies capped as they arrive); then one
   digest a day per watch (Resend, `List-Unsubscribe` one-click,
   `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
   stop; 5 a member, 365 days). **The job never writes a watch**: what it sent

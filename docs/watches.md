@@ -45,6 +45,18 @@ The cover-letter reader (`parseTransmittal`, shared with chat's
 `get_legislation`) still puts "the applicant" in place of a private
 applicant's name: Jason's 2026-11-11 call, not changed here.
 
+Two limits on what is read for matching, from the sixth review:
+- **A cover letter stops where its end matter starts** ("V.
+  Communications/Outreach", "Staff contact", "Attachments", "Proponents and
+  Opponents"). Before, a section could run on into the hearing's list of
+  speakers, with their names and home addresses (item 5878 on the Oct 27
+  Council agenda). That list is kept nowhere now, in watches or in chat's
+  `get_legislation`.
+- **A phrase never matches the applicant's name that leads a BZA entry or a
+  land-use title** ("JANE DOE – for a variance …"; `withoutApplicant`). BZA
+  applicants are almost all homeowners, so a rare surname can't follow one.
+  The name is still quoted, as the City posted it.
+
 ### Siren's summary, and the history behind it
 
 Until 2026-11-18 titles were never repeated, and this summary was all an item
@@ -67,7 +79,8 @@ now the summary under the City's words:
 - **the kind of action**: one of a fixed list of labels ("Conditional Use
   Permit", "Sale of City property", "Rezoning", "Lease", …);
 - **the topics it matches**: from the city's reviewed list;
-- **the addresses** its title names, and only those on the City's address
+- **the addresses** the item names (its title, the request in its cover
+  letter, or an agenda file's entry), and only those on the City's address
   list: that house number on that street (`titlePlaces`, below). Money comes
   out of the title first. A title's "$5,000 From Mary Lane" or "$5,000 Betty
   Lane Scholarship" isn't an address; the third and fourth reviews showed the
@@ -184,12 +197,19 @@ To refresh it by hand, run `node scripts/build-addresses.js`.
     use in lower case;
   - has a common name beside a title or an entity word: "mr smith",
     "smith llc", "estate of smith";
-  - holds a number, an address or contact details;
-  - (A civic league's name isn't refused: it becomes the watch's league. Two
-    leagues in one watch are refused; start one watch for each.)
+  - holds a number, an address or contact details.
 
   Without the name list, the vocabulary or the text check, no phrase is
   accepted.
+
+  A civic league's name is never refused, whatever its length, and needs none
+  of those lists: it's on the City's own list of leagues, and it becomes the
+  watch's league. That narrows the watch rather than adding to it ("norview"
+  with "dog park" is dog park items in Norview), so the confirmation, the card
+  and the model's tool result say so. When the league's name is also a
+  street's ("bayview"), they say to write the street with its type to follow
+  the street instead. Two leagues in one watch are refused; start one watch
+  for each.
 
   This is a guard, not a wall. A rare surname alone ("zelinski") gets through.
   It then works as a search of upcoming titles (the new watch shows what's
@@ -244,8 +264,17 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
      into items by `src/agenda-file.js` (numbered or lettered entries under
      roman-numeral sections; procedure such as roll call is dropped). On
      three real agendas it matched pdftotext word for word, but for line-break
-     hyphens. A file item is keyed by a hash of its text, and gets the City's
-     case number when it has one ("COA #26-00439").
+     hyphens. It reads page by page, so the page's own header and footer are
+     skipped when an item runs across the break, and a line that only looks
+     like a heading doesn't end an item mid-sentence ("on property located
+     at 7418" / "N. Military Highway"). A line starting with a citation
+     ("3.2.9.B of the …") or "e.g." starts nothing, a lettered sub-item
+     stays with its numbered item, and an entry with no number is kept when
+     it reads as one (an applicant's "– for …", or a case number). Rewrapping
+     the real items at every width from 50 to 110 characters changes none of
+     them. A file item is keyed by the City's case number when it has one
+     ("COA #26-00439"), else by a hash of its letters and digits, so a
+     rewrap or a new page break doesn't make it new.
 4. Describes each item as above: its kind and number from its title; its
    topics from its title and from the description, less what describes the
    property's zoning district or cites the ordinance (`topicText`: "zoned
@@ -329,9 +358,11 @@ gone now: a run is the notices query and one page per meeting.
 
 - **What the City wrote.** It matches topics in titles and the City's
   descriptions. An item can affect a topic without naming it; the email says
-  so. Planning Commission items have no cover letter (their full title has a
-  "The purpose of this request is …" sentence instead), and an agenda file
-  gives only its one entry per item.
+  so. A Planning Commission item's page may add nothing: on the Nov 19
+  hearing every page's title was the agenda's link, which already carries a
+  "The purpose of this request is …" sentence, while on the Oct 22 hearing 9
+  of 10 items had a cover letter. An agenda file gives only its one entry per
+  item.
 - **A file it can't read.** An encrypted PDF, a scanned one (no text), or a
   font with no map to Unicode gives no items, or fewer; nothing is guessed.
 - **Near misses.** A topic phrase can catch an item that's beside the point: a
@@ -370,8 +401,15 @@ So `src/http-cache.js` applies the HTTP rules itself:
   with its `ETag` and `Last-Modified`, which go back as `If-None-Match` and
   `If-Modified-Since`. A 304 reuses it with no body sent.
 - **Freshness:** a `max-age` or a future `Expires` means no request until it
-  passes.
-- **`no-store`:** nothing is kept, and every read is a full GET.
+  passes, less any `Age` the response already spent in caches.
+- **`no-store`:** nothing is kept, and every read is a full GET. A response
+  with neither validators nor a lifetime drops what was kept.
+- **The reader's version** is part of the key, so a change to `src/pdf.js` or
+  `src/agenda-file.js` reads every file again rather than waiting for the City
+  to change it.
+- **Size:** a body is refused past the cap (5 MB for an agenda file), before
+  reading it when its `Content-Length` says so, and as it arrives when it
+  doesn't.
 
 This is one request whether or not the file changed. A HEAD and then a GET
 would be two whenever it had, and Cloudflare's cache may send a HEAD on as a

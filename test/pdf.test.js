@@ -83,3 +83,98 @@ test('agenda files: numbered and lettered items, continuation lines joined, head
     'Presentation: West Ghent Historic District National Register Nomination',
   ]);
 });
+
+// ---- hostile files (review 6): each finishes fast and small, or throws a catchable error ----
+
+const enc = (s) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 255);
+const latin = (b) => {
+  let s = '';
+  for (let i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i + 8192));
+  return s;
+};
+// objs: [[num, dict, streamBytes?]]
+function rawPdf(objs) {
+  let out = '%PDF-1.5\n';
+  for (const [n, d, st] of objs) out += st ? `${n} 0 obj\n<< ${d.replace('LEN', st.length)} >>\nstream\n${latin(st)}\nendstream\nendobj\n` : `${n} 0 obj\n${d}\nendobj\n`;
+  return enc(`${out}trailer\n<< /Root 1 0 R >>\n%%EOF\n`);
+}
+const PAGE = [[1, '<< /Type /Catalog /Pages 2 0 R >>'], [2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>']];
+const range = (k) => Array.from({ length: k }, (_, i) => i);
+
+test('hostile PDFs: a billion-object stream, a self-drawing form, giant font maps, an endless inline image, a run of digits', async () => {
+  const cases = {
+    objectStream: rawPdf([...PAGE.slice(0, 1), [2, '<< /Type /Pages /Kids [] /Count 0 >>'], [9, '/Type /ObjStm /N 1000000000 /First 4 /Length LEN /Filter /FlateDecode', await deflate('1 0 <<>>')]]),
+    selfDrawingForm: rawPdf([...PAGE,
+      [3, '<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources 6 0 R >>'],
+      [4, '/Length LEN', enc('/X Do '.repeat(80) + 'BT /F1 10 Tf (x) Tj ET')],
+      [5, '/Type /XObject /Subtype /Form /Resources 6 0 R /Length LEN', enc('/X Do '.repeat(80) + 'BT /F1 10 Tf (x) Tj ET')],
+      [6, '<< /XObject << /X 5 0 R >> /Font << /F1 7 0 R >> >>'],
+      [7, '<< /Type /Font /Subtype /TrueType /BaseFont /Arial /FirstChar 32 /Widths [500] >>']]),
+    toUnicode: rawPdf([...PAGE,
+      [3, '<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>'],
+      [4, '/Length LEN', enc('BT /F1 10 Tf <0041> Tj ET')],
+      [5, '<< /Type /Font /Subtype /Type0 /Encoding /Identity-H /DescendantFonts [6 0 R] /ToUnicode 7 0 R >>'],
+      [6, '<< /Type /Font /Subtype /CIDFontType2 /DW 500 >>'],
+      [7, '/Length LEN', enc(`1 begincodespacerange <0000> <FFFF> endcodespacerange\n60 beginbfrange\n${range(60).map((k) => `<${(k * 65536).toString(16).padStart(8, '0')}> <${(k * 65536 + 65535).toString(16).padStart(8, '0')}> <0041>`).join('\n')}\nendbfrange`)]]),
+    cidWidths: rawPdf([...PAGE,
+      [3, '<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>'],
+      [4, '/Length LEN', enc('BT /F1 10 Tf <0041> Tj ET')],
+      [5, '<< /Type /Font /Subtype /Type0 /Encoding /Identity-H /DescendantFonts [6 0 R] >>'],
+      [6, `<< /Type /Font /Subtype /CIDFontType2 /DW 500 /W [${range(60).map((k) => `${k * 65536} ${k * 65536 + 65535} 500`).join(' ')}] >>`]]),
+    inlineImage: rawPdf([...PAGE,
+      [3, '<< /Type /Page /Parent 2 0 R /Contents 4 0 R /Resources << >> >>'],
+      [4, '/Length LEN /Filter /FlateDecode', await deflate('EI BI ' + '0 '.repeat(100000))]]),
+    digits: enc(`%PDF-1.5\n${'1'.repeat(160000)} `),
+  };
+  for (const [name, bytes] of Object.entries(cases)) {
+    const t0 = performance.now();
+    const out = await pdfText(bytes).catch((e) => e);
+    const ms = performance.now() - t0;
+    assert.ok(ms < 3000, `${name} took ${ms.toFixed(0)} ms`);
+    assert.ok(out instanceof Error || Array.isArray(out.pages), name);
+  }
+});
+
+test('a Flate bomb stops at the stream limit instead of inflating it all', async () => {
+  const z = await deflate(' '.repeat(40 * 1024 * 1024));
+  const out = await inflate(z, 1024 * 1024);
+  assert.ok(!out || out.length <= 1024 * 1024, `inflated ${out?.length} bytes`);
+});
+
+test('agenda files: page breaks, direction initials, names in capitals, citations, sub-items, procedure', () => {
+  const H = ['Next two ARB meetings: December 7, 2026 & January 11, 2027', 'City Hall Building, City Council Chamber 11th floor / 810 Union St, Norfolk, Virginia 23510', 'Ph. (757) 664-4752 / Fax (757) 441-1569'];
+  const texts = (pages) => agendaFileItems(pages.map((p) => p.join('\n'))).map((i) => i.text);
+  // An item across a page break: the next page's header is skipped, the item runs on.
+  assert.deepEqual(texts([[...H, 'IV. Consent Agenda', 'a. COA #26-00439 – 719 Yarmouth Street – Replace non-historic windows with new'], [...H, 'windows and a new door at 721 Yarmouth Street.', 'b. COA #26-00438 – 419 Colonial Avenue – Installation of prefabricated shed.']]), [
+    'COA #26-00439 – 719 Yarmouth Street – Replace non-historic windows with new windows and a new door at 721 Yarmouth Street.',
+    'COA #26-00438 – 419 Colonial Avenue – Installation of prefabricated shed.',
+  ]);
+  // A footer and a header in capitals, repeated on each page.
+  assert.deepEqual(texts([['BOARD OF ZONING APPEALS', 'I. Public Hearing', '1. JANE EXAMPLE – for a variance from the side yard setback of Table 3.2.9.B of the Norfolk Zoning', 'Page 1'], ['BOARD OF ZONING APPEALS', 'Ordinance on property located at 2612 Munson St, zoned R-8 (Single-Family).', 'Page 2']]), [
+    'JANE EXAMPLE – for a variance from the side yard setback of Table 3.2.9.B of the Norfolk Zoning Ordinance on property located at 2612 Munson St, zoned R-8 (Single-Family).',
+  ]);
+  // A heading at the top of a page after a finished item still starts a new section.
+  assert.deepEqual(texts([[...H, 'IV. Consent Agenda', 'a. COA #26-00439 – 719 Yarmouth Street – Replace windows.'], [...H, 'B. Design Review', 'a. DC #26-00440 – 301 S Newtown Road – New tower.']]).length, 2);
+  const one = (lines) => texts([lines]);
+  assert.deepEqual(one(['I. Public Hearing', '1. EXAMPLE HOLDINGS, LLC – for a special exception on property located at 7418', 'N. Military Highway, zoned C-C (Community Commercial).', '2. JOHN ROE – for a variance at 228 W 27th St.']), [
+    'EXAMPLE HOLDINGS, LLC – for a special exception on property located at 7418 N. Military Highway, zoned C-C (Community Commercial).',
+    'JOHN ROE – for a variance at 228 W 27th St.',
+  ]);
+  assert.deepEqual(one(['I. Public Hearing', '1. THE TRUSTEES OF THE EXAMPLE CHURCH OF NORFOLK AND', 'ITS SUCCESSORS, INC.', '– for a special exception on property located at 2612 Munson St.']), [
+    'THE TRUSTEES OF THE EXAMPLE CHURCH OF NORFOLK AND ITS SUCCESSORS, INC. – for a special exception on property located at 2612 Munson St.',
+  ]);
+  assert.deepEqual(one(['I. Public Hearing', '1. JANE EXAMPLE – for a variance from the minimum side yard setback of Table', '3.2.9.B of the Norfolk Zoning Ordinance on property located at 2612 Munson St.', '2. JOHN ROE – for a variance to allow sheds and garages,', 'e.g. a detached garage, at 228 W 27th St.']), [
+    'JANE EXAMPLE – for a variance from the minimum side yard setback of Table 3.2.9.B of the Norfolk Zoning Ordinance on property located at 2612 Munson St.',
+    'JOHN ROE – for a variance to allow sheds and garages, e.g. a detached garage, at 228 W 27th St.',
+  ]);
+  // Sub-items stay with their item; a number far out of turn is a wrapped line.
+  assert.deepEqual(one(['I. Public Hearing', '1. JANE EXAMPLE – for variances on property located at 2612 Munson St:', 'a. minimum side yard setback;', 'b. maximum lot coverage.', '2. JOHN ROE – for a variance on property known as Lot', '12. Block 3, at 228 W 27th St.']), [
+    'JANE EXAMPLE – for variances on property located at 2612 Munson St: a. minimum side yard setback; b. maximum lot coverage.',
+    'JOHN ROE – for a variance on property known as Lot 12. Block 3, at 228 W 27th St.',
+  ]);
+  // An entry with no number is kept when it reads as one; "Discussion of …" is business, "Discussion" alone is procedure.
+  assert.deepEqual(one(['I. Public Hearing', 'JANE EXAMPLE – for a variance on property located at 2612 Munson St.', 'IX. Discussion', 'a. Discussion of the demolition of the structure at 2612 Munson St.', 'X. New Business', 'a. Discussion', 'b. Public comments from the floor']), [
+    'JANE EXAMPLE – for a variance on property located at 2612 Munson St.',
+    'Discussion of the demolition of the structure at 2612 Munson St.',
+  ]);
+});
