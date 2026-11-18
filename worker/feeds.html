@@ -10,8 +10,8 @@
 <main class="wpage">
   <p class="back"><a href="{{BASE}}/">Back to {{APP_NAME}}</a></p>
   <h1>Civic-league feeds</h1>
-  <p class="lede">An Atom feed for each civic league: the items on the City's posted agendas for {{BODIES}}, for the next three weeks of meetings, whose titles name an address in that league. Add one to any feed reader. {{APP_NAME}} checks the agendas once a day{{CHECKED}}.</p>
-  <p class="fine">Items are tagged by the civic league of the address their title names, from the City's address list; an item with no address (a citywide ordinance, say), or at an address the City's list puts in no civic league (much of Granby Street and other commercial corridors), is only in the citywide feed. Each item is described (its kind, topics and address) without repeating its title, which can name private people; its link is the City's own page.</p>
+  <p class="lede">An Atom feed for each civic league: the items on the City's posted agendas for {{BODIES}}, for the next three weeks of meetings, whose title or the City's description names an address in that league. Add one to any feed reader. {{APP_NAME}} checks the agendas once a day{{CHECKED}}.</p>
+  <p class="fine">Items are tagged by the civic league of the address their title names, from the City's address list; an item with no address (a citywide ordinance, say), or at an address the City's list puts in no civic league (much of Granby Street and other commercial corridors), is only in the citywide feed. Each entry is the City's own title for the item, as posted, with {{APP_NAME}}'s summary (its kind, topics and address); its link is the City's own page.</p>
   <p class="all"><a href="{{BASE}}/feeds/all.atom">Every item, citywide</a></p>
   <ul class="leagues">{{LEAGUES}}</ul>
 </main>

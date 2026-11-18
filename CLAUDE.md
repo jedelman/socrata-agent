@@ -464,9 +464,14 @@ generic mode.
   affecting short term rentals" by email, and "shift from per street to per
   neighborhood league" for the public feeds). Behind `WATCHES` and
   `LEAGUE_FEEDS`, both off; with both off nothing changes (routes, page,
-  session, prompt, tools, cron). **Siren never repeats an agenda title**
-  (titles name buyers, tenants and applicants; three reviews found
-  name-withholding leaking, so it was dropped): each item is described from
+  session, prompt, tools, cron). **Names in content, never as a watch's
+  key** (Jason, 2026-11-18: "keep the name guard on watches but allow names
+  through in content - titles and descriptions ... mostly an anti-harassment
+  precaution ... if that risk is cleared in another way we can adjust"):
+  emails, feeds and the watch pages quote each item's title and the City's
+  description as posted (`quoteItem`), credited and linked, with Siren's
+  summary under it. Until then titles were never repeated (three reviews had
+  found name-withholding leaking), and the summary is that design: each item described from
   fixed kind labels (`itemKind`), the city's topics (`topicsOf`), addresses
   on the City's address list, its ordinance number and the City's link
   (`describeItem` in `src/watches.js`); a test checks, over the whole
@@ -486,18 +491,21 @@ generic mode.
   that is a street's name ("hampton", "21st street") is a street watch,
   matched by an item's listed address, never by title words, and a passing
   phrase that names a street with its type ("hampton boulevard") matches by
-  title and by listed address. The snapshot keeps each title in one internal
-  field to match phrases against; nothing serves it. **Watches follow
+  title and by listed address. **Watches follow
   topics** from the city profile's reviewed `meetings.watchTopics` (27 for
   Norfolk; a test refuses a topic phrase made only of common names) **and a
   member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
-  private conversations"): up to five, refused (unless a street's name, as
-  above) when made only of common
+  private conversations"), matched against the title and the City's
+  description (never the applicant's name leading a BZA entry or land-use
+  title, `withoutApplicant`): up to five, a civic league's name taken as the
+  watch's league whatever its length (Jason, 2026-11-18; it narrows the
+  watch, and the confirmation says so), refused (unless a street's name, as above) when made
+  only of common
   first names and surnames (`data/common-names.json`, Census lists, built by
   `scripts/build-common-names.js`), or with a common name beside anything
   but ordinary words (`ordinaryWords` in `telemetry.js`, words the books use
   in lower case) or beside a title or entity word ("mr smith", "smith llc"),
-  or holding a number, address or contact, or naming a civic league; without
+  or holding a number, address or contact; without
   its lists no phrase is accepted. A guard, not a wall: a rare surname alone
   passes and works as a standing title search (Jason's call, in the docs).
   Feeds never use phrases. Addresses come from `titlePlaces` (money taken
@@ -508,9 +516,24 @@ generic mode.
   watch on the card with the email they signed in with (checked against the
   account's HMAC). `worker/watches.js`: once a day (cron, 11:00 UTC or later,
   or at once with no snapshot), the next 21 days of `meetings.watchBodies`
-  from the notices, each iqm2 agenda described and tagged by the civic
-  league of its listed addresses ("No Civic League" is none), kept as
-  `agenda-snapshot:<city>`; then one
+  (Council, Planning Commission, BZA, ARB) from the notices, read in full
+  (Jason, 2026-11-18: "read the full agenda"): each Council and Planning
+  Commission item's own page (full title and cover letter up to its end
+  matter, never the speakers list or attachments), and the BZA's and ARB's
+  agenda PDF (`meetings.fileBodies` only; iqm2 lists no items for them;
+  never the packet), read by `src/pdf.js` (a PDF text reader with no
+  dependencies: Flate, object streams, WinAnsi and Identity-H/ToUnicode
+  fonts, spacing by glyph widths; encrypted files refused; `LIMITS` on
+  bytes, objects, operators, forms and pages against a hostile file) and
+  split page by page by `src/agenda-file.js`; topics from title and description less zoning-district
+  and citation boilerplate (`topicText`); each item described, tagged by the
+  civic league of its listed addresses ("No Civic League" is none), and
+  annotated with its source (`{ publisher, record: 'public', document, url,
+  read }`), kept as `agenda-snapshot:<city>`. Files go through
+  `src/http-cache.js` (conditional GET by the origin's own validators, a
+  fresh lifetime honored less `Age`, `no-store` honored: one request either
+  way, never HEAD then GET; what was parsed is kept, never the body, keyed
+  with the reader's version; bodies capped as they arrive); then one
   digest a day per watch (Resend, `List-Unsubscribe` one-click,
   `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
   stop; 5 a member, 365 days). **The job never writes a watch**: what it sent
@@ -527,8 +550,8 @@ generic mode.
   until it stops; never logged or returned. Pages `/watches`, `/watch/stop`
   (its token is the watch id and an HMAC; posted from script, or POSTed
   one-click by a mail client before the JSON rule), `/feeds` and
-  `/feeds/<league>.atom` (public, described items, `noindex`). BZA and ARB
-  aren't watchable yet: their iqm2 pages list no items (the agenda is a file).
+  `/feeds/<league>.atom` (public, described items with their source,
+  `noindex`).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each

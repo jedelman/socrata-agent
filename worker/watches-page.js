@@ -56,7 +56,8 @@
     $('#fmsg').textContent = '';
     f.reset();
     $('#msg').className = 'msg ok';
-    $('#msg').textContent = `Watching ${out.watch.label}.${out.already?.length ? ` ${out.already.length} item${out.already.length === 1 ? ' is' : 's are'} already on a posted agenda; your first email will list ${out.already.length === 1 ? 'it' : 'them'}.` : ''}`;
+    const notes = [...(out.notes || []).map((n) => `"${n.phrase}" is ${n.note}.`), ...(out.refused_phrases || []).map((r) => `Left out "${r.phrase}": ${r.reason}.`)].join(' ');
+    $('#msg').textContent = `Watching ${out.watch.label}.${out.already?.length ? ` ${out.already.length} item${out.already.length === 1 ? ' is' : 's are'} already on a posted agenda; your first email will list ${out.already.length === 1 ? 'it' : 'them'}.` : ''}${notes ? ` ${notes}` : ''}`;
     await load();
   });
   load();
