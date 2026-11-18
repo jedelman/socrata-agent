@@ -207,13 +207,13 @@ async function readRequest(kv, key) {
 
 /**
  * A request's status as the steward last set it, by storage key, with what a
- * fulfilled request's email names: { status, source, fulfilled_by,
- * steward_note } or null (request-notify.js).
+ * decided request's email names: { status, source, fulfilled_by,
+ * steward_note, decided } or null (request-notify.js).
  */
 export async function requestStatusByKey(kv, key) {
   const { cur } = await readRequest(kv, key);
   if (!cur) return null;
-  return { status: cur.status || 'new', source: cur.source, fulfilled_by: cur.fulfilled_by || null, steward_note: cur.steward_note || null };
+  return { status: cur.status || 'new', source: cur.source, fulfilled_by: cur.fulfilled_by || null, steward_note: cur.steward_note || null, decided: cur.decided || null };
 }
 
 /**

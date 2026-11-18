@@ -288,12 +288,12 @@ $('#log').addEventListener('submit', async (e) => {
     f.replaceWith(done);
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
-// "Email me once when it's added" (worker/request-notify.js): only when the
+// "Email me when it's added or declined" (worker/request-notify.js): only when the
 // site has it on and the person is signed in; the address is the one they
 // signed in with, typed again, and checked against the account.
 function notifyChoice() {
   if (!session?.request_notify) return '';
-  return `<label class="check"><input type="checkbox" name="notify"> Email me once when it's added</label><label class="note notify-email" hidden>The email you signed in with<input type="email" name="email" maxlength="254" autocomplete="email"></label><p class="fine notify-fine" hidden>${esc(APP_NAME)} keeps that address sealed, apart from the request, and deletes it once that email is sent, or after a year.</p>`;
+  return `<label class="check"><input type="checkbox" name="notify"> Email me when it's added or declined</label><label class="note notify-email" hidden>The email you signed in with<input type="email" name="email" maxlength="254" autocomplete="email"></label><p class="fine notify-fine" hidden>One email, when a steward decides. ${esc(APP_NAME)} keeps that address sealed, apart from the request, and deletes it once that email is sent, or after a year.</p>`;
 }
 function renderSuggestions(list) {
   if (!list?.length) return '';
@@ -323,7 +323,7 @@ $('#log').addEventListener('submit', async (e) => {
     msg.textContent = typeof data.count === 'number' && data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : `Requested. Thank you: requests decide what ${APP_NAME} learns next.`;
     f.querySelector('button').disabled = true;
     if (data.notify) {
-      msg.textContent += " You'll get one email when it's added. ";
+      msg.textContent += " You'll get one email when a steward decides. ";
       const undo = document.createElement('button');
       undo.type = 'button';
       undo.className = 'textbtn';

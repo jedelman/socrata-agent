@@ -420,10 +420,10 @@ test('chat page: the request card is a stacked card: heading, why, the source, t
   const card = [{ need: 'What is the plan <for> MacArthur Center?', source: 'MacArthur Center plan', why: 'I found leases but no plan.', url: 'https://www.norfolk.gov/' }];
   const renderSuggestions = make({});
   const html = renderSuggestions(card);
-  // "Email me once when it's added" only when the site has it on (REQUEST_NOTIFY, signed in), before the button.
+  // "Email me when it's added or declined" only when the site has it on (REQUEST_NOTIFY, signed in), before the button.
   assert.ok(!html.includes('name="notify"'));
   const offered = make({ request_notify: true })(card);
-  assert.ok(offered.indexOf('<input type="checkbox" name="notify"> Email me once when it\'s added') > offered.indexOf('leave out your address and name.</p>'));
+  assert.ok(offered.indexOf('<input type="checkbox" name="notify"> Email me when it\'s added or declined') > offered.indexOf('leave out your address and name.</p>'));
   assert.ok(offered.indexOf('name="notify"') < offered.indexOf('<div class="row">'));
   assert.match(offered, /<label class="note notify-email" hidden>The email you signed in with<input type="email" name="email"/);
   const order = ['<form class="suggest"', '<h3>Ask for this source</h3>', '<p class="why">I found leases but no plan.</p>', '<p class="source"><strong>MacArthur Center plan</strong>', '<label class="note">What you wanted to know<textarea name="need" class="need" maxlength="300">What is the plan &lt;for&gt; MacArthur Center?</textarea></label>', '<p class="fine">Requests are public: once reviewed, this note may appear on the <a href="requests"', 'leave out your address and name.</p>', '<div class="row"><button class="ask" type="submit">Request this source</button><span class="msg" role="status"></span></div></form>'];

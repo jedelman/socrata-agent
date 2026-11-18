@@ -1,11 +1,13 @@
-// One email when a requested source is added (Jason, 2026-11-18: "When a
+// One email when a requested source is decided (Jason, 2026-11-18: "When a
 // source request is fulfilled, does siren notify those who had requested that
-// source by email? We should.").
+// source by email? We should." Then, the same day, yes to declined requests
+// too, and to asking from the public list).
 //
 // A request keeps nothing about who asked (requests.js). This is the one
 // exception, and only on the asker's own say: a signed-in member ticks "Email
-// me once when it's added" on the request card and types the email they signed
-// in with, checked against the account as watches do. What's kept:
+// me when it's added or declined" on the request card, or presses that button
+// on an open request on the public list, and types the email they signed in
+// with, checked against the account as watches do. What's kept:
 //
 //   request-notify:<hash>:<tag>  { v: 1, sealed: { iv, ct }, day }
 //
@@ -18,10 +20,12 @@
 // NOTIFY_DAYS, whichever comes first.
 //
 // The cron sends: for each kept key whose request is now fulfilled, one email
-// (the source, the steward's link to what added it and their public note),
-// at most REQUEST_NOTIFY_DAILY a day (default 100, "0" pauses), then the key
-// is deleted. A request set back from fulfilled before the cron runs sends
-// nothing. Declined requests send nothing and their keys expire.
+// (the source, the steward's link to what added it and their public note);
+// for one declined, one email (the source and the steward's note) once the
+// UTC day of the decision has passed, so a decline made by mistake can be
+// undone before anyone hears. At most REQUEST_NOTIFY_DAILY a day (default
+// 100, "0" pauses), then the key is deleted. A request set back to open
+// before the cron sends sends nothing.
 //
 // Behind REQUEST_NOTIFY (off). With it off, nothing here runs: the session,
 // the request card, POST /api/requests and the cron are as before.
@@ -40,12 +44,14 @@ export const notifyOn = (env) => flag(env?.REQUEST_NOTIFY);
 /** On, and able to send: email sign-in set up, a public origin for links, KV. */
 export const notifyReady = (env) => notifyOn(env) && loginConfigured(env) && Boolean(env.PUBLIC_ORIGIN) && Boolean(env.LIMITS);
 
-/** The key for one account's ask on one request. */
-export async function notifyKey(secret, source, uid) {
-  const hash = (await requestKey(source)).slice('request:'.length);
+/** The key for one account's ask on one request, by the request's storage key. */
+export async function notifyKeyFor(secret, key, uid) {
+  const hash = String(key).slice('request:'.length);
   const tag = hex(await hmac(secret, `request-notify:${hash}:${uid}`)).slice(0, 24);
   return `${PREFIX}${hash}:${tag}`;
 }
+/** The same, by the request's source text (folded as a raise folds it). */
+export const notifyKey = async (secret, source, uid) => notifyKeyFor(secret, await requestKey(source), uid);
 const hashOf = (name) => name.slice(PREFIX.length).split(':')[0];
 
 async function sealKey(secret) {
@@ -73,26 +79,44 @@ export async function checkOptIn(env, uid, body) {
   return { ok: true, email };
 }
 
-/** Keep one account's ask on a request (a second ask replaces the first). */
-export async function optIn(kv, env, { uid, source, email, now = Date.now() }) {
-  const name = await notifyKey(env.INVITE_SECRET, source, uid);
+/** Keep one account's ask on a request, by `key` or `source` (a second ask replaces the first). */
+export async function optIn(kv, env, { uid, key, source, email, now = Date.now() }) {
+  const name = key ? await notifyKeyFor(env.INVITE_SECRET, key, uid) : await notifyKey(env.INVITE_SECRET, source, uid);
   await kv.put(name, JSON.stringify({ v: 1, sealed: await sealFor(env.INVITE_SECRET, name, email), day: new Date(now).toISOString().slice(0, 10) }), { expirationTtl: NOTIFY_DAYS * 86400 });
   return name;
 }
 
-/** Drop one account's ask on a request. */
-export async function optOut(kv, env, { uid, source }) {
-  await kv.delete(await notifyKey(env.INVITE_SECRET, source, uid));
+/** Drop one account's ask on a request, by `key` or `source`. */
+export async function optOut(kv, env, { uid, key, source }) {
+  await kv.delete(key ? await notifyKeyFor(env.INVITE_SECRET, key, uid) : await notifyKey(env.INVITE_SECRET, source, uid));
 }
 
 const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const httpsLink = (u) => (/^https:\/\/[^\s<>"]+$/i.test(String(u || '')) ? String(u) : '');
 
-/** The one email: what was added, the steward's link and note, and that the address is gone. */
+/**
+ * The one email: what was decided, the steward's note (and for an added
+ * source, their link to what added it), and that the address is gone.
+ */
 export function notifyMail({ appName = 'Siren', origin, request }) {
   const source = String(request.source || '').slice(0, 200);
-  const by = httpsLink(request.fulfilled_by);
   const note = String(request.steward_note || '').slice(0, 600);
+  if (request.status === 'declined') {
+    const subject = `Not added to ${appName}: ${source}`.slice(0, 160);
+    const lines = [
+      `You asked ${appName} to add a source: ${source}.`,
+      `The steward decided not to add it for now.`,
+      ...(note ? ['', `Why: ${note}`] : []),
+      '',
+      `${appName} still answers what the records she reaches can show: ${origin}/`,
+      `The source request list: ${origin}/requests`,
+      '',
+      `You asked for one email when this request was decided. This is it, and ${appName} has now deleted your address.`,
+    ];
+    const html = `<p>You asked ${escHtml(appName)} to add a source: <strong>${escHtml(source)}</strong>.</p><p>The steward decided not to add it for now.</p>${note ? `<p>Why: ${escHtml(note)}</p>` : ''}<p><a href="${escHtml(origin)}/">Ask ${escHtml(appName)}</a> · <a href="${escHtml(origin)}/requests">The source request list</a></p><p style="color:#666">You asked for one email when this request was decided. This is it, and ${escHtml(appName)} has now deleted your address.</p>`;
+    return { subject, text: lines.join('\n'), html };
+  }
+  const by = httpsLink(request.fulfilled_by);
   const subject = `Added to ${appName}: ${source}`.slice(0, 160);
   const lines = [
     `You asked ${appName} to add a source: ${source}.`,
@@ -103,19 +127,20 @@ export function notifyMail({ appName = 'Siren', origin, request }) {
     `Ask your question again: ${origin}/`,
     `The source request list: ${origin}/requests`,
     '',
-    `You asked for one email when this source was added. This is it, and ${appName} has now deleted your address.`,
+    `You asked for one email when this request was decided. This is it, and ${appName} has now deleted your address.`,
   ];
-  const html = `<p>You asked ${escHtml(appName)} to add a source: <strong>${escHtml(source)}</strong>.</p><p>It's in now, so questions that needed it can be answered from it.</p>${note ? `<p>From the steward: ${escHtml(note)}</p>` : ''}${by ? `<p><a href="${escHtml(by)}">What added it</a></p>` : ''}<p><a href="${escHtml(origin)}/">Ask your question again</a> · <a href="${escHtml(origin)}/requests">The source request list</a></p><p style="color:#666">You asked for one email when this source was added. This is it, and ${escHtml(appName)} has now deleted your address.</p>`;
+  const html = `<p>You asked ${escHtml(appName)} to add a source: <strong>${escHtml(source)}</strong>.</p><p>It's in now, so questions that needed it can be answered from it.</p>${note ? `<p>From the steward: ${escHtml(note)}</p>` : ''}${by ? `<p><a href="${escHtml(by)}">What added it</a></p>` : ''}<p><a href="${escHtml(origin)}/">Ask your question again</a> · <a href="${escHtml(origin)}/requests">The source request list</a></p><p style="color:#666">You asked for one email when this request was decided. This is it, and ${escHtml(appName)} has now deleted your address.</p>`;
   return { subject, text: lines.join('\n'), html };
 }
 
 const resendStatus = (err) => Number(/Resend (\d{3})/.exec(String(err?.message || ''))?.[1]) || 0;
 
 /**
- * The cron's part: send the ones whose request is fulfilled, up to the day's
- * cap, deleting each key once its email is sent. Returns counts only.
+ * The cron's part: send the ones whose request is decided (fulfilled at once,
+ * declined once the day of the decision has passed), up to the day's cap,
+ * deleting each key once its email is sent. Returns counts only.
  */
-export async function sendFulfilled(env, { appName = 'Siren', fetchImpl = fetch, send = sendWithResend, now = Date.now() } = {}) {
+export async function sendDecided(env, { appName = 'Siren', fetchImpl = fetch, send = sendWithResend, now = Date.now() } = {}) {
   const out = { kept: 0, due: 0, sent: 0, failed: 0, capped: 0, stopped: false };
   if (!notifyReady(env)) return out;
   const kv = env.LIMITS;
@@ -145,7 +170,9 @@ export async function sendFulfilled(env, { appName = 'Siren', fetchImpl = fetch,
     for (const [h, keys] of byHash) {
       if (out.stopped) break;
       const request = await requestStatusByKey(kv, `request:${h}`);
-      if (request?.status !== 'fulfilled') continue;
+      // Declined: only once the decision's UTC day is over (dates are kept as days), a day to undo a mistake.
+      const due = request?.status === 'fulfilled' || (request?.status === 'declined' && typeof request.decided === 'string' && request.decided.slice(0, 10) < day);
+      if (!due) continue;
       out.due += keys.length;
       const mail = notifyMail({ appName, origin, request });
       for (const name of keys) {

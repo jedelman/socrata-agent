@@ -271,18 +271,21 @@ generic mode.
   (Jason, 2026-11-18: "When a source request is fulfilled, does siren notify
   those who had requested that source by email? We should."): behind
   `REQUEST_NOTIFY` (off; with it off the session, card, routes and cron are
-  as before), a signed-in member can tick "Email me once when it's added" on
-  the request card and type the email they signed in with (checked against
-  the account's HMAC). `request-notify.js` keeps it as
+  as before), a signed-in member can tick "Email me when it's added or
+  declined" on the request card, or press it on an open request on the
+  public list (`POST /api/requests/notify`, by id; Jason said yes to both the
+  same day), and type the email they signed in with (checked against the
+  account's HMAC). `request-notify.js` keeps it as
   `request-notify:<hash>:<HMAC(hash, uid)>`, AES-GCM sealed under a key
   derived from INVITE_SECRET and bound to that key name, apart from the
   request, its steward views, the public list and the issue mirror, never
   logged. The cron sends one email to each kept key whose request is
-  fulfilled (the source, `fulfilled_by` and the steward's note; Resend,
-  idempotency key per ask, 409 counted as sent, `REQUEST_NOTIFY_DAILY`
-  default 100, "0" pauses), then deletes the key; `POST
-  /api/requests/notify/stop` undoes one ask; keys expire after a year.
-  Declined requests send nothing. The list is public behind a steward
+  fulfilled (the source, `fulfilled_by` and the steward's note) or declined
+  (the source and the note, once the decision's UTC day has passed, a day to
+  undo a mistake); Resend, idempotency key per ask, 409 counted as sent,
+  `REQUEST_NOTIFY_DAILY` default 100, "0" pauses; then it deletes the key.
+  `POST /api/requests/notify/stop` undoes one ask, by id or source; keys
+  expire after a year. The list is public behind a steward
   gate: `request-accept`/`-decline`/`-fulfilled` set status, only accepted
   and fulfilled requests appear at `<base>/requests` and `/api/requests`, and
   only notes written under the "requests are public" notice and approved by

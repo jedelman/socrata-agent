@@ -26,8 +26,8 @@ import { skins } from './skins.js';
 import { setting, askLimits, visitorId, spentToday, spendRecorder } from './limits.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
-import { addRequest, raiseResponse, publicRequests, PUBLIC_ID_RE } from './requests.js';
-import { notifyReady, checkOptIn, optIn, optOut, sendFulfilled } from './request-notify.js';
+import { addRequest, raiseResponse, publicRequests, requestByPublicId, requestKey, PUBLIC_ID_RE } from './requests.js';
+import { notifyReady, checkOptIn, optIn, optOut, sendDecided } from './request-notify.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { hmacHex } from './crypto.js';
 import { movedResponse, httpsResponse, carryInviteResponse, CARRY_PATH } from './moved.js';
@@ -673,13 +673,36 @@ async function handleRequest(req, env) {
   return json(raiseResponse(out), 200, { 'Cache-Control': 'no-store' });
 }
 
-// Undo "email me once when it's added": the signed-in account's own ask on one request.
+// The request a notify route names: by its public id (the public list) or its source text (the card).
+async function notifyTarget(kv, body) {
+  if (typeof body?.id === 'string' && PUBLIC_ID_RE.test(body.id)) {
+    const found = await requestByPublicId(kv, body.id);
+    return found ? { key: found.key, status: found.cur?.status || 'new' } : null;
+  }
+  const source = String(body?.source ?? '').slice(0, 1000);
+  return source.trim().length >= 3 ? { key: await requestKey(source) } : null;
+}
+
+// "Email me when it's added or declined" from the public list: an open (accepted) request, by id.
+async function handleNotifyStart(req, env) {
+  const kv = env.LIMITS;
+  const body = await readJson(req);
+  const uid = await currentUser(req, env);
+  const checked = await checkOptIn(env, uid, body);
+  if (!checked.ok) return json({ error: checked.error, code: checked.code }, checked.status);
+  const target = typeof body?.id === 'string' && PUBLIC_ID_RE.test(body.id) ? await notifyTarget(kv, body) : null;
+  if (!target || target.status !== 'accepted') return json({ error: 'That request isn\'t open on the list.' }, 404);
+  await optIn(kv, env, { uid, key: target.key, email: checked.email });
+  return json({ ok: true, notify: true }, 200, { 'Cache-Control': 'no-store' });
+}
+
+// Undo it: the signed-in account's own ask on one request, by id or source.
 async function handleNotifyStop(req, env) {
   const uid = await currentUser(req, env);
   if (!uid) return json({ error: 'Sign in first.', code: 'signin' }, 401);
-  const source = String((await readJson(req))?.source ?? '').slice(0, 1000);
-  if (source.trim().length < 3) return json({ error: 'Name the source.' }, 400);
-  await optOut(env.LIMITS, env, { uid, source });
+  const target = await notifyTarget(env.LIMITS, await readJson(req));
+  if (!target) return json({ error: 'Name the request.' }, 400);
+  await optOut(env.LIMITS, env, { uid, key: target.key });
   return json({ ok: true, notify: false }, 200, { 'Cache-Control': 'no-store' });
 }
 
@@ -1171,7 +1194,8 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
-    // With REQUEST_NOTIFY off, this path answers as any unknown one.
+    // With REQUEST_NOTIFY off, these paths answer as any unknown one.
+    if (req.method === 'POST' && path === '/api/requests/notify' && notifyReady(env)) return handleNotifyStart(req, env);
     if (req.method === 'POST' && path === '/api/requests/notify/stop' && notifyReady(env)) return handleNotifyStop(req, env);
     if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path, ctx);
     if (req.method === 'POST' && (path === '/api/admin/waitlist/invite' || path === '/api/admin/waitlist/remove')) return handleAdmin(req, env, path, ctx, adminDeps(env));
@@ -1234,9 +1258,9 @@ export default {
           .catch((err) => console.error('watch job failed', String(err?.message || err).slice(0, 200))));
       }
     }
-    // One email to each who asked to hear when a source was added (request-notify.js). With it off, nothing runs.
+    // One email to each who asked to hear when a request was decided (request-notify.js). With it off, nothing runs.
     if (notifyReady(env)) {
-      jobs.push(sendFulfilled(env, { appName: APP_NAME_OF(env, getDeployment(env).config) })
+      jobs.push(sendDecided(env, { appName: APP_NAME_OF(env, getDeployment(env).config) })
         .catch((err) => console.error('request notify failed', String(err?.message || err).slice(0, 200))));
     }
     if (!jobs.length) return;

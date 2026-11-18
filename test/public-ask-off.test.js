@@ -38,9 +38,10 @@
 // sources, contacts, data, trace and model line in a third column) retook
 // GET /, /index.html, /login and chat.css in each env the same way, from a run
 // on that change; nothing else moved but the extended files' text. The request
-// card's "email me once when it's added" (2026-11-18, behind REQUEST_NOTIFY,
-// off here) adds two rules to chat.css, so its three entries were retaken the
-// same way; the card's markup with the flag off is as before. The new export and binding change no route: the scenario's envs
+// card's "email me when it's added or declined" (2026-11-18, behind
+// REQUEST_NOTIFY, off here) adds two rules to chat.css, and the same offer on
+// the public list changes requests-page.js and requests.css, so those entries
+// were retaken the same way; with the flag off both pages render as before. The new export and binding change no route: the scenario's envs
 // don't carry the binding, and its snapshot is unchanged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

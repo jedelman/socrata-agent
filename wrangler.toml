@@ -229,13 +229,14 @@ TELEMETRY = "true"
 # WATCHES = "true"
 # LEAGUE_FEEDS = "true"
 
-# One email when a requested source is added (worker/request-notify.js; Jason,
+# One email when a source request is decided (worker/request-notify.js; Jason,
 # 2026-11-18: "When a source request is fulfilled, does siren notify those who
-# had requested that source by email? We should."). Off until Jason turns it
-# on. REQUEST_NOTIFY = "true": a signed-in member can tick "Email me once when
-# it's added" on a request card; the address is kept AES-GCM sealed, apart from
-# the request, until the cron sends that one email (the steward marks the
-# request fulfilled) or a year passes. REQUEST_NOTIFY_DAILY, default 100, "0"
+# had requested that source by email? We should.", then yes to declined
+# requests and to the public list). Off until Jason turns it on.
+# REQUEST_NOTIFY = "true": a signed-in member can ask on a request card or an
+# open request on /requests; the address is kept AES-GCM sealed, apart from the
+# request, until the cron sends that one email (fulfilled at once, declined the
+# day after) or a year passes. REQUEST_NOTIFY_DAILY, default 100, "0"
 # pauses; it shares Resend's daily limit with sign-in links and watches.
 # REQUEST_NOTIFY = "true"
 

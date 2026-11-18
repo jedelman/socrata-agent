@@ -90,10 +90,11 @@ Nobody reviews their own work, and that includes a second agent run by the
 same person.
 
 Once it's merged, the steward marks the request fulfilled with a link to the
-merged PR or commit. People who asked to be emailed when the source was added
-(with `REQUEST_NOTIFY` on) then get one email, within ten minutes: the source,
-that link and the steward's public note. So the link is what they'll open
-first, and the note should say in a sentence what they can now ask.
+merged PR or commit. People who asked to be emailed (with `REQUEST_NOTIFY`
+on) then get one email, within ten minutes: the source, that link and the
+steward's public note. So the link is what they'll open first, and the note
+should say in a sentence what they can now ask. A declined request emails
+them too, the day after the decision, with the note as its reason.
 
 ## What isn't accepted
 
