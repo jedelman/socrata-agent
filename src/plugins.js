@@ -5,6 +5,7 @@
 // `run` gets a context with:
 //   ctx.city, ctx.socrata (traced), ctx.resources, ctx.lookupAddress(address),
 //   ctx.http.json(url, info) / ctx.http.text(url, info)  (traced),
+//   ctx.http.bytes(url, info)  (traced; a file's bytes, at most info.maxBytes, 10 MB by default),
 //   ctx.cite({ tool, url, rows, note })  (a traced step with no request)
 // It never gets a raw fetch. The voice check, dataset exclusions and the
 // trace stay in core, so a plugin or a custom prompt can't turn them off.
@@ -19,6 +20,7 @@ import { ACCESS } from './socrata.js';
 import { deepFreeze } from './cities/index.js';
 import { gapStatementsFor } from './gaps/answer.js';
 import { networkFetch } from './request-budget.js';
+import { readCapped } from './http-cache.js';
 import { webSearchSettings, checkWebSearchForCity } from './web-search.js';
 
 const NAME = /^[a-z][a-z0-9_]{2,48}$/;
@@ -67,11 +69,31 @@ export function tracedHttp(trace, fetchImpl) {
       const result = parse(body);
       return { result, rows: Array.isArray(result) ? result.length : null };
     });
+  // A file's bytes (a PDF), capped before reading when it says its size and as it arrives when it doesn't.
+  const bytes = (url, info) =>
+    trace.record({ tool: info?.tool || 'plugin request', url }, async () => {
+      if (!/^https:\/\//.test(url)) throw new Error('Plugins may only fetch https URLs.');
+      const max = Math.min(Number(info?.maxBytes) || BYTES_MAX, BYTES_MAX);
+      const res = await doFetch(url, { headers: { 'User-Agent': USER_AGENT } });
+      if (!res.ok) {
+        await res.body?.cancel?.();
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const length = Number(res.headers.get('content-length') || 0);
+      if (length > max) {
+        await res.body?.cancel?.();
+        throw new Error(`too large (${length} bytes)`);
+      }
+      const body = await readCapped(res, max);
+      return { result: { bytes: body, type: res.headers.get('content-type') || '' }, rows: null };
+    });
   return {
     json: (url, info) => get(url, info, (b) => JSON.parse(b)),
     text: (url, info) => get(url, info, (b) => b),
+    bytes,
   };
 }
+const BYTES_MAX = 10 * 1024 * 1024;
 
 // Socrata hosts and API paths, on any host (portals can sit behind custom
 // domains). A plugin that needs Socrata data uses ctx.socrata instead.
@@ -99,6 +121,7 @@ export function pluginContext(ctx) {
   const http = Object.freeze({
     json: async (url, info) => ctx.http.json(guardPluginUrl(city, url), info),
     text: async (url, info) => ctx.http.text(guardPluginUrl(city, url), info),
+    bytes: async (url, info) => ctx.http.bytes(guardPluginUrl(city, url), info),
   });
   // With gaps on, a plugin's case file can say what the records couldn't
   // answer (docs/gaps.md §8.4). With gaps off the context is unchanged.

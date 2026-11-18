@@ -152,6 +152,28 @@ export function parseLegiFile(html) {
   };
 }
 
+/**
+ * The attachments a legislative record's page lists: [{ id, title }], in
+ * order. Only the page's own Attachments list, and only iqm2 attachment files
+ * (FileOpen Type=4); the caller builds each file's URL from its own base,
+ * never from the page's link.
+ */
+export function parseAttachments(html) {
+  const start = String(html ?? '').search(/Attachments<\/h4>/);
+  if (start < 0) return [];
+  const rest = html.slice(start);
+  const end = rest.search(/<\/ol>/);
+  const section = end < 0 ? rest.slice(0, 20000) : rest.slice(0, end);
+  const out = [];
+  const seen = new Set();
+  for (const m of section.matchAll(/href=['"][^'"]*?FileOpen\.aspx\?Type=4&(?:amp;)?ID=(\d{1,9})[^'"]*['"][^>]*>([\s\S]*?)<\/a>/gi)) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    out.push({ id: m[1], title: decode(m[2]).replace(/\s+/g, ' ').trim().slice(0, 300) });
+  }
+  return out.slice(0, 50);
+}
+
 export function parseMeeting(html) {
   const items = [];
   const seen = new Set();
@@ -226,6 +248,10 @@ export class Iqm2 {
 
   meetingUrl(id) {
     return `${this.base}/Citizens/Detail_Meeting.aspx?ID=${id}`;
+  }
+
+  attachmentUrl(id) {
+    return `${this.base}/Citizens/FileOpen.aspx?Type=4&ID=${id}`;
   }
 
   agendaFileUrl(id) {

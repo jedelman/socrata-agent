@@ -110,8 +110,8 @@ generic mode.
     as is a name after a courtesy title; Jason, 2026-11-11); `cities/` holds
     the profiles.
 - `src/plugins.js` defines plugin tools and deployment configs. Plugins get a
-  traced context (`ctx.socrata`, `ctx.http`, `ctx.lookupAddress`), never a raw
-  fetch; `test/conformance.js` enforces it. Configs can add but not remove
+  traced context (`ctx.socrata`, `ctx.http` with `json`, `text` and `bytes`,
+  `ctx.lookupAddress`), never a raw fetch; `test/conformance.js` enforces it. Configs can add but not remove
   exclusions.
 - `plugins/` holds plugin tools; `deployments/` holds configs (the sponge-city
   example is the reference).
@@ -608,6 +608,30 @@ generic mode.
   its own traced step (`tracedHttp`'s `retry: false`). Only `www.norfolk.gov`
   links are kept. Fire-Rescue alerts stay off until one has been read and
   names no one.
+- `plugins/read-attachment.js` (`read_attachment`; Jason, 2026-11-18: "If
+  the reader works quickly, can we just make it a tool call for Siren instead
+  of making her request the source?") reads a document attached to one of
+  the City's legislative records in the answer that needs it (an exhibit,
+  agreement, contract, lease, plan or report, or the public's letters,
+  petitions and comments), through `src/pdf.js` and `ctx.http.bytes`
+  (traced, counted, 10 MB at most). Only attachments the record's own iqm2
+  page lists (FileOpen Type=4), by the record's numeric id; each file's URL
+  is built from the profile's iqm2 base, never from the page's link or the
+  model. **Correspondence is readable, never searchable or alertable**
+  (Jason, 2026-11-18: "it's okay to make correspondence attachments readable
+  - they're public records. As long as they're not searchable and alertable.
+  It's a city - it's okay for citizens to encounter each other in public!"):
+  listed by its title and quoted as written, attributed to its writer, but
+  its hand-off record is titled "Correspondence attached to legislative
+  record N" (`isCorrespondence`), so no writer's name reaches research
+  memory, shared sources or any index; watches never read attachments (a
+  test checks); a search naming a person is refused; and the tool's guidance
+  says never to use it to find or follow a person and to leave out a
+  writer's home address and contact details. PDFs only; a scan, an
+  encrypted file or another format is said so. It returns passages cited by page (word starts, so "repayment"
+  finds "repay"), or a page in full, and the file joins the hand-off as
+  `kind: 'document'`. Exhibit A to Ordinance 50487 (Military Circle) reads in
+  under 100 ms.
 - `plugins/gis.js` is shared GIS for the place tools (docs/gis-skills.md;
   Jason's Graydon question, 2026-11-13, and his calls, 2026-11-14):
   `area_lookup` (civic leagues, planning districts, wards, super wards, ZIP
