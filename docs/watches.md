@@ -20,7 +20,35 @@ Both are off by default. With both off, no route, page, prompt, tool list or
 session body changes (`test/watches-worker.test.js`, and the free tier's
 flag-off snapshot), and the cron does nothing new.
 
-## Private people: describe, never repeat
+## Names: in content, never as a watch's key
+
+Jason, 2026-11-18: "Let's keep the name guard on watches but allow names
+through in content - titles and descriptions. This is mostly an
+anti-harassment precaution, for the record; if that risk is cleared in another
+way we can adjust." A public agenda item is a public record.
+
+So emails, feeds and the watch pages quote each item as the City posted it
+(`quoteItem` in `src/watches.js`): its title, and the City's description of
+it (the request and description of an item page's cover letter; an agenda
+file's item is all title). Each quote is credited to the City, with a link to
+the City's page and the source annotation, and has Siren's summary under it
+(below). The analysis and financial-impact sections, and the cover letter's
+applicant section, aren't shown; attachments are never read.
+
+What stays is the guard on what a watch can follow: a phrase made only of
+common names, or a name beside anything but ordinary words, is refused (below).
+That's the anti-harassment precaution: with names in the emails, a watch keyed
+on a name would be a standing alert on a person. A rare surname alone still
+passes (the guard's stated limit).
+
+The cover-letter reader (`parseTransmittal`, shared with chat's
+`get_legislation`) still puts "the applicant" in place of a private
+applicant's name: Jason's 2026-11-11 call, not changed here.
+
+### Siren's summary, and the history behind it
+
+Until 2026-11-18 titles were never repeated, and this summary was all an item
+showed. The reasoning then:
 
 Agenda titles can name private people: the buyer of a City lot ("Conveyance
 to … of That Certain Parcel"), a tenant, a person granted an encroachment, a
@@ -32,10 +60,9 @@ shape:
 - mixed-case applicants;
 - "Easement From … Over".
 
-So the design changed. **Siren never repeats an agenda title**, in a feed, an
-email or a response. (The snapshot keeps each title in one internal field,
-only to match members' phrases against; nothing reads it out.) Each item is
-described from parts code extracts (`src/watches.js`):
+So the design changed then: Siren never repeated an agenda title. Each item is
+described from parts code extracts (`src/watches.js`), and that description is
+now the summary under the City's words:
 
 - **the kind of action**: one of a fixed list of labels ("Conditional Use
   Permit", "Sale of City property", "Rezoning", "Lease", …);
@@ -294,8 +321,9 @@ gone now: a run is the notices query and one page per meeting.
   id (`u`, already an HMAC). Its sent key holds how many emails and the last
   400 item keys sent.
 - **The snapshot:** for each item, its kind, number, topics, listed addresses
-  and their streets, leagues, link and meeting, and its title for phrase
-  matching (never served).
+  and their streets, leagues, link and meeting, its source, and the City's
+  title and description (quoted in emails and feeds) and full text (for
+  phrases only).
 
 ## What it can miss
 

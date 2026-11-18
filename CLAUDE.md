@@ -464,9 +464,14 @@ generic mode.
   affecting short term rentals" by email, and "shift from per street to per
   neighborhood league" for the public feeds). Behind `WATCHES` and
   `LEAGUE_FEEDS`, both off; with both off nothing changes (routes, page,
-  session, prompt, tools, cron). **Siren never repeats an agenda title**
-  (titles name buyers, tenants and applicants; three reviews found
-  name-withholding leaking, so it was dropped): each item is described from
+  session, prompt, tools, cron). **Names in content, never as a watch's
+  key** (Jason, 2026-11-18: "keep the name guard on watches but allow names
+  through in content - titles and descriptions ... mostly an anti-harassment
+  precaution ... if that risk is cleared in another way we can adjust"):
+  emails, feeds and the watch pages quote each item's title and the City's
+  description as posted (`quoteItem`), credited and linked, with Siren's
+  summary under it. Until then titles were never repeated (three reviews had
+  found name-withholding leaking), and the summary is that design: each item described from
   fixed kind labels (`itemKind`), the city's topics (`topicsOf`), addresses
   on the City's address list, its ordinance number and the City's link
   (`describeItem` in `src/watches.js`); a test checks, over the whole
@@ -486,8 +491,7 @@ generic mode.
   that is a street's name ("hampton", "21st street") is a street watch,
   matched by an item's listed address, never by title words, and a passing
   phrase that names a street with its type ("hampton boulevard") matches by
-  title and by listed address. The snapshot keeps each title in one internal
-  field to match phrases against; nothing serves it. **Watches follow
+  title and by listed address. **Watches follow
   topics** from the city profile's reviewed `meetings.watchTopics` (27 for
   Norfolk; a test refuses a topic phrase made only of common names) **and a
   member's own phrases** (Jason, 2026-11-16: "Free text for signed in and

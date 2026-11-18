@@ -8,8 +8,14 @@
 // feeds (worker/watches.js).
 //
 // No people-finding:
-// - Agenda titles can name private people (a buyer of a City lot, a tenant,
-//   an applicant). Siren never repeats a title in a feed, an email or a
+// - Content: the City's own title and description of each item are shown as
+//   posted, credited to the City and linked (Jason, 2026-11-18: "allow names
+//   through in content - titles and descriptions"; a public agenda item is a
+//   public record). Each item also gets Siren's summary (describeItem).
+// - Until 2026-11-18, agenda titles were never repeated: they can name
+//   private people (a buyer of a City lot, a tenant, an applicant), and Siren
+//   described each item instead. History, as written then: Siren never
+//   repeated a title in a feed, an email or a
 //   response. It describes each item from parts code extracts: the kind of
 //   action, the topics it matches, the property's address, its civic league
 //   and its ordinance number, and links to the City's own page for the rest.
@@ -285,7 +291,24 @@ export function titleAddresses(title, book = null) {
 }
 
 /**
- * How an item reads in a feed or an email: its kind, its topics and its
+ * The City's own words for an item, as posted: { title, description }, each
+ * clipped at a word. The description is the City's summary (an item page's
+ * cover letter); an agenda file's item is all title. Shown in emails, feeds
+ * and the watch pages, credited to the City (Jason, 2026-11-18: names are
+ * allowed in content; the name guard stays on what a watch can follow).
+ */
+export function quoteItem(item) {
+  const clip = (s, n) => {
+    const t = String(s ?? '').replace(/\s+/g, ' ').trim();
+    return t.length <= n ? t : `${t.slice(0, n).replace(/\s+\S*$/, '')} …`;
+  };
+  const title = clip(item?.title, 400);
+  const summary = clip(item?.summary, 600);
+  return { title, description: summary && !title.includes(summary.slice(0, 60)) ? summary : '' };
+}
+
+/**
+ * Siren's summary of an item, beside the City's words: its kind, its topics and its
  * addresses, all from fixed labels and extracted addresses. `item` is a
  * snapshot item ({ kind, topics, addresses }).
  */
@@ -408,10 +431,11 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
 /** A watch's one-line description, for the card, the page and the mail. */
 export function watchLabel({ topics: ids = [], phrases = [], streets = [], league = null, bodies = [] } = {}, topics = []) {
   const labels = [...ids.map((id) => topics.find((t) => t.id === id)?.label || id), ...(phrases || []).map((p) => `"${p}"`), ...(streets || []).map((s) => `${streetLabel(s)} (street)`)];
-  return `${labels.length ? labels.join(', ') : 'everything'}${league ? ` in ${league}` : ''}, at ${bodies.join(' or ')}`;
+  const at = bodies.length > 2 ? `${bodies.slice(0, -1).join(', ')} or ${bodies.at(-1)}` : bodies.join(' or ');
+  return `${labels.length ? labels.join(', ') : 'everything'}${league ? ` in ${league}` : ''}, at ${at}`;
 }
 
-/** The watch's phrases an item's words hold: its title, and the City's own description of it (`details`). Neither is ever shown. */
+/** The watch's phrases an item's words hold: its title, and the City's own description of it (`details`, the full text). */
 export function phrasesIn(watch, item) {
   const t = normalizeText(`${item?.title || ''} ${item?.details || ''}`);
   return (watch?.phrases || []).filter((p) => termPattern(p)?.test(t));

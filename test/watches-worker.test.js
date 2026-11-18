@@ -119,8 +119,9 @@ test('LEAGUE_FEEDS on: the feeds page and the Atom feeds, once the agendas have 
   const feed = await call(env, '/feeds/ocean-view.atom');
   assert.equal(feed.headers.get('Content-Type'), 'application/atom+xml; charset=utf-8');
   const atom = await feed.text();
-  assert.match(atom, /<title>Conditional Use Permit: Short-term rentals, at 1039 Granby Street \(Ordinance No\. 1\)<\/title>/);
-  assert.doesNotMatch(atom, /Authorize a Short-Term Rental Unit on Property/, 'the title itself is never repeated');
+  // The City's title as posted, with Siren's summary (Jason, 2026-11-18: names allowed in content).
+  assert.match(atom, /<title>Ordinance No\. 1 : An Ordinance Granting a Conditional Use Permit to Authorize a Short-Term Rental Unit on Property Located at 1039 Granby Street\.<\/title>/);
+  assert.match(atom, /Conditional Use Permit: Short-term rentals, at 1039 Granby Street\./);
   assert.equal((await call(env, '/feeds/atlantis.atom')).status, 404);
   assert.equal((await call(env, '/watches')).status, 404, 'watches stay off');
   // The chat page links the feeds.

@@ -32,7 +32,7 @@
 // (the same HMAC that names the account), so a watch can only ever mail the
 // address that signed in. It is never logged, returned or shown.
 
-import { checkWatch, matchesWatch, phrasesIn, streetsIn, streetLabel, sameWatch, watchLabel, topicsOf, topicText, itemKind, itemNumber, describeItem, titlePlaces, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
+import { checkWatch, matchesWatch, phrasesIn, streetsIn, streetLabel, sameWatch, watchLabel, topicsOf, topicText, itemKind, itemNumber, describeItem, quoteItem, titlePlaces, itemKey, normalizeText, WATCH_DAYS, SEEN_MAX } from '../src/watches.js';
 import { cachedGet } from '../src/http-cache.js';
 import { pdfText } from '../src/pdf.js';
 import { agendaFileItems } from '../src/agenda-file.js';
@@ -99,8 +99,8 @@ const ITEM_FIELDS = ['key', 'meeting', 'id', 'body', 'when', 'url', 'kind', 'num
 // …" sentence) and the cover letter (src/adapters/iqm2.js parseTransmittal,
 // which leaves out the applicant and withholds a private applicant's name).
 // `summary` (the full title, the request and the description: for topics and
-// addresses) and `details` (everything kept: for members' phrases). Neither
-// is ever served. Attachments (their titles can name letter writers) are
+// addresses, and quoted under the title) and `details` (everything kept:
+// only for members' phrases). Attachments (their titles can name letter writers) are
 // never read.
 function itemTexts(rec, linkText = '') {
   const letter = rec?.cover_letter || {};
@@ -155,8 +155,9 @@ async function bulkGet(kv, keys, type = 'text') {
  * city's address list (compileAddresses): with none, no item gets an
  * address or a league. Items keep the time they were first seen from the
  * snapshot before; a meeting whose page can't be read today keeps
- * yesterday's items, placed again against today's list. Its title is kept
- * only to match phrases; nothing serves it. Returns the snapshot.
+ * yesterday's items, placed again against today's list. Its title and the
+ * City's description are quoted in emails and feeds (quoteItem); the full
+ * text (`details`) only matches phrases. Returns the snapshot.
  */
 export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now = Date.now(), book = null }) {
   const budget = requestBudget({ limit: SNAPSHOT_FETCHES, fetchImpl });
@@ -213,7 +214,7 @@ export async function buildSnapshot({ kv, city, cityId, appToken, fetchImpl, now
       return {
         key, meeting: id, id: itemId, body: n.organization, when, url,
         ...describeFrom({ title, summary, fileItem, topics, book }),
-        // Kept to match members' phrases against (phrasesIn) and to describe it again; never served, mailed or put in a feed.
+        // The City's words: the title and summary are quoted in emails and feeds (quoteItem); details only match phrases.
         title: String(title || '').slice(0, 1000),
         summary,
         details,
@@ -427,7 +428,8 @@ export async function handleWatches(req, env, path, deps = {}) {
   };
   await putWatch(kv, w);
   // What's already on a posted agenda: shown now, and sent in the first email.
-  const already = (snap?.items || []).filter((i) => matchesWatch(w, i)).slice(0, 10).map((i) => ({ body: i.body, when: i.when, description: describeItem(i, topics), number: i.number || null, url: i.url }));
+  // The City's title as posted (names allowed in content, Jason 2026-11-18), with Siren's summary beside it.
+  const already = (snap?.items || []).filter((i) => matchesWatch(w, i)).slice(0, 10).map((i) => ({ body: i.body, when: i.when, description: quoteItem(i).title || describeItem(i, topics), summary: describeItem(i, topics), number: i.number || null, url: i.url }));
   return json({ ok: true, watch: shown(w, topics), already, refused: checked.refused, refused_phrases: checked.refusedPhrases || [] });
 }
 
@@ -481,9 +483,13 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
       const hits = phrasesIn(watch, i);
       const on = streetsIn(watch, i).filter((s) => !hits.includes(s));
       const why = [hits.length ? `with ${hits.map((h) => `"${h}"`).join(', ')} in the City's words for it` : '', on.length ? `on ${on.map(streetLabel).join(', ')}` : ''].filter(Boolean).join(', ');
-      const line = `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}${why ? `, ${why}` : ''}`;
-      text.push(`- ${line}`, `  ${i.url}`);
-      html.push(`<li><a href="${esc(i.url)}">${esc(line)}</a></li>`);
+      // The City's own words for the item (names allowed in content, Jason 2026-11-18), then Siren's summary.
+      const q = quoteItem(i);
+      // The number comes from the title (itemNumber), so a quoted title already carries it.
+      const title = q.title || `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}`;
+      const summary = `${describeItem(i, topics)}${(i.leagues || []).length ? ` · ${i.leagues.join(', ')}` : ''}${why ? `, ${why}` : ''}`;
+      text.push(`- ${title}`, ...(q.description ? [`  ${q.description}`] : []), `  ${summary}`, `  ${i.url}`);
+      html.push(`<li><a href="${esc(i.url)}">${esc(title)}</a>${q.description ? `<br>${esc(q.description)}` : ''}<br><small>${esc(summary)}</small></li>`);
     }
     if (m.url) {
       text.push(`  The meeting and its agenda: ${m.url}`);
@@ -491,7 +497,7 @@ export function digest({ appName, watch, items, meetings, city, stopUrl, manageU
     } else html.push('</ul>');
     text.push('');
   }
-  const note = `Each item is described from its agenda title, without repeating it: titles can name private people. The City's page for each item has the full text. ${appName} reads each item's title and the City's description of it (or the posted agenda, for boards that post only a file), and an item can affect a topic without naming it, so a watch can miss one.`;
+  const note = `Each item is quoted as the City posted it (a public record), with ${appName}'s summary under it; the City's page for each item has the full text. ${appName} reads each item's title and the City's description of it (or the posted agenda, for boards that post only a file), and an item can affect a topic without naming it, so a watch can miss one.`;
   text.push(note);
   html.push(`<p>${esc(note)}</p>`);
   if (clerk) {
@@ -723,17 +729,17 @@ export function atomFeed({ snapshot, slug, origin, appName, topics = [] }) {
     const when = `${i.body} ${m.type || ''}, ${meetingTime(i.when)}${m.location ? ` (${m.location})` : ''}`.replace(/\s+,/, ',');
     return `  <entry>
     <id>tag:${xml(host)},2026-11-16:agenda/${xml(i.meeting)}/${xml(i.id)}</id>
-    <title>${xml(`${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}`)}</title>
+    <title>${xml(quoteItem(i).title || `${describeItem(i, topics)}${i.number ? ` (${i.number})` : ''}`)}</title>
     <link rel="alternate" href="${xml(i.url)}"/>
     <updated>${xml(i.first_seen)}</updated>
-    <summary>${xml(`${when}. ${describeItem(i, topics)}${i.number ? `, ${i.number}` : ''}. Source: ${i.source?.publisher || 'the City'}, ${i.source?.document === 'agenda file' ? 'posted agenda' : 'agenda item'} (public record)${i.source?.read ? `, read ${i.source.read}` : ''}; the link has the full text.`)}</summary>
+    <summary>${xml(`${when}. ${describeItem(i, topics)}.${quoteItem(i).description ? ` ${quoteItem(i).description}` : ''} Source: ${i.source?.publisher || 'the City'}, ${i.source?.document === 'agenda file' ? 'posted agenda' : 'agenda item'} (public record)${i.source?.read ? `, read ${i.source.read}` : ''}; the link has the full text.`)}</summary>
   </entry>`;
   });
   return `<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:${xml(host)},2026-11-16:feeds/${xml(slug)}</id>
   <title>${xml(title)}</title>
-  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each item is described from its title without repeating it (titles can name private people); its link is the City's page. Items are tagged by the civic league of the address their title names, when that address is on the City's address list.`)}</subtitle>
+  <subtitle>${xml(`From the City's posted agendas, checked daily by ${appName}. Each entry is the City's own title for the item (a public record), with ${appName}'s summary; its link is the City's page. Items are tagged by the civic league of the address their title names, when that address is on the City's address list.`)}</subtitle>
   <link rel="self" href="${xml(self)}"/>
   <link rel="alternate" href="${xml(`${origin}/feeds`)}"/>
   <updated>${xml(snapshot.built)}</updated>

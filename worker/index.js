@@ -442,7 +442,7 @@ async function watchRoute(req, env, path, base, url) {
   }
   return null;
 }
-const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. A watch follows topics, words or streets, never a person (a phrase made only of common names is refused, unless it is a street's name, which matches only agenda items at an address on that street), and every email describes each agenda item without repeating its title, which can name private people.`;
+const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. A watch follows topics, words or streets, never a person (a phrase made only of common names is refused, unless it is a street's name, which matches only agenda items at an address on that street), and every email quotes each agenda item as the City posted it, with a link to the City's page.`;
 
 // What every answer runs with, private or public: the deployment's city,
 // plugins, model and limits, for one city.

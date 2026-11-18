@@ -298,6 +298,8 @@ const MEETING_HTML = `<span id="ContentPlaceholder1_lblMeetingGroup">Planning Co
 <a href='Detail_LegiFile.aspx?Frame=&MeetingID=4674&MediaPosition=&ID=6085&CssClass='>JANE DOE, for a Conditional Use Permit to operate a Short-Term Rental (Vacation Rental) at 1210 Granby Street (Ward 5/Superward 6)</a>
 <a href='Detail_LegiFile.aspx?Frame=&MeetingID=4674&MediaPosition=&ID=6084&CssClass='>SEASIDE RENTALS, LLC, for a Conditional Use Permit (Renewal) to operate a Short-Term Rental (Vacation Rental) at 8400 Shore Drive</a>
 <a href='Detail_LegiFile.aspx?Frame=&MeetingID=4674&MediaPosition=&ID=6014&CssClass='>HAPPY TAILS, for a Conditional Use Permit to operate a Kennel at 4200 Colley Avenue</a>`;
+// Names in the fixtures' titles: shown in emails and feeds as the City posted them since 2026-11-18
+// (Jason: "allow names through in content - titles and descriptions"); a watch still can't follow one.
 const NAMES = /JANE DOE|SEASIDE RENTALS|HAPPY TAILS|WILL PRICE/i;
 
 // The BZA posts its agenda as a file, and iqm2 answers If-Modified-Since with a 304 (checked 2026-11-18).
@@ -374,7 +376,7 @@ test('the snapshot: described items, no titles kept, tagged by civic league, fir
 // A cover letter in the City's numbered format (src/adapters/iqm2.js parseTransmittal).
 const LETTER = (description) => `<h4>Council Transmittal Letter</h4><div>I. Recommendation: Adopt. II. Applicant: Jane Roe, 100 Colley Avenue III. Description: ${description} IV. Analysis: The use is consistent with the plan.</div><h4>History</h4>`;
 
-test('each item\'s own page: the City\'s description adds topics, places and phrase matches its title lacks, and is never served', async () => {
+test('each item\'s own page: the City\'s description adds topics, places and phrase matches its title lacks, and is quoted beside the title', async () => {
   const kv = readyEnv().LIMITS;
   const now = Date.parse('2026-11-16T12:00:00Z');
   const { fetchImpl } = cityFetch({ itemPages: { 6014: LETTER('This request would allow outdoor dog runs at a kennel in a historic district at 4200 Colley Avenue.') } });
@@ -385,9 +387,11 @@ test('each item\'s own page: the City\'s description adds topics, places and phr
   assert.doesNotMatch(kennel.details, /Jane Roe/, 'the applicant section is never kept');
   assert.ok(matchesWatch({ topics: [], phrases: ['dog runs'], bodies: BODIES }, kennel), 'a phrase found in the description');
   assert.ok(!matchesWatch({ topics: [], phrases: ['dog runs'], bodies: BODIES }, snap.items.find((i) => i.id === '6085')));
-  // Never served: a feed carries no words of the description or the title.
+  // Quoted as the City posted it: the title, and the description (request and description; the analysis stays out).
   const feed = atomFeed({ snapshot: snap, slug: 'all', origin: 'https://ask-siren.jason-edelman.org', appName: 'Siren', topics: TOPICS });
-  assert.doesNotMatch(feed, /outdoor dog runs|consistent with the plan|HAPPY TAILS/);
+  assert.match(feed, /<title>HAPPY TAILS, for a Conditional Use Permit to operate a Kennel at 4200 Colley Avenue<\/title>/);
+  assert.match(feed, /This request would allow outdoor dog runs at a kennel/);
+  assert.doesNotMatch(feed, /consistent with the plan|Jane Roe/, 'the analysis and the applicant section stay out');
   assert.equal(snap.pages.failed, 2, 'the two pages not faked');
 });
 
@@ -411,12 +415,12 @@ test('a board that posts its agenda as a file (the BZA): items read from the PDF
   assert.equal(bza[0].source.document, 'agenda file');
   assert.equal(bza[0].url, 'https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=14&ID=3431&Inline=True');
   assert.ok(!city.calls.some((u) => /Type=1&/.test(u)), 'never the packet');
-  assert.doesNotMatch(JSON.stringify(bza.map(({ title, summary, details, ...rest }) => rest)), /JANE EXAMPLE/, 'the applicant only in the internal fields');
+  assert.match(bza[0].title, /^JANE EXAMPLE - for a variance/);
   assert.equal(snap.meetings.find((m) => m.id === '4560').items, 1);
   const again = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl: city.fetchImpl, now: now + 864e5, book: BOOK });
   assert.deepEqual(city.conditional, [FILE_DATE], 'the second read asked If-Modified-Since and got a 304');
   assert.deepEqual(again.items.filter((i) => i.body === 'Board of Zoning Appeals').map((i) => [i.key, i.first_seen]), bza.map((i) => [i.key, i.first_seen]));
-  assert.match(atomFeed({ snapshot: again, slug: 'willoughby', origin: 'https://ask-siren.jason-edelman.org', appName: 'Siren', topics: TOPICS }), /<title>Variance, at 1210 Granby Street<\/title>[\s\S]*Source: City of Norfolk, posted agenda \(public record\)/);
+  assert.match(atomFeed({ snapshot: again, slug: 'willoughby', origin: 'https://ask-siren.jason-edelman.org', appName: 'Siren', topics: TOPICS }), /<title>JANE EXAMPLE - for a variance from minimum lot area of Table 3\.2\.9\.B of the Norfolk Zoning Ordinance on property located at 1210 Granby Street, zoned MF-NS \(Multi-Family – Neighborhood-Scale\) &amp; Park Place NRO \(Neighborhood Resilience Overlay\)<\/title>[\s\S]*Variance, at 1210 Granby Street\.[\s\S]*Source: City of Norfolk, posted agenda \(public record\)/);
 });
 
 const USER = 'member@example.org';
@@ -467,8 +471,9 @@ test('starting a watch: only with the email this account signed in with, kept en
   assert.deepEqual(ok.body.watch.topics, ['short_term_rentals']);
   assert.deepEqual(ok.body.refused, ['harris']);
   // What's already on a posted agenda comes back, described.
-  assert.deepEqual(ok.body.already.map((i) => i.description), ['Conditional Use Permit: Short-term rentals, at 1210 Granby Street', 'Conditional Use Permit renewal: Short-term rentals, at 8400 Shore Drive']);
-  assert.doesNotMatch(JSON.stringify(ok.body), NAMES);
+  // The City's titles as posted, with Siren's summary beside each.
+  assert.deepEqual(ok.body.already.map((i) => i.summary), ['Conditional Use Permit: Short-term rentals, at 1210 Granby Street', 'Conditional Use Permit renewal: Short-term rentals, at 8400 Shore Drive']);
+  assert.match(ok.body.already[0].description, /^JANE DOE, for a Conditional Use Permit to operate a Short-Term Rental/);
   const raw = await env.LIMITS.get(`watch:${ok.body.watch.id}`);
   assert.ok(!raw.toLowerCase().includes('member@'), 'the address is never stored in the clear');
   // The key expires a week after the watch ends, so it goes even if the job never runs.
@@ -527,13 +532,15 @@ test('the daily job: one digest a day per watch, described items only, never an 
   assert.equal(first.ran, true);
   assert.equal(sent.length, 3, 'short-term rentals, Ghent and animals have matches');
   assert.equal(await env.LIMITS.get('watch-mail:2026-11-17'), '3', "the day's count, written once");
-  for (const m of sent) assert.doesNotMatch(m.text + m.html + m.subject, NAMES, 'no title in any email');
+  // Each item is quoted as the City posted it, then Siren's summary.
+  assert.ok(sent.every((m) => NAMES.test(m.text) && /quoted as the City posted it \(a public record\)/.test(m.text)));
   const rentals = sent.find((m) => m.text.includes('watch Short-term rentals'));
   assert.equal(rentals.to, USER);
   assert.match(rentals.subject, /^Siren: 2 agenda items for your watch$/);
   assert.match(rentals.text, /Planning Commission Public Hearing, Thursday, November 19, 2026, 2:30 PM \(11th floor Council Chamber\)/);
-  assert.match(rentals.text, /- Conditional Use Permit: Short-term rentals, at 1210 Granby Street\n {2}https:\/\/norfolkcityva\.iqm2\.com\/Citizens\/Detail_LegiFile\.aspx\?ID=6085/);
-  assert.match(rentals.text, /without repeating it: titles can name private people/);
+  assert.match(rentals.text, /- JANE DOE, for a Conditional Use Permit to operate a Short-Term Rental \(Vacation Rental\) at 1210 Granby Street \(Ward 5\/Superward 6\)\n {2}Conditional Use Permit: Short-term rentals, at 1210 Granby Street · Willoughby\n {2}https:\/\/norfolkcityva\.iqm2\.com\/Citizens\/Detail_LegiFile\.aspx\?ID=6085/);
+  assert.match(rentals.text, /Each item is quoted as the City posted it \(a public record\), with Siren's summary under it/);
+  assert.match(rentals.text, /You asked Siren to watch Short-term rentals, at City Council, Planning Commission, Board of Zoning Appeals or Architectural Review Board\./);
   const stop = `https://ask-siren.jason-edelman.org/watch/stop?t=${encodeURIComponent(await stopToken(SECRET, made.body.watch.id))}`;
   assert.equal(rentals.headers['List-Unsubscribe'], `<${stop}>`);
   assert.equal(rentals.headers['List-Unsubscribe-Post'], 'List-Unsubscribe=One-Click');
@@ -547,8 +554,8 @@ test('the daily job: one digest a day per watch, described items only, never an 
   assert.equal(third.ran, true);
   const fresh = sent.slice(3);
   assert.deepEqual(fresh.map((m) => m.subject), ['Siren: 1 agenda item for your watch', 'Siren: 1 agenda item for your watch']);
-  assert.ok(fresh.every((m) => /Sale of City property, at 885 Church Street \(Ordinance No\. 50501\)/.test(m.text)));
-  assert.ok(fresh.every((m) => !NAMES.test(m.text + m.html)));
+  assert.ok(fresh.every((m) => /\n  Sale of City property, at 885 Church Street/.test(m.text)));
+  assert.ok(fresh.every((m) => /- Ordinance No\. 50501 : An Ordinance Authorizing the Sale and Conveyance to Will Price/.test(m.text)), 'quoted as posted, with no number added twice');
 });
 
 test('Resend: busy stops the round with no mark; a config refusal stops after three and deletes nothing; zero means zero', async () => {
@@ -652,11 +659,13 @@ test('feeds: one per civic league and one for everything, described items, escap
   assert.match(ghent, /<title>Ghent: upcoming City Council, Planning Commission, Board of Zoning Appeals and Architectural Review Board agenda items<\/title>/);
   assert.match(ghent, /Source: City of Norfolk, agenda item \(public record\), read 2026-11-16/);
   assert.equal((ghent.match(/<entry>/g) || []).length, 2);
-  assert.match(ghent, /<title>Conditional Use Permit: Tattoo parlors, at 4200 Colley Avenue<\/title>/);
-  assert.doesNotMatch(ghent, /ROE|<b>|HAPPY TAILS/);
+  // Quoted and escaped: the markup in the City's page never reaches the feed as markup.
+  assert.match(ghent, /<title>JOHN &quot;ROE&quot; &amp; Co, for a Conditional Use Permit to operate a Tattoo Parlor at 4200 Colley Avenue<\/title>/);
+  assert.match(ghent, /<summary>[^<]*Conditional Use Permit: Tattoo parlors, at 4200 Colley Avenue\./);
+  assert.doesNotMatch(ghent, /<b>|&lt;b&gt;/);
   const all = atomFeed({ snapshot, slug: 'all', origin, appName: 'Siren', topics: TOPICS });
   assert.equal((all.match(/<entry>/g) || []).length, 4);
-  assert.doesNotMatch(all, NAMES);
+  assert.match(all, NAMES);
   assert.equal(atomFeed({ snapshot, slug: 'atlantis', origin, appName: 'Siren', topics: TOPICS }), null);
   assert.equal(leagueSlug('Algonquin Park and North Shore Point'), 'algonquin-park-and-north-shore-point');
   assert.equal(meetingTime('2026-12-01T18:00:00.000'), 'Tuesday, December 1, 2026, 6:00 PM');
@@ -674,6 +683,6 @@ test('sealing: the same address seals differently each time and opens only under
   // A street watch's hit is named by the street, from the listed address.
   const onStreet = digest({ appName: 'Siren', watch: { topics: [], streets: ['hampton'], league: null, bodies: BODIES, ends: '2027-11-16T00:00:00Z' }, items: [{ meeting: '1', body: 'City Council', when: '2026-12-01T18:00:00.000', kind: 'Encroachment into a right-of-way', topics: [], addresses: ['4100 Hampton Boulevard'], streets: ['HAMPTON BOULEVARD'], url: 'https://example.org/2' }], meetings: [{ id: '1', body: 'City Council', type: 'Formal Session', when: '2026-12-01T18:00:00.000', url: 'https://example.org/m' }], city: norfolk, stopUrl: 'https://s/stop', manageUrl: 'https://s/watches' });
   assert.match(onStreet.text, /You asked Siren to watch Hampton \(street\), at City Council or Planning Commission\./);
-  assert.match(onStreet.text, /- Encroachment into a right-of-way, at 4100 Hampton Boulevard, on Hampton\n/);
+  assert.match(onStreet.text, /\n {2}Encroachment into a right-of-way, at 4100 Hampton Boulevard, on Hampton\n/);
   assert.match(d.text, /To speak at City Council: City Clerk, \(757\) 664-4253, ccouncil@norfolk\.gov \(register by 3 p\.m\. the day of the meeting\)\./);
 });
