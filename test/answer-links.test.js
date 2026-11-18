@@ -416,8 +416,16 @@ test("chat page: links in an answer open in a new tab with rel=noopener noreferr
 test('chat page: the request card is a stacked card: heading, why, the source, the note at full width with the public notice under it, then the button and its status', () => {
   const ui = chatPage();
   const css = readFileSync(new URL('../worker/chat.css', import.meta.url), 'utf8');
-  const { renderSuggestions } = new Function(`${line(ui, 'const esc = ')}\n${line(ui, 'const link = ')}\n${block(ui, 'function renderSuggestions(list) {')}\nreturn { renderSuggestions };`)();
-  const html = renderSuggestions([{ need: 'What is the plan <for> MacArthur Center?', source: 'MacArthur Center plan', why: 'I found leases but no plan.', url: 'https://www.norfolk.gov/' }]);
+  const make = (session) => new Function('session', 'APP_NAME', `${line(ui, 'const esc = ')}\n${line(ui, 'const link = ')}\n${block(ui, 'function notifyChoice() {')}\n${block(ui, 'function renderSuggestions(list) {')}\nreturn { renderSuggestions };`)(session, 'Siren').renderSuggestions;
+  const card = [{ need: 'What is the plan <for> MacArthur Center?', source: 'MacArthur Center plan', why: 'I found leases but no plan.', url: 'https://www.norfolk.gov/' }];
+  const renderSuggestions = make({});
+  const html = renderSuggestions(card);
+  // "Email me once when it's added" only when the site has it on (REQUEST_NOTIFY, signed in), before the button.
+  assert.ok(!html.includes('name="notify"'));
+  const offered = make({ request_notify: true })(card);
+  assert.ok(offered.indexOf('<input type="checkbox" name="notify"> Email me once when it\'s added') > offered.indexOf('leave out your address and name.</p>'));
+  assert.ok(offered.indexOf('name="notify"') < offered.indexOf('<div class="row">'));
+  assert.match(offered, /<label class="note notify-email" hidden>The email you signed in with<input type="email" name="email"/);
   const order = ['<form class="suggest"', '<h3>Ask for this source</h3>', '<p class="why">I found leases but no plan.</p>', '<p class="source"><strong>MacArthur Center plan</strong>', '<label class="note">What you wanted to know<textarea name="need" class="need" maxlength="300">What is the plan &lt;for&gt; MacArthur Center?</textarea></label>', '<p class="fine">Requests are public: once reviewed, this note may appear on the <a href="requests"', 'leave out your address and name.</p>', '<div class="row"><button class="ask" type="submit">Request this source</button><span class="msg" role="status"></span></div></form>'];
   let at = -1;
   for (const part of order) {
@@ -428,7 +436,7 @@ test('chat page: the request card is a stacked card: heading, why, the source, t
   assert.ok(!html.includes('class="suggest gate"'), 'no longer laid out by the page form row');
   for (const rule of ['form.suggest { display: block;', 'form.suggest textarea.need { width: 100%;', 'form.suggest .row { display: flex;']) assert.ok(css.includes(rule), rule);
   // The request still goes where it went.
-  assert.match(ui, /postJson\('api\/requests', \{ source: f\.source\.value, url: f\.url\.value, need: f\.need\.value, public: true \}\)/);
+  assert.match(ui, /postJson\('api\/requests', \{ source: f\.source\.value, url: f\.url\.value, need: f\.need\.value, public: true, \.\.\.\(notify \? \{ notify: true, email: f\.email\.value \} : \{\}\) \}\)/);
 });
 
 // ---- the public questions page ----------------------------------------------

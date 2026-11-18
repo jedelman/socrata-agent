@@ -229,6 +229,16 @@ TELEMETRY = "true"
 # WATCHES = "true"
 # LEAGUE_FEEDS = "true"
 
+# One email when a requested source is added (worker/request-notify.js; Jason,
+# 2026-11-18: "When a source request is fulfilled, does siren notify those who
+# had requested that source by email? We should."). Off until Jason turns it
+# on. REQUEST_NOTIFY = "true": a signed-in member can tick "Email me once when
+# it's added" on a request card; the address is kept AES-GCM sealed, apart from
+# the request, until the cron sends that one email (the steward marks the
+# request fulfilled) or a year passes. REQUEST_NOTIFY_DAILY, default 100, "0"
+# pauses; it shares Resend's daily limit with sign-in links and watches.
+# REQUEST_NOTIFY = "true"
+
 # Workers Logs (OpenTelemetry-compatible, kept 7 days; persisted logs count
 # toward Cloudflare Observability usage from 2026-12-01). On for console
 # output only: Siren's own lines (the telemetry above, and the fixed error

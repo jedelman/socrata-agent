@@ -229,23 +229,56 @@ $('#log').addEventListener('submit', async (e) => {
     f.replaceWith(done);
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
+// "Email me once when it's added" (worker/request-notify.js): only when the
+// site has it on and the person is signed in; the address is the one they
+// signed in with, typed again, and checked against the account.
+function notifyChoice() {
+  if (!session?.request_notify) return '';
+  return `<label class="check"><input type="checkbox" name="notify"> Email me once when it's added</label><label class="note notify-email" hidden>The email you signed in with<input type="email" name="email" maxlength="254" autocomplete="email"></label><p class="fine notify-fine" hidden>${esc(APP_NAME)} keeps that address sealed, apart from the request, and deletes it once that email is sent, or after a year.</p>`;
+}
 function renderSuggestions(list) {
   if (!list?.length) return '';
-  return list.map((s, i) => `<form class="suggest" data-i="${i}"><h3>Ask for this source</h3><p class="why">${esc(s.why)}</p><p class="source"><strong>${esc(s.source)}</strong>${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">link</a>` : ''}</p><label class="note">What you wanted to know<textarea name="need" class="need" maxlength="300">${esc(s.need)}</textarea></label><p class="fine">Requests are public: once reviewed, this note may appear on the <a href="requests" target="_blank" rel="noopener">source request list</a> and on GitHub. Edit it, and leave out your address and name.</p><input type="hidden" name="source" value="${esc(s.source)}"><input type="hidden" name="url" value="${esc(s.url || '')}"><div class="row"><button class="ask" type="submit">Request this source</button><span class="msg" role="status"></span></div></form>`).join('');
+  return list.map((s, i) => `<form class="suggest" data-i="${i}"><h3>Ask for this source</h3><p class="why">${esc(s.why)}</p><p class="source"><strong>${esc(s.source)}</strong>${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">link</a>` : ''}</p><label class="note">What you wanted to know<textarea name="need" class="need" maxlength="300">${esc(s.need)}</textarea></label><p class="fine">Requests are public: once reviewed, this note may appear on the <a href="requests" target="_blank" rel="noopener">source request list</a> and on GitHub. Edit it, and leave out your address and name.</p>${notifyChoice()}<input type="hidden" name="source" value="${esc(s.source)}"><input type="hidden" name="url" value="${esc(s.url || '')}"><div class="row"><button class="ask" type="submit">Request this source</button><span class="msg" role="status"></span></div></form>`).join('');
 }
+$('#log').addEventListener('change', (e) => {
+  const f = e.target.closest('form.suggest');
+  if (!f || e.target.name !== 'notify') return;
+  const on = e.target.checked;
+  f.querySelector('.notify-email').hidden = !on;
+  f.querySelector('.notify-fine').hidden = !on;
+  f.email.required = on;
+  if (on) f.email.focus();
+});
 $('#log').addEventListener('submit', async (e) => {
   const f = e.target.closest('form.suggest');
   if (!f) return;
   e.preventDefault();
   const msg = f.querySelector('.msg');
   msg.textContent = 'Sending…';
+  const notify = f.notify?.checked === true;
   try {
-    const { res, data } = await postJson('api/requests', { source: f.source.value, url: f.url.value, need: f.need.value, public: true });
+    const { res, data } = await postJson('api/requests', { source: f.source.value, url: f.url.value, need: f.need.value, public: true, ...(notify ? { notify: true, email: f.email.value } : {}) });
     if (!res.ok) { msg.textContent = data.error || 'Something went wrong.'; return; }
     msg.className = 'msg ok';
     // The server gives a count only for a request already on the public list.
     msg.textContent = typeof data.count === 'number' && data.count > 1 ? `Requested. ${data.count} people have asked for this source.` : `Requested. Thank you: requests decide what ${APP_NAME} learns next.`;
     f.querySelector('button').disabled = true;
+    if (data.notify) {
+      msg.textContent += " You'll get one email when it's added. ";
+      const undo = document.createElement('button');
+      undo.type = 'button';
+      undo.className = 'textbtn';
+      undo.textContent = "Don't email me";
+      undo.addEventListener('click', async () => {
+        try {
+          const out = await postJson('api/requests/notify/stop', { source: f.source.value });
+          if (out.res.ok) msg.textContent = 'Requested. No email will be sent.';
+        } catch { /* the undo can be tried again */ }
+      });
+      msg.append(undo);
+      if (f.notify) f.notify.disabled = true;
+      if (f.email) f.email.disabled = true;
+    }
   } catch { msg.textContent = "Couldn't reach the server. Try again."; }
 });
 // Sharing an answer's sources with shared research (worker/research.js;

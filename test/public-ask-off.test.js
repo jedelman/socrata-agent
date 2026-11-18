@@ -34,7 +34,10 @@
 // civic-league feeds (2026-11-16, behind WATCHES and LEAGUE_FEEDS, both off
 // here) add the watch card's style to chat.css, so its three entries were
 // retaken from a run on that change; the page itself, with both flags off,
-// came out byte for byte as before (asset hash aside). The new export and binding change no route: the scenario's envs
+// came out byte for byte as before (asset hash aside). The request card's
+// "email me once when it's added" (2026-11-18, behind REQUEST_NOTIFY, off
+// here) adds two rules to chat.css, so its three entries were retaken the same
+// way; the card's markup with the flag off is as before. The new export and binding change no route: the scenario's envs
 // don't carry the binding, and its snapshot is unchanged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

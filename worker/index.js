@@ -27,6 +27,7 @@ import { setting, askLimits, visitorId, spentToday, spendRecorder } from './limi
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, raiseResponse, publicRequests, PUBLIC_ID_RE } from './requests.js';
+import { notifyReady, checkOptIn, optIn, optOut, sendFulfilled } from './request-notify.js';
 import { publicOrigin } from './atproto-oauth.js';
 import { hmacHex } from './crypto.js';
 import { movedResponse, httpsResponse, carryInviteResponse, CARRY_PATH } from './moved.js';
@@ -559,6 +560,8 @@ async function handleSession(req, env) {
     ...(member && sharedResearchReady(env) ? { share_research: true } : {}),
     // Watches (watches.js): only with them on, so with them off this body is as before.
     ...(member && watchesReady(env) ? { watches: true } : {}),
+    // "Email me once when it's added" on a request card (request-notify.js): only with it on.
+    ...(signedIn && notifyReady(env) ? { request_notify: true } : {}),
   }, 200, headers);
 }
 
@@ -651,9 +654,33 @@ async function handleRequest(req, env) {
     if (setup) return json({ error: setup }, 503);
     if (!(await inviteAccess(req, env, kv)).invite) return json({ error: 'Sign in or enter your invite code first.' }, 401);
   }
-  const out = await addRequest({ body: await readJson(req), kv, visitor: await visitorHash(req, env), streets: STREETS[allowedCities(env)[0]] });
+  const body = await readJson(req);
+  // "Email me once when it's added" (request-notify.js): only with REQUEST_NOTIFY on, checked before the request is raised.
+  let notify = null;
+  if (notifyReady(env) && body?.notify === true) {
+    const uid = await currentUser(req, env);
+    const checked = await checkOptIn(env, uid, body);
+    if (!checked.ok) return json({ error: checked.error, code: checked.code }, checked.status);
+    notify = { uid, email: checked.email };
+  }
+  const out = await addRequest({ body, kv, visitor: await visitorHash(req, env), streets: STREETS[allowedCities(env)[0]] });
   if (!out.ok) return json({ error: out.error }, out.status);
+  if (notify) {
+    // The raw source: requestKey clips and folds it exactly as the raise did.
+    await optIn(kv, env, { uid: notify.uid, source: String(body.source ?? ''), email: notify.email });
+    return json({ ...raiseResponse(out), notify: true }, 200, { 'Cache-Control': 'no-store' });
+  }
   return json(raiseResponse(out), 200, { 'Cache-Control': 'no-store' });
+}
+
+// Undo "email me once when it's added": the signed-in account's own ask on one request.
+async function handleNotifyStop(req, env) {
+  const uid = await currentUser(req, env);
+  if (!uid) return json({ error: 'Sign in first.', code: 'signin' }, 401);
+  const source = String((await readJson(req))?.source ?? '').slice(0, 1000);
+  if (source.trim().length < 3) return json({ error: 'Name the source.' }, 400);
+  await optOut(env.LIMITS, env, { uid, source });
+  return json({ ok: true, notify: false }, 200, { 'Cache-Control': 'no-store' });
 }
 
 async function handleConversations(req, env, path) {
@@ -1144,6 +1171,8 @@ export default {
     if (req.method === 'POST' && path === '/api/waitlist') return handleWaitlist(req, env);
     if (req.method === 'POST' && path === '/api/login') return handleLogin(req, env);
     if (req.method === 'POST' && path === '/api/requests') return handleRequest(req, env);
+    // With REQUEST_NOTIFY off, this path answers as any unknown one.
+    if (req.method === 'POST' && path === '/api/requests/notify/stop' && notifyReady(env)) return handleNotifyStop(req, env);
     if (req.method === 'POST' && (path === '/api/admin/requests/decide' || path === '/api/admin/requests/note')) return handleAdmin(req, env, path, ctx);
     if (req.method === 'POST' && (path === '/api/admin/waitlist/invite' || path === '/api/admin/waitlist/remove')) return handleAdmin(req, env, path, ctx, adminDeps(env));
     if (req.method === 'POST' && path === '/api/bsky/resolve') return handleResolve(req, env);
@@ -1204,6 +1233,11 @@ export default {
         jobs.push(runWatchJob(env, { cityIds: Object.keys(list), cities: list, appName: APP_NAME_OF(env, getDeployment(env).config), book: watchBook })
           .catch((err) => console.error('watch job failed', String(err?.message || err).slice(0, 200))));
       }
+    }
+    // One email to each who asked to hear when a source was added (request-notify.js). With it off, nothing runs.
+    if (notifyReady(env)) {
+      jobs.push(sendFulfilled(env, { appName: APP_NAME_OF(env, getDeployment(env).config) })
+        .catch((err) => console.error('request notify failed', String(err?.message || err).slice(0, 200))));
     }
     if (!jobs.length) return;
     const run = Promise.all(jobs);
