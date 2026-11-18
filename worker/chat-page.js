@@ -193,6 +193,42 @@ function renderFollowups(list) {
 // what will be sent, can edit it, and sends it with one button: a stacked
 // card, heading, why, the source, the note at full width with the public
 // notice under it, then the button and its status.
+// A watch the answer offered (offer_watch; worker/watches.js): a card the
+// person edits (the topics Siren chose, as checkboxes) and confirms with the
+// email they signed in with. Shown only when this site has watches on and
+// the person is signed in.
+function renderWatchOffer(w) {
+  if (!w || !session?.watches || !session.signed_in) return '';
+  const ids = Array.isArray(w.topics) ? w.topics : [];
+  const labels = Array.isArray(w.labels) ? w.labels : [];
+  const bodies = (Array.isArray(w.bodies) ? w.bodies : []).join(' or ');
+  const boxes = ids.map((id, i) => `<label class="topic"><input type="checkbox" name="topic" value="${esc(id)}" checked> ${esc(labels[i] || id)}</label>`).join('');
+  return `<form class="watchcard"><h3>Get an email when this comes up</h3><p class="why">Once a day, ${esc(APP_NAME)} checks the agendas the City posts for ${esc(bodies)}${w.league ? `, for items in <strong>${esc(w.league)}</strong>` : ''}, and emails you when a new item matches.</p>${boxes ? `<fieldset class="topics"><legend>Topics</legend>${boxes}</fieldset>` : ''}<label class="note">Words to look for in agenda titles, or streets, separated by commas (optional)<input name="phrases" maxlength="200" value="${esc([...(Array.isArray(w.phrases) ? w.phrases : []), ...(Array.isArray(w.streets) ? w.streets : [])].join(', '))}"></label><label class="note">The email you signed in with<input name="email" type="email" maxlength="254" autocomplete="email" required></label><input type="hidden" name="league" value="${esc(w.league || '')}"><input type="hidden" name="bodies" value="${esc(JSON.stringify(w.bodies || []))}"><p class="fine">The watch keeps that address, encrypted, only while it runs. Emails describe each agenda item without repeating its title, which can name private people. <a href="watches" target="_blank" rel="noopener">Your watches</a></p><div class="row"><button class="ask" type="submit">Start watching</button><span class="msg" role="status"></span></div></form>`;
+}
+$('#log').addEventListener('submit', async (e) => {
+  const f = e.target.closest('form.watchcard');
+  if (!f) return;
+  e.preventDefault();
+  const msg = f.querySelector('.msg');
+  msg.className = 'msg';
+  msg.textContent = 'Starting…';
+  let bodies = [];
+  try { bodies = JSON.parse(f.bodies.value); } catch {}
+  const topics = [...f.querySelectorAll('input[name="topic"]:checked')].map((i) => i.value);
+  try {
+    const { res, data } = await postJson('api/watches', { city: $('#city').value, topics, phrases: f.phrases.value.split(/[,;]/), league: f.league.value, bodies, email: f.email.value });
+    if (!res.ok) {
+      const refused = (data.refused_phrases || []).map((r) => `"${r.phrase}": ${r.reason}`).join('; ');
+      msg.textContent = `${data.error || 'Something went wrong.'}${refused ? ` (${refused})` : ''}`;
+      return;
+    }
+    const done = document.createElement('div');
+    done.className = 'watchcard done';
+    const already = (data.already || []).map((i) => `<li><a href="${link(i.url)}" target="_blank" rel="noopener noreferrer">${esc(i.description)}</a> <small>${esc(i.body)}</small></li>`).join('');
+    done.innerHTML = `<h3>Watching</h3><p>${esc(data.watch.label)}. You'll get an email when a newly posted agenda lists a match, at most one a day, until ${esc(String(data.watch.ends).slice(0, 10))}.</p>${already ? `<p>Already on a posted agenda (in your first email too):</p><ul class="plain">${already}</ul>` : ''}${data.refused_phrases?.length ? `<p class="fine">Left out: ${esc(data.refused_phrases.map((r) => `"${r.phrase}" (${r.reason})`).join(', '))}.</p>` : ''}<p class="fine"><a href="watches" target="_blank" rel="noopener">Your watches</a></p>`;
+    f.replaceWith(done);
+  } catch { msg.textContent = "Couldn't reach the server. Try again."; }
+});
 function renderSuggestions(list) {
   if (!list?.length) return '';
   return list.map((s, i) => `<form class="suggest" data-i="${i}"><h3>Ask for this source</h3><p class="why">${esc(s.why)}</p><p class="source"><strong>${esc(s.source)}</strong>${s.url ? ` · <a href="${link(s.url)}" target="_blank" rel="noopener">link</a>` : ''}</p><label class="note">What you wanted to know<textarea name="need" class="need" maxlength="300">${esc(s.need)}</textarea></label><p class="fine">Requests are public: once reviewed, this note may appear on the <a href="requests" target="_blank" rel="noopener">source request list</a> and on GitHub. Edit it, and leave out your address and name.</p><input type="hidden" name="source" value="${esc(s.source)}"><input type="hidden" name="url" value="${esc(s.url || '')}"><div class="row"><button class="ask" type="submit">Request this source</button><span class="msg" role="status"></span></div></form>`).join('');
@@ -275,7 +311,7 @@ function renderAnswer(answer, r, at) {
   const when = at ? `${esc(String(at).slice(0, 16).replace('T', ' '))} UTC` : '';
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
-  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderFollowups(r.followups)}${renderSuggestions(r.suggestions)}${renderShare(conversationId, at || r.at)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
+  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderFollowups(r.followups)}${renderWatchOffer(r.watchOffer)}${renderSuggestions(r.suggestions)}${renderShare(conversationId, at || r.at)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
 }
 // A web search step (web search on). Its tool name is WEB_SEARCH_STEP in
 // src/web-search.js (test/web-search.test.js keeps the two the same). The

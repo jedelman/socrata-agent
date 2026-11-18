@@ -166,6 +166,7 @@ export async function ask({
   publicThread = false,
   priorResearch = null,
   traceparent = null,
+  watches = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // Checked whatever the model, so a bad list fails here; declared only for
@@ -224,8 +225,12 @@ export async function ask({
   // scopes this answer may read. A public thread never reads an account's.
   const researchScopes = researchScopesFor(priorResearch, publicThread);
   if (researchScopes.length) ctx.priorResearch = { scopes: researchScopes, search: priorResearch.search, private: !publicThread && priorResearch.private === true, streets: priorResearch.streets };
-  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}), ...(researchScopes.length ? { priorResearch: true } : {}) };
-  const toolOpts = { ...(gapsOn ? { gaps: gaps.data } : {}), ...(researchScopes.length ? { priorResearch: { scopes: researchScopes } } : {}) };
+  // Watches (worker/watches.js): a private answer for a signed-in member
+  // only; a public thread never offers one.
+  const watchesOn = Boolean(watches && typeof watches.check === 'function' && Array.isArray(watches.bodies) && watches.bodies.length && Array.isArray(watches.topics) && watches.topics.length && !publicThread);
+  if (watchesOn) ctx.watches = { check: watches.check, topics: watches.topics };
+  const promptOpts = { ...(gapsOn ? { gaps: true } : {}), ...(searchOn ? { webSearch: searchSettings } : {}), ...(publicThread ? { publicThread: true } : {}), ...(researchScopes.length ? { priorResearch: true } : {}), ...(watchesOn ? { watches: true } : {}) };
+  const toolOpts = { ...(gapsOn ? { gaps: gaps.data } : {}), ...(researchScopes.length ? { priorResearch: { scopes: researchScopes } } : {}), ...(watchesOn ? { watches: { bodies: watches.bodies, topics: watches.topics } } : {}) };
   llm.init({
     systemPrompt: Object.keys(promptOpts).length ? systemPrompt(city, today, promptOpts) : systemPrompt(city, today),
     history,
@@ -427,6 +432,8 @@ export async function ask({
     // and how many links in the answer's text were kept and taken out; each
     // only when there is one, so an answer without them reads as before.
     ...(followups.length ? { followups } : {}),
+    // A watch offered with offer_watch (the card under the answer), only when there is one.
+    ...(ctx.watchOffer ? { watchOffer: ctx.watchOffer } : {}),
     ...(linked.kept || linked.dropped ? { answerLinks: { kept: linked.kept, dropped: linked.dropped } } : {}),
     // For the answer record: how many outbound requests this answer made, and
     // in plain words when its budget ended the search.

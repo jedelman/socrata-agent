@@ -1,0 +1,84 @@
+name: Refresh Norfolk address list
+# Weekly: rebuild data/norfolk-addresses.json from the City's address list
+# (scripts/build-addresses.js): what watches check an agenda item's address
+# against, and take its civic league from (docs/watches.md). Then
+# scripts/build-addresses.js --compare decides:
+#   - addresses came, went or moved civic league, under the same leagues:
+#     the file commits to main, after the watch tests pass against it;
+#   - a civic league added, removed or renamed (a feed's address changes, and
+#     a watch on a removed league stops matching), or more than 2% of the
+#     addresses gone (more likely a short read than the City's list): a
+#     branch, bot/addresses-refresh-<date>, and a pull request.
+#
+# Opening a pull request needs the repository setting "Allow GitHub Actions
+# to create and approve pull requests". A push made with the workflow's token
+# starts no other workflow; Workers Builds runs npm test before it deploys.
+on:
+  schedule:
+    - cron: '47 9 * * 4' # Thursdays 09:47 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: norfolk-data-refresh # shared with refresh-gaps.yml and refresh-norfolk.yml
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # bash -eo pipefail: a failed compare piped into tee fails the step (review of #62).
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Keep the current list to compare against
+        run: cp data/norfolk-addresses.json "$RUNNER_TEMP/addresses-before.json"
+      - run: node scripts/build-addresses.js
+        env:
+          SOCRATA_APP_TOKEN: ${{ secrets.SOCRATA_APP_TOKEN }}
+      - name: Decide
+        id: decide
+        run: |
+          node scripts/build-addresses.js --compare "$RUNNER_TEMP/addresses-before.json" --result "$RUNNER_TEMP/addresses.json" | tee "$RUNNER_TEMP/addresses.md"
+          decision=$(node -p "JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8')).decision" "$RUNNER_TEMP/addresses.json")
+          case "$decision" in none|main|pr) ;; *) echo "::error::No decision from the compare ($decision)."; exit 1 ;; esac
+          echo "decision=$decision" >> "$GITHUB_OUTPUT"
+      - name: Test the watches against the new list
+        if: steps.decide.outputs.decision != 'none'
+        run: node --test test/watches.test.js
+      - name: Commit to main, or open a pull request
+        if: steps.decide.outputs.decision != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DECISION: ${{ steps.decide.outputs.decision }}
+        run: |
+          day=$(date -u +%Y-%m-%d)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          { echo "## Address list changed: $DECISION"; echo; cat "$RUNNER_TEMP/addresses.md"; } >> "$GITHUB_STEP_SUMMARY"
+          { echo "Refresh Norfolk address list ($day)"; echo; cat "$RUNNER_TEMP/addresses.md"; } > "$RUNNER_TEMP/message.txt"
+          if [ "$DECISION" = pr ]; then
+            branch="bot/addresses-refresh-$day"
+            git switch -c "$branch"
+            git add data/norfolk-addresses.json
+            git commit -q -F "$RUNNER_TEMP/message.txt"
+            git push -u origin "$branch"
+            if ! gh pr create --base main --head "$branch" --title "Address list needs review ($day)" --body-file "$RUNNER_TEMP/addresses.md"; then
+              echo "::error title=No pull request::Couldn't open the pull request (is 'Allow GitHub Actions to create and approve pull requests' on?). The branch $branch is pushed."
+              exit 1
+            fi
+          elif [ "$DECISION" = main ]; then
+            git add data/norfolk-addresses.json
+            git commit -q -F "$RUNNER_TEMP/message.txt"
+            git push
+          else
+            # Fail closed: anything but a clear decision pushes nothing.
+            echo "::error::Unknown decision '$DECISION'; nothing pushed."
+            exit 1
+          fi

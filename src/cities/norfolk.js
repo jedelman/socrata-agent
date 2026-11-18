@@ -105,6 +105,9 @@ export default {
       lat: 'parcel_centroid_latitude',
       lon: 'parcel_centroid_longitude',
       tract: 'census_tract_number',
+      // Checked 2026-11-16: 118 named civic leagues, and "No Civic League" for
+      // addresses in none (data/norfolk-addresses.json, scripts/build-addresses.js).
+      league: 'civic_league',
     },
     // Facts about the place, returned as-is.
     facts: [
@@ -213,6 +216,46 @@ export default {
     iqm2: 'https://norfolkcityva.iqm2.com',
     noticesDataset: 'dszu-h9cf',
     index: 'norfolk-legislation',
+    // Watches and civic-league feeds (worker/watches.js) read these bodies'
+    // posted agendas. Checked 2026-11-16: the notices name them exactly so
+    // ("City Council", "Planning Commission"), and each meeting_link carries
+    // the iqm2 meeting ID whose page lists the agenda items.
+    watchBodies: ['City Council', 'Planning Commission'],
+    // The topics a watch can follow (worker/watches.js, src/watches.js). A
+    // watch picks from this reviewed list, never free words, so no watch can
+    // be keyed to a person. Phrases match agenda titles as words (the last
+    // one optionally plural). Counts are titles matched in the legislation
+    // index (1,452 titles since July 2023), checked 2026-11-16. Add a topic
+    // in a reviewed PR; never a phrase that could be someone's name.
+    watchTopics: [
+      { id: 'short_term_rentals', label: 'Short-term rentals', phrases: ['short-term rental', 'vacation rental', 'homestay', 'bed and breakfast'] }, // 159
+      { id: 'accessory_dwellings', label: 'Accessory dwelling units', phrases: ['accessory dwelling unit'] }, // 1, and on the 11/19/2026 PC agenda (not "ADU": also a surname)
+      { id: 'housing_development', label: 'Apartments and multi-family housing', phrases: ['multi-family', 'multifamily', 'dwelling unit', 'apartment'] }, // 28
+      { id: 'affordable_housing', label: 'Affordable and public housing', phrases: ['affordable housing', 'workforce housing', 'public housing', 'housing authority'] }, // 24
+      { id: 'rezoning', label: 'Rezonings', phrases: ['rezone', 'rezoning', 'change of zoning', 'zoning map'] }, // 37
+      { id: 'zoning_rules', label: 'Changes to the Zoning Ordinance', phrases: ['text amendment', 'zoning ordinance'] }, // 41
+      { id: 'design_historic', label: 'Design review and historic buildings', phrases: ['development certificate', 'design review', 'historic', 'demolition', 'demolish', 'architectural review'] }, // 31
+      { id: 'alcohol', label: 'Alcohol sales', phrases: ['alcoholic beverage', 'sale of alcohol'] }, // 142
+      { id: 'nightlife', label: 'Live entertainment and late hours', phrases: ['live entertainment', 'nightclub', 'banquet hall', 'extended hours'] }, // 90
+      { id: 'restaurants', label: 'Restaurants', phrases: ['restaurant'] }, // 117
+      { id: 'drive_throughs', label: 'Drive-throughs', phrases: ['drive-through', 'drive through'] }, // 20
+      { id: 'smoke_vape', label: 'Smoke, vape and hookah shops', phrases: ['smoke or vape', 'vape shop', 'smoke shop', 'smoking products', 'hookah', 'tobacco'] }, // 12
+      { id: 'tattoo', label: 'Tattoo parlors', phrases: ['tattoo'] }, // 8
+      { id: 'animals', label: 'Kennels and animals', phrases: ['kennel', 'animal', 'veterinary'] }, // 6
+      { id: 'child_care', label: 'Child care', phrases: ['day care', 'child care', 'daycare'] }, // 4
+      { id: 'signs', label: 'Signs and billboards', phrases: ['sign', 'signage', 'billboard', 'electronic display'] }, // 32
+      { id: 'encroachments', label: 'Encroachments into streets and sidewalks', phrases: ['encroach', 'encroachment'] }, // 54
+      { id: 'city_property', label: 'Sales and leases of City property', phrases: ['sale and conveyance', 'conveyance to', 'lease', 'sublease'] }, // 140
+      { id: 'flooding', label: 'Flooding, stormwater and the shoreline', phrases: ['flooding', 'floodplain', 'flood zone', 'flood mitigation', 'flood control', 'flood protection', 'flood preparedness', 'floodwall', 'flood wall', 'stormwater', 'resilience', 'sea level', 'seawall', 'bulkhead', 'living shoreline', 'coastal storm'] }, // ~20 (not "flood" alone: also a surname)
+      { id: 'trees_open_space', label: 'Trees and open space', phrases: ['tree', 'urban forest', 'green space', 'open space'] }, // 10
+      { id: 'parks', label: 'Parks and recreation', phrases: ['recreation center', 'parks and recreation', 'recreation department', 'recreation facility', 'playground', 'public park', 'athletic field'] }, // 19; a "Commercial Recreation Center" still matches (a near miss the docs name)
+      { id: 'streets_parking', label: 'Streets, traffic and parking', phrases: ['traffic', 'speed limit', 'sidewalk', 'bike', 'bicycle', 'crosswalk', 'street closure', 'parking'] }, // 37
+      { id: 'transit', label: 'Transit', phrases: ['transit', 'light rail'] }, // 3
+      { id: 'budget', label: 'Budget and grants', phrases: ['appropriations ordinance', 'annual budget', 'capital improvement', 'grant funds'] }, // ~190
+      { id: 'schools', label: 'Schools', phrases: ['school'] }, // 24
+      { id: 'libraries', label: 'Libraries', phrases: ['library', 'libraries'] }, // 24
+      { id: 'public_safety', label: 'Police, fire and public safety', phrases: ['police', 'fire-rescue', 'fire rescue', 'fire station', 'public safety', 'emergency management'] }, // ~30
+    ],
   },
 
   // Verified 2026-10-06: Norfolk Cares on norfolk.gov/NorfolkCares; the Clerk's

@@ -35,6 +35,7 @@ test('the refresh jobs share one concurrency group, run weekly at their own minu
   const group = (t) => /concurrency:\s*\n\s+group: ([\w-]+)/.exec(t)?.[1];
   assert.ok(group(W['refresh-gaps.yml']));
   assert.equal(group(W['refresh-gaps.yml']), group(W['refresh-norfolk.yml']));
+  assert.equal(group(W['refresh-addresses.yml']), group(W['refresh-gaps.yml']), 'the address refresh too');
   const crons = Object.entries(W).flatMap(([f, t]) => [...t.matchAll(/cron: '([^']+)'/g)].map((m) => [f, m[1]]));
   const [, mine] = crons.find(([f]) => f === 'refresh-gaps.yml');
   const [minute, hour, dom, , dow] = mine.split(' ');
@@ -42,7 +43,7 @@ test('the refresh jobs share one concurrency group, run weekly at their own minu
   assert.equal(dom, '*');
   assert.match(dow, /^[0-6]$/, 'weekly');
   for (const [f, c] of crons.filter(([f]) => f !== 'refresh-gaps.yml')) assert.notEqual(c.split(' ').slice(0, 2).join(' '), `${minute} ${hour}`, `${f} runs at the same time`);
-  for (const f of ['refresh-gaps.yml', 'refresh-norfolk.yml']) assert.match(W[f], /^permissions:\n {2}contents: write\n {2}pull-requests: write\n(?! )/m, f);
+  for (const f of ['refresh-gaps.yml', 'refresh-norfolk.yml', 'refresh-addresses.yml']) assert.match(W[f], /^permissions:\n {2}contents: write\n {2}pull-requests: write\n(?! )/m, f);
 });
 
 test('the weekly refresh measures live, checks, then decides; refresh-norfolk and the archive job rebuild offline', () => {

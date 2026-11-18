@@ -382,14 +382,16 @@ test("the Worker's limits: SUBREQUEST_BUDGET defaults to 120, stays 10-10000, an
   // builder, and both of its ask() calls (streamed and JSON) start from
   // askArgs and override none. The free tier's one ask() call starts from
   // the builder too, and overrides none. The one spread after the chat's
-  // builder is research memory's, built from priorResearch alone.
+  // builder are research memory's, built from priorResearch alone, and
+  // watches' (worker/watches.js), built from watchOptions alone.
   const worker = readFileSync(new URL('../worker/index.js', import.meta.url), 'utf8');
   const start = worker.indexOf('function answerArgs(env, req, cityId) {');
   assert.ok(start > 0);
   const args = worker.slice(start, worker.indexOf('\n}\n', start));
   assert.match(args, /\.\.\.askLimits\(env, providerOf\(model\)\),/);
   assert.doesNotMatch(args.slice(args.indexOf('...askLimits')), /subrequestBudget|maxSteps|maxTokens/, 'nothing after the spread overrides it');
-  assert.match(worker, /const askArgs = \(\) => \(\{ question, history, carried, \.\.\.answerArgs\(env, req, cityId\), \.\.\.research \}\);/, 'the builder last but research memory: nothing overrides it');
+  assert.match(worker, /const askArgs = \(\) => \(\{ question, history, carried, \.\.\.answerArgs\(env, req, cityId\), \.\.\.research, \.\.\.watchArgs \}\);/, 'the builder last but research memory and watches: nothing overrides it');
+  assert.match(worker, /const watchArgs = uid && watchesReady\(env\) && watchableCity\(cities\[cityId\]\) \? \{ watches: await watchOptions\(env, cityId\) \} : \{\};/);
   assert.match(worker, /const research = priorResearch \? \{ priorResearch \} : \{\};/);
   const calls = [...worker.matchAll(/await ask\(\{([\s\S]*?)\}\)\)/g)].map((m) => m[1]);
   assert.equal(calls.length, 2);

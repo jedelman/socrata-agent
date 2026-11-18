@@ -7,6 +7,7 @@ import { pluginToolDefs, pluginsFor, pluginContext } from './plugins.js';
 import { NOTE_UNANSWERED_TOOL, noteUnanswered } from './gaps/answer.js';
 import { offerFollowup, FOLLOWUP_LABEL, MAX_FOLLOWUPS, FOLLOWUP_QUESTION_CHARS } from './followups.js';
 import { priorResearch, RESEARCH_SCOPES } from './prior-research.js';
+import { offerWatch, MAX_TOPICS, MAX_PHRASES } from './watches.js';
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
@@ -14,7 +15,7 @@ const T = (name, description, properties, required = []) => ({
 });
 
 // Core tool names no plugin may take, declared or not.
-const RESERVED = new Set(['prior_research']);
+const RESERVED = new Set(['prior_research', 'offer_watch']);
 const SCOPE_TEXT = { account: "this person's own earlier conversations", public: 'public answers on this site', shared: 'sources people shared from their answers' };
 
 // opts.gaps (a built gap file) adds note_unanswered after suggest_data_source;
@@ -73,6 +74,18 @@ export function toolsFor(city, plugins = [], opts = {}) {
       url: { type: 'string', description: "The source's url, exactly as a tool result in this conversation showed it." },
     }, ['question', 'source_title', 'url'])
   );
+  // Watches (worker/watches.js): only when the Worker passes `watches`, for
+  // a signed-in member with WATCHES on. Without it the tool list is as before.
+  if (opts.watches) {
+    tools.push(
+      T('offer_watch', `When the person asks to be told, notified or emailed when ${opts.watches.bodies.join(' or ')} take up a topic, or anything in a neighborhood, offer a watch: the person sees a card under your answer to start it, and gets one email a day when a newly posted agenda item matches. A watch follows topics from this list (id: what it covers): ${opts.watches.topics.map((t) => `${t.id}: ${t.label}`).join('; ')}. When no topic fits, give phrases instead: a few plain words agenda titles would use, or a street's name ("Hampton Boulevard"), which also matches items with an address on that street; never a person's or business's name and never an address. For a neighborhood, give its civic league. At most one per answer.`, {
+        topics: { type: 'array', items: { type: 'string', enum: opts.watches.topics.map((t) => t.id) }, description: `Up to ${MAX_TOPICS} topic ids from the list. Leave empty to watch everything in a civic league.` },
+        phrases: { type: 'array', items: { type: 'string' }, description: `Optional, when no topic fits: up to ${MAX_PHRASES} phrases of 1 to 4 plain words to find in agenda titles, e.g. "dog park", or a street's name, e.g. "Colley Avenue". Never a person's name or an address.` },
+        civic_league: { type: 'string', description: "Optional: a civic league's name, as the City's address list gives it (lookup_address or area_lookup shows it)." },
+        bodies: { type: 'array', items: { type: 'string', enum: opts.watches.bodies }, description: 'Optional: which bodies to watch. All of them by default.' },
+      })
+    );
+  }
   const scopes = RESEARCH_SCOPES.filter((x) => (opts.priorResearch?.scopes || []).includes(x));
   if (scopes.length) {
     tools.push(
@@ -108,6 +121,8 @@ export async function runTool(ctx, name, args) {
     }
     case 'offer_followup':
       return offerFollowup(ctx, args);
+    case 'offer_watch':
+      return offerWatch(ctx, args);
     case 'prior_research':
       // Gated in code: without the Worker's search this is an unknown tool, whatever the model emits.
       return priorResearch(ctx, args);

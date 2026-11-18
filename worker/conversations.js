@@ -82,7 +82,7 @@ const count = (v) => (Number.isFinite(Number(v)) ? Math.min(Math.max(Math.trunc(
 const MAX_TRACE_STEPS = 60;
 
 /** The record shown under an answer, kept with its turn: bounded, and only the fields the page renders. */
-export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget, gaps, followups, answerLinks } = {}) {
+export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget, gaps, followups, answerLinks, watchOffer } = {}) {
   const r = resources || {};
   return {
     trace: (Array.isArray(trace) ? trace : []).slice(0, MAX_TRACE_STEPS).map((t) => ({
@@ -113,6 +113,11 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
     // Each only when there is one, so older records read as before.
     ...(Array.isArray(followups) && followups.length
       ? { followups: followups.slice(0, 2).map((f) => ({ question: clip(f.question, 200), source_title: clip(f.source_title, 200), url: clip(f.url, 2000) })) }
+      : {}),
+    // A watch the answer offered (worker/watches.js): its terms, league and
+    // bodies, so a reopened conversation shows the card; only when there is one.
+    ...(watchOffer && typeof watchOffer === 'object'
+      ? { watchOffer: { topics: (Array.isArray(watchOffer.topics) ? watchOffer.topics : []).slice(0, 8).map((t) => clip(t, 60)), labels: (Array.isArray(watchOffer.labels) ? watchOffer.labels : []).slice(0, 8).map((t) => clip(t, 120)), phrases: (Array.isArray(watchOffer.phrases) ? watchOffer.phrases : []).slice(0, 5).map((t) => clip(t, 60)), streets: (Array.isArray(watchOffer.streets) ? watchOffer.streets : []).slice(0, 5).map((t) => clip(t, 60)), league: clip(watchOffer.league, 120) || null, bodies: (Array.isArray(watchOffer.bodies) ? watchOffer.bodies : []).slice(0, 4).map((b) => clip(b, 60)), label: clip(watchOffer.label, 600) } }
       : {}),
     ...(answerLinks && (answerLinks.kept || answerLinks.dropped)
       ? { answerLinks: { kept: count(answerLinks.kept), dropped: count(answerLinks.dropped) } }

@@ -459,6 +459,76 @@ generic mode.
   Travel keeps withdrawn rows recoverable for 30 days: the spec says so.
   `plugins/case-file.js` serves a
   case file for questions with no address. No payments: bounties are tabled until after beta (Jason).
+- Watches and civic-league feeds (`docs/watches.md`; Jason, 2026-11-16:
+  "let me know if planning commission or City Council take up any items
+  affecting short term rentals" by email, and "shift from per street to per
+  neighborhood league" for the public feeds). Behind `WATCHES` and
+  `LEAGUE_FEEDS`, both off; with both off nothing changes (routes, page,
+  session, prompt, tools, cron). **Siren never repeats an agenda title**
+  (titles name buyers, tenants and applicants; three reviews found
+  name-withholding leaking, so it was dropped): each item is described from
+  fixed kind labels (`itemKind`), the city's topics (`topicsOf`), addresses
+  on the City's address list, its ordinance number and the City's link
+  (`describeItem` in `src/watches.js`); a test checks, over the whole
+  legislation index, that every address shown is on the list and every word
+  of every description is a label word, a number or a word of that
+  address's street. **The address list** (Jason, 2026-11-16: "A trie
+  whitelist built from the address db", against streets named for people):
+  `data/norfolk-addresses.json`, every house number on every street of
+  Address Information with its civic league (two columns, grouped, at
+  GENERIC access; no names), built by `scripts/build-addresses.js` and
+  refreshed weekly by `refresh-addresses.yml` (league changes or more than
+  2% gone go to a pull request). `compileAddresses` keys it street then
+  number: an address shows only when that number is on that street (the
+  direction alone may differ: let go only when the list has no street of
+  that direction, supplied only when one side has the number), leagues come
+  from it (no address lookups), a phrase refused as a name or for a number
+  that is a street's name ("hampton", "21st street") is a street watch,
+  matched by an item's listed address, never by title words, and a passing
+  phrase that names a street with its type ("hampton boulevard") matches by
+  title and by listed address. The snapshot keeps each title in one internal
+  field to match phrases against; nothing serves it. **Watches follow
+  topics** from the city profile's reviewed `meetings.watchTopics` (27 for
+  Norfolk; a test refuses a topic phrase made only of common names) **and a
+  member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
+  private conversations"): up to five, refused (unless a street's name, as
+  above) when made only of common
+  first names and surnames (`data/common-names.json`, Census lists, built by
+  `scripts/build-common-names.js`), or with a common name beside anything
+  but ordinary words (`ordinaryWords` in `telemetry.js`, words the books use
+  in lower case) or beside a title or entity word ("mr smith", "smith llc"),
+  or holding a number, address or contact, or naming a civic league; without
+  its lists no phrase is accepted. A guard, not a wall: a rare surname alone
+  passes and works as a standing title search (Jason's call, in the docs).
+  Feeds never use phrases. Addresses come from `titlePlaces` (money taken
+  out first; apostrophes and St./Saint matched as the list spells them).
+  `offer_watch` (a core tool, declared only when the Worker passes `watches`
+  to `ask()`: a signed-in member, `WATCHES` on, never a public thread) takes
+  topic ids as an enum, phrases (streets among them) and/or a civic league; the person starts the
+  watch on the card with the email they signed in with (checked against the
+  account's HMAC). `worker/watches.js`: once a day (cron, 11:00 UTC or later,
+  or at once with no snapshot), the next 21 days of `meetings.watchBodies`
+  from the notices, each iqm2 agenda described and tagged by the civic
+  league of its listed addresses ("No Civic League" is none), kept as
+  `agenda-snapshot:<city>`; then one
+  digest a day per watch (Resend, `List-Unsubscribe` one-click,
+  `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
+  stop; 5 a member, 365 days). **The job never writes a watch**: what it sent
+  goes in `watch-sent:<id>` (expiring at the end plus a week or a month on,
+  whichever is later), so a stale cached copy can't undo a stop or a
+  renewal; every watch key expires a week after its end; an ended watch is
+  re-read before it's deleted; Resend's 409 is recorded as sent. Ended watches go
+  first and are deleted either way; each key is written at most once a run
+  (the day's count every two seconds at most and at the end; a 15-minute lock
+  with its own expiry, never deleted); a new order each day; Resend busy
+  stops the round, a 4xx marks nothing and three before any delivery stop
+  it; idempotency keys hash the items sent. A watch keeps the member's email
+  AES-GCM encrypted under a key derived from INVITE_SECRET, bound to its id,
+  until it stops; never logged or returned. Pages `/watches`, `/watch/stop`
+  (its token is the watch id and an HMAC; posted from script, or POSTed
+  one-click by a mail client before the JSON rule), `/feeds` and
+  `/feeds/<league>.atom` (public, described items, `noindex`). BZA and ARB
+  aren't watchable yet: their iqm2 pages list no items (the agenda is a file).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each
