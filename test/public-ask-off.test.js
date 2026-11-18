@@ -34,7 +34,10 @@
 // civic-league feeds (2026-11-16, behind WATCHES and LEAGUE_FEEDS, both off
 // here) add the watch card's style to chat.css, so its three entries were
 // retaken from a run on that change; the page itself, with both flags off,
-// came out byte for byte as before (asset hash aside). The new export and binding change no route: the scenario's envs
+// came out byte for byte as before (asset hash aside). The tools column (2026-11-18: an answer's
+// sources, contacts, data, trace and model line in a third column) retook
+// GET /, /index.html, /login and chat.css in each env the same way, from a run
+// on that change; nothing else moved but the extended files' text. The new export and binding change no route: the scenario's envs
 // don't carry the binding, and its snapshot is unchanged.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
