@@ -8,8 +8,14 @@
 // feeds (worker/watches.js).
 //
 // No people-finding:
-// - Agenda titles can name private people (a buyer of a City lot, a tenant,
-//   an applicant). Siren never repeats a title in a feed, an email or a
+// - Content: the City's own title and description of each item are shown as
+//   posted, credited to the City and linked (Jason, 2026-11-18: "allow names
+//   through in content - titles and descriptions"; a public agenda item is a
+//   public record). Each item also gets Siren's summary (describeItem).
+// - Until 2026-11-18, agenda titles were never repeated: they can name
+//   private people (a buyer of a City lot, a tenant, an applicant), and Siren
+//   described each item instead. History, as written then: Siren never
+//   repeated a title in a feed, an email or a
 //   response. It describes each item from parts code extracts: the kind of
 //   action, the topics it matches, the property's address, its civic league
 //   and its ordinance number, and links to the City's own page for the rest.
@@ -68,6 +74,22 @@ export function topicsOf(text, topics = []) {
   return compiled.get(topics).filter((x) => x.patterns.some((p) => p.test(t))).map((x) => x.id);
 }
 
+/**
+ * An item's words with what describes its property's zoning district, or
+ * cites the ordinance, taken out: "zoned MF-NS (Multi-Family –
+ * Neighborhood-Scale) & Park Place NRO (Neighborhood Resilience Overlay)" is
+ * not multi-family housing or flooding, and "of Table 3.2.9.B of the Norfolk
+ * Zoning Ordinance" is not a change to the ordinance. For topics from an
+ * item's full text (an agenda file's item, the City's description of an
+ * item); titles are matched as they are.
+ */
+export function topicText(text) {
+  return String(text ?? '')
+    .replace(/\bzoned\s+[^.;]*?(?=[.;]|,\s+(?:and|for|to|with|which|where)\b|$)/gi, ' ')
+    .replace(/\b(?:of\s+)?(?:(?:Table|Section|Sec\.|Article)\s+[\w.()-]+[,;]?\s*(?:and\s+)?)+of\s+the\s+(?:Norfolk\s+)?Zoning\s+Ordinance\b/gi, ' ')
+    .replace(/\bof\s+the\s+Norfolk\s+Zoning\s+Ordinance\b/gi, ' ');
+}
+
 // The kind of action an agenda title proposes, first match wins. Fixed labels,
 // written here; nothing from the title is carried into them.
 const KINDS = [
@@ -81,6 +103,9 @@ const KINDS = [
   [/easement/i, 'Easement'],
   [/right of entry/i, 'Right of entry'],
   [/clos\w*,?\s+vacat\w*|vacat\w*\s+(?:and\s+discontinu\w*\s+)?(?:a\s+)?(?:portion\s+of\s+)?(?:a\s+)?(?:public\s+)?(?:right.of.way|alley|street)/i, 'Street or alley closure'],
+  [/certificate of appropriateness|\bCOA\s*#/i, 'Certificate of Appropriateness'],
+  [/\bappeal\b/i, 'Appeal of a zoning decision'],
+  [/special exception/i, 'Special exception'],
   [/variance/i, 'Variance'],
   [/appropriations? ordinance|annual budget|capital improvement/i, 'Budget or appropriation'],
   [/design review/i, 'Design review'],
@@ -94,10 +119,16 @@ export function itemKind(text) {
   return 'Agenda item';
 }
 
-/** "Ordinance No. 50501" or "Resolution No. 1987", when the title starts with one. */
+/**
+ * "Ordinance No. 50501" or "Resolution No. 1987", when the title starts with
+ * one; else the City's case number an agenda file gives ("COA #26-00439").
+ */
 export function itemNumber(text) {
-  const m = /^\s*(Ordinance|Resolution)\s+No\.?\s*([\d,]{1,8})\b/i.exec(String(text ?? ''));
-  return m ? `${m[1][0].toUpperCase()}${m[1].slice(1).toLowerCase()} No. ${m[2].replace(/,/g, '')}` : null;
+  const t = String(text ?? '');
+  const m = /^\s*(Ordinance|Resolution)\s+No\.?\s*([\d,]{1,8})\b/i.exec(t);
+  if (m) return `${m[1][0].toUpperCase()}${m[1].slice(1).toLowerCase()} No. ${m[2].replace(/,/g, '')}`;
+  const c = /\b(COA|DC|DR|BZA|CUP|ZTA|SE|ZV)\s*#\s*(\d{2}\s?-\s?\d{3,6})\b/.exec(t);
+  return c ? `${c[1]} #${c[2].replace(/\s/g, '')}` : null;
 }
 
 /** The address list's own word for an address in no civic league (checked 2026-11-16). */
@@ -260,7 +291,24 @@ export function titleAddresses(title, book = null) {
 }
 
 /**
- * How an item reads in a feed or an email: its kind, its topics and its
+ * The City's own words for an item, as posted: { title, description }, each
+ * clipped at a word. The description is the City's summary (an item page's
+ * cover letter); an agenda file's item is all title. Shown in emails, feeds
+ * and the watch pages, credited to the City (Jason, 2026-11-18: names are
+ * allowed in content; the name guard stays on what a watch can follow).
+ */
+export function quoteItem(item) {
+  const clip = (s, n) => {
+    const t = String(s ?? '').replace(/\s+/g, ' ').trim();
+    return t.length <= n ? t : `${t.slice(0, n).replace(/\s+\S*$/, '')} …`;
+  };
+  const title = clip(item?.title, 400);
+  const summary = clip(item?.summary, 600);
+  return { title, description: summary && !title.includes(summary.slice(0, 60)) ? summary : '' };
+}
+
+/**
+ * Siren's summary of an item, beside the City's words: its kind, its topics and its
  * addresses, all from fixed labels and extracted addresses. `item` is a
  * snapshot item ({ kind, topics, addresses }).
  */
@@ -283,10 +331,12 @@ const PERSON_WORDS = new Set(['mr', 'mrs', 'ms', 'miss', 'dr', 'jr', 'sr', 'ii',
 export const streetLabel = (phrase) => String(phrase ?? '').replace(/(^|\s)(\p{L})/gu, (m, sp, c) => sp + c.toUpperCase());
 
 /**
- * A member's free-text phrases, checked: { phrases, streets, refused: [{
- * phrase, reason }] }. Refused, a phrase that:
+ * A member's free-text phrases, checked: { phrases, streets, leagues,
+ * refused: [{ phrase, reason }] }. A civic league's name (`leagues`, as the
+ * City's address list spells them) is taken as the league to watch, not a
+ * phrase. Refused, a phrase that:
  * - has a number, an address or contact details (`textCheck(text)`, the
- *   public-text check, true when clean), or names a civic league;
+ *   public-text check, true when clean);
  * - is made only of common first names and surnames (`names`, { surnames,
  *   given } Sets from the Census lists; plurals too: "smiths");
  * - has a common name beside anything but ordinary words (`ordinary`, the
@@ -311,6 +361,8 @@ export function checkPhrases(raw, { names = null, ordinary = null, leagues = [],
   const leagueKeys = new Set(leagues.map(leagueKey));
   const phrases = [];
   const streets = [];
+  const found = [];
+  const typed = [];
   const refused = [];
   const isName = (w) => [w, w.replace(/s$/, ''), w.replace(/es$/, '')].some((x) => x.length > 1 && (names.surnames.has(x) || names.given.has(x)));
   const NAME = "that reads as a person's name; watches follow topics and words, not people";
@@ -320,10 +372,19 @@ export function checkPhrases(raw, { names = null, ordinary = null, leagues = [],
     const words = phrase.split(' ');
     let reason = null;
     let street = false;
+    // A civic league's name is the league to watch (Jason, 2026-11-18: "a pretty common ask"), whatever
+    // its length, and with or without the name lists: it's on the City's own list of leagues.
+    if (leagueKeys.has(leagueKey(phrase))) {
+      const league = leagues.find((l) => leagueKey(l) === leagueKey(phrase));
+      if (!found.includes(league)) {
+        found.push(league);
+        typed.push({ phrase: String(r).trim().slice(0, 120), league, street: Boolean(book?.street?.(phrase)) });
+      }
+      continue;
+    }
     if (phrase.length < 3 || phrase.length > PHRASE_CHARS) reason = `a phrase is 3 to ${PHRASE_CHARS} characters`;
     else if (words.length > PHRASE_WORDS) reason = `a phrase is at most ${PHRASE_WORDS} words`;
     else if (!names || !ordinary || typeof textCheck !== 'function') reason = "phrases aren't available here";
-    else if (leagueKeys.has(phrase)) reason = 'that is a civic league: watch it as the civic league instead';
     else {
       if (/\d/.test(phrase)) reason = 'a phrase has no numbers (no house numbers or addresses)';
       else if (words.every(isName)) reason = NAME;
@@ -336,7 +397,7 @@ export function checkPhrases(raw, { names = null, ordinary = null, leagues = [],
     else if (reason) refused.push({ phrase: String(r).trim().slice(0, PHRASE_CHARS + 20), reason });
     else phrases.push(phrase);
   }
-  return { phrases, streets, refused };
+  return { phrases, streets, leagues: found, typed, refused };
 }
 
 /**
@@ -352,7 +413,7 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
   const refused = asked.filter((x) => !ids.has(x)).slice(0, 10).map((x) => x.slice(0, 60));
   const chosen = topics.filter((t) => asked.includes(t.id)).map((t) => t.id);
   if (chosen.length > MAX_TOPICS) return { ok: false, error: `A watch has at most ${MAX_TOPICS} topics.`, refused };
-  const { phrases, streets, refused: refusedPhrases } = checkPhrases(input.phrases, { names, ordinary, leagues, textCheck, book });
+  const { phrases, streets, leagues: typedLeagues, typed, refused: refusedPhrases } = checkPhrases(input.phrases, { names, ordinary, leagues, textCheck, book });
   if (phrases.length + streets.length > MAX_PHRASES) return { ok: false, error: `A watch has at most ${MAX_PHRASES} phrases and streets.`, refused, refusedPhrases };
   const askedLeague = String(input.civic_league ?? input.league ?? '').trim();
   let league = null;
@@ -360,6 +421,9 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
     league = new Map(leagues.map((l) => [leagueKey(l), l])).get(leagueKey(askedLeague)) || null;
     if (!league) return { ok: false, error: `I don't know a civic league called "${askedLeague.slice(0, 80)}". Use its name as the City's address list gives it.`, refused };
   }
+  const named = [...new Set([...(league ? [league] : []), ...typedLeagues])];
+  if (named.length > 1) return { ok: false, error: `A watch follows one civic league (${named.slice(0, 3).join(', ')}): start one watch for each.`, refused, refusedPhrases };
+  league = named[0] || null;
   const askedBodies = Array.isArray(input.bodies) && input.bodies.length ? input.bodies : allowed;
   const bodies = allowed.filter((b) => askedBodies.some((x) => String(x).toLowerCase() === b.toLowerCase()));
   if (!bodies.length) return { ok: false, error: `A watch covers ${allowed.join(' or ')}.`, refused, refusedPhrases };
@@ -367,18 +431,37 @@ export function checkWatch(input = {}, { topics = [], leagues = [], bodies: allo
     const error = refusedPhrases.length ? 'None of those phrases can be watched.' : refused.length ? "Those aren't topics a watch can follow yet." : 'A watch needs a topic, a phrase, a street, a civic league, or a mix.';
     return { ok: false, error, refused, refusedPhrases };
   }
-  return { ok: true, watch: { topics: chosen, phrases, streets, league, bodies }, refused, refusedPhrases };
+  // A league typed as a phrase narrows the watch rather than adding to it: say so.
+  const others = chosen.length + phrases.length + streets.length > 0;
+  const notes = typed.map((t) => ({
+    phrase: t.phrase,
+    note: `taken as the civic league ${t.league}: ${others ? `only matches in ${t.league} will come` : `every item in ${t.league} will come`}${t.street ? '; to follow the street of that name instead, write it with its type (avenue, road and so on)' : ''}`,
+  }));
+  return { ok: true, watch: { topics: chosen, phrases, streets, league, bodies }, refused, refusedPhrases, notes };
 }
 
 /** A watch's one-line description, for the card, the page and the mail. */
 export function watchLabel({ topics: ids = [], phrases = [], streets = [], league = null, bodies = [] } = {}, topics = []) {
   const labels = [...ids.map((id) => topics.find((t) => t.id === id)?.label || id), ...(phrases || []).map((p) => `"${p}"`), ...(streets || []).map((s) => `${streetLabel(s)} (street)`)];
-  return `${labels.length ? labels.join(', ') : 'everything'}${league ? ` in ${league}` : ''}, at ${bodies.join(' or ')}`;
+  const at = bodies.length > 2 ? `${bodies.slice(0, -1).join(', ')} or ${bodies.at(-1)}` : bodies.join(' or ');
+  return `${labels.length ? labels.join(', ') : 'everything'}${league ? ` in ${league}` : ''}, at ${at}`;
 }
 
-/** The watch's phrases an item's title holds. */
+/**
+ * An item's words without the applicant's name that leads a land-use title
+ * or a BZA entry ("TERRIE PYEATT, for a Conditional Use Permit …",
+ * "BLACK SHEEP INVESTMENTS, INC – for an appeal …"): the City prints it in
+ * capitals before ", for" or " – for". Shown in content, it is never matched,
+ * so a rare surname can't follow an applicant (the name guard's limit; review
+ * of #63).
+ */
+export function withoutApplicant(text) {
+  return String(text ?? '').replace(/^\s*[^a-z]{2,160}?(?:,\s*|\s+[–—-]\s+)(?=for\b)/, '');
+}
+
+/** The watch's phrases an item's words hold: its title (less a leading applicant), and the City's description of it (`summary`, `details`). */
 export function phrasesIn(watch, item) {
-  const t = normalizeText(item?.title);
+  const t = normalizeText(`${withoutApplicant(item?.title)} ${withoutApplicant(item?.summary)} ${item?.details || ''}`);
   return (watch?.phrases || []).filter((p) => termPattern(p)?.test(t));
 }
 
@@ -443,5 +526,6 @@ export function offerWatch(ctx, args = {}) {
   }
   const topics = ctx.watches.topics || [];
   ctx.watchOffer = { ...out.watch, labels: out.watch.topics.map((id) => topics.find((t) => t.id === id)?.label || id), label: watchLabel(out.watch, topics) };
-  return { offered: true, watch: ctx.watchOffer, note: OFFERED_WATCH_NOTE };
+  const notes = (out.notes || []).map((n) => `"${n.phrase}" is ${n.note}.`).join(' ');
+  return { offered: true, watch: ctx.watchOffer, note: notes ? `${OFFERED_WATCH_NOTE} ${notes} Say so.` : OFFERED_WATCH_NOTE };
 }

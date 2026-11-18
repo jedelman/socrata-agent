@@ -47,3 +47,10 @@ test('no letter, no field; a long section is cut and marked', () => {
   const r = parseTransmittal(page(`<p>I. Request: ${'word '.repeat(400)}</p><p>II. Description: short.</p>`));
   assert.ok(r.request.length <= 1210 && r.request.endsWith('…'));
 });
+
+test("a section stops at the letter's end matter: the outreach, the staff contact, the attachments and the hearing's speakers never come through (review 6, item 5878)", () => {
+  const r = parseTransmittal(page(`<p>I. Recommendation: Adopt Ordinance</p><p>II. Request: To allow a short-term rental at 1615 Colonial Avenue.</p><p>III. Description: The property is a two-story home. V. Communications/Outreach; Notices were mailed to neighbors. Staff contact: Kim Planner (757) 555-0100 Attachments :; Proponents and Opponents Proponents Eammon Example 2205 Willow Oak Circle # 302 Virginia Beach, VA 23451</p><p>IV. Analysis: The use fits the plan. Proponents and Opponents Opponents Pat Sample 12 Example Lane</p>`));
+  assert.equal(r.description, 'The property is a two-story home.');
+  assert.equal(r.analysis, 'The use fits the plan.');
+  for (const leaked of ['Outreach', 'Kim Planner', '555-0100', 'Attachments', 'Proponents', 'Eammon', 'Willow Oak', 'Pat Sample', 'Example Lane']) assert.ok(!JSON.stringify(r).includes(leaked), leaked);
+});
