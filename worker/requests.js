@@ -4,7 +4,9 @@
 // to the top. Nothing about who asked is kept: no account, no visitor id;
 // only the source, a link if one was given, and short notes on what people
 // wanted to know, which the person sees and can edit first. Dates are kept as
-// days, never finer.
+// days, never finer. The one exception is the asker's own: one who asks to be
+// emailed once when the source is added has that address kept, sealed and
+// apart from the request, until then (request-notify.js, behind REQUEST_NOTIFY).
 //
 // The list is public, through a steward gate: a request starts as "new" and
 // appears on the public list (and as a GitHub issue) only once the steward
@@ -201,6 +203,17 @@ export async function currentId(kv, source) {
 async function readRequest(kv, key) {
   const [stored, deleted, decision, idRec] = await Promise.all([kv.get(key, 'json'), readDeleted(kv, key), kv.get(decisionKey(key), 'json'), kv.get(idKey(key), 'json')]);
   return { cur: stewardView(stored, deleted, decision), deleted, ids: idsOf(key, idRec) };
+}
+
+/**
+ * A request's status as the steward last set it, by storage key, with what a
+ * decided request's email names: { status, source, fulfilled_by,
+ * steward_note, decided } or null (request-notify.js).
+ */
+export async function requestStatusByKey(kv, key) {
+  const { cur } = await readRequest(kv, key);
+  if (!cur) return null;
+  return { status: cur.status || 'new', source: cur.source, fulfilled_by: cur.fulfilled_by || null, steward_note: cur.steward_note || null, decided: cur.decided || null };
 }
 
 /**

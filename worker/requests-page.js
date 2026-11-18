@@ -22,16 +22,31 @@ export function countLine(r, { endorse = false } = {}) {
   return s;
 }
 
+/**
+ * "Email me when it's added or declined" on an open request, for a signed-in
+ * member when the site has it on (worker/request-notify.js): a button, the
+ * form it opens, or what was asked.
+ */
+export function notifyHtml(r, { notify = false, notified = new Set(), open = '' } = {}) {
+  if (!notify || r.status !== 'accepted') return '';
+  const id = esc(r.id);
+  if (notified.has(r.id)) return `<p class="small notify-done">You'll get one email when a steward decides. <button type="button" class="link" data-unnotify="${id}">Don't email me</button></p>`;
+  if (open !== r.id) return ` <button type="button" class="link" data-notify="${id}">Email me when it's added or declined</button>`;
+  return `<form class="notify" data-id="${id}"><label>The email you signed in with<input type="email" name="email" maxlength="254" autocomplete="email" required></label><button type="submit">Email me once</button><p class="small">One email, when a steward decides. The address is kept sealed, apart from the request, and deleted once that email is sent, or after a year.</p><p class="small notify-msg" role="status"></p></form>`;
+}
+
 /** One request on the list. */
-export function itemHtml(r, { endorse = false, endorsed = new Set(), inFlight = new Set(), repo = '', focus = '' } = {}) {
+export function itemHtml(r, { endorse = false, endorsed = new Set(), inFlight = new Set(), repo = '', focus = '', notify = false, notified = new Set(), notifyOpen = '' } = {}) {
   const on = endorsed.has(r.id);
   const button = endorse && r.status === 'accepted' && 'endorsements' in r
     ? ` <button type="button" class="endorse" data-id="${esc(r.id)}" aria-pressed="${on}"${inFlight.has(r.id) ? ' disabled' : ''}>${on ? 'Endorsed (undo)' : 'Endorse'}</button>`
     : '';
+  const ask = notifyHtml(r, { notify, notified, open: notifyOpen });
+  const inline = ask.startsWith(' <button');
   const notes = Array.isArray(r.notes) ? r.notes : [];
   return `<li class="req${focus === r.id ? ' focus' : ''}" id="r-${esc(r.id)}">
     <div class="top"><span class="src">${esc(r.source)}</span><span class="count">${plural(Number(r.count) || 0, 'person', 'people')} asked${countLine(r, { endorse })}</span></div>
-    <div><span class="chip ${esc(r.status)}">${r.status === 'fulfilled' ? 'Fulfilled' : 'Open'}</span><small class="count">since ${esc(String(r.first || '').slice(0, 10))}</small>${button}</div>
+    <div><span class="chip ${esc(r.status)}">${r.status === 'fulfilled' ? 'Fulfilled' : 'Open'}</span><small class="count">since ${esc(String(r.first || '').slice(0, 10))}</small>${button}${inline ? ask : ''}</div>${ask && !inline ? `\n    ${ask}` : ''}
     ${r.steward_note ? `<p class="steward">${esc(r.steward_note)}</p>` : ''}
     ${notes.length ? `<ul class="notes">${notes.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}
     <div class="links">
@@ -80,10 +95,14 @@ async function main() {
   let session = null;
   let messages = {};
   let pending = null; // a request to endorse once signed in
+  // "Email me when it's added or declined": only for a signed-in member, when the site has it on.
+  let notifyOn = false;
+  const notified = new Set();
+  let notifyOpen = '';
 
   const render = () => {
     $('list').innerHTML = requests.length
-      ? requests.map((r) => itemHtml(r, { endorse: endorseOn, endorsed, inFlight, repo, focus })).join('')
+      ? requests.map((r) => itemHtml(r, { endorse: endorseOn, endorsed, inFlight, repo, focus, notify: notifyOn, notified, notifyOpen })).join('')
       : '<li class="req empty">No reviewed requests yet.</li>';
   };
   const renderPanel = () => {
@@ -127,9 +146,36 @@ async function main() {
       client = null;
     }
   }
+  try {
+    notifyOn = Boolean((await (await fetch(`${base}/api/session`, { cache: 'no-store' })).json())?.request_notify);
+  } catch { /* no offer */ }
   renderPanel();
   render();
   if (focus) document.getElementById(`r-${focus}`)?.scrollIntoView();
+
+  const postJson = async (path, body) => {
+    const res = await fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { res, out: await res.json().catch(() => ({})) };
+  };
+  $('list').addEventListener('submit', async (e) => {
+    const f = e.target.closest('form.notify');
+    if (!f) return;
+    e.preventDefault();
+    const msg = f.querySelector('.notify-msg');
+    msg.textContent = 'Sending…';
+    try {
+      const { res, out } = await postJson('/api/requests/notify', { id: f.dataset.id, email: f.email.value });
+      if (!res.ok) {
+        msg.textContent = out.error || "That didn't work. Try again.";
+        return;
+      }
+      notified.add(f.dataset.id);
+      notifyOpen = '';
+      render();
+    } catch {
+      msg.textContent = "Couldn't reach the server. Try again.";
+    }
+  });
 
   const reauth = async (id) => {
     try {
@@ -192,7 +238,25 @@ async function main() {
     }
   }
 
-  $('list').addEventListener('click', (e) => {
+  $('list').addEventListener('click', async (e) => {
+    const ask = e.target.closest('button[data-notify]');
+    if (ask) {
+      notifyOpen = ask.dataset.notify;
+      render();
+      document.querySelector(`form.notify[data-id="${CSS.escape(notifyOpen)}"] input`)?.focus();
+      return undefined;
+    }
+    const undo = e.target.closest('button[data-unnotify]');
+    if (undo) {
+      try {
+        const { res } = await postJson('/api/requests/notify/stop', { id: undo.dataset.unnotify });
+        if (res.ok) {
+          notified.delete(undo.dataset.unnotify);
+          render();
+        }
+      } catch { /* try again */ }
+      return undefined;
+    }
     const who = e.target.closest('button[data-who]');
     if (who) return showWho(who.dataset.who);
     const more = e.target.closest('button[data-more]');

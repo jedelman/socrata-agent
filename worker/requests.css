@@ -23,10 +23,10 @@ li.req.focus { border-color: var(--accent); }
 .links { margin-top: 8px; font-size: .92rem; display: flex; gap: 14px; flex-wrap: wrap; }
 .empty { color: var(--muted); }
 .bsky h2 { font-size: 1rem; margin: 0 0 4px; }
-.bsky form { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; }
-.bsky label { display: grid; gap: 4px; font-size: .9rem; flex: 1 1 220px; }
-.bsky input { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
-.bsky button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); }
+.bsky form, .req form.notify { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; }
+.bsky label, .req form.notify label { display: grid; gap: 4px; font-size: .9rem; flex: 1 1 220px; }
+.bsky input, .req form.notify input { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; }
+.bsky button, .req form.notify button { font: inherit; font-size: .92rem; border-radius: 8px; padding: 7px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); }
 button.link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; cursor: pointer; font: inherit; font-size: .88rem; }
 button.endorse { font: inherit; font-size: .88rem; border-radius: 999px; padding: 3px 12px; cursor: pointer; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); }
 button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
@@ -36,3 +36,5 @@ button.endorse[aria-pressed="true"] { background: var(--accent); color: var(--bg
 .who ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; }
 .who .flag { display: inline-block; font-size: .76rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--warn); margin-left: 6px; }
 .who .name { overflow-wrap: anywhere; }
+.req form.notify .small { flex-basis: 100%; margin: 0; }
+.req .notify-done { margin: 6px 0 0; }
