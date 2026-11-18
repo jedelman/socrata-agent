@@ -22,7 +22,7 @@
 const KEEP = 30 * 86400;
 
 // A body read up to `max` bytes; more is refused.
-async function readCapped(res, max) {
+export async function readCapped(res, max) {
   if (!res.body) return new Uint8Array(0);
   const reader = res.body.getReader();
   const chunks = [];
