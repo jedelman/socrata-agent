@@ -1,12 +1,14 @@
 // read_attachment (plugins/read-attachment.js; Jason, 2026-11-18: "If the
 // reader works quickly, can we just make it a tool call for Siren instead of
 // making her request the source?"): a legislative record's attached
-// documents, read in the answer, cited by page, never correspondence, never a
-// URL the model gives. The City is faked here; the PDFs are written by
+// documents, read in the answer, cited by page, never a URL the model gives.
+// Correspondence is read too, and never made searchable (Jason, 2026-11-18:
+// "readable - they're public records. As long as they're not searchable and
+// alertable"). The City is faked here; the PDFs are written by
 // test/fake-pdf.js and the names are invented.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import plugin, { readable, termsOf, passagesOf } from '../plugins/read-attachment.js';
+import plugin, { isCorrespondence, termsOf, passagesOf } from '../plugins/read-attachment.js';
 import { parseAttachments } from '../src/adapters/iqm2.js';
 import { pluginContext, tracedHttp } from '../src/plugins.js';
 import { Trace } from '../src/trace.js';
@@ -37,9 +39,9 @@ async function setup({ links, files = {}, headers = {} }) {
   return { ctx, calls, trace, records };
 }
 
-test('what is read: instruments yes, correspondence from the public never', () => {
-  for (const t of ['Exhibit A to Ordinance-Cooperation Agreement-VBRSP Grant FY26-v.3', 'Exhibit B - Lease', 'Staff Report', 'Letter of Intent', 'Development Agreement', 'Site Plan', 'Presentation']) assert.equal(readable(t), true, t);
-  for (const t of ['Letter of Opposition from Jane Example', 'Letter of Support', 'Petition in Support', 'Public Comments', 'Minutes', 'Correspondence', 'Emails Received', 'Speaker Sign-In Sheet', 'Neighbor Responses', 'Letters']) assert.equal(readable(t), false, t);
+test('what counts as correspondence: the public\'s letters, petitions and comments, not instruments called letters', () => {
+  for (const t of ['Exhibit A to Ordinance-Cooperation Agreement-VBRSP Grant FY26-v.3', 'Exhibit B - Lease', 'Staff Report', 'Letter of Intent', 'Development Agreement', 'Site Plan', 'Presentation']) assert.equal(isCorrespondence(t), false, t);
+  for (const t of ['Letter of Opposition from Jane Example', 'Letter of Support', 'Petition in Support', 'Public Comments', 'Minutes', 'Correspondence', 'Emails Received', 'Speaker Sign-In Sheet', 'Neighbor Responses', 'Letters']) assert.equal(isCorrespondence(t), true, t);
   // Word starts: "repayment" finds "repay", "advance" finds "advanced", "reimbursement" finds "reimburse".
   assert.deepEqual(termsOf('What does it say about repayment of the advance?'), ['repay', 'advan']);
   assert.deepEqual(termsOf('reimbursement'), ['reimburse']);
@@ -73,22 +75,27 @@ test('reads the one attachment: passages cited by page, the file in the hand-off
   assert.match(none.first_page, /COOPERATION AGREEMENT/);
 });
 
-test('correspondence is neither read nor listed by title; several attachments need a choice; the file URL is built from the city\'s own base', async () => {
-  const { ctx, calls } = await setup({
-    links: [['1', 'Exhibit A - Cooperation Agreement', 'https://evil.example'], ['2', 'Letter of Opposition from Jane Example'], ['3', 'Exhibit B - Site Map'], ['4', 'Petition in Support']],
-    files: { 1: await makePdf(AGREEMENT), 3: await makePdf([['SITE MAP', 'Parcel boundaries of the site.']]) },
+test('correspondence is listed and read, but its hand-off record never names the writer; several attachments need a choice; the file URL is built from the city\'s own base', async () => {
+  const { ctx, calls, records } = await setup({
+    links: [['1', 'Exhibit A - Cooperation Agreement', 'https://evil.example'], ['2', 'Letter of Opposition from Jane Example'], ['3', 'Exhibit B - Site Map']],
+    files: { 1: await makePdf(AGREEMENT), 2: await makePdf([['Dear Council,', 'I oppose the parking garage on this site because of traffic on my street.', 'Jane Example']]), 3: await makePdf([['SITE MAP', 'Parcel boundaries of the site.']]) },
   });
   const list = await plugin.run(ctx, { legislation_id: '5949', query: 'repayment' });
-  assert.deepEqual(list.attachments, [{ n: 1, title: 'Exhibit A - Cooperation Agreement' }, { n: 2, title: 'Exhibit B - Site Map' }]);
-  assert.match(list.withheld, /2 attachments not listed: correspondence from the public/);
-  assert.doesNotMatch(JSON.stringify(list), /Jane Example|Opposition|Petition/);
+  assert.deepEqual(list.attachments, [{ n: 1, title: 'Exhibit A - Cooperation Agreement' }, { n: 2, title: 'Letter of Opposition from Jane Example', correspondence: true }, { n: 3, title: 'Exhibit B - Site Map' }]);
   assert.equal(calls.length, 1, 'no file read without a choice');
   const a = await plugin.run(ctx, { legislation_id: '5949', attachment: 'exhibit a', query: 'repayment' });
   assert.equal(a.attachment.url, `${BASE}/Citizens/FileOpen.aspx?Type=4&ID=1`, 'the page linked evil.example; the file comes from the city\'s base');
   assert.ok(calls.every((u) => u.startsWith(`${BASE}/`)));
-  assert.deepEqual(a.other_attachments, [{ n: 2, title: 'Exhibit B - Site Map' }]);
-  assert.equal((await plugin.run(ctx, { legislation_id: '5949', attachment: '2' })).attachment.title, 'Exhibit B - Site Map');
-  assert.match((await plugin.run(ctx, { legislation_id: '5949', attachment: 'opposition' })).note, /No attachment matches/);
+  assert.equal((await plugin.run(ctx, { legislation_id: '5949', attachment: '3' })).attachment.title, 'Exhibit B - Site Map');
+  // A letter: read and quotable, with the correspondence guidance; its record names no one.
+  const letter = await plugin.run(ctx, { legislation_id: '5949', attachment: 'opposition', query: 'parking' });
+  assert.equal(letter.attachment.correspondence, true);
+  assert.match(letter.passages[0].text, /I oppose the parking garage/);
+  assert.match(letter.how, /a public record: quote it as written, attributed to its writer[\s\S]*Never use it to find or follow a person, and leave out a writer's home address, email and phone number/);
+  const kept = records.find((r) => r.url.endsWith('ID=2'));
+  assert.deepEqual(kept, { kind: 'document', title: 'Correspondence attached to legislative record 5949', url: `${BASE}/Citizens/FileOpen.aspx?Type=4&ID=2` });
+  assert.doesNotMatch(JSON.stringify(records), /Jane|Example|Opposition/, 'nothing kept for research memory or shared sources names the writer');
+  assert.doesNotMatch(a.how, /public record: quote it/, 'the guidance is only for correspondence');
 });
 
 test('refusals: no person searches, a numeric id only, PDFs only, no scans, no files past the cap', async () => {
@@ -102,11 +109,11 @@ test('refusals: no person searches, a numeric id only, PDFs only, no scans, no f
   assert.match((await plugin.run(word.ctx, { legislation_id: '5949' })).error, /isn't a PDF/);
   const big = await setup({ links: [['1', 'Exhibit A']], files: { 1: await makePdf(AGREEMENT) }, headers: { 'Content-Length': String(20 * 1024 * 1024) } });
   await assert.rejects(plugin.run(big.ctx, { legislation_id: '5949' }), /too large/);
-  const empty = await setup({ links: [['2', 'Letter of Opposition from Jane Example']] });
-  const none = await plugin.run(empty.ctx, { legislation_id: '5949' });
-  assert.deepEqual(none.attachments, []);
-  assert.match(none.note, /no attachment this tool reads/);
-  assert.doesNotMatch(JSON.stringify(none), /Jane/);
+  // A person search is refused for correspondence too: readable, never searchable by who wrote it.
+  const letters = await setup({ links: [['2', 'Letter of Opposition from Jane Example']], files: { 2: await makePdf([['Dear Council,', 'I oppose this.']]) } });
+  assert.match((await plugin.run(letters.ctx, { legislation_id: '5949', query: 'what did Ms. Example write' })).error, /topic, not a person/);
+  const bare = await setup({ links: [] });
+  assert.match((await plugin.run(bare.ctx, { legislation_id: '5949' })).note, /lists no attachments/);
 });
 
 test('passages: the richest first, never overlapping, within the total', () => {

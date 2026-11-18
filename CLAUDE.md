@@ -594,15 +594,23 @@ generic mode.
   the reader works quickly, can we just make it a tool call for Siren instead
   of making her request the source?") reads a document attached to one of
   the City's legislative records in the answer that needs it (an exhibit,
-  agreement, contract, lease, plan or report), through `src/pdf.js` and
-  `ctx.http.bytes` (traced, counted, 10 MB at most). Only attachments the
-  record's own iqm2 page lists (FileOpen Type=4), by the record's numeric id;
-  each file's URL is built from the profile's iqm2 base, never from the
-  page's link or the model. Never correspondence (letters, petitions,
-  comments, testimony, minutes and the like carry residents' names and home
-  addresses): not read, not listed by title, only counted. PDFs only; a scan,
-  an encrypted file or another format is said so. A search naming a person
-  is refused. It returns passages cited by page (word starts, so "repayment"
+  agreement, contract, lease, plan or report, or the public's letters,
+  petitions and comments), through `src/pdf.js` and `ctx.http.bytes`
+  (traced, counted, 10 MB at most). Only attachments the record's own iqm2
+  page lists (FileOpen Type=4), by the record's numeric id; each file's URL
+  is built from the profile's iqm2 base, never from the page's link or the
+  model. **Correspondence is readable, never searchable or alertable**
+  (Jason, 2026-11-18: "it's okay to make correspondence attachments readable
+  - they're public records. As long as they're not searchable and alertable.
+  It's a city - it's okay for citizens to encounter each other in public!"):
+  listed by its title and quoted as written, attributed to its writer, but
+  its hand-off record is titled "Correspondence attached to legislative
+  record N" (`isCorrespondence`), so no writer's name reaches research
+  memory, shared sources or any index; watches never read attachments (a
+  test checks); a search naming a person is refused; and the tool's guidance
+  says never to use it to find or follow a person and to leave out a
+  writer's home address and contact details. PDFs only; a scan, an
+  encrypted file or another format is said so. It returns passages cited by page (word starts, so "repayment"
   finds "repay"), or a page in full, and the file joins the hand-off as
   `kind: 'document'`. Exhibit A to Ordinance 50487 (Military Circle) reads in
   under 100 ms.

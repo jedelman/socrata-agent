@@ -414,8 +414,12 @@ const LETTER = (description) => `<h4>Council Transmittal Letter</h4><div>I. Reco
 test('each item\'s own page: the City\'s description adds topics, places and phrase matches its title lacks, and is quoted beside the title', async () => {
   const kv = readyEnv().LIMITS;
   const now = Date.parse('2026-11-16T12:00:00Z');
-  const { fetchImpl } = cityFetch({ itemPages: { 6014: LETTER('This request would allow outdoor dog runs at a kennel in a historic district at 4200 Colley Avenue.') } });
+  // The page lists attachments, a letter among them: watches never open one (correspondence is readable in chat, never alertable).
+  const attachments = `<h4>Attachments</h4><ol><li><a href='https://NorfolkCityVA.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=77'>Letter of Opposition from Jane Example</a></li></ol>`;
+  const { fetchImpl, calls } = cityFetch({ itemPages: { 6014: attachments + LETTER('This request would allow outdoor dog runs at a kennel in a historic district at 4200 Colley Avenue.') } });
   const snap = await buildSnapshot({ kv, city: norfolk, cityId: 'norfolk', fetchImpl, now, book: BOOK });
+  assert.ok(!calls.some((u) => /FileOpen\.aspx\?Type=4/.test(u)), 'no attachment is ever read for a watch');
+  assert.doesNotMatch(JSON.stringify(snap), /Jane Example|Opposition/, 'nor its title kept');
   const kennel = snap.items.find((i) => i.id === '6014');
   assert.deepEqual([...kennel.topics].sort(), ['animals', 'design_historic']);
   // The description is in the summary (quoted); details holds the rest kept (the analysis), for phrases only.
