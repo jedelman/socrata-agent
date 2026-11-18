@@ -491,13 +491,15 @@ generic mode.
   topics** from the city profile's reviewed `meetings.watchTopics` (27 for
   Norfolk; a test refuses a topic phrase made only of common names) **and a
   member's own phrases** (Jason, 2026-11-16: "Free text for signed in and
-  private conversations"): up to five, refused (unless a street's name, as
-  above) when made only of common
+  private conversations"), matched against the title and the City's
+  description: up to five, a civic league's name taken as the watch's league
+  (Jason, 2026-11-18), refused (unless a street's name, as above) when made
+  only of common
   first names and surnames (`data/common-names.json`, Census lists, built by
   `scripts/build-common-names.js`), or with a common name beside anything
   but ordinary words (`ordinaryWords` in `telemetry.js`, words the books use
   in lower case) or beside a title or entity word ("mr smith", "smith llc"),
-  or holding a number, address or contact, or naming a civic league; without
+  or holding a number, address or contact; without
   its lists no phrase is accepted. A guard, not a wall: a rare surname alone
   passes and works as a standing title search (Jason's call, in the docs).
   Feeds never use phrases. Addresses come from `titlePlaces` (money taken
@@ -508,9 +510,21 @@ generic mode.
   watch on the card with the email they signed in with (checked against the
   account's HMAC). `worker/watches.js`: once a day (cron, 11:00 UTC or later,
   or at once with no snapshot), the next 21 days of `meetings.watchBodies`
-  from the notices, each iqm2 agenda described and tagged by the civic
-  league of its listed addresses ("No Civic League" is none), kept as
-  `agenda-snapshot:<city>`; then one
+  (Council, Planning Commission, BZA, ARB) from the notices, read in full
+  (Jason, 2026-11-18: "read the full agenda"): each Council and Planning
+  Commission item's own page (full title and cover letter, never
+  attachments), and the BZA's and ARB's agenda PDF (iqm2 lists no items for
+  them; never the packet), read by `src/pdf.js` (a PDF text reader with no
+  dependencies: Flate, object streams, WinAnsi and Identity-H/ToUnicode
+  fonts, spacing by glyph widths; encrypted files refused) and split by
+  `src/agenda-file.js`; topics from title and description less zoning-district
+  and citation boilerplate (`topicText`); each item described, tagged by the
+  civic league of its listed addresses ("No Civic League" is none), and
+  annotated with its source (`{ publisher, record: 'public', document, url,
+  read }`), kept as `agenda-snapshot:<city>`. Files go through
+  `src/http-cache.js` (conditional GET by the origin's own validators, a
+  fresh lifetime honored, `no-store` honored: one request either way, never
+  HEAD then GET; what was parsed is kept, never the body); then one
   digest a day per watch (Resend, `List-Unsubscribe` one-click,
   `WATCH_DAILY_EMAILS` default 100, `WATCH_MAX` default 200, either "0" to
   stop; 5 a member, 365 days). **The job never writes a watch**: what it sent
@@ -527,8 +541,8 @@ generic mode.
   until it stops; never logged or returned. Pages `/watches`, `/watch/stop`
   (its token is the watch id and an HMAC; posted from script, or POSTed
   one-click by a mail client before the JSON rule), `/feeds` and
-  `/feeds/<league>.atom` (public, described items, `noindex`). BZA and ARB
-  aren't watchable yet: their iqm2 pages list no items (the agenda is a file).
+  `/feeds/<league>.atom` (public, described items with their source,
+  `noindex`).
 - `plugins/budget-for.js` (`budget_for`) and `plugins/capital-projects.js`
   (`capital_projects`) read the budget datasets registered in the Norfolk
   profile's `budget` block. Names the model gives are matched against each

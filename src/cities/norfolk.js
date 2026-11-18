@@ -220,7 +220,8 @@ export default {
     // posted agendas. Checked 2026-11-16: the notices name them exactly so
     // ("City Council", "Planning Commission"), and each meeting_link carries
     // the iqm2 meeting ID whose page lists the agenda items.
-    watchBodies: ['City Council', 'Planning Commission'],
+    // The BZA and the ARB post their agendas as a file, read by src/pdf.js and src/agenda-file.js (Jason, 2026-11-18).
+    watchBodies: ['City Council', 'Planning Commission', 'Board of Zoning Appeals', 'Architectural Review Board'],
     // The topics a watch can follow (worker/watches.js, src/watches.js). A
     // watch picks from this reviewed list, never free words, so no watch can
     // be keyed to a person. Phrases match agenda titles as words (the last

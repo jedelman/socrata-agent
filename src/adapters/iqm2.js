@@ -151,11 +151,15 @@ export function parseMeeting(html) {
     seen.add(id);
     items.push({ id, text: decode(m[2]) });
   }
+  // The agenda as a file (iqm2 type 14, "Agenda"; never the packet, type 1, which runs to 100+ MB).
+  // The BZA and the ARB post only this, no items (checked 2026-11-18).
+  const file = /href="(FileOpen\.aspx\?Type=14&(?:amp;)?ID=(\d+)[^"]*)"/.exec(html);
   return {
     body: span(html, 'lblMeetingGroup'),
     type: span(html, 'lblMeetingType'),
     date: span(html, 'lblMeetingDate'),
     items,
+    ...(file ? { agenda_file_id: file[2] } : {}),
   };
 }
 
@@ -214,6 +218,10 @@ export class Iqm2 {
     return `${this.base}/Citizens/Detail_Meeting.aspx?ID=${id}`;
   }
 
+  agendaFileUrl(id) {
+    return `${this.base}/Citizens/FileOpen.aspx?Type=14&ID=${id}&Inline=True`;
+  }
+
   async getHTML(url, tool) {
     return this.trace.record({ tool, url }, async () => {
       const res = await this.fetch(url);
@@ -236,6 +244,6 @@ export class Iqm2 {
     const url = this.meetingUrl(id);
     const m = parseMeeting(await this.getHTML(url, 'read meeting agenda'));
     this.resources.addRecord({ kind: 'meeting', title: `${m.body} ${m.type}, ${m.date}`, url });
-    return { ...m, url, items: m.items.map((i) => ({ ...i, url: this.legiUrl(i.id) })) };
+    return { ...m, url, items: m.items.map((i) => ({ ...i, url: this.legiUrl(i.id) })), ...(m.agenda_file_id ? { agenda_file: this.agendaFileUrl(m.agenda_file_id) } : {}) };
   }
 }

@@ -9,9 +9,10 @@ Two features share one daily read of the City's posted agendas:
 
 - **Watches** (`WATCHES = "true"`): a signed-in member keeps up to five
   watches. A watch is topics from the city's reviewed list, phrases of their
-  own, a street, a civic league, or a mix, over City Council and/or the
-  Planning Commission. When a newly posted
-  agenda item matches, the member gets one email that day.
+  own, a street, a civic league, or a mix, over any of City Council, the
+  Planning Commission, the Board of Zoning Appeals and the Architectural
+  Review Board. When a newly posted agenda item matches, the member gets one
+  email that day.
 - **Civic-league feeds** (`LEAGUE_FEEDS = "true"`): a public Atom feed per
   civic league, plus one for every item, at `/feeds`.
 
@@ -114,8 +115,9 @@ Measured on 2026-11-16, over the 883 addresses the indexed titles name:
   ("20 Foot Lane"), and numbers the list doesn't carry.
 
 Of the 1,941 street names, 553 are now watched as streets and 1,365 as phrases.
-The 23 still refused are the names of civic leagues ("Bayview", "Ocean View"),
-and the refusal says to watch the league.
+The other 23 are also the names of civic leagues ("Bayview", "Ocean View"), and
+a league's name is taken as the league to watch (Jason, 2026-11-18: "a pretty
+common ask").
 
 Tests check every street name and every indexed title against the list
 (`test/watches.test.js`), and the builder (`test/build-addresses.test.js`).
@@ -144,7 +146,8 @@ To refresh it by hand, run `node scripts/build-addresses.js`.
 - **Phrases:** a watch belongs to one signed-in member and mails only them.
   Jason, 2026-11-16: "Free text for signed in and private conversations feels
   like the right shape." So a member can add up to five phrases of their own
-  ("dog park"), matched against the title. A phrase is refused when it (unless
+  ("dog park"), matched against the title and the City's description of the
+  item. A phrase is refused when it (unless
   it is a street's name, above):
   - is made only of common first names and surnames, plurals included
     (Census lists, `data/common-names.json`, built by
@@ -155,7 +158,8 @@ To refresh it by hand, run `node scripts/build-addresses.js`.
   - has a common name beside a title or an entity word: "mr smith",
     "smith llc", "estate of smith";
   - holds a number, an address or contact details;
-  - is a civic league's name.
+  - (A civic league's name isn't refused: it becomes the watch's league. Two
+    leagues in one watch are refused; start one watch for each.)
 
   Without the name list, the vocabulary or the text check, no phrase is
   accepted.
@@ -196,9 +200,35 @@ a day: at 11:00 UTC or later, or at once when there is no snapshot yet. It:
    bodies in `meetings.watchBodies`.
 2. Fetches each meeting's iqm2 page, whose agenda items are titled links.
    Agendas appear about a week before a meeting.
-3. Describes each item as above: its kind, number, topics and City-street
-   addresses. It keeps the title in an internal field for phrase matching.
-4. Tags each item with the civic league of each address, from the address
+3. Reads the full agenda, not just titles (Jason, 2026-11-18: "Titles are
+   often not descriptive at all"):
+   - **Council and Planning Commission items:** each item's own page, four at
+     a time. That page has the full title and the City's cover letter
+     (request, description, analysis, financial impact; `parseTransmittal`
+     leaves out the applicant section and withholds a private applicant's
+     name). Attachments are never read: their titles can name letter writers.
+     On the Oct 27 Council agenda, 14 of 15 items had a cover letter; a
+     title like "Ordinance No. 50537: An Ordinance Approving and Authorizing
+     the City Manager to …" gets "a utility easement … over the property
+     located at 150 Park Avenue" from it.
+   - **BZA and ARB:** their iqm2 pages list no items; the agenda is a posted
+     PDF ("Agenda", never the "Agenda Packet", which runs past 100 MB). It is
+     read by `src/pdf.js`, a PDF text reader with no dependencies, and split
+     into items by `src/agenda-file.js` (numbered or lettered entries under
+     roman-numeral sections; procedure such as roll call is dropped). On
+     three real agendas it matched pdftotext word for word, but for line-break
+     hyphens. A file item is keyed by a hash of its text, and gets the City's
+     case number when it has one ("COA #26-00439").
+4. Describes each item as above: its kind and number from its title; its
+   topics from its title and from the description, less what describes the
+   property's zoning district or cites the ordinance (`topicText`: "zoned
+   MF-NS (Multi-Family – …)" is not multi-family housing); its addresses from
+   both, through the address list. The title, the description and the full
+   text are kept in internal fields, for phrases; nothing serves them.
+5. Notes each item's source: `{ publisher: "City of Norfolk", record:
+   "public", document: "agenda item page" | "agenda file", url, read }`
+   (Jason, 2026-11-18: keep sources annotated by what's public). Feeds show it.
+6. Tags each item with the civic league of each address, from the address
    list the Worker carries (above), so no address is looked up:
    - The list holds the `civic_league` column only, never the league
      president's name and email.
@@ -269,9 +299,13 @@ gone now: a run is the notices query and one page per meeting.
 
 ## What it can miss
 
-- **Titles only.** It matches topics in titles. An item can affect a topic
-  without naming it: a Zoning Ordinance text amendment touching short-term
-  rentals may say only "text amendment". The email says so.
+- **What the City wrote.** It matches topics in titles and the City's
+  descriptions. An item can affect a topic without naming it; the email says
+  so. Planning Commission items have no cover letter (their full title has a
+  "The purpose of this request is …" sentence instead), and an agenda file
+  gives only its one entry per item.
+- **A file it can't read.** An encrypted PDF, a scanned one (no text), or a
+  font with no map to Unicode gives no items, or fewer; nothing is guessed.
 - **Near misses.** A topic phrase can catch an item that's beside the point: a
   commercial recreation center under Parks. The link shows what it really is.
 - **Same-day agendas.** An agenda posted and heard within one day could be
@@ -294,8 +328,34 @@ gone now: a run is the notices query and one page per meeting.
   emails a day (default 100). Set the email cap under the Resend plan's daily
   limit, with room for sign-in links. `"0"` pauses mail; `WATCH_MAX = "0"`
   takes no new watches.
-- **Requests:** the notices query and one page per meeting each day, counted
-  on their own budget of 300.
+- **Requests:** the notices query, one page per meeting, one page per Council
+  and Planning Commission item (at most 600) and one request per agenda file,
+  counted on their own budget of 800. A full three weeks is about 200.
+
+## Reads, and the City's caching rules
+
+Jason, 2026-11-18: "caching reads ... and respecting invalidation". Siren uses
+plain `fetch`, which keeps no HTTP cache in Node, and in Workers Cloudflare
+caches a subrequest by its URL's file extension (an `.aspx` link isn't one).
+So `src/http-cache.js` applies the HTTP rules itself:
+- **Validators:** what was made of a file (its items, never its bytes) is kept
+  with its `ETag` and `Last-Modified`, which go back as `If-None-Match` and
+  `If-Modified-Since`. A 304 reuses it with no body sent.
+- **Freshness:** a `max-age` or a future `Expires` means no request until it
+  passes.
+- **`no-store`:** nothing is kept, and every read is a full GET.
+
+This is one request whether or not the file changed. A HEAD and then a GET
+would be two whenever it had, and Cloudflare's cache may send a HEAD on as a
+GET anyway.
+
+What the City sends, checked 2026-11-18:
+- iqm2's agenda files send `Last-Modified` and answer a conditional GET with a
+  304. A live run read the Planning Commission's file at 200, then at 304.
+- Its meeting and item pages send `no-cache, no-store` and no validators, so
+  they are read every day.
+- A Socrata query's `ETag` never comes back 304, so the notices query is read
+  every day too.
 - **Known gap:** the per-member cap and the duplicate check read a KV listing,
   which can lag a few seconds. Two starts in quick succession could pass
   either.
@@ -308,16 +368,17 @@ gone now: a run is the notices query and one page per meeting.
    and deploy. Within ten minutes the cron builds the first snapshot. Until
    then `/feeds` answers 503.
 
-## Decisions taken as defaults (Jason's to change)
+## Decisions
+
+Confirmed by Jason, 2026-11-18: "Encrypted at rest email is the right shape"
+and "Numbers look good."
 
 - **Storing the email**, encrypted, while a watch exists. Without it there are
   no email watches.
 - **Who can watch:** members only, meaning signed in with a bound invite.
-- **Which bodies:** City Council and the Planning Commission. The Board of
-  Zoning Appeals and the Architectural Review Board aren't a config line: their
-  iqm2 meeting pages list no agenda items (checked 2026-11-16, three recent
-  meetings each), and the agenda is a posted file. Adding them means reading
-  those files.
+- **Which bodies:** City Council, the Planning Commission, the Board of Zoning
+  Appeals and the Architectural Review Board (the last two from their agenda
+  files, Jason 2026-11-18).
 - **Phrases:** free text for a member's own watches, with the common-names
   guard (Jason, 2026-11-16), and a street's name watched as that street, from
   the address list (Jason's trie, the same day).

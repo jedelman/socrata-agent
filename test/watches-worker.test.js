@@ -161,7 +161,7 @@ test('offer_watch reaches the model only for a signed-in member with WATCHES on,
   assert.match(model[0].system.map ? model[0].system.map((b) => b.text).join('') : model[0].system, /call offer_watch/);
   assert.deepEqual(body.watchOffer.topics, ['short_term_rentals']);
   assert.deepEqual(body.watchOffer.labels, ['Short-term rentals']);
-  assert.deepEqual(body.watchOffer.bodies, ['City Council', 'Planning Commission']);
+  assert.deepEqual(body.watchOffer.bodies, ['City Council', 'Planning Commission', 'Board of Zoning Appeals', 'Architectural Review Board']);
   const off = base();
   const plain = await askWith(off, await member(off));
   assert.ok(!plain.model[0].tools.some((t) => t.name === 'offer_watch'));
