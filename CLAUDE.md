@@ -139,7 +139,14 @@ generic mode.
   "New conversation", a signed-in member's conversations (search, the list
   with the open one marked, paging) and the city, links and account at its
   foot, sliding over the page below 900px (inert while closed, the page inert
-  while it's open); a new conversation by default,
+  while it's open); a tools column on the right (Jason, 2026-11-18: "a third
+  column for tooling to keep the chat interface clean"), "Behind this
+  answer": the selected answer's gaps, contacts, records, data, trace, model
+  line and share form, the newest answer selected, each answer keeping only
+  its answer, notices, follow-ups, offers and one "Sources and queries"
+  button that selects it; a third column from 1280px, sliding over the page
+  from the right below that (inert the same way, the sidebar and the column
+  never open together); a new conversation by default,
   whose welcome screen shows the deployment's `ui.intro`, `ui.examples` (by
   city, in a data attribute the script reads; the script's own list
   otherwise) and `ui.points`; the composer pinned at the bottom; About and

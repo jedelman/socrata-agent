@@ -85,8 +85,8 @@ test('a deployment without welcome words gets plain ones, no points and no examp
 
 test('narrow screens: the closed sidebar is inert, the page is inert while it is open, and closing it puts focus on screen', () => {
   const js = read('worker/chat-page.js');
-  assert.match(js, /\$\('#sidebar'\)\.inert = narrow\(\) && !open;/);
-  assert.match(js, /\$\('\.main'\)\.inert = narrow\(\) && open;/);
+  assert.match(js, /\$\('#sidebar'\)\.inert = \(narrow\(\) && !side\) \|\| \(toolsNarrow\(\) && tools\);/);
+  assert.match(js, /\$\('\.main'\)\.inert = \(narrow\(\) && side\) \|\| \(toolsNarrow\(\) && tools\);/);
   // Synced on load, on every open and close, and when the width crosses 900px.
   assert.match(js, /\nsyncSidebar\(\);\n/);
   assert.match(js, /NARROW\.addEventListener\('change'/);
@@ -116,4 +116,64 @@ test("the disclosures are one click from every screen, and Siren's welcome claim
   assert.doesNotMatch(words, /at once|answers only from/i);
   assert.match(words, /can reach/);
   assert.match(words, /a person reviews each addition/);
+});
+
+// The tools column (Jason, 2026-11-18: "the center column gets pretty noisy
+// with tools. Let's add a third column for tooling to keep the chat interface
+// clean"). The page's functions are pulled from its classic script, as the
+// other page tests do.
+const block = (src, mark) => {
+  const i = src.indexOf(mark);
+  assert.ok(i >= 0, mark);
+  return src.slice(i, src.indexOf('\n}\n', i) + 2);
+};
+
+test('the tools column: an answer keeps its cards in the conversation; its sources, contacts, data, trace and model line go to the column', () => {
+  const js = read('worker/chat-page.js');
+  const answer = block(js, 'function renderAnswer(');
+  const tools = block(js, 'function renderTools(');
+  // In the conversation: the answer, its notices and the cards that ask the person to act, then the button to its tools.
+  for (const part of ['answerMd(answer, r.resources)', 'renderFollowups(r.followups)', 'renderWatchOffer(r.watchOffer)', 'renderSuggestions(r.suggestions)', 'renderToolsButton(r)']) assert.ok(answer.includes(part), part);
+  for (const part of ['renderResources(', 'renderTrace(', 'renderShare(', 'renderGaps(', 'class="meta"']) assert.ok(!answer.includes(part), `${part} is not in the conversation`);
+  for (const part of ['renderGaps(', 'renderShare(', 'renderResources(', 'renderTrace(', 'class="meta"']) assert.ok(tools.includes(part), `${part} is in the column`);
+  // Every way an answer arrives keeps its tools: live, reopened, and recovered after a dropped stream.
+  assert.equal((js.match(/^\s+keepTools\(turn, /gm) || []).length, 3);
+  // The share card moved with the sources, so its handler listens on the column.
+  assert.match(js, /\$\('#tools-body'\)\.addEventListener\('submit', async \(e\) => \{\n {2}const f = e\.target\.closest\('form\.share-sources'\);/);
+  // A new conversation empties the column.
+  assert.ok(block(js, 'function newConversation(').includes('selectTurn(null);'));
+});
+
+test('the tools column: a third column at 1280px and wider; narrower, a panel from the right that is inert while closed and covers the page while open', () => {
+  const js = read('worker/chat-page.js');
+  const css = read('worker/chat.css');
+  const html = read('worker/ui.html');
+  assert.match(html, /<aside class="tools" id="tools" aria-labelledby="tools-title">/);
+  assert.match(html, /<h2 class="tools-title" id="tools-title" tabindex="-1">Behind this answer<\/h2>/);
+  assert.match(html, /<button type="button" class="iconbtn tools-close" id="tools-close" aria-label="Close sources and queries">&times;<\/button>/);
+  // The script and the style agree on where it stops being a column.
+  assert.match(js, /window\.matchMedia\('\(max-width: 1279px\)'\)/);
+  assert.match(css, /@media \(max-width: 1279px\) \{\n {2}body\.has-tools \.tools \{ position: fixed;/);
+  assert.match(css, /body\.has-tools \.tools \{ display: flex; \}/);
+  // One function decides what's inert, for both panels.
+  assert.match(js, /\$\('#tools'\)\.inert = toolsNarrow\(\) && !tools;/);
+  assert.match(js, /const syncSidebar = syncInert;/);
+  // Each panel closes the other; Escape and the scrim close it; focus goes to its title, and back to the button that opened it.
+  assert.ok(block(js, 'function setSidebar(').includes("if (open && document.body.classList.contains('tools-open')) setTools(false, false);"));
+  assert.ok(block(js, 'function setTools(').includes("if (open && document.body.classList.contains('side-open')) setSidebar(false, false);"));
+  assert.match(js, /if \(e\.key === 'Escape' && document\.body\.classList\.contains\('tools-open'\)\) setTools\(false\);/);
+  assert.match(js, /\$\('#tools-scrim'\)\.addEventListener\('click', \(\) => setTools\(false\)\);/);
+  assert.ok(block(js, 'function setTools(').includes("if (open) $('#tools-title').focus();"));
+  assert.match(js, /if \(b\) selectTurn\(b\.closest\('\.turn'\), true, b\);/);
+  // Printing leaves the column out, with the sidebar and the composer.
+  assert.match(css, /\.composer-note, \.tools, \.tools-scrim, \.toolsline \{ display: none !important; \}/);
+});
+
+test('the tools button: counts records and queries, escapes nothing it needs to (numbers only), and is left out when there is nothing behind the answer', () => {
+  const js = read('worker/chat-page.js');
+  const { renderToolsButton } = new Function(`${block(js, 'function renderToolsButton(r) {')}\nreturn { renderToolsButton };`)();
+  assert.equal(renderToolsButton({ resources: { records: [{}, {}] }, trace: [{}, { refused: true }, {}], model: 'm' }), '<p class="toolsline"><button type="button" class="toolsbtn" aria-controls="tools">Sources and queries <small>(2 records · 2 queries)</small></button></p>');
+  assert.match(renderToolsButton({ resources: { records: [{}] }, trace: [{}] }), /\(1 record · 1 query\)/);
+  assert.equal(renderToolsButton({}), '');
+  assert.match(renderToolsButton({ resources: { contacts: [{}] } }), /Sources and queries<\/button>/);
 });
