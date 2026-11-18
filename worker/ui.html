@@ -118,6 +118,16 @@
       <p>{{APP_NAME}} is an AI agent and can make mistakes. Every answer shows the queries and records behind it: check what matters there. <button type="button" class="textbtn" id="about-note">About and privacy</button></p>
     </footer>
   </div>
+
+  <aside class="tools" id="tools" aria-labelledby="tools-title">
+    <div class="tools-top">
+      <h2 class="tools-title" id="tools-title" tabindex="-1">Behind this answer</h2>
+      <button type="button" class="iconbtn tools-close" id="tools-close" aria-label="Close sources and queries">&times;</button>
+    </div>
+    <p class="tools-for" id="tools-for"></p>
+    <div class="tools-body" id="tools-body"></div>
+  </aside>
+  <div class="tools-scrim" id="tools-scrim" hidden></div>
 </div>
 <template id="notes-tpl">
   <details class="notes" open>

@@ -113,14 +113,24 @@ $('#q').addEventListener('input', fitComposer);
 // sidebar until it closes. On a wide screen neither is.
 const NARROW = window.matchMedia('(max-width: 899px)');
 const narrow = () => NARROW.matches;
-function syncSidebar() {
-  const open = document.body.classList.contains('side-open');
-  $('#sidebar').inert = narrow() && !open;
-  $('.main').inert = narrow() && open;
+// The tools column slides over the page below 1280px (chat.css says the same).
+const TOOLS_NARROW = window.matchMedia('(max-width: 1279px)');
+const toolsNarrow = () => TOOLS_NARROW.matches;
+// What can't be reached while a panel covers the page: on a narrow screen
+// the closed sidebar, and the page while it's open; below 1280px the closed
+// tools column, and the page and the sidebar while it's open.
+function syncInert() {
+  const side = document.body.classList.contains('side-open');
+  const tools = document.body.classList.contains('tools-open');
+  $('#sidebar').inert = (narrow() && !side) || (toolsNarrow() && tools);
+  $('.main').inert = (narrow() && side) || (toolsNarrow() && tools);
+  $('#tools').inert = toolsNarrow() && !tools;
 }
+const syncSidebar = syncInert;
 // `focusTo`: where focus goes when it closes (the menu button by default;
 // false when the caller moves it itself).
 function setSidebar(open, focusTo) {
+  if (open && document.body.classList.contains('tools-open')) setTools(false, false);
   document.body.classList.toggle('side-open', open);
   $('#scrim').hidden = !open;
   $('#side-open').setAttribute('aria-expanded', String(open));
@@ -135,6 +145,55 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document
 NARROW.addEventListener('change', () => { if (!narrow()) setSidebar(false, false); else syncSidebar(); });
 syncSidebar();
 const closeSidebarIfNarrow = (focusTo) => { if (narrow()) setSidebar(false, focusTo); };
+
+// The tools column (Jason, 2026-11-18: "add a third column for tooling to keep
+// the chat interface clean"): an answer's sources, contacts, data, trace and
+// model line sit beside the conversation, for the answer selected (the newest
+// by default; each answer's "Sources and queries" button selects it). Wide, it
+// is a third column; narrower, it slides over the page from the right, inert
+// while closed, the page inert while it's open, as the sidebar does.
+const TOOLS = new WeakMap(); // turn -> { html, question }
+let toolsOpener = null;
+function setTools(open, focusTo) {
+  if (open && document.body.classList.contains('side-open')) setSidebar(false, false);
+  document.body.classList.toggle('tools-open', open);
+  $('#tools-scrim').hidden = !open;
+  syncInert();
+  if (open) $('#tools-title').focus();
+  else if (focusTo !== false && toolsNarrow()) (focusTo || toolsOpener || $('#q')).focus();
+}
+// Show one answer's tools; `open` slides the column in on a narrower screen.
+function selectTurn(turn, open = false, opener = null) {
+  const t = turn && TOOLS.get(turn);
+  for (const x of document.querySelectorAll('#log .turn.selected')) x.classList.remove('selected');
+  if (!t) {
+    $('#tools-body').innerHTML = '';
+    $('#tools-for').textContent = '';
+    document.body.classList.remove('has-tools');
+    setTools(false, false);
+    return;
+  }
+  turn.classList.add('selected');
+  document.body.classList.add('has-tools');
+  $('#tools-for').textContent = t.question.length > 140 ? `${t.question.slice(0, 140)}…` : t.question;
+  $('#tools-body').innerHTML = t.html;
+  if (open) {
+    toolsOpener = opener;
+    if (toolsNarrow()) setTools(true);
+    else $('#tools-title').focus({ preventScroll: true });
+  }
+}
+// An answer's tools, kept with its turn; the newest answer is selected.
+function keepTools(turn, question, r, at, select = true) {
+  const html = renderTools(r, at);
+  if (!html) return;
+  TOOLS.set(turn, { html, question: String(question || '') });
+  if (select) selectTurn(turn);
+}
+$('#tools-close').addEventListener('click', () => setTools(false));
+$('#tools-scrim').addEventListener('click', () => setTools(false));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('tools-open')) setTools(false); });
+TOOLS_NARROW.addEventListener('change', () => { if (!toolsNarrow()) setTools(false, false); else syncInert(); });
 // The welcome screen shows on a new, empty conversation.
 function showWelcome() {
   $('#welcome').hidden = $('#log').children.length > 0;
@@ -291,7 +350,7 @@ function renderShare(conv, at) {
   if (!session.share_research || !conv || !at) return '';
   return `<form class="share-sources" data-conv="${esc(conv)}" data-at="${esc(at)}"><p class="fine">Share the sources this answer read with the shared research other people's answers start from: their titles and links only, never your question or this answer. Sources that could point at an address are left out.</p><div class="row"><button class="ask" type="submit">Share these sources</button><span class="msg" role="status"></span></div></form>`;
 }
-$('#log').addEventListener('submit', async (e) => {
+$('#tools-body').addEventListener('submit', async (e) => {
   const f = e.target.closest('form.share-sources');
   if (!f) return;
   e.preventDefault();
@@ -322,6 +381,10 @@ function followupClick(e) {
   $('#f').requestSubmit();
 }
 $('#log').addEventListener('click', followupClick);
+$('#log').addEventListener('click', (e) => {
+  const b = e.target.closest('button.toolsbtn');
+  if (b) selectTurn(b.closest('.turn'), true, b);
+});
 // What the records couldn't answer (docs/gaps.md §8.5). Only with gaps on;
 // code-written text, escaped, never through md(). A reopened answer's record
 // keeps only {gap, statement, measured} per gap (worker/conversations.js), so
@@ -341,10 +404,27 @@ function renderGaps(g) {
 // answer and for one reopened from a saved conversation (`at` set); turns
 // saved before records were kept show the answer alone.
 function renderAnswer(answer, r, at) {
+  const rb = r.requestBudget;
+  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderFollowups(r.followups)}${renderWatchOffer(r.watchOffer)}${renderSuggestions(r.suggestions)}${renderToolsButton(r)}`;
+}
+// What an answer was built from, for the tools column: what the records
+// couldn't answer (gaps on only), sharing its sources, the hand-off (contacts,
+// records, data, links), the trace and the model line.
+function renderTools(r, at) {
   const when = at ? `${esc(String(at).slice(0, 16).replace('T', ' '))} UTC` : '';
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
-  return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderFollowups(r.followups)}${renderWatchOffer(r.watchOffer)}${renderSuggestions(r.suggestions)}${renderShare(conversationId, at || r.at)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}`;
+  // What was found and how first; sharing those sources is a step after reading them.
+  return `${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}${renderShare(conversationId, at || r.at)}`;
+}
+// Under an answer, the one way to its tools: on a wide screen it selects the
+// answer in the column; narrower, it opens the column.
+function renderToolsButton(r) {
+  const records = (r.resources?.records || []).length;
+  const queries = (r.trace || []).filter((s) => !s.refused).length;
+  const counts = [records && `${records} record${records === 1 ? '' : 's'}`, queries && `${queries} quer${queries === 1 ? 'y' : 'ies'}`].filter(Boolean).join(' · ');
+  if (!counts && !(r.resources?.contacts || []).length && !r.model) return '';
+  return `<p class="toolsline"><button type="button" class="toolsbtn" aria-controls="tools">Sources and queries${counts ? ` <small>(${counts})</small>` : ''}</button></p>`;
 }
 // A web search step (web search on). Its tool name is WEB_SEARCH_STEP in
 // src/web-search.js (test/web-search.test.js keeps the two the same). The
@@ -413,6 +493,7 @@ function newConversation() {
   conversationId = null;
   history = [];
   $('#log').innerHTML = '';
+  selectTurn(null);
   $('#conv-state').textContent = 'New conversation';
   $('#conv-forget').hidden = true;
   showWelcome();
@@ -581,7 +662,10 @@ async function openConversation(id, turnIndex) {
       turn.className = 'turn';
       turn.innerHTML = `<div class="q">${esc(t.question)}</div><div class="a">${renderAnswer(t.answer, t.record || {}, t.at)}</div>`;
       $('#log').append(turn);
+      keepTools(turn, t.question, t.record || {}, t.at, false);
     }
+    const last = [...$('#log').children].reverse().find((x) => TOOLS.has(x));
+    selectTurn(turnIndex != null && TOOLS.has($('#log').children[turnIndex]) ? $('#log').children[turnIndex] : last);
     $('#conv-state').textContent = data.turns[0]?.question.slice(0, 80) || 'Conversation';
     $('#conv-forget').hidden = false;
     showWelcome();
@@ -666,6 +750,7 @@ function showAnswer(turn, a, question, status, data) {
     $('#conv-forget').hidden = false;
   }
   a.innerHTML = renderAnswer(data.answer, data);
+  keepTools(turn, question, data, null);
 }
 
 // The working notes, streamed while the answer is worked out (worker/ask-stream.js).
@@ -835,6 +920,7 @@ $('#f').addEventListener('submit', async (e) => {
         if (t) {
           history.push({ role: 'user', content: question }, { role: 'assistant', content: t.answer });
           a.innerHTML = renderAnswer(t.answer, t.record || {}, t.at);
+          keepTools(turn, question, t.record || {}, t.at);
         } else {
           $('#q').value = $('#q').value || question;
           fitComposer();
