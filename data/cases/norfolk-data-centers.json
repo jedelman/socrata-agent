@@ -1,0 +1,663 @@
+{
+  "id": "norfolk-data-centers",
+  "title": "Where could a data center be built in Norfolk, what rules would it follow, and who decides?",
+  "summary": "As of November 19, 2026: Norfolk's Zoning Ordinance has no data center use; City staff say data centers have been treated as offices, and the Office use covers data processing facilities. Staff count two data centers in the city, both tenants in office buildings, with no negative impacts noted; Virginia Business reported on September 29, 2026 that Norfolk had had no serious inquiries from developers. After a staff briefing on August 13, the Planning Commission on October 22, 2026 recommended 4 to 0 (three absent) a text amendment creating two uses: small-scale data centers (standalone, under 30,000 square feet and under 25 megawatts), allowed by right in the O, BC-O, BC-I, I-L, I-G and IN-C districts, and large-scale ones, allowed only with a Conditional Use Permit in I-G, I-DW, BC-I and BC-O. Every data center would file an impact assessment (sound on homes and schools within 500 feet, water, parks, historic sites, forestland) under Code of Virginia §15.2-2209.5, whose own requirement starts at 100 megawatts and leaves local zoning authority intact; under Exhibit D noise would be held to City Code Chapter 26 with exceptions, and equipment screened. The transmittal letter, staff report and Proposed Text also require a hazardous materials discharge plan, but Exhibit D, the ordinance's text of the standards, doesn't. City Council decides; as of November 19 no Council hearing date was found (the December 1 and 15 agendas weren't posted).",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "reviewed": "2026-11-19",
+  "findings": [
+    {
+      "id": "today-office-use",
+      "stance": "rules",
+      "claim": "Under the Zoning Ordinance in force today, the Office use's definition includes data processing facilities among the business functions it covers; the ordinance names no data center use.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "business service centers, data processing facilities, day labor services, employment or travel agencies",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "business service centers, data processing facilities, day labor services, employment or travel agencies",
+        "prefix": "and similar business functions such as ",
+        "suffix": ", parcel services, and telephone call"
+      }
+    },
+    {
+      "id": "staff-previously-office",
+      "stance": "context",
+      "claim": "City Planning staff told the Planning Commission that data centers were previously treated as office uses.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "Previously data centers were considered office uses.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Previously data centers were considered office uses.",
+        "prefix": "impacts on surrounding land uses. o ",
+        "suffix": " o Data centers have become"
+      }
+    },
+    {
+      "id": "two-existing",
+      "stance": "weakens",
+      "claim": "City Planning staff reported in October 2026 that two data centers exist in Norfolk, with no negative impacts noted on the surrounding area.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "Two data centers currently exist in Norfolk with no noted negative impacts to the surrounding area.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Two data centers currently exist in Norfolk with no noted negative impacts to the surrounding area.",
+        "prefix": "institutions throughout the city. • ",
+        "suffix": " o Both facilities fall under the use"
+      }
+    },
+    {
+      "id": "two-existing-tenants",
+      "stance": "context",
+      "claim": "Both existing data centers are tenants in a larger office building or complex, not standalone users of a site.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "Both are tenants within a larger office building/complex and are not standalone users on a site.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Both are tenants within a larger office building/complex and are not standalone users on a site.",
+        "prefix": "no applicable performance standards. o ",
+        "suffix": " • The proposed text amendment would"
+      }
+    },
+    {
+      "id": "existing-office-no-standards",
+      "stance": "context",
+      "claim": "Staff said both existing data centers fall under the Office use, with no performance standards that apply to them.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "Both facilities fall under the use Office, with no applicable performance standards.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Both facilities fall under the use Office, with no applicable performance standards.",
+        "prefix": "impacts to the surrounding area. o ",
+        "suffix": " o Both are tenants within a larger"
+      }
+    },
+    {
+      "id": "why-amend",
+      "stance": "confirms",
+      "claim": "Staff gave the reason for the amendment as rising interest in data centers, which could have significant land use impacts on surrounding uses.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "This amendment is a result of the increase in interest in data centers which could potentially have significant land use impacts on surrounding uses.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This amendment is a result of the increase in interest in data centers which could potentially have significant land use impacts on surrounding uses.",
+        "prefix": "center uses. A. Summary of Request • ",
+        "suffix": " • This request would create two uses,"
+      }
+    },
+    {
+      "id": "no-serious-inquiries",
+      "stance": "weakens",
+      "claim": "Virginia Business reported on September 29, 2026 that Norfolk had received no serious inquiries from data center developers.",
+      "source": {
+        "title": "Virginia Business, \"Hampton Roads localities ponder data center development\" (subhead: \"Virginia Beach, Chesapeake, Suffolk make big moves\"), September 29, 2026",
+        "url": "https://virginiabusiness.com/hampton-roads-data-center-development/"
+      },
+      "quote": "Norfolk, which has received no serious inquiries from developers, has no zoning regulations specifically addressing data centers but is examining whether amendments are needed.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibokxez767jnjbid5jmtuxld2rde4j3oda476qold7pyclzv4ikdu",
+        "bytes": 229341,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Norfolk, which has received no serious inquiries from developers, has no zoning regulations specifically addressing data centers but is examining whether amendments are needed.",
+        "prefix": "stages of data center discussions. ",
+        "suffix": " Newport News has no regulations or"
+      }
+    },
+    {
+      "id": "pc-briefing-aug",
+      "stance": "context",
+      "claim": "City Planning staff briefed the Planning Commission on data centers at its August 13, 2026 regular meeting (a presentation on the agenda).",
+      "source": {
+        "title": "Norfolk City Planning Commission, regular meeting agenda, August 13, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=14&ID=3373&Inline=True"
+      },
+      "quote": "Presentations A. Data Centers",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihdsoap4kn4a4o4472bkkg27vlcmb4e2hrpeabko3sy5vzxo2px4y",
+        "bytes": 133292,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Presentations A. Data Centers",
+        "prefix": "1:00 PM 1. Call to Order/Roll Call 2. ",
+        "suffix": " - Andrew Adams, Planner II B."
+      }
+    },
+    {
+      "id": "small-scale-defined",
+      "stance": "rules",
+      "claim": "As proposed, a small-scale data center is a standalone facility under 30,000 square feet of floor area that needs less than 25 megawatts from an electric utility.",
+      "source": {
+        "title": "Exhibit D to the data center ordinance: Zoning Ordinance §4.2.3.G(2)(f)-(g), performance standards (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=26020"
+      },
+      "quote": "is less than 30,000 square feet in gross floor area and requires less than 25 megawatts of electrical power from an electric utility",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihljnlol32by7eimngy4pmh3i4rnlntzbajeyl2v4zpkt2uds6wr4",
+        "bytes": 262623,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "is less than 30,000 square feet in gross floor area and requires less than 25 megawatts of electrical power from an electric utility",
+        "prefix": "process, and transmit digital data, ",
+        "suffix": ". The use shall not generate"
+      }
+    },
+    {
+      "id": "small-scale-districts",
+      "stance": "rules",
+      "claim": "As proposed, a small-scale data center would be allowed by right in the O, BC-O, BC-I, I-L, I-G and IN-C districts.",
+      "source": {
+        "title": "Norfolk City Council legislation: An Ordinance to Amend Articles 3 and 4 of the Norfolk Zoning Ordinance so as to Define and Create Performance Standards for Data Center Uses (Council Transmittal Letter and meeting history)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6010"
+      },
+      "quote": "Data center, small-scale would be permitted by right in the following zoning districts: O (Office), BC-O (Business and Commerce Park – Office), BC-I (Business and Commerce Park – Industrial), I-L (Industrial – Light), I-G (Industrial – General), and IN-C (Institutional – Campus).",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqb4uk7nwjo4prfefs7roqidanuxaojawavgrjgqvnrlw3gyecay",
+        "bytes": 53624,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Data center, small-scale would be permitted by right in the following zoning districts: O (Office), BC-O (Business and Commerce Park – Office), BC-I (Business and Commerce Park – Industrial), I-L (Industrial – Light), I-G (Industrial – General), and IN-C (Institutional – Campus).",
+        "prefix": "",
+        "suffix": " o"
+      }
+    },
+    {
+      "id": "large-scale-cup",
+      "stance": "rules",
+      "claim": "As proposed, a large-scale data center (over 30,000 square feet, or 25 megawatts or more) would need a Conditional Use Permit, and only in the I-G, I-DW, BC-I and BC-O districts.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "Data center, large-scale would be permitted by Conditional Use Permit in the following zoning districts: I-G, I-DW (Industrial – Deep Water), BC-I, and BC-O.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Data center, large-scale would be permitted by Conditional Use Permit in the following zoning districts: I-G, I-DW (Industrial – Deep Water), BC-I, and BC-O.",
+        "prefix": "given time from an electric utility. o ",
+        "suffix": " • Staff proposes four performance"
+      }
+    },
+    {
+      "id": "site-assessment-all",
+      "stance": "rules",
+      "claim": "The ordinance's Exhibit D requires every data center, small or large, to submit to the Zoning Administrator an assessment of its impacts (sound on homes and schools within 500 feet, water, agricultural resources, parks, historic sites, forestland) and how it will mitigate them, citing Code of Virginia §15.2-2209.5.",
+      "source": {
+        "title": "Exhibit D to the data center ordinance: Zoning Ordinance §4.2.3.G(2)(f)-(g), performance standards (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=26020"
+      },
+      "quote": "All Data Centers (referring to both Data Center, Small Scale and Data Center, Large Scale) must submit the following to the Zoning Administrator in accordance with Section §15.2-2209.5 of the Code of Virginia and describe how they will mitigate any impacts",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihljnlol32by7eimngy4pmh3i4rnlntzbajeyl2v4zpkt2uds6wr4",
+        "bytes": 262623,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "All Data Centers (referring to both Data Center, Small Scale and Data Center, Large Scale) must submit the following to the Zoning Administrator in accordance with Section §15.2-2209.5 of the Code of Virginia and describe how they will mitigate any impacts",
+        "prefix": "or vibration at any time. (i) ",
+        "suffix": ": (A) The sound profile of the Data"
+      }
+    },
+    {
+      "id": "noise-chapter-26",
+      "stance": "rules",
+      "claim": "Exhibit D holds the noise of every data center, small or large, to Chapter 26 of the City Code, except during construction or demolition, generator testing between 10 a.m. and 4 p.m. (unless DEQ requires other hours), and emergencies that need temporary generators.",
+      "source": {
+        "title": "Exhibit D to the data center ordinance: Zoning Ordinance §4.2.3.G(2)(f)-(g), performance standards (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=26020"
+      },
+      "quote": "Any noise that originates from activity associated with any Data Center shall comply with Chapter 26 of City Code with the following exceptions",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihljnlol32by7eimngy4pmh3i4rnlntzbajeyl2v4zpkt2uds6wr4",
+        "bytes": 262623,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Any noise that originates from activity associated with any Data Center shall comply with Chapter 26 of City Code with the following exceptions",
+        "prefix": "contiguous land impacts. (ii) ",
+        "suffix": ": (A) During temporary construction or"
+      }
+    },
+    {
+      "id": "equipment-screened",
+      "stance": "rules",
+      "claim": "As proposed, generators and cooling and ventilation equipment must be shielded from public view and adjacent properties.",
+      "source": {
+        "title": "Exhibit D to the data center ordinance: Zoning Ordinance §4.2.3.G(2)(f)-(g), performance standards (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=26020"
+      },
+      "quote": "all generators, equipment necessary for cooling, ventilation, or similar structures or equipment must be shielded from public view and adjacent properties",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihljnlol32by7eimngy4pmh3i4rnlntzbajeyl2v4zpkt2uds6wr4",
+        "bytes": 262623,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "all generators, equipment necessary for cooling, ventilation, or similar structures or equipment must be shielded from public view and adjacent properties",
+        "prefix": "In addition to mechanical equipment, ",
+        "suffix": ". (g) Data Center, Large Scale A"
+      }
+    },
+    {
+      "id": "hazmat-plan-in-letter",
+      "stance": "context",
+      "claim": "The staff report describes a fourth standard: a hazardous materials discharge plan, with a Public Works – Utilities recommendation, before zoning approval.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "A hazardous materials discharge plan shall be submitted to the Department of Planning and include a recommendation from the Department of Public Works – Utilities prior to receiving zoning approval.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A hazardous materials discharge plan shall be submitted to the Department of Planning and include a recommendation from the Department of Public Works – Utilities prior to receiving zoning approval.",
+        "prefix": "public view and adjacent properties. o ",
+        "suffix": " The plan shall address items including"
+      }
+    },
+    {
+      "id": "hazmat-plan-in-transmittal",
+      "stance": "context",
+      "claim": "The Council Transmittal Letter describes the same hazardous materials discharge plan standard.",
+      "source": {
+        "title": "Norfolk City Council legislation: An Ordinance to Amend Articles 3 and 4 of the Norfolk Zoning Ordinance so as to Define and Create Performance Standards for Data Center Uses (Council Transmittal Letter and meeting history)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6010"
+      },
+      "quote": "The plan shall address items including but not limited to generator emissions, cooling system blowdown, and discharge treatment procedures",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqb4uk7nwjo4prfefs7roqidanuxaojawavgrjgqvnrlw3gyecay",
+        "bytes": 53624,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The plan shall address items including but not limited to generator emissions, cooling system blowdown, and discharge treatment procedures",
+        "prefix": "prior to receiving zoning approval. ",
+        "suffix": " detailing the methods proposed to"
+      }
+    },
+    {
+      "id": "hazmat-plan-not-in-exhibit-d",
+      "stance": "weakens",
+      "claim": "The attachment titled 'EXHIBIT D to Ordinance-4.2.3', the performance standards, never mentions a hazardous materials plan, though the transmittal letter, the staff report and the Proposed Text attachment include one. Which text Council is asked to adopt isn't settled by the record read so far.",
+      "source": {
+        "title": "Exhibit D to the data center ordinance: Zoning Ordinance §4.2.3.G(2)(f)-(g), performance standards (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=26020"
+      },
+      "quote": "In addition to mechanical equipment, all generators, equipment necessary",
+      "absent": "hazardous",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihljnlol32by7eimngy4pmh3i4rnlntzbajeyl2v4zpkt2uds6wr4",
+        "bytes": 262623,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "In addition to mechanical equipment, all generators, equipment necessary",
+        "prefix": "use of emergency generators. (iii) ",
+        "suffix": " for cooling, ventilation, or similar"
+      }
+    },
+    {
+      "id": "exhibit-d-small-no-noise",
+      "stance": "weakens",
+      "claim": "Exhibit D's definition of a small-scale data center says it may not generate perceptible noise, odor, smoke, electrical interference or vibration at any time, with no exceptions, while its standard (ii) applies Chapter 26 with exceptions to every data center; the transmittal letter instead lists exceptions (generator testing, emergencies) for small-scale centers. The texts differ.",
+      "source": {
+        "title": "Exhibit D to the data center ordinance: Zoning Ordinance §4.2.3.G(2)(f)-(g), performance standards (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=26020"
+      },
+      "quote": "The use shall not generate perceptible noise, odor, smoke, electrical interference, or vibration at any time.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihljnlol32by7eimngy4pmh3i4rnlntzbajeyl2v4zpkt2uds6wr4",
+        "bytes": 262623,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The use shall not generate perceptible noise, odor, smoke, electrical interference, or vibration at any time.",
+        "prefix": "power from an electric utility. ",
+        "suffix": " (i) All Data Centers (referring to"
+      }
+    },
+    {
+      "id": "hazmat-plan-in-proposed-text",
+      "stance": "context",
+      "claim": "The Proposed Text attachment on the same record does include the hazardous materials discharge plan as item (iv) of each data center use's standards.",
+      "source": {
+        "title": "Proposed Text for the data center text amendment (attachment to the legislative record)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=4&ID=25910"
+      },
+      "quote": "A hazardous materials discharge plan shall be submitted to the Department",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibnvbdnyddhho5f5kziykzgxckogkpamapk5chiqghpeikkscq234",
+        "bytes": 262741,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "A hazardous materials discharge plan shall be submitted to the Department",
+        "prefix": "view and adjacent properties. (iv) ",
+        "suffix": " of Planning and include a"
+      }
+    },
+    {
+      "id": "state-threshold-100mw",
+      "stance": "rules",
+      "claim": "State law (2026) requires an applicant's site assessment of sound on homes and schools within 500 feet before a locality approves a rezoning, special exception or special use permit for a new \"high energy use facility\" (one expected to need 100 megawatts or more); a locality may also require it to examine water, agricultural resources, parks, historic sites and forestland. It applies only to those approvals, not to a use allowed by right.",
+      "source": {
+        "title": "Code of Virginia § 15.2-2209.5, Siting of data centers; site assessment (2026, cc. 567, 568)",
+        "url": "https://law.lis.virginia.gov/vacode/title15.2/chapter22/section15.2-2209.5/"
+      },
+      "quote": "Prior to any approval of a rezoning application, special exception, or special use permit for the siting of a new HEUF, a locality shall require that an applicant perform and submit a site assessment",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreianayxgvix7gjhvzo3ye7nbvpmztyidw4nemgxldht5vc3ktogauu",
+        "bytes": 30610,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Prior to any approval of a rezoning application, special exception, or special use permit for the siting of a new HEUF, a locality shall require that an applicant perform and submit a site assessment",
+        "prefix": "retail service to the facility. B. ",
+        "suffix": " to examine, to the extent practicable"
+      }
+    },
+    {
+      "id": "state-no-limit-local",
+      "stance": "rules",
+      "claim": "The state site-assessment law says it does not limit or supersede existing local zoning authority.",
+      "source": {
+        "title": "Code of Virginia § 15.2-2209.5, Siting of data centers; site assessment (2026, cc. 567, 568)",
+        "url": "https://law.lis.virginia.gov/vacode/title15.2/chapter22/section15.2-2209.5/"
+      },
+      "quote": "Nothing in this section shall be construed to prohibit, limit, or otherwise supersede existing local zoning authority.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreianayxgvix7gjhvzo3ye7nbvpmztyidw4nemgxldht5vc3ktogauu",
+        "bytes": 30610,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Nothing in this section shall be construed to prohibit, limit, or otherwise supersede existing local zoning authority.",
+        "prefix": "or more of electrical power. G. ",
+        "suffix": " 2026, cc. 567 , 568 . The chapters of"
+      }
+    },
+    {
+      "id": "pc-vote",
+      "stance": "who_decides",
+      "claim": "The Planning Commission recommended approval 4 to 0 at its October 22, 2026 public hearing (the meeting history, marked draft, lists three members absent).",
+      "source": {
+        "title": "Norfolk City Council legislation: An Ordinance to Amend Articles 3 and 4 of the Norfolk Zoning Ordinance so as to Define and Create Performance Standards for Data Center Uses (Council Transmittal Letter and meeting history)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6010"
+      },
+      "quote": "By a vote of 4 to 0 , the Planning Commission recommended approval of the application.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqb4uk7nwjo4prfefs7roqidanuxaojawavgrjgqvnrlw3gyecay",
+        "bytes": 53624,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "By a vote of 4 to 0 , the Planning Commission recommended approval of the application.",
+        "prefix": "Planning Commission Recommendation: ",
+        "suffix": " &#xa0; II."
+      }
+    },
+    {
+      "id": "no-speakers",
+      "stance": "context",
+      "claim": "The Council Transmittal Letter lists no proponents and no opponents of the amendment at the Planning Commission hearing.",
+      "source": {
+        "title": "Norfolk City Council legislation: An Ordinance to Amend Articles 3 and 4 of the Norfolk Zoning Ordinance so as to Define and Create Performance Standards for Data Center Uses (Council Transmittal Letter and meeting history)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6010"
+      },
+      "quote": "Opponents None",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqb4uk7nwjo4prfefs7roqidanuxaojawavgrjgqvnrlw3gyecay",
+        "bytes": 53624,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Opponents None",
+        "prefix": "&#xa0; Proponents None &#xa0; ",
+        "suffix": " &#xa0; &#xa0; Meeting History Oct 22,"
+      }
+    },
+    {
+      "id": "council-decides",
+      "stance": "who_decides",
+      "claim": "Whether to adopt a zoning text amendment is up to City Council, in its legislative discretion; the Planning Commission only recommends.",
+      "source": {
+        "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "Whether to amend the text of this Ordinance is a matter committed to the legislative discretion of the City Council",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Whether to amend the text of this Ordinance is a matter committed to the legislative discretion of the City Council",
+        "prefix": "TEXT AMENDMENT REVIEW STANDAR DS ",
+        "suffix": " and is not controlled by any one"
+      }
+    },
+    {
+      "id": "staff-recommends",
+      "stance": "confirms",
+      "claim": "City Planning staff recommended approval (\"Staff recommends the Zoning Text Amendment request be approved\"), describing the approach as tiered: smaller data centers permitted, larger ones mitigated through the public Conditional Use Permit process.",
+      "source": {
+        "title": "Council printout for the data center text amendment: City Planning Commission staff report, public hearing October 22, 2026",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/FileOpen.aspx?Type=30&ID=58822"
+      },
+      "quote": "This amendment approaches the impacts in a tiered way where supporting data centers at a smaller scale could continue to be permitted",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-19",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihayyox42xjz2psdd45n7ashhjzno3eajsrvjwf3stmnwqqb47qmu",
+        "bytes": 413086,
+        "read": "2026-11-19",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This amendment approaches the impacts in a tiered way where supporting data centers at a smaller scale could continue to be permitted",
+        "prefix": "on the surrounding community. • ",
+        "suffix": " while the impacts of the larger data"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Before Council votes, residents can speak at the Council meeting where it is heard or write to Council. The Council Transmittal Letter lists no proponents or opponents at the Planning Commission hearing.",
+      "finding": "council-decides"
+    },
+    {
+      "text": "Ask whether the hazardous materials discharge plan described in the transmittal letter and staff report is meant to be in the adopted text: Exhibit D, attached to the ordinance, leaves it out.",
+      "finding": "hazmat-plan-not-in-exhibit-d"
+    },
+    {
+      "text": "If the amendment passes, a large-scale data center would go through a Conditional Use Permit, with a Planning Commission hearing and a Council vote (see case file norfolk-zoning-use-tables-cup for how a permit is judged). A small-scale one would not; its impact assessment goes to the Zoning Administrator.",
+      "finding": "large-scale-cup"
+    }
+  ],
+  "records_to_request": [
+    "The staff presentation on data centers given to the Planning Commission on August 13, 2026, and any minutes of that item (Department of City Planning).",
+    "The final ordinance text to go to City Council on the data center amendment, and an explanation of whether the hazardous materials discharge plan is included (City Attorney / Department of City Planning).",
+    "Any inquiries, pre-application meetings or correspondence with data center developers about Norfolk sites since January 1, 2025 (Department of Economic Development; Department of City Planning).",
+    "Records identifying the zoning classification and floor area of the two existing data centers staff referred to, and any power-demand information the City holds for them (Department of City Planning)."
+  ],
+  "pending": [
+    "When City Council will hear and vote on the amendment: the Planning Commission recommended it on October 22, 2026; as of November 19 the Council agendas for December 1 and 15 weren't posted, and no Council date was found in the legislative record.",
+    "Which text Council is asked to adopt: Exhibit D leaves out the hazardous materials discharge plan that the transmittal letter, staff report and Proposed Text include; adds a construction-or-demolition noise exception the letter doesn't list; applies Chapter 26 with exceptions to small-scale centers where the letter says no perceptible noise from mechanical systems except testing and emergencies (and its own small-scale definition says none at any time); and drops 'prior to zoning approval' and 'with mitigation measures as necessary' from the assessment.",
+    "Which districts appear in the use-table exhibits (A, B, C): the rows read 'Data Center, Small Scale' with P and 'Data Center, Large Scale' with C, but a table column can't be quoted exactly, so the districts are taken from the transmittal letter and staff report.",
+    "How much land in the named districts could hold a large-scale data center: not measured yet (the I-G, I-DW, BC-I and BC-O parcels could be counted from the City's zoning layer).",
+    "Whether a data center inside an office building that isn't standalone would still be an Office use under the amendment: the small-scale definition says standalone, and the record read so far doesn't say."
+  ]
+}
