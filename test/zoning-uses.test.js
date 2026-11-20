@@ -344,3 +344,41 @@ test('zoning_uses: home, park and twin rows answer the use asked (fifth review o
   assert.deepEqual(districtOf('(C) C-C'), { code: 'C-C', conditional: true });
   assert.equal(districtCode('Lafayette Pedestrian Commercial Overlay'), 'PCO-Lafayette');
 });
+
+test('zoning_uses: galleries, construction, place phrases, home uses, trade schools (sixth review of #74)', async () => {
+  const run = (use, district) => plugin.run(ctx(), { use, district });
+  const marks = async (use, district) => Object.fromEntries((await run(use, district)).matches.map((m) => [m.name, m.rows.map((r) => r.mark)[0]]));
+  // 4.2.3 names art galleries under retail goods and cultural facilities too.
+  assert.deepEqual(await marks('gallery', 'G-1'), { 'Artist studio/school/gallery': 'blank (prohibited)', 'Retail goods establishment': 'P/C', 'Cultural facility, museum, or library': 'P' });
+  // A contractor's yard isn't the temporary construction row.
+  assert.deepEqual((await run('construction yard', 'SF-6')).matches, []);
+  assert.deepEqual(Object.keys(await marks('construction trailer', 'SF-6')), ['Construction-related office/yard']);
+  // Where a use is isn't a second use.
+  assert.deepEqual(Object.keys(await marks('hotel near the airport', 'C-C')), ['Hotel or motel']);
+  assert.ok(!('Park' in await marks('bar near a park', 'SF-6')));
+  assert.deepEqual(Object.keys(await marks('concerts in the park', 'C-C')), ['Live entertainment']);
+  assert.deepEqual(Object.keys(await marks('apartments in a warehouse', 'C-C')), ['Dwelling, multi-family']);
+  assert.deepEqual(Object.keys(await marks('warehouse apartments', 'C-C')), ['Dwelling, multi-family']);
+  assert.deepEqual(Object.keys(await marks('church office', 'C-C')), ['Office']);
+  // In my house: Home occupation answers, unless the use has its own accessory or temporary row.
+  assert.deepEqual(Object.keys(await marks('can I have an office in my house?', 'SF-6')), ['Home occupation']);
+  assert.deepEqual(Object.keys(await marks('cafe in my house', 'SF-6')), ['Home occupation']);
+  assert.ok(!('Home occupation' in await marks('can I put an EV charger at my house', 'SF-6')));
+  assert.ok(!('Home occupation' in await marks('kennel at my house', 'SF-6')));
+  assert.ok(!('Home occupation' in await marks('car wash at my house', 'SF-6')), '4.3.3(F): vehicle service');
+  assert.deepEqual(Object.keys(await marks('can I open a daycare in my house', 'SF-6')), ['Family day home']);
+  // A trade school, not a college or a salon.
+  assert.deepEqual(Object.keys(await marks('beauty college', 'G-1')), ['School, vocational or trade']);
+  assert.deepEqual(Object.keys(await marks('barber college', 'C-N')), ['School, vocational or trade']);
+  // Alternatives that never matched; bars only beside drink hosts; store after a service.
+  assert.deepEqual(Object.keys(await marks('credit union', 'C-C')), ['Bank or other financial institution']);
+  assert.deepEqual(Object.keys(await marks('smoothie bar', 'C-C')), ['Restaurant']);
+  for (const use of ['beauty bar', 'college bar', 'beauty store']) assert.deepEqual((await run(use, 'C-C')).matches, [], use);
+  // Recreation by the use types 4.2.3 lists; misspellings; modifiers.
+  assert.deepEqual(Object.keys(await marks('bowling alley', 'C-C')), ['Recreation facility, indoor']);
+  assert.deepEqual(Object.keys(await marks('mini golf', 'C-C')), ['Recreation facility, outdoor']);
+  assert.deepEqual(Object.keys(await marks('resturant', 'C-C')), ['Restaurant']);
+  assert.deepEqual(Object.keys(await marks('mexican restaurant', 'C-C')), ['Restaurant']);
+  assert.deepEqual(Object.keys(await marks('antique store', 'C-C')), ['Retail goods establishment']);
+  assert.equal(districtOf('PCO-3'), null, 'never PCO-35th Street');
+});

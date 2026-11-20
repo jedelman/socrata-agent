@@ -780,7 +780,16 @@ generic mode.
   Asked at home, a use Section 4.3.3 bars as a home occupation (personal
   service, tattoo, massage, vehicle service) answers as itself with 4.3.3
   quoted (`home_occupation`), and Home occupation rows carry its rules
-  (`rules`), quoted from the ordinance text (fifth review). A name several
+  (`rules`), quoted from the ordinance text (fifth review). Sixth review:
+  where a use is ("near the airport", "in the park") is cut off before
+  matching, and a use named just before another describes it ("church
+  office", "warehouse apartments"); asked "in my house", a use 4.3.3 doesn't
+  bar gives way to Home occupation, which gives way to a use with its own
+  accessory or temporary row; galleries read as all three uses 4.2.3 names
+  them under; recreation sayings follow 4.2.3's own lists; a bar word adds
+  on-premises sales only beside a drink host. Measured on the sixth
+  reviewer's 795 phrasings: 445 right, 1 mixed, 0 wrong, 0 marks on a
+  partial. A name several
   districts share (the Ghent HC districts) is an error naming them, never
   the first; shorthand resolves
   only when it starts as the code does, so a neighborhood's name
