@@ -10,17 +10,36 @@ import { priorResearch, RESEARCH_SCOPES } from './prior-research.js';
 import { offerWatch, MAX_TOPICS, MAX_PHRASES } from './watches.js';
 import { publicTextViolations } from './public-text.js';
 
-// A source request that would find a person: who owns or lives at a place, or
-// how to reach them (model trial, 2026-11-20: asked who owns a house, one run
-// asked for the Assessor's ownership records to be added "and how to contact
-// the owner"). Requests go to a public list, and Siren never looks people up.
-const PERSON_WORDS = /\b(?:owners?|ownership|residents?|occupants?|tenants?|landlords?|neighbou?rs?|homeowners?)\b/i;
-const CONTACT_WORDS = /\b(?:contact(?:s|ing)?|reach|phone|e-?mail|mailing|names?|identity|identify)\b/i;
-const WHO_IS = /\bwho\b[^.?!]{0,40}\b(?:owners?|residents?|occupants?|tenants?|landlords?|lives?|living)\b/i;
+// A source request that would find a person: who owns, bought, rents or lives
+// at a place, a list of owners, landlords, tenants or residents, or how to
+// reach one (model trial, 2026-11-20: asked who owns a house, one run asked
+// for the Assessor's ownership records "and how to contact the owner").
+// Requests go to a public list, and Siren never looks people up. Programs
+// for residents, landlord rules and how to reach an office still pass.
+const PEOPLE = '(?:owners?|landlords?|tenants?|occupants?|residents?|homeowners?|renters?|buyers?|sellers?)';
+const OWNERSHIP_RECORDS = /\b(?:owners?|ownership)\s+(?:of\s+record|records?|information|info|details|names?|lists?|contacts?|data|history|lookups?|search)\b/i;
+const SEEKS_PERSON = [
+  // Who owns, bought, rents or lives there; which LLC or company owns it.
+  /\b(?:who|whom|which\s+(?:llcs?|compan(?:y|ies)|corporations?|entit(?:y|ies)|person|people|individuals?))\s+(?:\w+\s+){0,2}?(?:owns?|owned|bought|purchased|sold|rents?|rented|leases?|leased|lives?|lived|occupies|occupied)\b/i,
+  // Whose house or lot it is.
+  /\bwhose\s+(?:house|home|property|lot|land|building|parcel|apartment|unit|car|business)\b/i,
+  // Who is the owner (or resident, tenant...) of a place.
+  new RegExp(`\\bwho\\s+(?:is|are|was|were)\\s+(?:the\\s+)?(?:current\\s+)?${PEOPLE}\\b`, 'i'),
+  // Owner of record, ownership records, owner information.
+  OWNERSHIP_RECORDS,
+  // A person's details: landlord details, tenant list, owner contact information, residents' names.
+  new RegExp(`\\b${PEOPLE}['’]?s?\\s+(?:names?|lists?|details|director(?:y|ies)|rosters?|contacts?|contact\\s+(?:info|information|details)|phone(?:\\s+numbers?)?|e-?mails?|mailing(?:\\s+addresses?)?|addresses|identit(?:y|ies))\\b`, 'i'),
+  // A list of them: names of residents, a roster of tenants, mailing addresses for owners.
+  new RegExp(`\\b(?:lists?|names?|director(?:y|ies)|rosters?|mailing\\s+addresses|contact\\s+(?:info|information|details))\\s+(?:of|for)\\s+(?:the\\s+|all\\s+)?(?:\\w+\\s+)?${PEOPLE}\\b`, 'i'),
+  // How to reach one: contact the owner, reach the landlord, email the tenants.
+  new RegExp(`\\b(?:contact(?:ing)?|reach(?:ing)?|call(?:ing)?|phone|e-?mail(?:ing)?|write\\s+to)\\s+(?:the\\s+|a\\s+|an\\s+|its\\s+|their\\s+)?(?:property\\s+|building\\s+|house\\s+|home\\s+)?${PEOPLE}\\b`, 'i'),
+];
+// The City and other public bodies own land too: those ownership records pass.
+const PUBLIC_OWNER = /\b(?:city[- ]owned|owned\s+by\s+the\s+city|publicly[- ]owned|public(?:ly)?\s+owned|public\s+owners?|city\s+property|nrha|economic\s+development\s+authority)\b/i;
 export function seeksPerson(text) {
   const t = String(text ?? '');
-  if (publicTextViolations(t).some((c) => ['person_pointing', 'named_person', 'email', 'phone'].includes(c))) return true;
-  return WHO_IS.test(t) || (PERSON_WORDS.test(t) && CONTACT_WORDS.test(t));
+  if (publicTextViolations(t).some((c) => ['named_person', 'email', 'phone'].includes(c))) return true;
+  return SEEKS_PERSON.some((re) => re.test(t) && !(re === OWNERSHIP_RECORDS && PUBLIC_OWNER.test(t)));
 }
 export const PERSON_SOURCE_NOTE =
   "Not suggested: a source request can't ask for records that find who owns or lives at a place, or how to reach a private person. In your answer, say plainly that you don't look up private people, and offer what the records you reach can show instead.";
@@ -188,12 +207,15 @@ export async function runTool(ctx, name, args) {
         details: r.meeting_link?.url?.replace('.com//', '.com/'),
         agenda: r.agenda_link?.url,
       }));
-      // Each meeting's page and agenda join the hand-off, so an answer can link
-      // them (model trial, 2026-11-20: every link to a meeting page was dropped).
+      // Each meeting's page and agenda are kept aside, and the ones the answer
+      // links join its hand-off (src/agent.js), so the links survive the answer
+      // check (model trial, 2026-11-20: every link to a meeting page was
+      // dropped) without unread meetings crowding the saved record.
+      ctx.meetingPages ??= new Map();
       for (const m of meetings) {
         const day = String(m.when ?? '').slice(0, 10);
         for (const [url, what] of [[m.details, 'meeting'], [m.agenda, 'agenda']]) {
-          if (typeof url === 'string' && /^https:\/\/[^\s]+$/i.test(url)) resources.addRecord({ kind: 'meeting', title: `${m.body ?? 'Public meeting'} ${what}, ${day}`.slice(0, 200), url });
+          if (typeof url === 'string' && /^https:\/\/[^\s]+$/i.test(url)) ctx.meetingPages.set(url, { kind: 'meeting', title: `${m.body ?? 'Public meeting'}${m.type ? ` (${m.type})` : ''} ${what}, ${day}`.slice(0, 200), url });
         }
       }
       return meetings;
