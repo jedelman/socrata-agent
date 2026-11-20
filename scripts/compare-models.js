@@ -121,7 +121,8 @@ const results = await Promise.all(
           ...(dryRun ? { fetchImpl: dryFetch(model) } : {}),
         });
         const { toolResults, markdown, ...kept } = r;
-        out.push({ model, city, q, ms: Date.now() - t0, ...kept, tools: (Array.isArray(r.trace) ? r.trace : []).map((s) => s.tool) });
+        // The run's own label last: the answer's `model` is the bare id, without @effort.
+        out.push({ city, q, ms: Date.now() - t0, ...kept, model, tools: (Array.isArray(r.trace) ? r.trace : []).map((s) => s.tool) });
       } catch (err) {
         out.push({ model, city, q, ms: Date.now() - t0, error: err.message });
       }
