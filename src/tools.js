@@ -8,6 +8,22 @@ import { NOTE_UNANSWERED_TOOL, noteUnanswered } from './gaps/answer.js';
 import { offerFollowup, FOLLOWUP_LABEL, MAX_FOLLOWUPS, FOLLOWUP_QUESTION_CHARS } from './followups.js';
 import { priorResearch, RESEARCH_SCOPES } from './prior-research.js';
 import { offerWatch, MAX_TOPICS, MAX_PHRASES } from './watches.js';
+import { publicTextViolations } from './public-text.js';
+
+// A source request that would find a person: who owns or lives at a place, or
+// how to reach them (model trial, 2026-11-20: asked who owns a house, one run
+// asked for the Assessor's ownership records to be added "and how to contact
+// the owner"). Requests go to a public list, and Siren never looks people up.
+const PERSON_WORDS = /\b(?:owners?|ownership|residents?|occupants?|tenants?|landlords?|neighbou?rs?|homeowners?)\b/i;
+const CONTACT_WORDS = /\b(?:contact(?:s|ing)?|reach|phone|e-?mail|mailing|names?|identity|identify)\b/i;
+const WHO_IS = /\bwho\b[^.?!]{0,40}\b(?:owners?|residents?|occupants?|tenants?|landlords?|lives?|living)\b/i;
+export function seeksPerson(text) {
+  const t = String(text ?? '');
+  if (publicTextViolations(t).some((c) => ['person_pointing', 'named_person', 'email', 'phone'].includes(c))) return true;
+  return WHO_IS.test(t) || (PERSON_WORDS.test(t) && CONTACT_WORDS.test(t));
+}
+export const PERSON_SOURCE_NOTE =
+  "Not suggested: a source request can't ask for records that find who owns or lives at a place, or how to reach a private person. In your answer, say plainly that you don't look up private people, and offer what the records you reach can show instead.";
 
 const T = (name, description, properties, required = []) => ({
   type: 'function',
@@ -114,6 +130,7 @@ export async function runTool(ctx, name, args) {
   switch (name) {
     case 'suggest_data_source': {
       if (ctx.suggestions.length >= 2) return { noted: false, note: 'Two sources are already suggested for this question.' };
+      if (seeksPerson(`${args.need ?? ''} ${args.source ?? ''} ${args.why ?? ''}`)) return { noted: false, note: PERSON_SOURCE_NOTE };
       const clip = (s, n) => String(s ?? '').trim().slice(0, n);
       const url = clip(args.url, 500);
       ctx.suggestions.push({ need: clip(args.need, 300), source: clip(args.source, 200), why: clip(args.why, 300), ...(/^https:\/\//i.test(url) ? { url } : {}) });
