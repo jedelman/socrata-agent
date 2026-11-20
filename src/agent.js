@@ -431,9 +431,11 @@ export async function ask({
   // Earlier answers in this conversation (checked when they were written): a
   // follow-up may restate their figures after their data has aged out.
   const earlierAnswers = history.filter((h) => h?.role === 'assistant').map((h) => (typeof h.content === 'string' ? h.content : JSON.stringify(h.content ?? '')));
+  // And the person's own earlier questions: a figure they gave is theirs to repeat.
+  const earlierQuestions = history.filter((h) => h?.role === 'user').map((h) => (typeof h.content === 'string' ? h.content : JSON.stringify(h.content ?? '')));
   const evidence = () => {
     const res = ctx.resources.toJSON();
-    return { res, text: [question, ...shownResults.map((r) => r.content), ...carried.map((c) => String(c.content ?? '')), ...earlierAnswers, JSON.stringify(res), ...ctx.trace.steps.map((st) => `${st.soql ?? ''} ${st.url ?? ''}`)].join('\n') };
+    return { res, text: [question, ...shownResults.map((r) => r.content), ...carried.map((c) => String(c.content ?? '')), ...earlierAnswers, ...earlierQuestions, JSON.stringify(res), ...ctx.trace.steps.map((st) => `${st.soql ?? ''} ${st.url ?? ''}`)].join('\n') };
   };
   let checked = null;
   let checkNote = '';
@@ -499,9 +501,12 @@ export async function ask({
     const broke = kept && findingsOnly && check(out.text).length > 0;
     let added = false;
     if (kept && !broke && findingsOnly && checked) {
+      // Full lists, uncut, so a finding past the record's cap doesn't read as new.
       const { res, text } = evidence();
-      const after = codeChecks(out.text, { evidenceText: text, resources: res });
-      const before = new Set([...checked.code.figures, ...checked.code.links, ...checked.code.contacts]);
+      const all = (a) => codeChecks(a, { evidenceText: text, resources: res, limit: Infinity });
+      const was = all(answer);
+      const after = all(out.text);
+      const before = new Set([...was.figures, ...was.links, ...was.contacts]);
       added = [...after.figures, ...after.links, ...after.contacts].some((f) => !before.has(f));
     }
     if (kept && !broke && !added) {

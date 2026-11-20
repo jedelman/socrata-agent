@@ -149,9 +149,12 @@ generic mode.
   (`checks.rewrite`), as is one the code checks find something new in. The
   evidence is every result the model was shown (a budget-cut one included),
   the earlier results a follow-up carries (`historyFrom`'s `content`) and its
-  earlier answers. A figure is grounded within its own precision ("more than
-  $11 million", "about 1,200") or as a sum or difference of grounded figures
-  in the same answer; ordinance and record numbers are checked only on links
+  earlier answers and questions. A figure is grounded within its own written
+  precision, its trailing zeros included (rounded: half a unit either way;
+  "more than": up to a unit above), or as a sum or difference of grounded
+  figures or the evidence numbers behind them; a range shares its scale word
+  ("$11.7 to $13.1 million"); a rate's denominator ("per 1,000") isn't a
+  figure; ordinance and record numbers are checked only on links
   to the legislation record, a contact or a dataset (a meeting, news item or
   attachment can name an ordinance without being it). The second read runs at low effort
   (where the deployment sets one) with 4,000 tokens, told that cut evidence

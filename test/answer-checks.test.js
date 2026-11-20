@@ -325,3 +325,18 @@ test('second review of #75: links name what they are; the real contacts card rea
   ]) assert.deepEqual(checkContacts(t, cards), [], t);
   assert.equal(checkContacts("The contacts below include the City Manager's Office.", cards).length, 1);
 });
+
+test('third review of #75: ranges, round figures and routing sentences', () => {
+  const ev = '13139514 12661811 11728050 11536917 72000000 57000000 2026 25';
+  // A range sharing one scale word; a figure's own trailing zeros; arithmetic on the evidence's operands.
+  for (const a of ['grew from $11.7 to $13.1 million', '$11.5–12.2 million', 'a $13.1-million budget', 'more than $70 million', 'roughly $60 million', "$13.1 million is up $477,703 from FY2026's $12.7 million", '2 trees per 1,000 residents', '810 Union St, Norfolk, VA 23510']) assert.deepEqual(checkFigures(a, ev), [], a);
+  // Round made-up figures no longer pass on any small number.
+  for (const a of ['$1 million', '$100,000', '$14 million']) assert.equal(checkFigures(a, ev).length, 1, a);
+  // A department named after the pointer is where the card's line routes, not a claim about the card.
+  const cards = [{ role: 'City services (Norfolk Cares)', note: 'weekdays' }];
+  assert.deepEqual(checkContacts('Call Norfolk Cares (in the contacts below) to report it to Public Works.', cards), []);
+  assert.deepEqual(checkContacts('Norfolk Cares (contacts below) can route your question to the Department of Budget and Strategic Planning.', cards), []);
+  // A section linked to the whole ordinance it's read from.
+  const res = { records: [{ title: 'Norfolk Zoning Ordinance, § 4.2.3 (p. 300)', url: 'https://www.norfolk.gov/DocumentCenter/View/35581/Adopted-Zoning-Ordinance#page=300' }] };
+  assert.deepEqual(checkLinks('[§ 4.2.3 of the Zoning Ordinance](https://www.norfolk.gov/DocumentCenter/View/35581/Adopted-Zoning-Ordinance)', res), []);
+});
