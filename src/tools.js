@@ -180,7 +180,7 @@ export async function runTool(ctx, name, args) {
         `SELECT date_and_time, organization, type, location, meeting_link, agenda_link WHERE ${where} ORDER BY date_and_time LIMIT 50`,
         { access: ACCESS.CORE, tool: 'upcoming meetings', name: 'Public Meeting Notices' }
       );
-      return rows.map((r) => ({
+      const meetings = rows.map((r) => ({
         when: r.date_and_time,
         body: r.organization,
         type: r.type,
@@ -188,6 +188,15 @@ export async function runTool(ctx, name, args) {
         details: r.meeting_link?.url?.replace('.com//', '.com/'),
         agenda: r.agenda_link?.url,
       }));
+      // Each meeting's page and agenda join the hand-off, so an answer can link
+      // them (model trial, 2026-11-20: every link to a meeting page was dropped).
+      for (const m of meetings) {
+        const day = String(m.when ?? '').slice(0, 10);
+        for (const [url, what] of [[m.details, 'meeting'], [m.agenda, 'agenda']]) {
+          if (typeof url === 'string' && /^https:\/\/[^\s]+$/i.test(url)) resources.addRecord({ kind: 'meeting', title: `${m.body ?? 'Public meeting'} ${what}, ${day}`.slice(0, 200), url });
+        }
+      }
+      return meetings;
     }
     default: {
       const plugin = pluginsFor(ctx.plugins, city).find((p) => p.name === name);
