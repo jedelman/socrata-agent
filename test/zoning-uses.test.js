@@ -121,7 +121,9 @@ test('zoning_uses: everyday words find the table\'s own use, and never a bare "p
   // A partial match is flagged, so "homeless shelter" can't quietly become "Animal shelter".
   assert.equal(matchUses('homeless shelter').partial, true);
   const shelter = await plugin.run(ctx(), { use: 'homeless shelter', district: 'C-C' });
-  assert.match(shelter.partial, /hold some of them/);
+  assert.match(shelter.partial, /candidates only, with no marks/);
+  assert.deepEqual(shelter.matches, []);
+  assert.deepEqual(shelter.unexplained, ['homeless']);
   // The prompt's own example: a brewery in C-C is a C as "Production of craft beverages".
   const brew = await plugin.run(ctx(), { use: 'brewery', district: 'C-C' });
   const marks = Object.fromEntries(brew.matches.map((m) => [m.name, m.rows.map((r) => r.mark)]));
@@ -151,7 +153,9 @@ test('zoning_uses: the specific use wins over a generic word; partial and everyd
   assert.match(truck.via.note, /read the definition to confirm/);
   const solar = await plugin.run(ctx(), { use: 'solar panels', district: 'SF-6' });
   assert.ok(solar.partial);
-  assert.match(solar.not_listed.means, /say nothing yet about the use the person means/, 'a partial match never reads as "prohibited"');
+  assert.deepEqual(solar.matches, [], 'a partial match never reads as "prohibited"');
+  assert.equal('not_listed' in solar, false);
+  assert.deepEqual(solar.candidates.map((x) => x.use), ['Solar energy collection facility (large-scale)']);
   const vr = await plugin.run(ctx(), { use: 'vacation rental' });
   assert.ok(vr.not_in_tables.uses.find((u) => u.use === 'Short-term rental unit (vacation rental)').not_in.includes('Table 3.6.11'));
   assert.match((await plugin.run(ctx(), { district: 'C-N', mark: 'X' })).error, /mark is one of/);
@@ -209,4 +213,50 @@ test('zoning_uses: districts by code, name or shorthand; conditional zoning; lin
 test('Siren declares zoning_uses with one prompt line', () => {
   assert.ok(siren.plugins.some((p) => p.name === 'zoning_uses'));
   assert.equal(siren.prompt.split('\n').filter((l) => l.includes('zoning_uses')).length, 1);
+});
+
+test('zoning_uses: every word asked must be accounted for before a mark is given (third review of #74)', async () => {
+  const names = (q) => matchUses(q).names;
+  const marksOf = async (use, district) => Object.fromEntries((await plugin.run(ctx(), { use, district })).matches.map((m) => [m.name, m.rows.map((r) => r.mark)[0]]));
+  // The finding: a generic word stood in for the specific use ("weed shop" became Retail goods, P/C in D-MU).
+  assert.deepEqual(await marksOf('weed shop', 'D-MU'), { 'Cannabis dispensing facility': 'blank (prohibited)' });
+  assert.deepEqual(names('marijuana store'), ['Cannabis dispensing facility', 'Cannabis cultivation or manufacturing facility']);
+  // A word nothing explains: candidates to confirm, never marks.
+  const odd = await plugin.run(ctx(), { use: 'kombucha shop', district: 'D-MU' });
+  assert.deepEqual(odd.matches, []);
+  assert.ok(!JSON.stringify(odd).includes('"mark"'));
+  assert.deepEqual(matchUses('used car lot').names, ['Automobile sales']);
+  // Generic words alone read through their generic names; beside an explained word they don't block it.
+  assert.deepEqual(names('shop'), ['Retail goods establishment']);
+  assert.deepEqual(names('bar'), ['Sale of alcoholic beverages, on-premises', 'Restaurant', 'Nightclub']);
+  assert.deepEqual(names('smoothie shop'), ['Restaurant']);
+  assert.equal(matchUses('house').via.length, 0, 'a bare "house" is never a confident match');
+  assert.ok(matchUses('home').partial || !matchUses('home').names.length);
+  // Everyday words the third review found missing.
+  assert.deepEqual(names('sex shop'), ['Novelty store or theater, adult']);
+  assert.deepEqual(names('vape shop'), ['Smoke or vape shop', 'Sale of smoking or vaping products']);
+  assert.deepEqual(names('tattoo and piercing studio'), ['Tattoo parlor']);
+  assert.deepEqual(names('live music'), ['Live entertainment']);
+  assert.deepEqual(names('dance club'), ['Nightclub']);
+  assert.deepEqual(names('movie theater'), ['Cinema or theater']);
+  assert.deepEqual(names('laundromat'), ['Personal service business']);
+  assert.deepEqual(names('used bookstore')[0], 'Used books/media');
+  assert.deepEqual(names('massage'), ['Therapeutic massage facility'], 'massage alone isn\'t a personal service business');
+  assert.deepEqual(names('thrift store'), ['Used merchandise sales', 'Consignment shop'], 'the likelier use first');
+  assert.ok(names('body shop').includes('Automobile repair and maintenance, major'));
+  // Accents, plurals and the person's own words naming the use.
+  assert.deepEqual(names('cafés'), ['Restaurant']);
+  assert.deepEqual(names('churches'), ['Religious institution']);
+  assert.deepEqual(names('can I open a restaurant with outdoor seating'), ['Restaurant', 'Outdoor seating (as accessory to an eating and drinking use)']);
+  assert.deepEqual(names('car wash'), ['Car wash', 'Automatic car wash']);
+  assert.equal(names('park').includes('Parking facility'), false, 'a four-letter word never matches as the start of another');
+  // Rows say which category they're in (an accessory use is not the principal use).
+  const ev = await plugin.run(ctx(), { use: 'EV charger', district: 'C-C' });
+  assert.deepEqual(new Set(ev.matches.flatMap((m) => m.rows.map((r) => r.classification))), new Set(['COMMERCIAL USES', 'ACCESSORY USES']));
+  // Districts: a name three districts share is a question, not the first of them; a code with a street word resolves.
+  const ghent = await plugin.run(ctx(), { use: 'restaurant', district: 'Ghent Historic and Cultural Conservation' });
+  assert.match(ghent.error, /more than one district \(HC-G1, HC-G2, HC-G3\)/);
+  assert.equal(districtCode('PCO Colley Ave'), 'PCO-Colley');
+  assert.equal(districtCode('PCO Lafayette Blvd'), 'PCO-Lafayette');
+  assert.equal(districtCode('PCO'), 'PCO');
 });

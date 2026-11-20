@@ -719,9 +719,15 @@ generic mode.
   and a use Table 3.9.23 doesn't list is prohibited there: the table marks
   every other use not permitted, and the build fails if a category it has no
   rows for isn't one of the three it prints "Not permitted" (second review of
-  #74). The person's own words outrank everyday-word matches (`via`); a
-  generic word (shop, store, bar) counts only when it's all that was asked or
-  nothing else matched; partial matches never read as "prohibited". P/C sends Siren to
+  #74). **Every word asked must be accounted for before a mark is given**
+  (third review of #74, after "weed shop" read as Retail goods): by a use
+  name that holds them all, a name whose every word was asked, or an
+  everyday word (`SAYINGS`, `via`); a generic word (shop, store, bar, club,
+  house) counts beside an explained one, and alone reads only through its
+  generic names. A word nothing explains makes the match partial: candidates
+  with their definitions' references and no marks, for Siren to confirm
+  before answering. A name several districts share (the Ghent HC districts)
+  is an error naming them, never the first. P/C sends Siren to
   the cited performance standards. Each table page joins the hand-off as
   `kind: 'document'` with `#page=` (research memory keeps only its own topic
   kinds, so these stay out of shared sources). Four rows the City prints
