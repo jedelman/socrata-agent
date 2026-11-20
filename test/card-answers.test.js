@@ -16,7 +16,8 @@ import { claudeResponse } from './fake-claude.js';
 
 const norfolk = getCity('norfolk');
 const LEGI = 'https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5949';
-const ANSWER = 'I found Ordinance 50487, which approved a cooperation agreement for the Military Circle site.';
+const ANSWER = 'I found Ordinance 50487, which approved a cooperation agreement for the Military Circle site. Council adopted it on August 25, 2026. The City advances $200,000 to the Economic Development Authority, repaid from a state grant.';
+const SHORT = 'I found Ordinance 50487 for the Military Circle site.';
 
 // OpenRouter-shaped replies: each may carry text, tool calls, or both.
 function scripted(replies) {
@@ -46,8 +47,9 @@ const recordPlugin = definePlugin({
 });
 const FOLLOWUP = ['offer_followup', { question: 'What does the cooperation agreement say about repayment?', source_title: 'x', url: LEGI }];
 
-test('the card tools are the three that only add a card; note_unanswered feeds the answer, so it is not one', () => {
-  assert.deepEqual([...CARD_TOOLS].sort(), ['offer_followup', 'offer_watch', 'suggest_data_source']);
+test('the card tools only add a card: note_unanswered feeds the answer, and offer_watch can carry notes the answer must say', () => {
+  assert.deepEqual([...CARD_TOOLS].sort(), ['offer_followup', 'suggest_data_source']);
+  assert.ok(ANSWER.length >= 200 && SHORT.length < 200);
 });
 
 test('text written beside a follow-up button is the answer, and no further call is made to say so', async () => {
@@ -64,26 +66,53 @@ test('text written beside a follow-up button is the answer, and no further call 
   assert.equal(out.steps, 2);
 });
 
+const TREES = 'I found no separate figure for tree care in the records I reach. The closest is Parks and Forestry Operations, budgeted at $13,139,514 for FY2027, which also covers mowing, landscaping and athletic fields, so it is more than trees.';
 test('text beside a source request is the answer too', async () => {
   const s = scripted([
-    { text: 'I found no separate figure for tree care in the records I reach.', tools: [['suggest_data_source', { need: 'Tree care spending as its own line', source: 'Park and Forestry Operations budget detail by activity', why: 'It would split tree work from grounds work.' }]] },
+    { text: TREES, tools: [['suggest_data_source', { need: 'Tree care spending as its own line', source: 'Park and Forestry Operations budget detail by activity', why: 'It would split tree work from grounds work.' }]] },
     { text: 'The button below will send that request.' },
   ]);
   const out = await ask({ question: 'How much does Norfolk budget for tree care?', city: norfolk, apiKey: 'k', fetchImpl: s.fetchImpl });
-  assert.equal(out.answer, 'I found no separate figure for tree care in the records I reach.');
+  assert.equal(out.answer, TREES);
   assert.equal(out.suggestions.length, 1);
   assert.equal(s.calls(), 1);
 });
 
-test('a card asked for beside another tool keeps the loop going; if the next reply has no text, the text written beside the card is the answer', async () => {
+test('text that reads as a step, not an answer, goes on with the card-text note: a short line, a "Let me" opener, a closing colon', async () => {
+  for (const step of [SHORT, `Let me add a button for the agreement. ${ANSWER}`, `${ANSWER} Here is what the agreement covers:`]) {
+    const s = scripted([
+      { tools: [['the_record_tool', {}]] },
+      { text: step, tools: [FOLLOWUP] },
+      { text: ANSWER },
+    ]);
+    const out = await ask({ question: 'q', city: norfolk, plugins: [recordPlugin], apiKey: 'k', fetchImpl: s.fetchImpl });
+    assert.equal(s.calls(), 3, step.slice(0, 40));
+    assert.equal(out.answer, ANSWER);
+    assert.equal(s.bodies[2].messages.at(-1).content, CARD_TEXT_NOTE);
+    assert.equal(out.followups.length, 1, 'the card made on the way stays');
+  }
+});
+
+test('a card asked for beside another tool keeps the loop going with the card-text note; an empty reply after it gets the honest fallback, and no rewrite', async () => {
   const s = scripted([
     { tools: [['the_record_tool', {}]] },
-    { text: ANSWER, tools: [FOLLOWUP, ['query_dataset', { dataset_id: 'qzfe-wj25', soql: 'SELECT count(*) AS n' }]] },
+    { text: 'There is more: let me check the work orders too.', tools: [FOLLOWUP, ['query_dataset', { dataset_id: 'qzfe-wj25', soql: 'SELECT count(*) AS n' }]] },
     { text: '' },
   ]);
   const out = await ask({ question: 'q', city: norfolk, plugins: [recordPlugin], apiKey: 'k', fetchImpl: s.fetchImpl });
-  assert.equal(s.calls(), 3, 'a research tool ran, so the model was asked again');
-  assert.equal(out.answer, ANSWER, "not \"I couldn't put an answer together\"");
+  assert.equal(s.calls(), 3, 'a research tool ran, so the model was asked again, and nothing after');
+  assert.equal(s.bodies[2].messages.at(-1).content, CARD_TEXT_NOTE);
+  assert.match(out.answer, /^I couldn't put an answer together/, 'never the step text, which broke the voice check too');
+});
+
+test('a refused card followed by an empty reply never ships the refused turn\'s text', async () => {
+  const s = scripted([
+    { text: `I've asked for the Assessor's ownership records to be added; you can request them below. ${ANSWER}`, tools: [['suggest_data_source', { need: 'Who owns 810 Union St', source: 'Assessor ownership records', why: 'It would show the owner.' }]] },
+    { text: '' },
+  ]);
+  const out = await ask({ question: 'Who owns 810 Union St?', city: norfolk, apiKey: 'k', fetchImpl: s.fetchImpl });
+  assert.match(out.answer, /^I couldn't put an answer together/);
+  assert.equal(out.suggestions.length, 0);
 });
 
 test('a reply with text of its own after a mixed turn is still the answer', async () => {
@@ -99,7 +128,7 @@ test('a reply with text of its own after a mixed turn is still the answer', asyn
 test('a voice rewrite after an answer that ended beside a card gets the card results first, then the instruction', async () => {
   const s = scripted([
     { tools: [['the_record_tool', {}]] },
-    { text: 'There is an ordinance, 50487, for the Military Circle site.', tools: [FOLLOWUP] },
+    { text: `There is an ordinance, 50487, for the Military Circle site. ${ANSWER}`, tools: [FOLLOWUP] },
     { text: ANSWER },
   ]);
   const out = await ask({ question: 'q', city: norfolk, plugins: [recordPlugin], apiKey: 'k', fetchImpl: s.fetchImpl });
@@ -130,6 +159,15 @@ test('a source request can\'t ask for records that find who owns, bought, rents 
     'Mailing addresses for property owners',
     'How to contact the owner of a house',
     'Whose house is on the corner',
+    'The current owner of the property at 810 Union St',
+    "Who's the landlord at 123 Main St",
+    'Who is renting the house at 123 Main St',
+    'Who is living in the apartment next door',
+    'who resides at 400 Granby St',
+    'Tenant at 810 Union St',
+    'Parcel ownership for 810 Union St',
+    'Name and address of the owner',
+    'Phone number for the landlord',
   ]) assert.equal(seeksPerson(t), true, t);
   for (const t of [
     'How residents can contact their council member',
@@ -143,7 +181,18 @@ test('a source request can\'t ask for records that find who owns, bought, rents 
     'Who maintains the trees in front of homeowners houses? City Code chapter 45',
     'Short-term rental permits issued by year',
     'Number of owner-occupied homes by neighborhood',
+    "Contact tenants' rights organizations",
+    "List of residents' rights under the VRLTA",
+    'Call the owner-occupancy inspection program',
+    'Who owns Harbor Park',
+    'Ownership information for parcels the City sold',
+    'Dr. Martin Luther King Jr. Blvd paving plan',
+    'Tenant rights guide from NRHA',
   ]) assert.equal(seeksPerson(t), false, t);
+  // Clipped as kept, so a huge request is cheap to check.
+  const t0 = Date.now();
+  await runTool(createContext({ city: norfolk }), 'suggest_data_source', { need: 'who '.repeat(20000), source: 'x'.repeat(50000), why: 'y' });
+  assert.ok(Date.now() - t0 < 200);
   const ctx = createContext({ city: norfolk });
   const refused = await runTool(ctx, 'suggest_data_source', { need: 'Who owns the house at 810 Union St and how do I reach them', source: 'Norfolk Real Estate Assessor, parcel ownership records', why: 'It would show the owner of record.' });
   assert.deepEqual(refused, { noted: false, note: PERSON_SOURCE_NOTE });
@@ -159,7 +208,7 @@ test('a refused card goes back to the model with its note and the card-text note
   const s = scripted([
     { tools: [['the_record_tool', {}]] },
     // Not a source the tools returned: offer_followup refuses it.
-    { text: 'I found the ordinance. Use the button below to have me read the staff report.', tools: [['offer_followup', { question: 'What does the staff report say?', source_title: 'x', url: 'https://norfolk.example/report.pdf' }]] },
+    { text: `${ANSWER} Use the button below to have me read the staff report.`, tools: [['offer_followup', { question: 'What does the staff report say?', source_title: 'x', url: 'https://norfolk.example/report.pdf' }]] },
     { text: ANSWER },
   ]);
   const out = await ask({ question: 'q', city: norfolk, plugins: [recordPlugin], apiKey: 'k', fetchImpl: s.fetchImpl });
@@ -174,7 +223,7 @@ test('a refused card goes back to the model with its note and the card-text note
 
 test('an owner request the guard refuses goes back to the model too, so the answer can\'t promise a request button', async () => {
   const s = scripted([
-    { text: "I've asked for the Assessor's ownership records to be added; you can request them below.", tools: [['suggest_data_source', { need: 'Who owns 810 Union St', source: 'Assessor ownership records', why: 'It would show the owner.' }]] },
+    { text: `I've asked for the Assessor's ownership records to be added; you can request them below. ${ANSWER}`, tools: [['suggest_data_source', { need: 'Who owns 810 Union St', source: 'Assessor ownership records', why: 'It would show the owner.' }]] },
     { text: "I can't help find who owns a private home. I don't look up owners or residents." },
   ]);
   const out = await ask({ question: 'Who owns 810 Union St?', city: norfolk, apiKey: 'k', fetchImpl: s.fetchImpl });
@@ -209,7 +258,7 @@ test('with gaps on, a source request beside the answer leaves room for note_unan
   const read = (f) => JSON.parse(readFileSync(new URL(`../data/gaps/${f}`, import.meta.url), 'utf8'));
   const data = read('norfolk.json');
   const s = scripted([
-    { text: 'I found no separate figure for tree care.', tools: [['suggest_data_source', { need: 'Tree care spending', source: 'Forestry budget detail', why: 'It would split tree work out.' }]] },
+    { text: TREES, tools: [['suggest_data_source', { need: 'Tree care spending', source: 'Forestry budget detail', why: 'It would split tree work out.' }]] },
     { text: 'I found no separate figure for tree care.' },
   ]);
   await ask({ question: 'q', city: norfolk, apiKey: 'k', fetchImpl: s.fetchImpl, gaps: { data, streets: read('norfolk-streets.json').streets } });
@@ -221,7 +270,7 @@ test('Anthropic: a voice rewrite after an answer that ended beside a card sends 
   const requests = [];
   const replies = [
     { content: [{ type: 'tool_use', id: LEGI_ID, name: 'the_record_tool', input: {} }], stop_reason: 'tool_use' },
-    { content: [{ type: 'text', text: 'There is an ordinance, 50487, for the site.' }, { type: 'tool_use', id: 'toolu_card', name: 'offer_followup', input: { question: 'What does the agreement say about repayment?', source_title: 'x', url: LEGI } }], stop_reason: 'tool_use' },
+    { content: [{ type: 'text', text: `There is an ordinance, 50487, for the site. ${ANSWER}` }, { type: 'tool_use', id: 'toolu_card', name: 'offer_followup', input: { question: 'What does the agreement say about repayment?', source_title: 'x', url: LEGI } }], stop_reason: 'tool_use' },
     { content: [{ type: 'text', text: ANSWER }], stop_reason: 'end_turn' },
   ];
   const fetchImpl = async (url, init = {}) => {
@@ -242,4 +291,28 @@ test('Anthropic: a voice rewrite after an answer that ended beside a card sends 
   assert.equal(last.content[0].tool_use_id, 'toolu_card');
   assert.equal(requests[2].messages.at(-2).role, 'assistant');
   assert.equal(requests[2].messages.filter((m) => m.role === 'assistant' && JSON.stringify(m.content).includes('toolu_card')).length, 1, 'the card turn is in once');
+});
+
+test('Anthropic: no early exit while the turn still has server-side work pending (web search filtering)', async () => {
+  const requests = [];
+  const replies = [
+    { content: [{ type: 'tool_use', id: 'toolu_rec', name: 'the_record_tool', input: {} }], stop_reason: 'tool_use' },
+    { content: [
+      { type: 'text', text: ANSWER },
+      { type: 'server_tool_use', id: 'srvtoolu_1', name: 'code_execution', input: { code: 'print(1)' } },
+      { type: 'tool_use', id: 'toolu_card', name: 'offer_followup', input: { question: 'What does the agreement say about repayment?', source_title: 'x', url: LEGI } },
+    ], stop_reason: 'tool_use' },
+    { content: [{ type: 'text', text: ANSWER }], stop_reason: 'end_turn' },
+  ];
+  const fetchImpl = async (url, init = {}) => {
+    if (String(url).startsWith('https://api.anthropic.com/v1/messages')) {
+      requests.push(JSON.parse(init.body));
+      const r = replies[Math.min(requests.length - 1, replies.length - 1)];
+      return claudeResponse(init, { id: `msg_${requests.length}`, type: 'message', role: 'assistant', model: 'claude-haiku-5-5', stop_details: null, usage: { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, ...r });
+    }
+    return new Response('[]', { headers: { 'content-type': 'application/json' } });
+  };
+  const out = await ask({ question: 'q', city: norfolk, plugins: [recordPlugin], apiKey: 'sk-ant-test', model: 'claude-haiku-5-5', fetchImpl });
+  assert.equal(requests.length, 3, 'the pending server work is resumed, not cut off');
+  assert.equal(out.answer, ANSWER);
 });

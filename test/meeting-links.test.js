@@ -51,3 +51,24 @@ test('meetings: the page an answer links is handed off and its link kept; the ot
   const saved = answerRecord(out);
   assert.equal(JSON.stringify(saved).includes('ID=5000'), false, 'unread meetings stay out of the saved record');
 });
+
+test('meetings: a link is matched whole, never as part of a longer id, and an image link hands nothing off', async () => {
+  const SHORT_ID = 'https://norfolkcityva.iqm2.com/Citizens/Detail_Meeting.aspx?ID=432';
+  const rows = [
+    { date_and_time: '2026-12-03T16:00:00.000', organization: 'The Tree Commission', type: 'Regular', meeting_link: { url: SHORT_ID } },
+    { date_and_time: '2026-12-04T16:00:00.000', organization: 'Planning Commission', type: 'Regular', meeting_link: { url: MEETING } },
+  ];
+  let n = 0;
+  const fetchImpl = async (url) => {
+    if (String(url).startsWith('https://openrouter.ai')) {
+      const message = n++ === 0
+        ? { content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'upcoming_meetings', arguments: '{"days":30}' } }] }
+        : { content: `I found [the Planning Commission meeting](${MEETING}) and ![a picture](${SHORT_ID}).` };
+      return new Response(JSON.stringify({ choices: [{ message }], usage: { cost: 0.001 } }));
+    }
+    if (String(url).includes('/api/views/')) return new Response(JSON.stringify({ name: 'Public Meeting Notices' }));
+    return new Response(JSON.stringify(rows));
+  };
+  const out = await ask({ question: 'q', city: norfolk, apiKey: 'k', fetchImpl });
+  assert.deepEqual(out.resources.records.filter((r) => r.kind === 'meeting').map((r) => r.url), [MEETING]);
+});

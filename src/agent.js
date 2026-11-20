@@ -17,7 +17,7 @@ import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
 import { requestBudget } from './request-budget.js';
 import { webSearchSettings, checkWebSearchForCity, traceSearches, handOffWebPages } from './web-search.js';
-import { filterAnswerLinks, handoffUrls, unescapeMarkdown } from './answer-links.js';
+import { filterAnswerLinks, handoffUrls, unescapeMarkdown, normalizeUrl } from './answer-links.js';
 import { finalFollowups } from './followups.js';
 import { RESEARCH_SCOPES } from './prior-research.js';
 
@@ -33,11 +33,18 @@ export function researchScopesFor(priorResearch, publicThread = false) {
 }
 const RESULT_CHARS = 16000;
 // Tools that only put a card under the answer (a follow-up button, a source
-// request, a watch): their results never change what the answer says.
-export const CARD_TOOLS = new Set(['offer_followup', 'suggest_data_source', 'offer_watch']);
+// request) and return nothing the answer has to act on. offer_watch isn't one:
+// its result can carry notes the answer must say ("Say so.").
+export const CARD_TOOLS = new Set(['offer_followup', 'suggest_data_source']);
 // Sent with the results of a turn that wrote text beside a card tool and goes
-// on: that text isn't shown, so the next reply has to carry the whole answer.
-export const CARD_TEXT_NOTE = 'The person sees only your final reply, not the text you wrote alongside these tool calls: give your whole answer in your next reply.';
+// on: that text isn't shown, so the final reply has to carry the whole answer.
+export const CARD_TEXT_NOTE = 'The person sees only your final reply, not the text you wrote alongside these tool calls: your final reply must carry your whole answer.';
+// Text that reads as a finished answer, not a step on the way ("Let me add a
+// button for the agreement."): long enough, and no opener or colon of a step.
+// Anything else goes on, with CARD_TEXT_NOTE, which costs one model call.
+const ANSWER_CHARS = 200;
+const STEP_TEXT = /^(?:let me|let's|i'll|i will|i'm going to|i am going to|now\b|next\b|first\b|okay\b|ok\b|sure\b|one moment|give me)/i;
+const readsAsAnswer = (text) => text.length >= ANSWER_CHARS && !STEP_TEXT.test(text.trim()) && !/:\s*$/.test(text);
 // A card tool that made no card: refused, or an error.
 const cardRefused = (value, isError) => isError || !value || typeof value !== 'object' || value.offered === false || value.noted === false || value.ok === false || Boolean(value.error);
 
@@ -261,9 +268,6 @@ export async function ask({
   // An answer written beside card tools only (cardsOnly below): their results,
   // still owed to the model if the voice rewrite asks it again.
   let cardResults = null;
-  // The text of the turn just before, when it asked for a card, for a reply
-  // that comes back with no text at all (a normal end, not cut off or capped).
-  let cardText = null;
   // Every search a response shows gets a trace step, written from its blocks.
   const traceWeb = async (out) => {
     if (!searchOn || !out.searches?.length) return;
@@ -314,9 +318,6 @@ export async function ask({
       // its tools don't run and it ends with the step cap's fallback.
       answer = out.paused || out.calls.length ? '' : out.text;
       if (answer) answerCitations = out.citations || [];
-      // No text this time, but the answer was written beside a card just before.
-      // The honest fallbacks (cut off, out of steps or requests) still win.
-      if (!answer && cardText && !out.truncated && !out.paused && !out.calls.length && !lastStep) ({ text: answer, citations: answerCitations } = cardText);
       if (!answer) {
         fallback = true;
         answer = out.truncated
@@ -334,10 +335,12 @@ export async function ask({
     // next reply, "I've added a button under the answer", kept instead). The
     // cards are made and the loop ends, with no call to say so.
     // Only when every card is made (below): a refused one goes back to the model
-    // with its note. With gaps on, a source request also wants note_unanswered.
+    // with its note. Not while server-side work (web search's filtering) is
+    // still pending in the turn, and with gaps on a source request also wants
+    // note_unanswered.
     const cards = out.calls.filter((c) => CARD_TOOLS.has(c.name)).length;
-    const cardsOnly = Boolean(out.text) && !out.truncated && cards === out.calls.length && !(gapsOn && out.calls.some((c) => c.name === 'suggest_data_source'));
-    cardText = out.text && cards ? { text: out.text, citations: out.citations || [] } : null;
+    const textBesideCards = Boolean(out.text) && cards > 0;
+    const cardsOnly = textBesideCards && cards === out.calls.length && !out.truncated && !out.pendingServer && readsAsAnswer(out.text) && !(gapsOn && out.calls.some((c) => c.name === 'suggest_data_source'));
     let cardsMade = true;
     steps++;
     llm.appendAssistant();
@@ -394,7 +397,7 @@ export async function ask({
       break;
     }
     const stepNote = !budget.roomForTools(perComplete) ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null;
-    llm.appendToolResults(results, [stepNote, cardText ? CARD_TEXT_NOTE : null].filter(Boolean).join(' ') || null);
+    llm.appendToolResults(results, [stepNote, textBesideCards ? CARD_TEXT_NOTE : null].filter(Boolean).join(' ') || null);
   }
 
   // Voice check: one rewrite, then report honestly if it still fails. The
@@ -447,10 +450,13 @@ export async function ask({
   // off (src/answer-links.js), after any rewrite and once the web pages are
   // handed off. Follow-up offers keep only sources still in the hand-off.
   // Meeting pages the answer links join the hand-off; upcoming_meetings keeps
-  // them aside, so the ones it never used don't crowd the saved record.
+  // them aside, so the ones it never used don't crowd the saved record. Only
+  // markdown links count (bare URLs and images don't survive the link check),
+  // compared whole, as the check compares them.
   if (ctx.meetingPages?.size && answer) {
-    const plain = unescapeMarkdown(answer);
-    for (const [url, record] of ctx.meetingPages) if (answer.includes(url) || plain.includes(url)) ctx.resources.addRecord(record);
+    const linked = new Set();
+    for (const m of unescapeMarkdown(answer).matchAll(/(!?)\[[^\]]*\]\(\s*<?([^)\s>]+)/g)) if (!m[1]) linked.add(normalizeUrl(m[2]));
+    for (const [url, record] of ctx.meetingPages) if (linked.has(normalizeUrl(url))) ctx.resources.addRecord(record);
   }
   const handedOff = ctx.resources.toJSON();
   const linked = filterAnswerLinks(answer, handoffUrls(handedOff));

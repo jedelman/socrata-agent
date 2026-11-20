@@ -14,31 +14,46 @@ import { publicTextViolations } from './public-text.js';
 // at a place, a list of owners, landlords, tenants or residents, or how to
 // reach one (model trial, 2026-11-20: asked who owns a house, one run asked
 // for the Assessor's ownership records "and how to contact the owner").
-// Requests go to a public list, and Siren never looks people up. Programs
-// for residents, landlord rules and how to reach an office still pass.
+// Requests go to a public list, and Siren never looks people up. Rights
+// groups and programs for residents, landlord rules, how to reach an office,
+// public places and City-owned land still pass.
 const PEOPLE = '(?:owners?|landlords?|tenants?|occupants?|residents?|homeowners?|renters?|buyers?|sellers?)';
+// After a people word: not "tenants' rights", "owner-occupancy", "resident programs".
+const NOT_A_PERSON = String.raw`(?![-\w])(?!['’]?s?\s+(?:rights?|organi[sz]ations?|advocates?|advocacy|associations?|unions?|councils?|programs?|offices?|services?|groups?|guides?|handbooks?|protections?|assistance|mediation|education|counsel(?:ing|ling)?|occupancy|occupied))`;
+const PLACE = String.raw`\b(?:house|houses|home|homes|lot|lots|property|properties|parcel|parcels|building|buildings|apartments?|units?|condos?|duplex(?:es)?|rentals?|address|block|my street|next door|neighbou?rs?)\b`;
 const OWNERSHIP_RECORDS = /\b(?:owners?|ownership)\s+(?:of\s+record|records?|information|info|details|names?|lists?|contacts?|data|history|lookups?|search)\b/i;
 const SEEKS_PERSON = [
-  // Who owns, bought, rents or lives there; which LLC or company owns it.
-  /\b(?:who|whom|which\s+(?:llcs?|compan(?:y|ies)|corporations?|entit(?:y|ies)|person|people|individuals?))\s+(?:\w+\s+){0,2}?(?:owns?|owned|bought|purchased|sold|rents?|rented|leases?|leased|lives?|lived|occupies|occupied)\b/i,
+  // Who owns, bought, rents or lives at a house, lot or building.
+  new RegExp(String.raw`\b(?:who|whom|who's)\s+(?:\w+\s+){0,2}?(?:owns?|owned|bought|purchased|sold|rents?|rented|renting|leases?|leased|lives?|lived|living|resides?|residing|occupies|occupied|stays?|staying)\b(?=[\s\S]*${PLACE})`, 'i'),
+  // Which LLC or company owns it.
+  /\bwhich\s+(?:llcs?|compan(?:y|ies)|corporations?|entit(?:y|ies)|landlords?|person|people|individuals?)\s+(?:\w+\s+){0,2}?(?:owns?|owned|bought|purchased|rents?|leases?|manages?)\b/i,
   // Whose house or lot it is.
   /\bwhose\s+(?:house|home|property|lot|land|building|parcel|apartment|unit|car|business)\b/i,
-  // Who is the owner (or resident, tenant...) of a place.
-  new RegExp(`\\bwho\\s+(?:is|are|was|were)\\s+(?:the\\s+)?(?:current\\s+)?${PEOPLE}\\b`, 'i'),
+  // Who is the owner (or landlord, tenant...).
+  new RegExp(String.raw`\bwho(?:'s|\s+(?:is|are|was|were))\s+(?:the\s+)?(?:current\s+)?${PEOPLE}${NOT_A_PERSON}`, 'i'),
   // Owner of record, ownership records, owner information.
   OWNERSHIP_RECORDS,
-  // A person's details: landlord details, tenant list, owner contact information, residents' names.
-  new RegExp(`\\b${PEOPLE}['’]?s?\\s+(?:names?|lists?|details|director(?:y|ies)|rosters?|contacts?|contact\\s+(?:info|information|details)|phone(?:\\s+numbers?)?|e-?mails?|mailing(?:\\s+addresses?)?|addresses|identit(?:y|ies))\\b`, 'i'),
+  // A person's details: landlord details, tenant list, owner contact information.
+  new RegExp(String.raw`\b${PEOPLE}['’]?s?\s+(?:names?|lists?|details|director(?:y|ies)|rosters?|contacts?|contact\s+(?:info|information|details)|phone(?:\s+numbers?)?|e-?mails?|mailing(?:\s+addresses?)?|addresses|identit(?:y|ies))\b`, 'i'),
   // A list of them: names of residents, a roster of tenants, mailing addresses for owners.
-  new RegExp(`\\b(?:lists?|names?|director(?:y|ies)|rosters?|mailing\\s+addresses|contact\\s+(?:info|information|details))\\s+(?:of|for)\\s+(?:the\\s+|all\\s+)?(?:\\w+\\s+)?${PEOPLE}\\b`, 'i'),
+  new RegExp(String.raw`\b(?:lists?|names?|director(?:y|ies)|rosters?|mailing\s+addresses|contact\s+(?:info|information|details))\s+(?:of|for)\s+(?:the\s+|all\s+)?(?:\w+\s+)?${PEOPLE}${NOT_A_PERSON}`, 'i'),
+  // Name and address of the owner; phone or email for the landlord.
+  new RegExp(String.raw`\b(?:names?|address(?:es)?|phone(?:\s+numbers?)?|e-?mails?|contacts?)(?:\s*(?:,|and|or)\s*\w+){0,2}\s+(?:of|for)\s+(?:the\s+|a\s+|its\s+)?(?:property\s+|building\s+)?${PEOPLE}${NOT_A_PERSON}`, 'i'),
   // How to reach one: contact the owner, reach the landlord, email the tenants.
-  new RegExp(`\\b(?:contact(?:ing)?|reach(?:ing)?|call(?:ing)?|phone|e-?mail(?:ing)?|write\\s+to)\\s+(?:the\\s+|a\\s+|an\\s+|its\\s+|their\\s+)?(?:property\\s+|building\\s+|house\\s+|home\\s+)?${PEOPLE}\\b`, 'i'),
+  new RegExp(String.raw`\b(?:contact(?:ing)?|reach(?:ing)?|call(?:ing)?|phone|e-?mail(?:ing)?|write\s+to)\s+(?:the\s+|a\s+|an\s+|its\s+|their\s+)?(?:property\s+|building\s+|house\s+|home\s+)?${PEOPLE}${NOT_A_PERSON}`, 'i'),
 ];
-// The City and other public bodies own land too: those ownership records pass.
-const PUBLIC_OWNER = /\b(?:city[- ]owned|owned\s+by\s+the\s+city|publicly[- ]owned|public(?:ly)?\s+owned|public\s+owners?|city\s+property|nrha|economic\s+development\s+authority)\b/i;
+// A house number beside an owner, landlord, tenant or resident word: "the
+// current owner of the property at 810 Union St", "tenant at 123 Main St".
+const AT_A_HOUSE = /\b(?:owners?|ownership|owned|owns|landlords?|tenants?|occupants?|residents?|renters?|renting|rents|rented|lives|living|resides|residing|bought|purchased)\b/i;
+// The City and other public bodies own and sell land too: those records pass.
+const PUBLIC_OWNER = /\b(?:city[- ]owned|owned\s+by\s+the\s+city|publicly[- ]owned|public(?:ly)?\s+owned|public\s+owners?|city\s+property|the\s+city\s+(?:sold|bought|owns|acquired)|sold\s+by\s+the\s+city|surplus\s+(?:city\s+)?property|nrha|economic\s+development\s+authority)\b/i;
+// "Dr. Martin Luther King Jr. Blvd" is a street, not a person.
+const TITLED_STREET = /\b(?:Dr|Mr|Mrs|Ms|Rev|St)\.?\s+(?:[A-Z][a-z]+\.?\s+){1,4}(?:Jr\.?\s+|Sr\.?\s+)?(?:Blvd|Boulevard|Ave|Avenue|St|Street|Dr|Drive|Rd|Road|Way|Pkwy|Parkway|Hwy|Highway|Ln|Lane|Ct|Court|Pl|Place)\b\.?/g;
 export function seeksPerson(text) {
   const t = String(text ?? '');
-  if (publicTextViolations(t).some((c) => ['named_person', 'email', 'phone'].includes(c))) return true;
+  const codes = publicTextViolations(t.replace(TITLED_STREET, ' '));
+  if (codes.some((c) => ['named_person', 'email', 'phone'].includes(c))) return true;
+  if (codes.includes('house_number') && AT_A_HOUSE.test(t)) return true;
   return SEEKS_PERSON.some((re) => re.test(t) && !(re === OWNERSHIP_RECORDS && PUBLIC_OWNER.test(t)));
 }
 export const PERSON_SOURCE_NOTE =
@@ -149,8 +164,9 @@ export async function runTool(ctx, name, args) {
   switch (name) {
     case 'suggest_data_source': {
       if (ctx.suggestions.length >= 2) return { noted: false, note: 'Two sources are already suggested for this question.' };
-      if (seeksPerson(`${args.need ?? ''} ${args.source ?? ''} ${args.why ?? ''}`)) return { noted: false, note: PERSON_SOURCE_NOTE };
       const clip = (s, n) => String(s ?? '').trim().slice(0, n);
+      // Checked as it would be kept (the clipped fields), which also bounds the work.
+      if (seeksPerson(`${clip(args.need, 300)} ${clip(args.source, 200)} ${clip(args.why, 300)}`)) return { noted: false, note: PERSON_SOURCE_NOTE };
       const url = clip(args.url, 500);
       ctx.suggestions.push({ need: clip(args.need, 300), source: clip(args.source, 200), why: clip(args.why, 300), ...(/^https:\/\//i.test(url) ? { url } : {}) });
       return { noted: true, note: 'The person will see this suggestion with a button to request it. In your answer, say plainly what you could not find and that they can ask for this source to be added.' };
