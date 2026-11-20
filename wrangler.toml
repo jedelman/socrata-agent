@@ -215,6 +215,10 @@ PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
 # too. OTLP_WORKSPACE, once Jason gives the workspace id, keeps any other
 # workspace's spans out.
 TELEMETRY = "true"
+# Case files as public hub pages at /case-files and /case-files/<id>, each
+# source with the findings and quotes it backs (worker/case-files.js; Jason,
+# 2026-11-20). Unset, those paths are the ordinary 404.
+CASE_FILE_PAGES = "true"
 
 # Watches and civic-league feeds (worker/watches.js, docs/watches.md; Jason,
 # 2026-11-16). Both off until Jason turns them on. WATCHES = "true": a
