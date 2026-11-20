@@ -222,9 +222,21 @@ PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
 # too. OTLP_WORKSPACE, once Jason gives the workspace id, keeps any other
 # workspace's spans out.
 TELEMETRY = "true"
+# The check stage (src/answer-checks.js, src/second-read.js; Jason,
+# 2026-11-20: "Rewrite the way the voice check works. Build 1 and 2."). With
+# CHECKS = "on", code checks each answer's figures, link names and contacts
+# claims against what its tools returned, and what they find goes back in the
+# one rewrite (with any voice fixes); the page shows "Checking my work…".
+# SECOND_READ = "shadow" adds a fresh-context read (question, answer and tool
+# results, never the reasoning) whose flags are recorded and shown under the
+# answer but not sent back; "rewrite" sends them back too, once a measurement
+# shows they help. Remove CHECKS to go back to the voice check alone.
+CHECKS = "on"
+SECOND_READ = "shadow"
 
 # Watches and civic-league feeds (worker/watches.js, docs/watches.md; Jason,
-# 2026-11-16). Both off until Jason turns them on. WATCHES = "true": a
+# 2026-11-16). Both on since 2026-11-20 (Jason: "Let's switch on all 3
+# features", before inviting the first organizers). WATCHES = "true": a
 # signed-in member can keep up to 5 watches over the posted agendas of City
 # Council and the Planning Commission, mailed once a day through Resend
 # (WATCH_DAILY_EMAILS, default 100, should sit under the Resend plan's daily
@@ -233,19 +245,20 @@ TELEMETRY = "true"
 # LEAGUE_FEEDS = "true": a public Atom feed per civic league at /feeds. Either
 # one makes the cron read the next three weeks of agendas once a day (about 10
 # requests to the City's portal and iqm2).
-# WATCHES = "true"
-# LEAGUE_FEEDS = "true"
+WATCHES = "true"
+LEAGUE_FEEDS = "true"
 
 # One email when a source request is decided (worker/request-notify.js; Jason,
 # 2026-11-18: "When a source request is fulfilled, does siren notify those who
 # had requested that source by email? We should.", then yes to declined
-# requests and to the public list). Off until Jason turns it on.
+# requests and to the public list). On since 2026-11-20 (Jason, with watches
+# and league feeds).
 # REQUEST_NOTIFY = "true": a signed-in member can ask on a request card or an
 # open request on /requests; the address is kept AES-GCM sealed, apart from the
 # request, until the cron sends that one email (fulfilled at once, declined the
 # day after) or a year passes. REQUEST_NOTIFY_DAILY, default 100, "0"
 # pauses; it shares Resend's daily limit with sign-in links and watches.
-# REQUEST_NOTIFY = "true"
+REQUEST_NOTIFY = "true"
 
 # Workers Logs (OpenTelemetry-compatible, kept 7 days; persisted logs count
 # toward Cloudflare Observability usage from 2026-12-01). On for console
