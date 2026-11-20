@@ -702,6 +702,17 @@ generic mode.
   far smaller. A copy from anywhere but the City's site goes to the
   git-ignored `data/documents/private/` until it's cleared for republishing.
   See `data/documents/README.md`.
+- `plugins/zoning-uses.js` (`zoning_uses`; Jason, 2026-11-20: "Can we make
+  that into a tool since it's such a weird custom way to do zoning?") answers
+  whether a use is allowed in a zoning district from the ordinance's use tables
+  (`data/documents/norfolk-zoning-use-tables.json`, built by
+  `scripts/build-use-tables.js` from the same PDF and CID as the ordinance text,
+  marks placed by word position and checked row by row against the text
+  extraction). Plain-word uses ("Airbnb", "ADU") and district codes or names;
+  a matching use a district's table doesn't list is prohibited there; P/C sends
+  Siren to the cited performance standards; each table page joins the hand-off
+  as `kind: 'document'` with `#page=`. Four rows the City prints inconsistently
+  keep what's printed, with a note.
 - **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
   in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
   with a prompt line saying when to use it. `test/plugins.test.js` fails if

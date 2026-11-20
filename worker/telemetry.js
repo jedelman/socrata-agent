@@ -53,7 +53,7 @@ export const TELEMETRY_NOTE = (app) =>
   `To improve its research, ${app} logs how each answer was found (the tools it used, its cost, and a few topic words from its searches, checked against the City's own budget and zoning books), never your question, your account or an address, and keeps that for 7 days.`;
 
 // The tool arguments topic words may come from.
-const TOPIC_ARGS = { prior_research: 'query', capital_projects: 'project', find_legislation: 'text', budget_book_lookup: 'query', ordinance_lookup: 'query', city_news: 'query' };
+const TOPIC_ARGS = { prior_research: 'query', capital_projects: 'project', find_legislation: 'text', budget_book_lookup: 'query', ordinance_lookup: 'query', city_news: 'query', zoning_uses: 'use' };
 const STOP = new Set(['about', 'after', 'also', 'been', 'city', 'does', 'from', 'have', 'into', 'more', 'norfolk', 'only', 'over', 'plan', 'that', 'than', 'their', 'them', 'then', 'there', 'they', 'this', 'what', 'when', 'where', 'which', 'will', 'with', 'would', 'your']);
 export const MAX_TERMS = 8;
 

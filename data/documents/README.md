@@ -120,6 +120,27 @@ personal names before committing: the FY 2024 to 2027 books list positions
 by title, not staff by name, and `test/budget-books.test.js` fails on an
 honorific or a role followed by a name.
 
+## The zoning use tables
+
+`norfolk-zoning-use-tables.json` is the Zoning Ordinance's use tables (Tables
+3.2.12 to 3.9.23): a row per use, a column per district, P / C / P/C or blank.
+The ordinance's text extraction keeps each row's marks but drops the blank
+cells, so it can't say which district a mark belongs to. `plugins/zoning-uses.js`
+(`zoning_uses`) serves the grid. Build it from the same PDF as the ordinance
+text:
+
+```bash
+node scripts/build-use-tables.js path/to/Adopted-Zoning-Ordinance.pdf --write
+```
+
+It needs poppler's `pdftotext`, refuses a PDF whose CID differs from
+`norfolk-zoning-ordinance.json`'s (rebuild both together), places each mark
+under its column header by word position, matches every header to a district
+in Table 3.1.2, and fails unless each row's marks equal, in order, the marks
+the text extraction keeps for that row, and each use carries the same name in
+every table. Rows the City's tables print inconsistently are kept as printed
+with a note (`AS_PRINTED` in the script, checked against the page images).
+
 ## Public and private
 
 Enacted law is public. A publisher's copy can still come with terms of use,
