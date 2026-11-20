@@ -220,12 +220,12 @@ test('review of #75: contacts and links checks leave correct answers alone', () 
   ]) assert.deepEqual(checkContacts(t, cards), [], t);
   assert.equal(checkContacts('The Parks & Recreation department is listed in the contacts below.', cards).length, 1, 'a contact the card lacks is still caught');
   const res = {
-    records: [{ title: 'Norfolk Zoning Ordinance, § 3.9.3 (p. 300)', url: 'https://x/z.pdf#page=300' }, { title: 'Ordinance No. 50487 : Cooperation Agreement', url: 'https://i/D?ID=1' }],
-    links: [{ title: 'Council agenda', url: 'https://i/D?ID=1' }],
+    records: [{ title: 'Norfolk Zoning Ordinance, § 3.9.3 (p. 300)', url: 'https://x/z.pdf#page=300' }, { title: 'Ordinance No. 50487 : Cooperation Agreement', url: 'https://i/Detail_LegiFile.aspx?ID=1' }],
+    links: [{ title: 'Council agenda', url: 'https://i/Detail_LegiFile.aspx?ID=1' }],
     datasets: [{ name: 'Work Orders', id: 'abcd-1234', page: 'https://data/d/abcd-1234' }],
   };
-  for (const t of ['[Work order 26-031969](https://data/d/abcd-1234)', '[§ 3.9.3.A](https://x/z.pdf#page=300)', '[Table 3.3.9](https://x/z.pdf#page=300)', '[Ordinance 50487](https://i/D?ID=1)']) assert.deepEqual(checkLinks(t, res), [], t);
-  assert.equal(checkLinks('[Ordinance 49934](https://i/D?ID=1)', res).length, 1, 'a wrong ordinance is still caught');
+  for (const t of ['[Work order 26-031969](https://data/d/abcd-1234)', '[§ 3.9.3.A](https://x/z.pdf#page=300)', '[Table 3.3.9](https://x/z.pdf#page=300)', '[Ordinance 50487](https://i/Detail_LegiFile.aspx?ID=1)']) assert.deepEqual(checkLinks(t, res), [], t);
+  assert.equal(checkLinks('[Ordinance 49934](https://i/Detail_LegiFile.aspx?ID=1)', res).length, 1, 'a wrong ordinance is still caught');
 });
 
 test('review of #75: a rewrite for findings alone that breaks the voice rule is dropped', async () => {
@@ -268,4 +268,60 @@ test('review of #75: the second read gets its own room and low effort on Claude'
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('second review of #75: a result the budget cut short is still evidence; computed and hedged figures pass', async () => {
+  // A plugin whose later fetches the budget refuses: the model was shown the part it got.
+  const cut = definePlugin({
+    name: 'budget_tool',
+    description: 'Returns a total after several reads.',
+    async run(ctx) {
+      for (let i = 0; i < 6; i++) await ctx.http.json(`https://norfolk.example/part/${i}`).catch(() => null);
+      return { total: 4242424 };
+    },
+  });
+  const w = world({ replies: [{ tools: [['budget_tool', {}]] }, { text: 'I found $4,242,424 in the total.' }, { text: 'I found the total.' }] });
+  const out = await ask({ question: 'Total?', city: norfolk, plugins: [cut], apiKey: 'k', fetchImpl: w.fetchImpl, subrequestBudget: 6, checks: { secondRead: 'off' } });
+  assert.ok(out.requestBudget?.refused > 0, 'the budget cut the tool short');
+  assert.equal(out.answer, 'I found $4,242,424 in the total.');
+  assert.deepEqual(out.checks.code.figures, []);
+  // Precision and arithmetic the answer shows.
+  assert.deepEqual(checkFigures('about 1,200 permits, about 2,500 units, about $1,500, more than $11 million', '1247 2463 1501.17 11536917'), []);
+  assert.deepEqual(checkFigures('The two orders cost $1,923.39 together ($422.22 plus $1,501.17).', '422.22 1501.17'), []);
+  assert.deepEqual(checkFigures('about $2,400 in all.', '422.22 1501.17'), ['$2,400']);
+});
+
+test('second review of #75: a rewrite the checks find something new in is dropped; a budget skip is recorded', async () => {
+  const w = world({ replies: [{ tools: [['budget_tool', {}]] }, { text: 'I found $13,139,514 budgeted, and $2,500,000 of it goes to trees.' }, { text: 'I found $13,139,514 budgeted, about $9,000,000 for trees.' }] });
+  const out = await ask({ question: 'How much for trees?', city: norfolk, plugins: [budgetPlugin], apiKey: 'k', fetchImpl: w.fetchImpl, checks: { secondRead: 'off' } });
+  assert.equal(out.answer, 'I found $13,139,514 budgeted, and $2,500,000 of it goes to trees.');
+  assert.match(out.checks.rewrite, /dropped: the checks found something new/);
+});
+
+test('second review of #75: links name what they are; the real contacts card reads as itself', () => {
+  const iqm2 = 'https://norfolkcityva.iqm2.com/Citizens';
+  const res = {
+    records: [
+      { title: 'Exhibit A - Cooperation Agreement (attached to legislative record 5949)', url: `${iqm2}/FileOpen.aspx?Type=4&ID=25519` },
+      { title: 'Ordinance No. 50487 : Cooperation Agreement', url: `${iqm2}/Detail_LegiFile.aspx?ID=5949` },
+      { title: 'City Council meeting, October 27', url: `${iqm2}/Detail_Meeting.aspx?ID=1` },
+    ],
+  };
+  assert.deepEqual(checkLinks(`[Exhibit A to Ordinance 50487](${iqm2}/FileOpen.aspx?Type=4&ID=25519)`, res), []);
+  assert.deepEqual(checkLinks(`[Council adopted Ordinance 50487 on October 27](${iqm2}/Detail_Meeting.aspx?ID=1)`, res), []);
+  assert.equal(checkLinks(`[Ordinance 50067](${iqm2}/Detail_LegiFile.aspx?ID=5949)`, res).length, 1);
+  const cards = [
+    { role: 'City Council, ward 4', name: 'John E. "JP" Paige' }, { role: 'Virginia House of Delegates, district 89', name: 'Jackie Glass' },
+    { role: 'Virginia Senate, district 21', name: 'Jeremy McPike' }, { role: 'U.S. House, district 2', name: 'Jen Kiggans' }, { role: 'City Clerk' },
+  ];
+  for (const t of [
+    'The contacts below include Delegate Jackie Glass and Senator Jeremy McPike.',
+    'Congresswoman Jen Kiggans is listed in the contacts below.',
+    'State Senator Jeremy McPike is listed in the contacts below.',
+    "The contacts below include the City Clerk's Office.",
+    'Your City Council members are listed in the contacts below.',
+    'I found no Zoning Administrator among the contacts below.',
+    'The contacts listed on the Norfolk Redevelopment and Housing Authority site are current.',
+  ]) assert.deepEqual(checkContacts(t, cards), [], t);
+  assert.equal(checkContacts("The contacts below include the City Manager's Office.", cards).length, 1);
 });

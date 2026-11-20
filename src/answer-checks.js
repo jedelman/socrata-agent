@@ -50,38 +50,39 @@ export function numbersIn(text) {
   return out;
 }
 
-/** Whether `value` (written with `decimals` places, at `scale`) is some evidence number, rounded the way the answer rounded it. */
-function grounded(value, decimals, scale, evidence) {
-  if (evidence.has(value * scale) || evidence.has(Math.round(value * scale * 100) / 100)) return true;
-  const unit = scale * 10 ** -decimals;
-  for (const e of evidence) if (Math.round(e / unit) * unit === Math.round(value * scale / unit) * unit && Math.abs(e - value * scale) < unit) return true;
-  // A whole number written with trailing zeros ("about 94,000") may round a larger one.
-  if (scale === 1 && decimals === 0 && value >= 1000 && value % 1000 === 0) {
-    const zeros = String(value).match(/0+$/)[0].length;
-    const step = 10 ** Math.min(zeros, 6);
-    for (const e of evidence) if (Math.round(e / step) * step === value) return true;
-  }
-  return false;
+/**
+ * The precision a figure is written at: its last decimal place, its scale
+ * word ("$11 million": a million), or a whole number's trailing zeros ("about
+ * 1,200": a hundred).
+ */
+function unitOf(value, decimals, scale) {
+  if (decimals > 0) return scale * 10 ** -decimals;
+  if (scale !== 1) return scale;
+  const zeros = (String(Math.trunc(value)).match(/0+$/) || [''])[0].length;
+  return 10 ** Math.min(zeros, 6);
 }
+/** Whether `v` is within the figure's own precision of `e`: "more than $11 million" for 11,536,917; "about 1,200" for 1,247. */
+const near = (v, unit, e) => e === v || Math.abs(e - v) < unit;
 
-/** Figures in the answer that no evidence number gives. */
+/**
+ * Figures in the answer that no evidence number gives. A figure is grounded
+ * when some number in the evidence is within its own precision of it, or when
+ * it is a sum or difference of grounded figures in the same answer ("$1,923.39
+ * together ($422.22 plus $1,501.17)").
+ */
 export function checkFigures(answer, evidenceText) {
   const evidence = numbersIn(evidenceText);
   const text = readable(answer);
-  const seen = new Set();
-  const out = [];
+  const figures = [];
   const consider = (raw, digits, word) => {
     const scale = SCALE[String(word || '').toLowerCase()] || 1;
     if (isYear(digits, word)) return;
     const value = toNumber(digits);
     if (!Number.isFinite(value) || value === 0 || (scale === 1 && value < 1000 && !raw.includes('$'))) return;
     const decimals = (digits.split('.')[1] || '').length;
-    if (grounded(value, decimals, scale, evidence)) return;
-    const key = raw.replace(/\s+/g, ' ').trim();
-    if (!seen.has(key)) {
-      seen.add(key);
-      out.push(key);
-    }
+    const v = Math.round(value * scale * 100) / 100;
+    const unit = unitOf(value, decimals, scale);
+    figures.push({ key: raw.replace(/\s+/g, ' ').trim(), v, unit, ok: [...evidence].some((e) => near(v, unit, e)) });
   };
   for (const m of text.matchAll(MONEY)) consider(m[0], m[1], m[2] || m[3]);
   for (const m of text.matchAll(BIG)) {
@@ -92,6 +93,22 @@ export function checkFigures(answer, evidenceText) {
     const after = text.slice(m.index + m[0].length, m.index + m[0].length + 60);
     if (/\$\s?$/.test(before) || /[-/]$/.test(before) || ID_BEFORE.test(before) || STREET_AFTER.test(after)) continue;
     consider(m[0], m[1], m[2]);
+  }
+  // Sums and differences of the grounded ones (pairs and threes, and all of them).
+  const good = figures.filter((f) => f.ok).map((f) => f.v).slice(0, 20);
+  const computed = new Set();
+  if (good.length > 1) computed.add(good.reduce((a, b) => a + b, 0));
+  for (let i = 0; i < good.length; i++) {
+    for (let j = i + 1; j < good.length; j++) {
+      computed.add(good[i] + good[j]);
+      computed.add(Math.abs(good[i] - good[j]));
+      for (let k = j + 1; k < good.length; k++) computed.add(good[i] + good[j] + good[k]);
+    }
+  }
+  const out = [];
+  for (const f of figures) {
+    if (f.ok || [...computed].some((c) => near(f.v, Math.max(f.unit, 0.01), Math.round(c * 100) / 100))) continue;
+    if (!out.includes(f.key)) out.push(f.key);
   }
   return out.slice(0, MAX_FINDINGS);
 }
@@ -127,10 +144,13 @@ export function checkLinks(answer, resources = {}) {
     const k = norm(url);
     titles.set(k, [...(titles.get(k) || []), String(title || '')]);
   };
+  // Links that are the thing an ordinance or record number names: the legislation record itself, a contact, a dataset.
+  const identity = new Set();
   for (const r of resources.records || []) if (r?.url) add(r.url, r.title);
   for (const l of resources.links || []) if (l?.url) add(l.url, l.title);
-  for (const d of resources.datasets || []) if (d?.page) add(d.page, `${d.name || ''} ${d.id || ''}`);
-  for (const c of resources.contacts || []) if (c?.url) add(c.url, `${c.role || ''} ${c.name || ''}`);
+  for (const d of resources.datasets || []) if (d?.page) { add(d.page, `${d.name || ''} ${d.id || ''}`); identity.add(norm(d.page)); }
+  for (const c of resources.contacts || []) if (c?.url) { add(c.url, `${c.role || ''} ${c.name || ''}`); identity.add(norm(c.url)); }
+  const isIdentity = (url) => identity.has(norm(url)) || /Detail_LegiFile\.aspx/i.test(url);
   const out = [];
   const md = String(answer ?? '').replace(/\\([\\`*_{}[\]()#+\-.!:|>~])/g, '$1');
   for (const m of md.matchAll(/(?<!!)\[([^\]]{1,300})\]\(\s*<?([^)\s>]+)>?\s*\)/g)) {
@@ -144,6 +164,8 @@ export function checkLinks(answer, resources = {}) {
       for (const hit of label.matchAll(re)) {
         const id = hit[1];
         if (kind === 'section' && page) continue;
+        // A meeting, news item, attachment or document page can name an ordinance without being it.
+        if ((kind === 'ordinance' || kind === 'record') && !isIdentity(url)) continue;
         // A case or work-order number is checked only against a record keyed by numbers of its shape.
         if (kind === 'case' && !/\b\d{2}-\d{5,6}\b/.test(title)) continue;
         const ids = kind === 'section' ? parentsOf(id) : [id];
@@ -158,19 +180,25 @@ export function checkLinks(answer, resources = {}) {
 // --- contacts -------------------------------------------------------------
 
 // "the contacts below", "the contacts card", "listed in the contacts": the card, never the verb "contact".
-const POINTS_TO_CARD = /\b(?:the|these|those) contacts?\b[^.!?\n]{0,60}\b(?:below|listed|card|section|under (?:this|the) answer)\b|\bcontacts? (?:card|below|section)\b|\b(?:listed|included|named) (?:in|among|on|under) the contacts\b/i;
-const LEAD = /^(?:(?:The|Call|Ask|Reach|Phone|Email|E-mail|Contact|Write|Text|Try|See|Visit|Message|Councilmember|Councilman|Councilwoman|Council Member|Mayor|Vice Mayor|Mr\.?|Ms\.?|Mrs\.?|Dr\.?)\s+)+/;
+const POINTS_TO_CARD = /\b(?:the|these|those) contacts?\b[^.!?\n]{0,60}\b(?:below|card|under (?:this|the) answer)\b|\bcontacts? (?:card|below)\b|\b(?:listed|included|named) (?:in|among|under) the contacts(?: (?:below|card))?\b(?! (?:on|at|of|for) )/i;
+// "I found no Zoning Administrator among the contacts below": a negated pointer claims nothing.
+const NEGATED = /\b(?:no|not|none|isn'?t|aren'?t|without|neither|nor|doesn'?t|don'?t)\b/i;
+const LEAD = /^(?:(?:The|Your|Our|Call|Ask|Reach|Phone|Email|E-mail|Contact|Write|Text|Try|See|Visit|Message|Councilmember|Councilman|Councilwoman|Council Member|Mayor|Vice Mayor|Delegate|Del\.|Senator|Sen\.|State Senator|Congresswoman|Congressman|Representative|Rep\.|U\.S\. Representative|Mr\.?|Ms\.?|Mrs\.?|Dr\.?)\s+)+/;
+// Words a card needn't hold for a phrase to name it.
+const GENERIC_CONTACT = new Set(['the', 'and', 'for', 'city', 'norfolk', 'office', 'offices', 'department', 'your', 'our', 'their', 'member', 'members', 'staff']);
 const OFFICE = /((?:(?:[A-Z][\w'’.-]*|&)\s+){1,5}(?:[Oo]ffice|[Dd]epartment|[Dd]irector|[Cc]lerk|[Mm]anager|[Cc]ouncil(?:member|man|woman)?|[Cc]ommission|[Aa]uthority|[Bb]oard|[Dd]ivision|[Bb]ureau))\b/g;
 const NAMEISH = /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'’-]+){1,3})\b/g;
 const SKIP = new Set(['The', 'This', 'These', 'I', 'You', 'Your', 'For', 'If', 'AI', 'Norfolk', 'City', 'Virginia']);
 
 /** Offices and people a sentence says the contacts card holds, that it doesn't. */
 export function checkContacts(answer, contacts = []) {
-  const hay = contacts.map((c) => `${c.role || ''} ${c.name || ''} ${c.note || ''}`).join(' ').toLowerCase();
-  const words = new Set(hay.match(/[a-z][a-z'’-]+/g) || []);
+  const tokens = (t) => (t.toLowerCase().replace(/['’]s\b/g, '').match(/[a-z][a-z'’-]+/g) || []);
+  const words = new Set(tokens(contacts.map((c) => `${c.role || ''} ${c.name || ''} ${c.note || ''}`).join(' ')));
+  // Whole, or sharing a start of five letters or more ("senator" and the card's "senate").
+  const same = (w, h) => w === h || (w.length >= 5 && h.length >= 5 && w.slice(0, 5) === h.slice(0, 5));
   const present = (phrase) => {
-    const ws = (phrase.toLowerCase().match(/[a-z][a-z'’-]+/g) || []).filter((w) => w.length > 2 && !['the', 'and', 'for', 'city', 'norfolk', 's'].includes(w));
-    return ws.length > 0 && ws.every((w) => words.has(w) || [...words].some((h) => (h.length >= 5 && w.startsWith(h)) || (w.length >= 5 && h.startsWith(w))));
+    const ws = tokens(phrase).filter((w) => w.length > 2 && !GENERIC_CONTACT.has(w));
+    return ws.length === 0 || ws.every((w) => [...words].some((h) => same(w, h)));
   };
   const out = [];
   const text = readable(answer);
@@ -189,6 +217,7 @@ export function checkContacts(answer, contacts = []) {
     // Only the clause that points to the card ("both listed in the contacts below" points back to the one before).
     const clauses = sentence.split(/,\s+|;\s+/);
     const at = clauses.findIndex((c) => POINTS_TO_CARD.test(c));
+    if (NEGATED.test(clauses[at] ?? sentence)) continue;
     let named = namesIn(clauses[at] ?? sentence);
     if (!named.size && at > 0 && /\b(?:both|either|each|all|them|they|these|those|which|who|whom)\b/i.test(clauses[at])) named = namesIn(clauses[at - 1]);
     for (const n of named) {

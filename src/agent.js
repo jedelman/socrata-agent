@@ -235,6 +235,8 @@ export async function ask({
   }
   // Tool results from this question, returned so a conversation can keep them.
   const toolResults = [];
+  // Every result the model was shown, a budget-cut one included: the check stage's evidence.
+  const shownResults = [];
   // The model call in progress (onEvent's `step`), and the next one's number.
   let step = -1;
   let nextStep = 0;
@@ -243,7 +245,7 @@ export async function ask({
   const newProvider = (extra = {}) =>
     providerOf(model) === 'anthropic'
       ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, ...extra, ...(traceparent ? { traceparent } : {}) })
-      : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
+      : openrouterProvider({ apiKey, model, maxTokens: extra.maxTokens || maxTokens || 1500, fetchImpl: budget.model, referer });
   const llm = newProvider({ onThinking, onFallback, ...(searchOn ? { webSearch: searchSettings } : {}) });
   const secondReadMode = checks && SECOND_READ_MODES.includes(checks.secondRead) ? checks.secondRead : 'off';
   // Fetches one API call can take, and one complete() at worst (a cut-off
@@ -403,6 +405,7 @@ export async function ask({
       if (CARD_TOOLS.has(call.name) && cardRefused(value, isError)) cardsMade = false;
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
+      if (!isError) shownResults.push({ name: call.name, args: call.args, content });
       // A result the budget cut short isn't kept for later turns: a follow-up
       // runs the tool again under its own budget.
       if (!isError && budget.refused === refusedBefore) toolResults.push({ name: call.name, args: call.args, content });
@@ -425,9 +428,12 @@ export async function ask({
   // rewrite; second-read flags go in only with secondRead 'rewrite' and are
   // otherwise recorded ('shadow'). Figures aren't sent back when web search
   // ran: the pages it read aren't evidence code can see.
+  // Earlier answers in this conversation (checked when they were written): a
+  // follow-up may restate their figures after their data has aged out.
+  const earlierAnswers = history.filter((h) => h?.role === 'assistant').map((h) => (typeof h.content === 'string' ? h.content : JSON.stringify(h.content ?? '')));
   const evidence = () => {
     const res = ctx.resources.toJSON();
-    return { res, text: [question, ...toolResults.map((r) => r.content), ...carried.map((c) => String(c.content ?? '')), JSON.stringify(res), ...ctx.trace.steps.map((st) => `${st.soql ?? ''} ${st.url ?? ''}`)].join('\n') };
+    return { res, text: [question, ...shownResults.map((r) => r.content), ...carried.map((c) => String(c.content ?? '')), ...earlierAnswers, JSON.stringify(res), ...ctx.trace.steps.map((st) => `${st.soql ?? ''} ${st.url ?? ''}`)].join('\n') };
   };
   let checked = null;
   let checkNote = '';
@@ -443,7 +449,7 @@ export async function ask({
         try {
           // Room to think within, and low effort where the deployment sets one (so the model takes it):
           // at the answer's effort, thinking would crowd out the reply.
-          const read = await secondRead(newProvider({ maxTokens: 4000, ...(effort ? { effort: 'low' } : {}) }), { question, answer, evidence: evidenceFor({ toolResults, carried, webPages: webResults }) });
+          const read = await secondRead(newProvider({ maxTokens: 4000, ...(effort || /^claude-[a-z]+-5(?:-|$)/.test(model) ? { effort: 'low' } : {}) }), { question, answer, evidence: evidenceFor({ toolResults: shownResults, carried, earlierAnswers, webPages: webResults }) });
           spend(read.cost);
           checked.second_read = { mode: secondReadMode, ...(read.flags ? { flags: read.flags } : { skipped: read.skipped }) };
         } catch (err) {
@@ -466,8 +472,10 @@ export async function ask({
   let rewritten = false;
   let rewriteSkipped = false;
   const needsRewrite = violations.length > 0 || Boolean(checkNote);
-  if (needsRewrite && budget.limit - budget.used < perCall) rewriteSkipped = true;
-  else if (needsRewrite) {
+  if (needsRewrite && budget.limit - budget.used < perCall) {
+    rewriteSkipped = true;
+    if (checked && checkNote) checked.rewrite = "skipped: this answer's request limit";
+  } else if (needsRewrite) {
     onEvent({ type: 'rewrite', step: nextStep, violations });
     // Voice alone keeps the instruction it always had.
     const base = checkNote ? fixInstruction({ voice: violations.length > 0, notes: checkNote }) : REWRITE_INSTRUCTION;
@@ -485,9 +493,18 @@ export async function ask({
     if (out.refusal) onEvent({ type: 'refusal', step });
     const kept = out.text && !out.refusal && !out.truncated && !out.paused;
     // A rewrite for the checks' findings alone that breaks the voice rule (or
-    // makes a world claim) is dropped: the answer that passed stays.
-    const broke = kept && !violations.length && check(out.text).length > 0;
-    if (kept && !broke) {
+    // makes a world claim), or that the code checks find something new in, is
+    // dropped: the answer that passed stays.
+    const findingsOnly = !violations.length;
+    const broke = kept && findingsOnly && check(out.text).length > 0;
+    let added = false;
+    if (kept && !broke && findingsOnly && checked) {
+      const { res, text } = evidence();
+      const after = codeChecks(out.text, { evidenceText: text, resources: res });
+      const before = new Set([...checked.code.figures, ...checked.code.links, ...checked.code.contacts]);
+      added = [...after.figures, ...after.links, ...after.contacts].some((f) => !before.has(f));
+    }
+    if (kept && !broke && !added) {
       answer = out.text;
       rewritten = true;
       violations = check(answer);
@@ -495,15 +512,15 @@ export async function ask({
       answerCitations = [...answerCitations, ...(out.citations || [])];
     }
     if (checked) {
-      checked.rewrite = broke ? 'dropped: it broke the voice rule' : kept ? 'kept' : 'no usable reply';
+      checked.rewrite = broke ? 'dropped: it broke the voice rule' : added ? 'dropped: the checks found something new in it' : kept ? 'kept' : 'no usable reply';
       // What the code checks find in the rewritten answer, for the record.
-      if (kept && !broke) {
+      if (kept && !broke && !added) {
         const { res, text } = evidence();
         checked.rewritten = true;
         checked.after = codeChecks(answer, { evidenceText: text, resources: res });
       }
     }
-  } else if (checkNote && checked) checked.rewrite = "skipped: this answer's request limit";
+  }
 
   // The web pages behind the answer, handed off by code from the API's blocks.
   if (searchOn && webResults.length) handOffWebPages(ctx.resources, webResults, answerCitations);

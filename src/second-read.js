@@ -27,8 +27,9 @@ export const SECOND_READ_SYSTEM = [
 ].join('\n');
 
 /** The evidence the second read gets: this answer's tool results (and any carried from earlier turns), in order, within EVIDENCE_CHARS. */
-export function evidenceFor({ toolResults = [], carried = [], webPages = [] } = {}, maxChars = EVIDENCE_CHARS) {
+export function evidenceFor({ toolResults = [], carried = [], earlierAnswers = [], webPages = [] } = {}, maxChars = EVIDENCE_CHARS) {
   const parts = [
+    ...earlierAnswers.map((a, i) => ({ head: `Earlier answer ${i + 1} in this conversation (checked when written; don't flag a claim restated from it)`, body: String(a ?? '').replace(/<data note=[\s\S]*?<\/data>/g, '') })),
     ...carried.map((c) => ({ head: `Earlier in this conversation, ${c.name}`, body: String(c.content ?? '') })),
     ...toolResults.map((r, i) => ({ head: `Tool result ${i + 1}: ${r.name} ${clip(JSON.stringify(r.args ?? {}), 300)}`, body: String(r.content ?? '') })),
   ];

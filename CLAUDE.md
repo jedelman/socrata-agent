@@ -146,8 +146,14 @@ generic mode.
   keeps `REWRITE_INSTRUCTION` byte for byte), and the rewritten answer is
   checked again and recorded (`checks.after`); a rewrite for findings alone
   that breaks the voice rule is dropped and the answer that passed stays
-  (`checks.rewrite`). A follow-up's evidence includes the earlier results it
-  carries (`historyFrom`'s `content`). The second read runs at low effort
+  (`checks.rewrite`), as is one the code checks find something new in. The
+  evidence is every result the model was shown (a budget-cut one included),
+  the earlier results a follow-up carries (`historyFrom`'s `content`) and its
+  earlier answers. A figure is grounded within its own precision ("more than
+  $11 million", "about 1,200") or as a sum or difference of grounded figures
+  in the same answer; ordinance and record numbers are checked only on links
+  to the legislation record, a contact or a dataset (a meeting, news item or
+  attachment can name an ordinance without being it). The second read runs at low effort
   (where the deployment sets one) with 4,000 tokens, told that cut evidence
   is unseen; in `rewrite` only flags quoting the answer word for word go
   back, links, emails and phone numbers scrubbed, wrapped as data. Public
