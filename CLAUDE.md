@@ -674,7 +674,14 @@ generic mode.
   vanished is proven against that snapshot and served "as archived".
   `.github/workflows/archive-case-sources.yml` does the archiving monthly
   and opens a PR (cloud sessions can't reach web.archive.org).
-  `<base>/api/cases/<id>` serves case files as W3C Web Annotations. A
+  `<base>/api/cases/<id>` serves case files as W3C Web Annotations. With `CASE_FILE_PAGES`
+  (on for Siren; Jason, 2026-11-20: "publish these case files as hub pages, so we
+  can be transparent about our sources. Bibliography pools") `/case-files` lists
+  them with every source pooled by publisher, and `/case-files/<id>` shows one:
+  summary, what isn't settled, each source with the findings, quotes, checked
+  dates and CIDs it backs (`worker/case-files.js`: server-rendered, no script,
+  its stylesheet on its own hashed path so `ASSET_HASH` is unchanged; unset,
+  the paths are the ordinary 404). A
   finding without a checked quote is served only as "not yet verified". Never add a finding you haven't opened the source for.
   Sources are documents, never a Socrata API or dataset URL (the plugin
   context refuses them, so `case_file` would throw; `test/plugins.test.js`

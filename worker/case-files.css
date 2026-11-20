@@ -1,0 +1,41 @@
+/* The case-file hub pages (worker/case-files.js). */
+:root { color-scheme: light dark; --bg: #f7f7f4; --surface: #fff; --ink: #1d1e1b; --muted: #5f605a; --line: #dcdcd5; --accent: #13695f; --quote: #eef3f0; --radius: 12px;
+  --confirms: #1f6b3a; --weakens: #9a3b12; --context: #4d5560; --who: #3d4f9a; --rules: #6b3d8f; }
+@media (prefers-color-scheme: dark) { :root { --bg: #141513; --surface: #1c1d1a; --ink: #ecebe5; --muted: #a3a29b; --line: #34352f; --accent: #7cc4a6; --quote: #20261f;
+  --confirms: #86d19c; --weakens: #f0a37e; --context: #b5bcc6; --who: #a9b6f0; --rules: #cfa8ef; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--accent); overflow-wrap: anywhere; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cf { max-width: 760px; margin: 0 auto; padding: 24px 16px 56px; }
+.back { margin: 0; font-size: .92rem; }
+.kicker { margin: 20px 0 0; color: var(--muted); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+h1 { font-size: 1.6rem; line-height: 1.2; margin: 6px 0 12px; }
+h2 { font-size: 1.2rem; margin: 36px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+h3 { font-size: 1rem; margin: 0 0 4px; line-height: 1.35; }
+h3 small, li small { color: var(--muted); font-weight: 400; font-size: .85rem; }
+.lede { font-size: 1.02rem; }
+.facts { color: var(--muted); font-size: .92rem; }
+.fine, .meta, .also, .cited { color: var(--muted); font-size: .86rem; }
+.meta { margin: 4px 0 0; overflow-wrap: anywhere; }
+code { font-size: .8rem; overflow-wrap: anywhere; }
+ul.cases { padding-left: 1.2rem; }
+ul.cases li { margin: 8px 0; }
+ol.sources { list-style: none; padding: 0; margin: 0; }
+li.source { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin: 14px 0; }
+li.source:target, li.finding:target { outline: 2px solid var(--accent); outline-offset: 3px; }
+ol.findings { list-style: none; padding: 0; margin: 12px 0 0; }
+li.finding { padding: 10px 0 0; margin-top: 10px; border-top: 1px dashed var(--line); }
+.claim { margin: 0; }
+.stance { display: inline-block; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; margin-right: 4px; border: 1px solid currentColor; border-radius: 999px; vertical-align: 1px; }
+.stance-confirms { color: var(--confirms); }
+.stance-weakens { color: var(--weakens); }
+.stance-context { color: var(--context); }
+.stance-who_decides { color: var(--who); }
+.stance-rules { color: var(--rules); }
+blockquote { margin: 8px 0 0; padding: 8px 12px; background: var(--quote); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; font-size: .95rem; }
+.absent, .unverified { margin: 6px 0 0; font-size: .9rem; }
+.unverified { color: var(--weakens); }
+section.pool ul { padding-left: 1.2rem; }
+section.pool li { margin: 8px 0; }
+footer { margin-top: 36px; }

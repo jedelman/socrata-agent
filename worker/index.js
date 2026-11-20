@@ -108,6 +108,7 @@ import CRYPTO_JS from './crypto.js' with { type: 'text' };
 import ADMIN_PAGE from './admin.html';
 import { CASES } from '../plugins/case-file.js';
 import { toAnnotations } from '../plugins/cases.js';
+import { caseFilePage, caseFilesIndex, CSS_NAME as CASE_FILES_CSS_NAME, CASE_FILES_CSS } from './case-files.js';
 import { toolsFor } from '../src/tools.js';
 import { wantsStream, workingNotesOn, noteEvents, streamResponse } from './ask-stream.js';
 
@@ -443,6 +444,25 @@ async function watchRoute(req, env, path, base, url) {
   }
   return null;
 }
+// The case-file hub pages: the index, one case file, or their stylesheet;
+// null for any other path under /case-files (the ordinary 404 follows).
+const CASE_FILES_PAGE_CSP = "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+function caseFileRoute(env, path, base, url) {
+  if (path === `/case-files/${CASE_FILES_CSS_NAME}`) {
+    return new Response(CASE_FILES_CSS, { headers: { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' } });
+  }
+  const { config } = getDeployment(env);
+  const opts = { base, appName: APP_NAME_OF(env, config), origin: siteOrigin(env, url) };
+  let html = null;
+  if (path === '/case-files' || path === '/case-files/') html = caseFilesIndex(Object.values(CASES), opts);
+  else {
+    const id = /^\/case-files\/([a-z0-9-]{1,80})$/.exec(path)?.[1];
+    if (id && Object.hasOwn(CASES, id)) html = caseFilePage(CASES[id], opts);
+  }
+  if (!html) return null;
+  return new Response(html, { headers: { ...PAGE_HEADERS(CASE_FILES_PAGE_CSP), 'Cache-Control': 'public, max-age=900', 'Referrer-Policy': 'no-referrer' } });
+}
+
 const WATCH_PRIVACY = (appName) => `To send a watch's emails, ${appName} keeps the email you signed in with, encrypted, with the watch, and deletes it when the watch stops or ends (a year after it starts, unless you keep it). You can keep up to ${MAX_PER_ACCOUNT} watches. A watch follows topics, words or streets, never a person (a phrase made only of common names is refused, unless it is a street's name, which matches only agenda items at an address on that street), and every email quotes each agenda item as the City posted it, with a link to the City's page.`;
 
 // What every answer runs with, private or public: the deployment's city,
@@ -1145,6 +1165,12 @@ export default {
     // Who endorsed one request on the public list (endorsers.js); 404 with the flag off.
     const endorsersPath = req.method === 'GET' && /^\/api\/requests\/([^/]{1,64})\/endorsers$/.exec(path);
     if (endorsersPath) return handleEndorsers(req, env, ctx, base, endorsersPath[1]);
+    // Case files as public hub pages (case-files.js), behind CASE_FILE_PAGES;
+    // with it off these paths are the ordinary 404.
+    if (env.CASE_FILE_PAGES === 'true' && (req.method === 'GET' || req.method === 'HEAD') && (path === '/case-files' || path.startsWith('/case-files/'))) {
+      const res = caseFileRoute(env, path, base, url);
+      if (res) return res;
+    }
     // Case files as W3C Web Annotations (JSON-LD), CC BY 4.0, for any tool or agent.
     if (req.method === 'GET' && (path === '/api/cases' || path.startsWith('/api/cases/'))) {
       const casesBase = `${siteOrigin(env, url)}${base}`;
