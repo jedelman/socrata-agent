@@ -1,10 +1,10 @@
 {
   "id": "norfolk-macarthur-center",
   "title": "What's the plan for the MacArthur Center site, and how settled is it?",
-  "summary": "What the City has said and done about the former MacArthur Center mall at 300 Monticello Avenue. The City owns the site (bought in 2023), hired HG80 as master developer (2025), closed the mall on June 27, 2026, and describes a mixed-use district of market-rate housing, hotel rooms, street-level retail and restored streets, opening in 2030 by its own timeline. The adopted FY2027 capital plan lists $72 million over five years; its FY2027 and FY2028 money is for demolition and infrastructure. What isn't settled: as of July 2026 the development agreement with Hg80 was still being negotiated, demolition had moved to late 2027 or early 2028, and the housing form and a grocery tenant were not final. City Council approves the agreements, and state law requires a public hearing before the City disposes of the land. Siren's legislation index (Council meetings through October 22, 2026) holds no ordinance approving an agreement with Hg80.",
+  "summary": "What the City has said and done about the former MacArthur Center mall at 300 Monticello Avenue. The City owns the site (bought in 2023 from a court-appointed receiver, under a purchase agreement priced at $11,050,000 before adjustments), hired HG80 as master developer (2025), closed the mall on June 27, 2026, and describes a mixed-use district of market-rate housing, hotel rooms, street-level retail and restored streets, opening in 2030 by its own timeline. The adopted FY2027 capital plan lists $72 million over five years; its FY2027 and FY2028 money is for demolition and infrastructure. What isn't settled: as of July 2026 the development agreement with Hg80 was still being negotiated, demolition had moved to late 2027 or early 2028, and the housing form and a grocery tenant were not final. City Council approves the agreements, and state law requires a public hearing before the City disposes of the land. Siren's legislation index (Council meetings through October 22, 2026) holds no ordinance approving an agreement with Hg80.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
-  "reviewed": "2026-11-11",
+  "reviewed": "2026-11-20",
   "findings": [
     {
       "id": "city-vision",
@@ -830,6 +830,256 @@
         "prefix": "services, or any de- leasing services. ",
         "suffix": " V. Financial Impact: None. Pursuant to"
       }
+    },
+    {
+      "id": "purchase-price",
+      "stance": "context",
+      "claim": "The Agreement of Purchase and Sale attached to the ordinance put before Council on June 7, 2023 (item R-2) set the price for the mall's leasehold property and related interests at $11,050,000, subject to prorations, adjustments and credits.",
+      "source": {
+        "title": "City Council item R-2: Ordinance Ratifying/Authorizing Agreements - 300 Monticello Ave (June 7, 2023), with its exhibits",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115045/City-R-02-Ordinance-to-Ratify-and-Authorize-Agreements---300-Monticello-Ave_060723"
+      },
+      "quote": "The aggregate purchase price (“Purchase Price”) to be paid by Purchaser to Seller for the Property is Eleven Million Fifty Thousand and 00/100 Dollars ($11,050,000.00), subject to prorations, adjustments and credits specified in this Agreement.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicgmiif672t4rrqcbxwn5zxrzyb52x5ipg3746ru44g7c7m7qaqyi",
+        "bytes": 4513849,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The aggregate purchase price (“Purchase Price”) to be paid by Purchaser to Seller for the Property is Eleven Million Fifty Thousand and 00/100 Dollars ($11,050,000.00), subject to prorations, adjustments and credits specified in this Agreement.",
+        "prefix": "Purchase Price and Earnest Money. A. ",
+        "suffix": " B. The Purchase Price shall be payable"
+      }
+    },
+    {
+      "id": "bought-from-receiver",
+      "stance": "context",
+      "claim": "The seller in that agreement was a receiver appointed by the Norfolk Circuit Court (case CL21-6230), not the mall's leasehold owner itself.",
+      "source": {
+        "title": "City Council item R-2: Ordinance Ratifying/Authorizing Agreements - 300 Monticello Ave (June 7, 2023), with its exhibits",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115045/City-R-02-Ordinance-to-Ratify-and-Authorize-Agreements---300-Monticello-Ave_060723"
+      },
+      "quote": "Spinoso Real Estate Group DLS, LLC, solely in its capacity as receiver under that certain Order Appointing Special Receiver entered in the Circuit Court for the City of Norfolk in case number CL21-6230 (“Seller”)",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicgmiif672t4rrqcbxwn5zxrzyb52x5ipg3746ru44g7c7m7qaqyi",
+        "bytes": 4513849,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Spinoso Real Estate Group DLS, LLC, solely in its capacity as receiver under that certain Order Appointing Special Receiver entered in the Circuit Court for the City of Norfolk in case number CL21-6230 (“Seller”)",
+        "prefix": "Date (as hereinafter defined) between ",
+        "suffix": " and MacArthur Center Acquisition LLC,"
+      }
+    },
+    {
+      "id": "city-sole-member",
+      "stance": "context",
+      "claim": "The ordinance approved an assignment, attached unsigned, by which MacArthur Center Acquisition LLC, the purchaser named in the contract, would assign its rights and obligations under the contract to the City as the company's sole member.",
+      "source": {
+        "title": "City Council item R-2: Ordinance Ratifying/Authorizing Agreements - 300 Monticello Ave (June 7, 2023), with its exhibits",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115045/City-R-02-Ordinance-to-Ratify-and-Authorize-Agreements---300-Monticello-Ave_060723"
+      },
+      "quote": "Assignor desires to assign to Assignee, as the sole member of Assignor, all of Assignor’s rights (including Assignor’s right to the Earnest Money), and delegate to Assignee all of Assignor’s obligations, under the Contract",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicgmiif672t4rrqcbxwn5zxrzyb52x5ipg3746ru44g7c7m7qaqyi",
+        "bytes": 4513849,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Assignor desires to assign to Assignee, as the sole member of Assignor, all of Assignor’s rights (including Assignor’s right to the Earnest Money), and delegate to Assignee all of Assignor’s obligations, under the Contract",
+        "prefix": "particularly described therein. B. ",
+        "suffix": ", and Assignee desires to accept such"
+      }
+    },
+    {
+      "id": "mall-revenue-operations",
+      "stance": "context",
+      "claim": "In July 2023 Council appropriated up to $9,900,000 received from the mall and from credits at closing to pay MacArthur Mall's anticipated operating, maintenance and repair costs.",
+      "source": {
+        "title": "Ordinance No. 49270 (City Council, adopted July 11, 2023): FY2024 appropriation of up to $9,900,000 received from the purchase of 300 Monticello Avenue",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4361"
+      },
+      "quote": "Funds Up To The Amount Of $9,900,000 Received As A Result Of The City's Purchase Of Certain Property Located At 300 Monticello Avenue, From The MacArthur Mall, And Any Credits Received At Closing On The Purchase Of The Property Are, If And When Received, To Be Used Pay The Anticipated Operating, Maintenance, and Repair Costs Of MacArthur Mall.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreieujzk2yvgklwyvmpfha4fjbfgdglhigbbevkbmjq5663ta24an5q",
+        "bytes": 32696,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Funds Up To The Amount Of $9,900,000 Received As A Result Of The City's Purchase Of Certain Property Located At 300 Monticello Avenue, From The MacArthur Mall, And Any Credits Received At Closing On The Purchase Of The Property Are, If And When Received, To Be Used Pay The Anticipated Operating, Maintenance, and Repair Costs Of MacArthur Mall.",
+        "prefix": "And Authorize The Expenditure Of ",
+        "suffix": " - City of Norfolk, VA &laquo;Back to"
+      }
+    },
+    {
+      "id": "council-vote-mall-revenue",
+      "stance": "who_decides",
+      "claim": "City Council adopted that appropriation 7 to 1.",
+      "source": {
+        "title": "Ordinance No. 49270 (City Council, adopted July 11, 2023): FY2024 appropriation of up to $9,900,000 received from the purchase of 300 Monticello Avenue",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4361"
+      },
+      "quote": "RESULT: ADOPTED [7 TO 1]",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreieujzk2yvgklwyvmpfha4fjbfgdglhigbbevkbmjq5663ta24an5q",
+        "bytes": 32696,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "RESULT: ADOPTED [7 TO 1]",
+        "prefix": "PM Video City Council Formal Session ",
+        "suffix": " AYES: Courtney R. Doyle, Mamie B."
+      }
+    },
+    {
+      "id": "structural-scope",
+      "stance": "context",
+      "claim": "The 2025 structural feasibility study for Hg80 looked at partially demolishing the North and South parking garages and modifying the Nordstrom building, from existing drawings and preliminary analysis.",
+      "source": {
+        "title": "MacArthur Center Redevelopment Feasibility Study (Thornton Tomasetti, prepared for HgEighty, July 3, 2025)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115574/MacArthur-Center-Redevelopment-Feasibility-Study-Jul-2025"
+      },
+      "quote": "This study reviewed the existing drawings and performed preliminary analysis to determine initial challenges with the partial demolition of the North and South garage structures and the modification of the Nordstrom building.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidklhtiziv6xlfdx6545z2v3jszmfomjedwkuzeozbm756qnzvnbu",
+        "bytes": 6659644,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This study reviewed the existing drawings and performed preliminary analysis to determine initial challenges with the partial demolition of the North and South garage structures and the modification of the Nordstrom building.",
+        "prefix": "Center Mall in Norfolk, Virginia. ",
+        "suffix": " 1.02 Existing Structure Summary"
+      }
+    },
+    {
+      "id": "north-deck-demolition",
+      "stance": "confirms",
+      "claim": "The structural study found, on a preliminary review of the drawings, that the proposed part of the North Deck garage could be demolished with minimal changes to the rest of the structure, with new shear walls added where walls are demolished.",
+      "source": {
+        "title": "MacArthur Center Redevelopment Feasibility Study (Thornton Tomasetti, prepared for HgEighty, July 3, 2025)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115574/MacArthur-Center-Redevelopment-Feasibility-Study-Jul-2025"
+      },
+      "quote": "Based on the preliminary review of the existing drawings, the area can be demolished with minimal modifications to the existing structure. The proposed modifications will require the addition of shear walls to account for the demolished walls at gridline G.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidklhtiziv6xlfdx6545z2v3jszmfomjedwkuzeozbm756qnzvnbu",
+        "bytes": 6659644,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Based on the preliminary review of the existing drawings, the area can be demolished with minimal modifications to the existing structure. The proposed modifications will require the addition of shear walls to account for the demolished walls at gridline G.",
+        "prefix": "demolition is from gridlines A to H. ",
+        "suffix": " The impact of the unbalanced forces on"
+      }
+    },
+    {
+      "id": "nordstrom-theater",
+      "stance": "context",
+      "claim": "The structural study assumed the Nordstrom building's third floor might be converted to a movie theater and reviewed widening some of its column bays to 60 by 60 feet.",
+      "source": {
+        "title": "MacArthur Center Redevelopment Feasibility Study (Thornton Tomasetti, prepared for HgEighty, July 3, 2025)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115574/MacArthur-Center-Redevelopment-Feasibility-Study-Jul-2025"
+      },
+      "quote": "The third floor, in anticipation of being converted to a movie theatre, has been reviewed with the option of expanding certain bays to be 60’-0” x 60’-0”.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidklhtiziv6xlfdx6545z2v3jszmfomjedwkuzeozbm756qnzvnbu",
+        "bytes": 6659644,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The third floor, in anticipation of being converted to a movie theatre, has been reviewed with the option of expanding certain bays to be 60’-0” x 60’-0”.",
+        "prefix": "changes to the existing layout. ",
+        "suffix": " The first floor has been designed for"
+      }
+    },
+    {
+      "id": "nordstrom-piles",
+      "stance": "context",
+      "claim": "With the widened third-floor bays, the structural study's preliminary analysis put the load on the governing column 9% over the piles' allowable load in the design drawings, though it said further geotechnical study would likely find the piles adequate.",
+      "source": {
+        "title": "MacArthur Center Redevelopment Feasibility Study (Thornton Tomasetti, prepared for HgEighty, July 3, 2025)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/115574/MacArthur-Center-Redevelopment-Feasibility-Study-Jul-2025"
+      },
+      "quote": "the maximum unfactored reaction at the base of the governing column would increase from 420kip to 524kip or 9% over the allowable load per the design drawings. However, it is likely that with further geotechnical investigation and study, the existing piles can be found to have adequate capacity",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidklhtiziv6xlfdx6545z2v3jszmfomjedwkuzeozbm756qnzvnbu",
+        "bytes": 6659644,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "the maximum unfactored reaction at the base of the governing column would increase from 420kip to 524kip or 9% over the allowable load per the design drawings. However, it is likely that with further geotechnical investigation and study, the existing piles can be found to have adequate capacity",
+        "prefix": "Based on this preliminary analysis, ",
+        "suffix": " to support the proposed structure."
+      }
+    },
+    {
+      "id": "mall-tax-history",
+      "stance": "context",
+      "claim": "The City's 2025 white paper says that over 20 years MacArthur Center generated over $4 billion in retail sales and contributed $157 million in tax revenue to the City.",
+      "source": {
+        "title": "MacArthur Center: Updated Plan White Paper (City of Norfolk, 2025)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/114752/MacArthur-Center---Updated-Plan-White-Paper_06022025"
+      },
+      "quote": "Over 20 years, MacArthur Center generated over $4 billion in retail sales and contributed $157 million of tax revenue to the City of Norfolk.",
+      "found_by": "Claude Code routine (Siren: fulfill a source request), run by Jason Edelman",
+      "checked": "2026-11-20",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig5vfsicrmoxb5bywabezrnyyy3nlxb3m2qdv3wx3j45dlyox7bba",
+        "bytes": 1776005,
+        "read": "2026-11-20",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Over 20 years, MacArthur Center generated over $4 billion in retail sales and contributed $157 million of tax revenue to the City of Norfolk.",
+        "prefix": "and the Downtown Norfolk 2030 Plan. ",
+        "suffix": " Now, as the city embarks on its"
+      }
     }
   ],
   "what_would_help": [
@@ -850,11 +1100,13 @@
   ],
   "pending": [
     "A third-party recap (NorfolkTV via Govly) of Council's September 29, 2026 work session says staff were drafting a purchase and development agreement for Council in November or December; not yet confirmed in Council's own records.",
-    "Reported 2023 purchase prices differ (WHRO in June 2023: $11 million; the City's appropriation: $18,000,000 to acquire and operate). Only the appropriation is a finding.",
+    "Reported 2023 purchase prices differ: WHRO in June 2023 said $11 million; the purchase agreement attached to item R-2 sets $11,050,000 before prorations, adjustments and credits (finding purchase-price); the City's appropriation authorized $18,000,000 to acquire and operate. The price actually paid at closing isn't in the sources read.",
     "The FY2026 budget cut $3,988,000 of mall operating expenses \"that the consultant is paying currently\"; who the consultant is and why it pays them isn't clear from the budget book.",
-    "The 2025 studies on the City's MacArthur Center page were read on 2026-11-12 for the findings above; the structural study (listed by the City as \"MacArthur Center Redevelopment Feasibility Study Jul 2025\"; Thornton Tomasetti for HgEighty: partial garage demolition, the Nordstrom building's third floor as a possible movie theater) is not yet a finding.",
+    "The structural study (\"MacArthur Center Redevelopment Feasibility Study Jul 2025\") is now in findings structural-scope, north-deck-demolition, nordstrom-theater and nordstrom-piles; its South Deck section (ramps to be reconfigured, new shear walls needed) is not yet a finding.",
     "Zoning of the site differs between the 2025 studies: the due-diligence report says Downtown Business Center (D-BC), the apartment appraisal's summary says D-MU Downtown Mixed Use. Check the City's zoning map before stating either.",
     "The retail market research report's cover carries the Hg80 logo (with an 'Of Place' mark), and the grocery study's sales forecasts (RetailStat, May 2025) are marked 'Prepared for' with the Hg80 logo, both as images, not text. The hotel market study and apartment appraisal (CBRE) name Hg80 as client, the structural study is 'Prepared For HgEighty', and the due-diligence report was done 'for HGEighty'. The CBRE reports limit reliance to their named Intended Users, Hg80 and the City of Norfolk.",
-    "The grocery study's sales forecasts (RetailStat, May 2025, prepared for Hg80, assuming an October 2027 opening) test named grocers in quality-service, conventional, natural and limited-assortment formats, none in the Discount format. They are not yet findings; read them before saying which grocer or format the study favors."
+    "The grocery study's sales forecasts (RetailStat, May 2025, prepared for Hg80, assuming an October 2027 opening) test named grocers in quality-service, conventional, natural and limited-assortment formats, none in the Discount format. They are not yet findings; read them before saying which grocer or format the study favors.",
+    "Item R-2's Exhibits A (the operating agreement of MacArthur Center Acquisition LLC) and B (the first amendment to the City's consulting agreement with GEI Advisors, LLC) are scanned images in the City's PDF; their terms, including what GEI Advisors is paid, aren't findings.",
+    "As of 2026-11-20, the iqm2 portal lists no items for City Council's November 10 (held), December 1 and December 15, 2026 meetings, so the portal can't yet show whether a purchase and development agreement with Hg80 has been introduced."
   ]
 }
