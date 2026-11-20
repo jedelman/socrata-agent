@@ -318,6 +318,14 @@ export function build(pdf) {
       unlisted: 'Any use that is not listed in a use table is prohibited (Section 3.1.4).',
     },
     districts: districts.filter((d) => tables.some((t) => t.districts.includes(d.code))),
+    // Every district Table 3.1.2 establishes, with the section that sets it out, so a
+    // district without a column (an overlay such as IMU-O, PD, TOD) can be named and pointed to.
+    all_districts: districts.map((d) => {
+      const own = (code, name) => ORDINANCE.sections.find((x) => x.title.startsWith(`${code}:`)) || (name && ORDINANCE.sections.find((x) => x.title === name || x.title.replace(/\s+/g, ' ').startsWith(name)));
+      // TOD-C sits in TOD's section, HO-Downtown in HO's.
+      const sec = own(d.code, d.name) || own(d.code.split('-')[0]);
+      return { ...d, ...(sec ? { section: sec.number } : {}), in_use_table: tables.some((t) => t.districts.includes(d.code)) };
+    }),
     checked: { against: 'the ordinance text extraction (each row\'s marks, in order)', rows: checked, unchecked: unchecked.length },
     tables,
   };

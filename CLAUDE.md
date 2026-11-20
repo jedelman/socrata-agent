@@ -233,7 +233,7 @@ generic mode.
   cost, tool counts, partial or not, case files read, follow-ups, dropped
   links, and up to 8 topic words, taken only from topic tools' arguments
   (prior research, capital project, legislation, budget book, ordinance,
-  City news), only when that text passes the public-text checks, and only
+  City news, zoning uses), only when that text passes the public-text checks, and only
   words found in the adopted budget books and Zoning Ordinance (so a
   surname never gets through). Never the question, the answer, an account,
   invite, conversation, IP or address; the About panel says so when it's on
@@ -708,11 +708,19 @@ generic mode.
   (`data/documents/norfolk-zoning-use-tables.json`, built by
   `scripts/build-use-tables.js` from the same PDF and CID as the ordinance text,
   marks placed by word position and checked row by row against the text
-  extraction). Plain-word uses ("Airbnb", "ADU") and district codes or names;
-  a matching use a district's table doesn't list is prohibited there; P/C sends
-  Siren to the cited performance standards; each table page joins the hand-off
-  as `kind: 'document'` with `#page=`. Four rows the City prints inconsistently
-  keep what's printed, with a note.
+  extraction). Plain-word uses ("Airbnb", "brewery", "church") through
+  `SAYINGS` to the table's own names, the person's own words ranked first,
+  partial matches flagged; district codes, names or shorthand ("PCO-21st",
+  "C-C (conditional)"), and every Table 3.1.2 district, so one with no column
+  (IMU-O, PD, TOD) points to its own section. **It never calls a use
+  prohibited because no name matched** (fresh review of #74): a blank or a use
+  a base table doesn't list comes back with its definition to read first
+  (Article 4), and a use Table 3.9.23 doesn't list defers to the base
+  district's table (overlays govern only what they list). P/C sends Siren to
+  the cited performance standards. Each table page joins the hand-off as
+  `kind: 'document'` with `#page=` (research memory keeps only its own topic
+  kinds, so these stay out of shared sources). Four rows the City prints
+  inconsistently keep what's printed, with a note.
 - **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
   in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
   with a prompt line saying when to use it. `test/plugins.test.js` fails if

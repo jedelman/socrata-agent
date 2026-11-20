@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import tables from '../data/documents/norfolk-zoning-use-tables.json' with { type: 'json' };
 import ordinance from '../data/documents/norfolk-zoning-ordinance.json' with { type: 'json' };
-import plugin, { matchUses, districtCode } from '../plugins/zoning-uses.js';
+import plugin, { matchUses, districtCode, districtOf } from '../plugins/zoning-uses.js';
 import { parsePage, districtsOf, districtFor, categoryRefOf, AS_PRINTED } from '../scripts/build-use-tables.js';
 import { filterAnswerLinks, handoffUrls } from '../src/answer-links.js';
 import siren from '../deployments/siren.config.js';
@@ -97,41 +97,85 @@ test('zoning_uses: a use in a district, in plain words, with the table, page and
   assert.equal(out.district, 'C-C');
   assert.deepEqual(out.matches.map((m) => m.rows.map((r) => [r.table, r.mark, r.standards, r.page])), [[['Table 3.3.9', 'P/C', '4.2.3.D(2)(a)', 219]]]);
   assert.match(out.matches[0].rows[0].means, /Conditional Use Permit may be required/);
-  assert.match(out.how, /performance standards \(Article 4\) decide when/);
+  assert.match(out.how, /performance standards decide when/);
+  assert.match(out.how, /read it before saying a use is prohibited/);
   assert.deepEqual(c.records, [{ kind: 'document', title: 'Norfolk Zoning Ordinance, Table 3.3.9 (p. 219)', url: `${tables.source.url}#page=219` }]);
-  // The page link survives the answer's link check.
   const linked = filterAnswerLinks(`I found it in [Table 3.3.9](${tables.source.url}#page=219).`, handoffUrls({ records: c.records }));
   assert.equal(linked.kept, 1);
 });
 
-test('zoning_uses: a matching use the district\'s table doesn\'t list is prohibited there; every district without one', async () => {
-  const out = await plugin.run(ctx(), { use: 'Airbnb', district: 'HC-G2' });
-  assert.deepEqual(out.matches.map((m) => m.name), ['Short-term rental unit (homestay)']);
-  assert.deepEqual(out.not_listed.uses, ['Short-term rental unit (vacation rental)']);
-  assert.match(out.not_listed.means, /prohibited/);
-  const all = await plugin.run(ctx(), { use: 'short-term rental unit (vacation rental)' });
-  const sf = all.matches[0].rows.find((r) => r.table === 'Table 3.2.12');
-  assert.equal(sf.allowed['SF-10'], 'C');
-  assert.ok(sf.prohibited_in.includes('MF-AC'));
-  const prohibited = await plugin.run(ctx(), { use: 'homestay', district: 'I-L' });
-  assert.equal(prohibited.matches[0].rows[0].mark, 'prohibited');
+test('zoning_uses: everyday words find the table\'s own use, and never a bare "prohibited" (fresh review of #74)', async () => {
+  const names = (q) => matchUses(q).names;
+  assert.deepEqual(names('brewery').sort(), ['Brewery, cidery, distillery, or winery', 'Production of craft beverages']);
+  assert.deepEqual(names('vacation rental'), ['Short-term rental unit (vacation rental)', 'Short-term rental unit (homestay)'], 'the person\'s own words first');
+  assert.deepEqual(names('church'), ['Religious institution']);
+  assert.deepEqual(names('salon'), ['Personal service business']);
+  assert.deepEqual(names('gym'), ['Health and fitness facility']);
+  assert.deepEqual(names('cafe'), ['Restaurant']);
+  assert.deepEqual(names('car dealership'), ['Automobile sales']);
+  assert.deepEqual(names('triplex'), ['Dwelling, multi-family']);
+  assert.deepEqual(names('outdoor dining'), ['Outdoor seating (as accessory to an eating and drinking use)']);
+  assert.deepEqual(names('ADU'), ['Accessory dwelling unit']);
+  assert.deepEqual(names('utility facility minor'), ['Utility facility, minor']);
+  assert.deepEqual(names('other'), [], 'the printed "All other uses" row is matched only by the name it means');
+  // A partial match is flagged, so "homeless shelter" can't quietly become "Animal shelter".
+  assert.equal(matchUses('homeless shelter').partial, true);
+  const shelter = await plugin.run(ctx(), { use: 'homeless shelter', district: 'C-C' });
+  assert.match(shelter.partial, /hold some of them/);
+  // The prompt's own example: a brewery in C-C is a C as "Production of craft beverages".
+  const brew = await plugin.run(ctx(), { use: 'brewery', district: 'C-C' });
+  const marks = Object.fromEntries(brew.matches.map((m) => [m.name, m.rows.map((r) => r.mark)]));
+  assert.deepEqual(marks, { 'Production of craft beverages': ['C'], 'Brewery, cidery, distillery, or winery': ['blank (prohibited)'] });
+  assert.match(brew.note, /read their definitions to say which applies/);
+  // No name matched: where to look, not "prohibited".
+  const none = await plugin.run(ctx(), { use: 'zzz qqq', district: 'C-C' });
+  assert.deepEqual(none.matches, []);
+  assert.match(none.note, /Don't call the use prohibited until you know which use it is/);
+  // A blank says to read the definition first (a home EV charger isn't an "Electric vehicle charging station").
+  const ev = await plugin.run(ctx(), { use: 'EV charger', district: 'SF-6' });
+  assert.match(ev.matches[0].rows[0].means, /read its definition first/);
+  assert.deepEqual(ev.not_listed.uses, [{ use: 'Electric vehicle charging station', standards: row('3.3.9', 'Electric vehicle charging station').standards }]);
+  assert.match(ev.not_listed.means, /first read the use's definition/);
 });
 
-test('zoning_uses: districts by code or name, a district\'s uses by mark, and plain refusals', async () => {
+test('zoning_uses: overlays govern only what Table 3.9.23 lists; a district without a column says what governs it', async () => {
+  const pco = await plugin.run(ctx(), { use: 'airbnb', district: 'PCO-Colley' });
+  assert.deepEqual(pco.not_listed.uses.map((u) => u.use), ['Short-term rental unit (vacation rental)']);
+  assert.match(pco.not_listed.means, /the base district's table governs/);
+  assert.match(pco.matches[0].rows[0].means, /prohibited in the overlay whatever the base district allows/);
+  const imu = await plugin.run(ctx(), { district: 'IMU-O' });
+  assert.equal(imu.no_use_table, true);
+  assert.equal(imu.section, '3.9.21');
+  assert.match(imu.note, /call again with the base district/);
+  assert.match((await plugin.run(ctx(), { district: 'PD' })).note, /master plan/);
+  assert.equal((await plugin.run(ctx(), { district: 'HO-N&W' })).section, '3.9.8');
+  const list = await plugin.run(ctx(), { district: 'PCO-Riverview' });
+  assert.match(list.overlay, /govern only the uses Table 3.9.23 lists/);
+});
+
+test('zoning_uses: districts by code, name or shorthand; conditional zoning; links to the table\'s first page', async () => {
   assert.equal(districtCode('Community Commercial'), 'C-C');
   assert.equal(districtCode('pco colley'), 'PCO-Colley');
+  assert.equal(districtCode('PCO-21st'), 'PCO-21st Street');
   assert.equal(districtCode('sf6'), 'SF-6');
   assert.equal(districtCode('nowhere'), null);
-  const list = await plugin.run(ctx(), { district: 'MF-NS', mark: 'C' });
+  assert.deepEqual(districtOf('C-C (conditional)'), { code: 'C-C', conditional: true });
+  const cond = await plugin.run(ctx(), { use: 'restaurant', district: 'C-C (Conditional)' });
+  assert.match(cond.conditional_zoning, /proffered conditions/);
+  const c = ctx();
+  const list = await plugin.run(c, { district: 'MF-NS', mark: 'C' });
   assert.equal(list.table, 'Table 3.2.12');
+  assert.equal(list.link, `${tables.source.url}#page=199`, 'the table\'s first page, not the section\'s');
   assert.ok(list.uses.C.includes('Rooming house'));
   assert.equal(list.counts.C, list.uses.C.length);
-  assert.match((await plugin.run(ctx(), { district: 'nowhere' })).error, /isn't a zoning district/);
-  assert.match((await plugin.run(ctx(), { district: 'PD' })).note, /master plan/);
+  const bad = await plugin.run(ctx(), { district: 'nowhere' });
+  assert.match(bad.error, /isn't a zoning district/);
+  assert.ok(bad.how);
   assert.match((await plugin.run(ctx(), {})).error, /Give use, district, or both/);
-  assert.deepEqual((await plugin.run(ctx(), { use: 'zzz qqq' })).matches, []);
-  assert.deepEqual(matchUses('ADU'), ['Accessory dwelling unit']);
-  assert.deepEqual(matchUses('day care').slice(0, 2), ['Day care center, adult', 'Day care center, child']);
+  const all = await plugin.run(ctx(), { use: 'short-term rental unit (vacation rental)' });
+  const sf = all.matches[0].rows.find((r) => r.table === 'Table 3.2.12');
+  assert.equal(sf.marked['SF-10'], 'C');
+  assert.ok(sf.blank_in.includes('MF-AC'));
 });
 
 test('Siren declares zoning_uses with one prompt line', () => {

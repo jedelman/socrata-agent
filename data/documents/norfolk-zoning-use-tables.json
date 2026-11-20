@@ -214,6 +214,392 @@
    "name": "Pedestrian Commercial Overlay - Lafayette Boulevard"
   }
  ],
+ "all_districts": [
+  {
+   "code": "SF-2",
+   "name": "Single Family 2",
+   "section": "3.2.3",
+   "in_use_table": true
+  },
+  {
+   "code": "SF-4",
+   "name": "Single Family 4",
+   "section": "3.2.4",
+   "in_use_table": true
+  },
+  {
+   "code": "SF-6",
+   "name": "Single Family 6",
+   "section": "3.2.5",
+   "in_use_table": true
+  },
+  {
+   "code": "SF-10",
+   "name": "Single Family 10",
+   "section": "3.2.6",
+   "in_use_table": true
+  },
+  {
+   "code": "SF-T",
+   "name": "Single Family - Traditional",
+   "section": "3.2.7",
+   "in_use_table": true
+  },
+  {
+   "code": "R-C",
+   "name": "Residential - Coastal",
+   "section": "3.2.8",
+   "in_use_table": true
+  },
+  {
+   "code": "MF-NS",
+   "name": "Multi-Family - Neighborhood-Scale",
+   "section": "3.2.9",
+   "in_use_table": true
+  },
+  {
+   "code": "MF-AC",
+   "name": "Multi-Family - Apartment Complex",
+   "section": "3.2.10",
+   "in_use_table": true
+  },
+  {
+   "code": "MF-HR",
+   "name": "Multi-Family - High Rise",
+   "section": "3.2.11",
+   "in_use_table": true
+  },
+  {
+   "code": "C-N",
+   "name": "Neighborhood Commercial",
+   "section": "3.3.3",
+   "in_use_table": true
+  },
+  {
+   "code": "C-C",
+   "name": "Community Commercial",
+   "section": "3.3.4",
+   "in_use_table": true
+  },
+  {
+   "code": "C-R",
+   "name": "Regional Commercial",
+   "section": "3.3.5",
+   "in_use_table": true
+  },
+  {
+   "code": "O",
+   "name": "Office",
+   "section": "3.3.6",
+   "in_use_table": true
+  },
+  {
+   "code": "BC-O",
+   "name": "Business and Commerce Park - Office",
+   "section": "3.3.7",
+   "in_use_table": true
+  },
+  {
+   "code": "BC-I",
+   "name": "Business and Commerce Park - Industrial",
+   "section": "3.3.8",
+   "in_use_table": true
+  },
+  {
+   "code": "D-W",
+   "name": "Downtown - Waterfront",
+   "section": "3.4.5",
+   "in_use_table": true
+  },
+  {
+   "code": "D-BC",
+   "name": "Downtown - Business Center",
+   "section": "3.4.6",
+   "in_use_table": true
+  },
+  {
+   "code": "D-MU",
+   "name": "Downtown - Mixed-Use",
+   "section": "3.4.7",
+   "in_use_table": true
+  },
+  {
+   "code": "D-AD",
+   "name": "Downtown - Arts and Design",
+   "section": "3.4.8",
+   "in_use_table": true
+  },
+  {
+   "code": "D-FN",
+   "name": "Downtown - Fort Norfolk",
+   "section": "3.4.9",
+   "in_use_table": true
+  },
+  {
+   "code": "D-SP",
+   "name": "Downtown - Saint Paul’s",
+   "section": "3.4.10",
+   "in_use_table": true
+  },
+  {
+   "code": "I-L",
+   "name": "Industrial - Light",
+   "section": "3.5.3",
+   "in_use_table": true
+  },
+  {
+   "code": "I-G",
+   "name": "Industrial - General",
+   "section": "3.5.4",
+   "in_use_table": true
+  },
+  {
+   "code": "I-W",
+   "name": "Industrial - Waterfront",
+   "section": "3.5.5",
+   "in_use_table": true
+  },
+  {
+   "code": "I-DW",
+   "name": "Industrial - Deep Water",
+   "section": "3.5.6",
+   "in_use_table": true
+  },
+  {
+   "code": "HC-G1",
+   "name": "Ghent Historic and Cultural Conservation",
+   "section": "3.6.5",
+   "in_use_table": true
+  },
+  {
+   "code": "HC-G2",
+   "name": "Ghent Historic and Cultural Conservation",
+   "section": "3.6.6",
+   "in_use_table": true
+  },
+  {
+   "code": "HC-G3",
+   "name": "Ghent Historic and Cultural Conservation",
+   "section": "3.6.7",
+   "in_use_table": true
+  },
+  {
+   "code": "HC-WF1",
+   "name": "West Freemason Historic and Cultural Conservation",
+   "section": "3.6.8",
+   "in_use_table": true
+  },
+  {
+   "code": "HC-WF2",
+   "name": "West Freemason Historic and Cultural Conservation",
+   "section": "3.6.9",
+   "in_use_table": true
+  },
+  {
+   "code": "HC-EF",
+   "name": "East Freemason Historic and Cultural Conservation",
+   "section": "3.6.10",
+   "in_use_table": true
+  },
+  {
+   "code": "IN",
+   "name": "Institutional",
+   "section": "3.7.3",
+   "in_use_table": true
+  },
+  {
+   "code": "IN-C",
+   "name": "Institutional - Campus",
+   "section": "3.7.4",
+   "in_use_table": true
+  },
+  {
+   "code": "A",
+   "name": "Airport",
+   "section": "3.7.5",
+   "in_use_table": true
+  },
+  {
+   "code": "OSP",
+   "name": "Open Space and Preservation",
+   "section": "3.7.6",
+   "in_use_table": true
+  },
+  {
+   "code": "RESOURCE",
+   "name": "Resource Conservation",
+   "section": "3.7.7",
+   "in_use_table": true
+  },
+  {
+   "code": "MI",
+   "name": "Military Installation",
+   "section": "3.7.8",
+   "in_use_table": true
+  },
+  {
+   "code": "MW",
+   "name": "Monarch Way",
+   "section": "3.7.9",
+   "in_use_table": true
+  },
+  {
+   "code": "EBH",
+   "name": "East Beach Harbor",
+   "section": "3.7.10",
+   "in_use_table": true
+  },
+  {
+   "code": "TOD",
+   "name": "Transit-Oriented Development",
+   "section": "3.7.11",
+   "in_use_table": false
+  },
+  {
+   "code": "TOD-C",
+   "name": "Transit-Oriented Development – Core",
+   "section": "3.7.11",
+   "in_use_table": true
+  },
+  {
+   "code": "TOD-S",
+   "name": "Transit-Oriented Development – Support",
+   "section": "3.7.11",
+   "in_use_table": true
+  },
+  {
+   "code": "G-1",
+   "name": "Granby/Monticello Corridor Mixed-Use",
+   "section": "3.7.12",
+   "in_use_table": true
+  },
+  {
+   "code": "PD",
+   "name": "Planned Development",
+   "section": "3.8.3",
+   "in_use_table": false
+  },
+  {
+   "code": "ASO/AICUZ",
+   "name": "Airport Safety, Air Installation Compatibility Use Zone, and Noise",
+   "section": "3.9.5",
+   "in_use_table": false
+  },
+  {
+   "code": "CBPA-O",
+   "name": "Chesapeake Bay Preservation Area Overlay",
+   "section": "3.9.6",
+   "in_use_table": false
+  },
+  {
+   "code": "FPCH-O",
+   "name": "Flood Plain / Coastal Hazard Overlay",
+   "section": "3.9.7",
+   "in_use_table": false
+  },
+  {
+   "code": "HO",
+   "name": "Historic Overlay",
+   "section": "3.9.8",
+   "in_use_table": false
+  },
+  {
+   "code": "HO-Downtown",
+   "name": "Downtown Historic Overlay",
+   "section": "3.9.8",
+   "in_use_table": false
+  },
+  {
+   "code": "HO-N&W",
+   "name": "Norfolk & Western Historic Overlay",
+   "section": "3.9.8",
+   "in_use_table": false
+  },
+  {
+   "code": "BCRO",
+   "name": "Broad Creek Refresh Overlay",
+   "section": "3.9.9",
+   "in_use_table": false
+  },
+  {
+   "code": "PCO",
+   "name": "Pedestrian Commercial Overlay",
+   "section": "3.9.10",
+   "in_use_table": false
+  },
+  {
+   "code": "PCO-Colley",
+   "name": "Pedestrian Commercial Overlay - Colley Avenue",
+   "section": "3.9.11",
+   "in_use_table": true
+  },
+  {
+   "code": "PCO-21st Street",
+   "name": "Pedestrian Commercial Overlay - 21st Street",
+   "section": "3.9.12",
+   "in_use_table": true
+  },
+  {
+   "code": "PCO-Riverview",
+   "name": "Pedestrian Commercial Overlay - Riverview",
+   "section": "3.9.13",
+   "in_use_table": true
+  },
+  {
+   "code": "PCO-35th Street",
+   "name": "Pedestrian Commercial Overlay - 35th Street",
+   "section": "3.9.14",
+   "in_use_table": true
+  },
+  {
+   "code": "PCO-Lafayette",
+   "name": "Pedestrian Commercial Overlay - Lafayette Boulevard",
+   "section": "3.9.15",
+   "in_use_table": true
+  },
+  {
+   "code": "NRO",
+   "name": "Neighborhood Resilience Overlay",
+   "section": "3.9.16",
+   "in_use_table": false
+  },
+  {
+   "code": "IRIO",
+   "name": "Institutional Residential Impact Overlay District",
+   "section": "3.9.17",
+   "in_use_table": false
+  },
+  {
+   "code": "CRO",
+   "name": "Coastal Resilience Overlay",
+   "section": "3.9.18",
+   "in_use_table": false
+  },
+  {
+   "code": "URO",
+   "name": "Upland Resilience Overlay",
+   "section": "3.9.19",
+   "in_use_table": false
+  },
+  {
+   "code": "HL",
+   "name": "Historic Landmark Designation",
+   "section": "3.9.20",
+   "in_use_table": false
+  },
+  {
+   "code": "IMU-O",
+   "name": "Industrial Mixed-Use Overlay",
+   "section": "3.9.21",
+   "in_use_table": false
+  },
+  {
+   "code": "STRL-O",
+   "name": "Short-Term Rental Limitation Overlay",
+   "section": "3.9.22",
+   "in_use_table": false
+  }
+ ],
  "checked": {
   "against": "the ordinance text extraction (each row's marks, in order)",
   "rows": 882,
