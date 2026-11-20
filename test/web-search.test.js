@@ -19,7 +19,7 @@ import { Resources } from '../src/resources.js';
 import siren from '../deployments/siren.config.js';
 import deployments from '../deployments/index.js';
 import { claudeResponse } from './fake-claude.js';
-import { webSearchOffScenario, ADDED_SINCE_SNAPSHOT, CORE_TOOLS_ADDED_SINCE_SNAPSHOT } from './fixtures/web-search-off-scenario.js';
+import { webSearchOffScenario, ADDED_SINCE_SNAPSHOT, CORE_TOOLS_ADDED_SINCE_SNAPSHOT, changedLine } from './fixtures/web-search-off-scenario.js';
 import { CORE_TOOLS_ADDED_SINCE_SNAPSHOT as GAPS_CORE_ADDED } from './fixtures/gaps-off-scenario.js';
 import { toolsFor } from '../src/tools.js';
 
@@ -185,7 +185,7 @@ test('the snapshot scenario swaps in old definitions only for Siren plugin tools
 test('the snapshot scenario leaves out only tools that joined Siren after it, with their prompt lines', () => {
   for (const name of ADDED_SINCE_SNAPSHOT) {
     assert.ok(siren.plugins.some((p) => p.name === name), `${name} is a Siren plugin`);
-    assert.equal(siren.prompt.split('\n').filter((l) => l.includes(name)).length, 1, `${name} has one prompt line`);
+    assert.equal(siren.prompt.split('\n').filter((l) => l.includes(name) && !changedLine(l)).length, 1, `${name} has one prompt line`);
   }
 });
 

@@ -726,8 +726,19 @@ generic mode.
   house) counts beside an explained one, and alone reads only through its
   generic names. A word nothing explains makes the match partial: candidates
   with their definitions' references and no marks, for Siren to confirm
-  before answering. A name several districts share (the Ghent HC districts)
-  is an error naming them, never the first. P/C sends Siren to
+  before answering. **And the words asked must name the use** (fourth review,
+  after "retail sales" in BC-O read as the industrial accessory row's P): a
+  name matches only when every word of it was asked (category words like
+  facility and dwelling aside) or one of its listed alternatives was
+  (`ALTERNATIVES`: "museum" names "Cultural facility, museum, or library"); a
+  longer name that merely holds the words asked comes back in `related`,
+  with no marks. The table's exact name returns that use alone; a longer
+  everyday phrase beats a word inside it ("home office" is Home occupation);
+  drink and club words beside another use add their own names; a cut list
+  says how many more. A name several districts share (the Ghent HC
+  districts) is an error naming them, never the first; shorthand resolves
+  only when it starts as the code does, so a neighborhood's name
+  ("Riverview") is never an overlay. P/C sends Siren to
   the cited performance standards. Each table page joins the hand-off as
   `kind: 'document'` with `#page=` (research memory keeps only its own topic
   kinds, so these stay out of shared sources). Four rows the City prints

@@ -212,7 +212,11 @@ test('zoning_uses: districts by code, name or shorthand; conditional zoning; lin
 
 test('Siren declares zoning_uses with one prompt line', () => {
   assert.ok(siren.plugins.some((p) => p.name === 'zoning_uses'));
-  assert.equal(siren.prompt.split('\n').filter((l) => l.includes('zoning_uses')).length, 1);
+  const lines = siren.prompt.split('\n').filter((l) => l.includes('zoning_uses'));
+  assert.equal(lines.filter((l) => !l.includes('parcel_inventory')).length, 1);
+  // The parcel lookup's line sends use questions here, not to a case file (fourth review of #74).
+  assert.ok(lines.some((l) => l.includes('parcel_inventory')));
+  assert.ok(!siren.prompt.includes('for what a use such as a restaurant needs'));
 });
 
 test('zoning_uses: every word asked must be accounted for before a mark is given (third review of #74)', async () => {
@@ -220,7 +224,8 @@ test('zoning_uses: every word asked must be accounted for before a mark is given
   const marksOf = async (use, district) => Object.fromEntries((await plugin.run(ctx(), { use, district })).matches.map((m) => [m.name, m.rows.map((r) => r.mark)[0]]));
   // The finding: a generic word stood in for the specific use ("weed shop" became Retail goods, P/C in D-MU).
   assert.deepEqual(await marksOf('weed shop', 'D-MU'), { 'Cannabis dispensing facility': 'blank (prohibited)' });
-  assert.deepEqual(names('marijuana store'), ['Cannabis dispensing facility', 'Cannabis cultivation or manufacturing facility']);
+  assert.deepEqual(names('marijuana store'), ['Cannabis dispensing facility'], 'a store is the dispensary, not cultivation');
+  assert.deepEqual(names('marijuana'), ['Cannabis dispensing facility', 'Cannabis cultivation or manufacturing facility']);
   // A word nothing explains: candidates to confirm, never marks.
   const odd = await plugin.run(ctx(), { use: 'kombucha shop', district: 'D-MU' });
   assert.deepEqual(odd.matches, []);
@@ -247,8 +252,8 @@ test('zoning_uses: every word asked must be accounted for before a mark is given
   // Accents, plurals and the person's own words naming the use.
   assert.deepEqual(names('cafés'), ['Restaurant']);
   assert.deepEqual(names('churches'), ['Religious institution']);
-  assert.deepEqual(names('can I open a restaurant with outdoor seating'), ['Restaurant', 'Outdoor seating (as accessory to an eating and drinking use)']);
-  assert.deepEqual(names('car wash'), ['Car wash', 'Automatic car wash']);
+  assert.deepEqual(names('can I open a restaurant with outdoor seating').sort(), ['Outdoor seating (as accessory to an eating and drinking use)', 'Restaurant']);
+  assert.deepEqual(names('car wash'), ['Car wash'], 'the table\'s own name alone');
   assert.equal(names('park').includes('Parking facility'), false, 'a four-letter word never matches as the start of another');
   // Rows say which category they're in (an accessory use is not the principal use).
   const ev = await plugin.run(ctx(), { use: 'EV charger', district: 'C-C' });
@@ -259,4 +264,49 @@ test('zoning_uses: every word asked must be accounted for before a mark is given
   assert.equal(districtCode('PCO Colley Ave'), 'PCO-Colley');
   assert.equal(districtCode('PCO Lafayette Blvd'), 'PCO-Lafayette');
   assert.equal(districtCode('PCO'), 'PCO');
+});
+
+test('zoning_uses: a name with words of its own beyond those asked is a different use, never a match (fourth review of #74)', async () => {
+  const run = (use, district) => plugin.run(ctx(), { use, district });
+  const marks = (out) => Object.fromEntries(out.matches.map((m) => [m.name, m.rows.map((r) => r.mark)[0]]));
+  // The finding: a longer name holding every word asked won confidently.
+  assert.deepEqual(marks(await run('retail sales', 'BC-O')), { 'Retail goods establishment': 'blank (prohibited)' }, 'never the industrial accessory row\'s P');
+  assert.deepEqual((await run('retail sales', 'BC-O')).related.uses, ['Retail sales (as accessory to an industrial use)']);
+  assert.deepEqual(Object.keys(marks(await run('auto sales', 'C-C'))), ['Automobile sales']);
+  assert.ok(!('Commercial vehicle repair and maintenance' in marks(await run('car repair', 'C-C'))));
+  assert.deepEqual(Object.keys(marks(await run('vehicle storage', 'O'))), ['Automobile storage']);
+  for (const use of ['health care', 'accessory structure', 'garage', 'dock', 'residential', 'shelter', 'truck', 'private event']) {
+    const out = await run(use, 'C-C');
+    assert.deepEqual(out.matches, [], `${use}: candidates, never marks`);
+    assert.ok(out.partial, use);
+  }
+  // Alternatives name a use by themselves; parentheticals don't come free.
+  const names = (q) => matchUses(q).names;
+  assert.deepEqual(names('hotel'), ['Hotel or motel']);
+  assert.deepEqual(names('museum'), ['Cultural facility, museum, or library']);
+  assert.deepEqual(names('bank'), ['Bank or other financial institution']);
+  assert.deepEqual(names('live-work'), ['Dwelling, live-work']);
+  // The table's exact name returns that use alone; a phrase beats a word inside it.
+  assert.deepEqual(names('Office'), ['Office']);
+  assert.deepEqual(names('Day care center, child'), ['Day care center, child']);
+  assert.deepEqual(names('Dwelling, single-family detached'), ['Dwelling, single-family detached']);
+  assert.deepEqual(names('home office'), ['Home occupation']);
+  assert.deepEqual(names('art studio'), ['Artist studio/school/gallery']);
+  assert.deepEqual(names('apartment in my house'), ['Accessory dwelling unit']);
+  // Drink and club words add their names beside another use; home and house never vanish.
+  assert.ok(names('restaurant and bar').includes('Sale of alcoholic beverages, on-premises'));
+  assert.ok(names('bar with live music').includes('Nightclub'));
+  assert.ok(names('home bakery').includes('Home occupation'));
+  assert.ok(matchUses('group home').names.length === 0 || matchUses('group home').partial);
+  // A cut list says so.
+  const storage = await run('storage', 'C-C');
+  assert.match(storage.more, /more uses? hold these words/);
+});
+
+test('zoning_uses: a neighborhood\'s name or a stray word is never an overlay (fourth review of #74)', async () => {
+  for (const d of ['Riverview', 'Lafayette', 'Colley', '21st', '21st street', 'downtown', 'review', 'river', 'costs', 'pier', 'source']) assert.equal(districtOf(d), null, d);
+  assert.equal(districtCode('PCO-21st'), 'PCO-21st Street');
+  assert.equal(districtCode('pco riverview'), 'PCO-Riverview');
+  assert.equal(districtCode('SF-6 district'), 'SF-6');
+  assert.match((await plugin.run(ctx(), { use: 'ADU', district: 'Riverview' })).error, /isn't a zoning district/);
 });
