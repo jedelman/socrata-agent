@@ -79,7 +79,9 @@ test('text beside a source request is the answer too', async () => {
 });
 
 test('text that reads as a step, not an answer, goes on with the card-text note: a short line, a "Let me" opener, a closing colon', async () => {
-  for (const step of [SHORT, `Let me add a button for the agreement. ${ANSWER}`, `${ANSWER} Here is what the agreement covers:`]) {
+  const longLinks = `I've also offered to read [the cooperation agreement](${LEGI}&a=${'x'.repeat(60)}) and [the companion ordinance](${LEGI}&b=${'y'.repeat(60)}) next, each with a button under this answer.`;
+  assert.ok(longLinks.length >= 200, 'long only because of its URLs');
+  for (const step of [SHORT, `Let me add a button for the agreement. ${ANSWER}`, `${ANSWER} Here is what the agreement covers:`, longLinks, `Adding a follow-up so you can have me read the agreement next. I found the ordinance and its exhibit, and the button under this answer will ask me to read the rest of it for you.`]) {
     const s = scripted([
       { tools: [['the_record_tool', {}]] },
       { text: step, tools: [FOLLOWUP] },
@@ -168,6 +170,9 @@ test('a source request can\'t ask for records that find who owns, bought, rents 
     'Parcel ownership for 810 Union St',
     'Name and address of the owner',
     'Phone number for the landlord',
+    'Deed records showing who holds title to 810 Union St',
+    'Taxpayer mailing address for 810 Union St',
+    'Grantee on the latest deed',
   ]) assert.equal(seeksPerson(t), true, t);
   for (const t of [
     'How residents can contact their council member',
@@ -188,6 +193,7 @@ test('a source request can\'t ask for records that find who owns, bought, rents 
     'Ownership information for parcels the City sold',
     'Dr. Martin Luther King Jr. Blvd paving plan',
     'Tenant rights guide from NRHA',
+    'Who owns the vacant lot on Church Street owned by the City, and what is planned for it',
   ]) assert.equal(seeksPerson(t), false, t);
   // Clipped as kept, so a huge request is cheap to check.
   const t0 = Date.now();

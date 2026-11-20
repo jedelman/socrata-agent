@@ -22,9 +22,12 @@ const PEOPLE = '(?:owners?|landlords?|tenants?|occupants?|residents?|homeowners?
 const NOT_A_PERSON = String.raw`(?![-\w])(?!['’]?s?\s+(?:rights?|organi[sz]ations?|advocates?|advocacy|associations?|unions?|councils?|programs?|offices?|services?|groups?|guides?|handbooks?|protections?|assistance|mediation|education|counsel(?:ing|ling)?|occupancy|occupied))`;
 const PLACE = String.raw`\b(?:house|houses|home|homes|lot|lots|property|properties|parcel|parcels|building|buildings|apartments?|units?|condos?|duplex(?:es)?|rentals?|address|block|my street|next door|neighbou?rs?)\b`;
 const OWNERSHIP_RECORDS = /\b(?:owners?|ownership)\s+(?:of\s+record|records?|information|info|details|names?|lists?|contacts?|data|history|lookups?|search)\b/i;
+// Who owns, holds title to, bought, rents or lives at a house, lot or building.
+const WHO_AT_A_PLACE = new RegExp(String.raw`\b(?:who|whom|who's)\s+(?:\w+\s+){0,2}?(?:owns?|owned|holds?|held|bought|purchased|sold|rents?|rented|renting|leases?|leased|lives?|lived|living|resides?|residing|occupies|occupied|stays?|staying)\b(?=[\s\S]*${PLACE})`, 'i');
 const SEEKS_PERSON = [
-  // Who owns, bought, rents or lives at a house, lot or building.
-  new RegExp(String.raw`\b(?:who|whom|who's)\s+(?:\w+\s+){0,2}?(?:owns?|owned|bought|purchased|sold|rents?|rented|renting|leases?|leased|lives?|lived|living|resides?|residing|occupies|occupied|stays?|staying)\b(?=[\s\S]*${PLACE})`, 'i'),
+  WHO_AT_A_PLACE,
+  // The parties to a deed.
+  /\b(?:grantees?|grantors?)\b/i,
   // Which LLC or company owns it.
   /\bwhich\s+(?:llcs?|compan(?:y|ies)|corporations?|entit(?:y|ies)|landlords?|person|people|individuals?)\s+(?:\w+\s+){0,2}?(?:owns?|owned|bought|purchased|rents?|leases?|manages?)\b/i,
   // Whose house or lot it is.
@@ -44,7 +47,7 @@ const SEEKS_PERSON = [
 ];
 // A house number beside an owner, landlord, tenant or resident word: "the
 // current owner of the property at 810 Union St", "tenant at 123 Main St".
-const AT_A_HOUSE = /\b(?:owners?|ownership|owned|owns|landlords?|tenants?|occupants?|residents?|renters?|renting|rents|rented|lives|living|resides|residing|bought|purchased)\b/i;
+const AT_A_HOUSE = /\b(?:owners?|ownership|owned|owns|landlords?|tenants?|occupants?|residents?|renters?|renting|rents|rented|lives|living|resides|residing|bought|purchased|deeds?|title|taxpayers?)\b/i;
 // The City and other public bodies own and sell land too: those records pass.
 const PUBLIC_OWNER = /\b(?:city[- ]owned|owned\s+by\s+the\s+city|publicly[- ]owned|public(?:ly)?\s+owned|public\s+owners?|city\s+property|the\s+city\s+(?:sold|bought|owns|acquired)|sold\s+by\s+the\s+city|surplus\s+(?:city\s+)?property|nrha|economic\s+development\s+authority)\b/i;
 // "Dr. Martin Luther King Jr. Blvd" is a street, not a person.
@@ -54,7 +57,7 @@ export function seeksPerson(text) {
   const codes = publicTextViolations(t.replace(TITLED_STREET, ' '));
   if (codes.some((c) => ['named_person', 'email', 'phone'].includes(c))) return true;
   if (codes.includes('house_number') && AT_A_HOUSE.test(t)) return true;
-  return SEEKS_PERSON.some((re) => re.test(t) && !(re === OWNERSHIP_RECORDS && PUBLIC_OWNER.test(t)));
+  return SEEKS_PERSON.some((re) => re.test(t) && !((re === OWNERSHIP_RECORDS || re === WHO_AT_A_PLACE) && PUBLIC_OWNER.test(t)));
 }
 export const PERSON_SOURCE_NOTE =
   "Not suggested: a source request can't ask for records that find who owns or lives at a place, or how to reach a private person. In your answer, say plainly that you don't look up private people, and offer what the records you reach can show instead.";
@@ -166,7 +169,7 @@ export async function runTool(ctx, name, args) {
       if (ctx.suggestions.length >= 2) return { noted: false, note: 'Two sources are already suggested for this question.' };
       const clip = (s, n) => String(s ?? '').trim().slice(0, n);
       // Checked as it would be kept (the clipped fields), which also bounds the work.
-      if (seeksPerson(`${clip(args.need, 300)} ${clip(args.source, 200)} ${clip(args.why, 300)}`)) return { noted: false, note: PERSON_SOURCE_NOTE };
+      if (seeksPerson(`${clip(args.need, 300)} ${clip(args.source, 200)} ${clip(args.why, 300)} ${clip(args.url, 500)}`)) return { noted: false, note: PERSON_SOURCE_NOTE };
       const url = clip(args.url, 500);
       ctx.suggestions.push({ need: clip(args.need, 300), source: clip(args.source, 200), why: clip(args.why, 300), ...(/^https:\/\//i.test(url) ? { url } : {}) });
       return { noted: true, note: 'The person will see this suggestion with a button to request it. In your answer, say plainly what you could not find and that they can ask for this source to be added.' };

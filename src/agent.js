@@ -42,9 +42,16 @@ export const CARD_TEXT_NOTE = 'The person sees only your final reply, not the te
 // Text that reads as a finished answer, not a step on the way ("Let me add a
 // button for the agreement."): long enough, and no opener or colon of a step.
 // Anything else goes on, with CARD_TEXT_NOTE, which costs one model call.
+// Measured on what a reader sees: link labels, not their URLs. Short text that
+// talks about the buttons is narration ("I've also offered to read ...").
 const ANSWER_CHARS = 200;
-const STEP_TEXT = /^(?:let me|let's|i'll|i will|i'm going to|i am going to|now\b|next\b|first\b|okay\b|ok\b|sure\b|one moment|give me)/i;
-const readsAsAnswer = (text) => text.length >= ANSWER_CHARS && !STEP_TEXT.test(text.trim()) && !/:\s*$/.test(text);
+const STEP_TEXT = /^(?:let me|let's|i'll|i will|i've|i have|i'm|i am|adding|also|now|next|first|okay|ok|sure|one moment|give me)\b/i;
+const ABOUT_CARDS = /\b(?:buttons?|follow-?ups?|(?:below|under) (?:this|the) answer)\b/i;
+const visibleText = (text) => text.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, '').trim();
+const readsAsAnswer = (text) => {
+  const v = visibleText(text);
+  return v.length >= ANSWER_CHARS && !STEP_TEXT.test(v) && !/:\s*$/.test(v) && !(ABOUT_CARDS.test(v) && v.length < 2 * ANSWER_CHARS);
+};
 // A card tool that made no card: refused, or an error.
 const cardRefused = (value, isError) => isError || !value || typeof value !== 'object' || value.offered === false || value.noted === false || value.ok === false || Boolean(value.error);
 
