@@ -605,6 +605,25 @@
   "rows": 882,
   "unchecked": 0
  },
+ "overlay": {
+  "table": "3.9.23",
+  "unlisted": "prohibited",
+  "why": "Table 3.9.23 lists its uses category by category and marks every other use not permitted (\"All other uses, not permitted\", or a whole category \"Not permitted\"); Section 3.9.3: overlay regulations control where they conflict with the base district.",
+  "not_permitted_categories": [
+   {
+    "category": "4.2.3.D(3)",
+    "label": "Group Living Uses"
+   },
+   {
+    "category": "4.2.3.F(9)",
+    "label": "Visitor Accommodation Uses"
+   },
+   {
+    "category": "4.2.3.G(1)",
+    "label": "Industrial Uses"
+   }
+  ]
+ },
  "tables": [
   {
    "section": "3.2.12",

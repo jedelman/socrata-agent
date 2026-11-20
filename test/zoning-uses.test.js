@@ -133,15 +133,34 @@ test('zoning_uses: everyday words find the table\'s own use, and never a bare "p
   assert.match(none.note, /Don't call the use prohibited until you know which use it is/);
   // A blank says to read the definition first (a home EV charger isn't an "Electric vehicle charging station").
   const ev = await plugin.run(ctx(), { use: 'EV charger', district: 'SF-6' });
-  assert.match(ev.matches[0].rows[0].means, /read its definition first/);
+  assert.match(ev.matches[0].rows[0].means, /definition's call/);
   assert.deepEqual(ev.not_listed.uses, [{ use: 'Electric vehicle charging station', standards: row('3.3.9', 'Electric vehicle charging station').standards }]);
   assert.match(ev.not_listed.means, /first read the use's definition/);
+});
+
+test('zoning_uses: the specific use wins over a generic word; partial and everyday-word matches say so (second review of #74)', async () => {
+  const marksOf = async (use, district) => Object.fromEntries((await plugin.run(ctx(), { use, district })).matches.map((m) => [m.name, m.rows.map((r) => r.mark)[0]]));
+  assert.deepEqual(await marksOf('tattoo shop', 'C-C'), { 'Tattoo parlor': 'C' });
+  assert.deepEqual(await marksOf('pawn shop', 'C-N'), { Pawnshop: 'blank (prohibited)' });
+  assert.deepEqual(Object.keys(await marksOf('thrift store', 'C-N')).sort(), ['Consignment shop', 'Used merchandise sales']);
+  assert.ok('Establishment for the sale of distilled spirits for off-premises consumption' in (await marksOf('liquor store', 'C-N')));
+  assert.equal((await marksOf('home daycare', 'SF-6'))['Family day home'], 'P/C');
+  assert.deepEqual(matchUses('group home').names, [], 'no "Funeral home" for a group home');
+  assert.deepEqual(matchUses('shop').names.includes('Retail goods establishment'), true);
+  const truck = await plugin.run(ctx(), { use: 'food truck', district: 'D-MU' });
+  assert.match(truck.via.note, /read the definition to confirm/);
+  const solar = await plugin.run(ctx(), { use: 'solar panels', district: 'SF-6' });
+  assert.ok(solar.partial);
+  assert.match(solar.not_listed.means, /say nothing yet about the use the person means/, 'a partial match never reads as "prohibited"');
+  const vr = await plugin.run(ctx(), { use: 'vacation rental' });
+  assert.ok(vr.not_in_tables.uses.find((u) => u.use === 'Short-term rental unit (vacation rental)').not_in.includes('Table 3.6.11'));
+  assert.match((await plugin.run(ctx(), { district: 'C-N', mark: 'X' })).error, /mark is one of/);
 });
 
 test('zoning_uses: overlays govern only what Table 3.9.23 lists; a district without a column says what governs it', async () => {
   const pco = await plugin.run(ctx(), { use: 'airbnb', district: 'PCO-Colley' });
   assert.deepEqual(pco.not_listed.uses.map((u) => u.use), ['Short-term rental unit (vacation rental)']);
-  assert.match(pco.not_listed.means, /the base district's table governs/);
+  assert.match(pco.not_listed.means, /prohibited in the PCO-Colley overlay whatever the base district allows/);
   assert.match(pco.matches[0].rows[0].means, /prohibited in the overlay whatever the base district allows/);
   const imu = await plugin.run(ctx(), { district: 'IMU-O' });
   assert.equal(imu.no_use_table, true);
@@ -150,7 +169,16 @@ test('zoning_uses: overlays govern only what Table 3.9.23 lists; a district with
   assert.match((await plugin.run(ctx(), { district: 'PD' })).note, /master plan/);
   assert.equal((await plugin.run(ctx(), { district: 'HO-N&W' })).section, '3.9.8');
   const list = await plugin.run(ctx(), { district: 'PCO-Riverview' });
-  assert.match(list.overlay, /govern only the uses Table 3.9.23 lists/);
+  assert.match(list.overlay, /column controls over the base district/);
+  // A hotel in PCO-Colley: Visitor Accommodation is "Not permitted" in the overlay table, though C-C allows hotels.
+  const hotel = await plugin.run(ctx(), { use: 'hotel', district: 'PCO-Colley' });
+  assert.deepEqual(hotel.not_listed.uses.map((u) => u.use), ['Hotel or motel']);
+  assert.match(hotel.not_listed.means, /prohibited in the PCO-Colley overlay/);
+  assert.deepEqual(tables.overlay.not_permitted_categories.map((c) => c.category), ['4.2.3.D(3)', '4.2.3.F(9)', '4.2.3.G(1)']);
+  // Umbrella codes point to their columns; names as the parcel lookup gives them resolve.
+  assert.deepEqual((await plugin.run(ctx(), { district: 'PCO' })).columns, ['PCO-Colley', 'PCO-21st Street', 'PCO-Riverview', 'PCO-35th Street', 'PCO-Lafayette']);
+  assert.deepEqual((await plugin.run(ctx(), { district: 'TOD' })).columns, ['TOD-C', 'TOD-S']);
+  assert.equal(districtCode('Colley Avenue Pedestrian Commercial Overlay'), 'PCO-Colley');
 });
 
 test('zoning_uses: districts by code, name or shorthand; conditional zoning; links to the table\'s first page', async () => {

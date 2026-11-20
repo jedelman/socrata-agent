@@ -211,6 +211,21 @@ export const AS_PRINTED = [
 ];
 const asPrinted = (section, r) => AS_PRINTED.find((k) => k.section === section && k.use === r.use && k.standards === r.standards);
 
+// The overlay table (PCO districts) lists its uses category by category, ends
+// categories with "All other uses, not permitted", and prints three whole
+// categories as "Not permitted" (checked against the page images and the text,
+// 2026-11-20). Section 3.9.3: the overlay controls where it conflicts with the
+// base district. So a use it doesn't list is prohibited in a PCO overlay; the
+// build fails if a category it has no rows for isn't one of these three.
+export const OVERLAY = {
+  table: '3.9.23',
+  not_permitted: [
+    { category: '4.2.3.D(3)', label: 'Group Living Uses', printed: 'Group Living Uses  Not permitted' },
+    { category: '4.2.3.F(9)', label: 'Visitor Accommodation Uses', printed: 'Accommodation  Not permitted' },
+    { category: '4.2.3.G(1)', label: 'Industrial Uses', printed: 'Industrial Uses  Not permitted' },
+  ],
+};
+
 // The use-table sections of the ordinance, by title.
 export const TABLE_SECTIONS = () => ORDINANCE.sections.filter((s) => /^Uses for the /.test(s.title));
 
@@ -298,6 +313,15 @@ export function build(pdf) {
   }
   for (const k of AS_PRINTED) if (!used.has(k)) problems.push(`AS_PRINTED lists §${k.section} "${k.use}" (${k.standards}), which the tables no longer print`);
   for (const [ref, set] of names) if (set.size > 1) problems.push(`${ref} is named ${[...set].map((n) => `"${n}"`).join(' and ')}`);
+  // The overlay table covers every use: a category it has no rows for must be one it prints "Not permitted".
+  const overlay = tables.find((t) => t.section === OVERLAY.table);
+  const covered = new Set(overlay.rows.map((r) => r.category_standards));
+  const missing = [...new Set(tables.filter((t) => t !== overlay).flatMap((t) => t.rows.map((r) => r.category_standards)))].filter((c) => !covered.has(c));
+  const overlayText = ORDINANCE.sections.find((x) => x.number === OVERLAY.table).text;
+  const printedNotPermitted = overlayText.split('\n').filter((l) => /\bNot permitted$/.test(l.trim())).length;
+  if (missing.sort().join() !== OVERLAY.not_permitted.map((c) => c.category).sort().join()) problems.push(`Table ${OVERLAY.table} has no rows for ${missing.join(', ')}; OVERLAY.not_permitted lists ${OVERLAY.not_permitted.map((c) => c.category).join(', ')}`);
+  if (printedNotPermitted !== OVERLAY.not_permitted.length) problems.push(`Table ${OVERLAY.table} prints ${printedNotPermitted} "Not permitted" categories; OVERLAY.not_permitted lists ${OVERLAY.not_permitted.length}`);
+  for (const c of OVERLAY.not_permitted) if (!overlayText.includes(c.printed)) problems.push(`Table ${OVERLAY.table} doesn't print "${c.printed}"`);
   if (problems.length) throw new Error(`The use tables didn't read cleanly:\n- ${problems.join('\n- ')}`);
   // Rows the text check couldn't find stay few, or the check proves little.
   if (unchecked.length > 0.05 * (checked + unchecked.length)) throw new Error(`Only ${checked} rows matched the text extraction; unchecked: ${unchecked.join('; ')}`);
@@ -327,6 +351,12 @@ export function build(pdf) {
       return { ...d, ...(sec ? { section: sec.number } : {}), in_use_table: tables.some((t) => t.districts.includes(d.code)) };
     }),
     checked: { against: 'the ordinance text extraction (each row\'s marks, in order)', rows: checked, unchecked: unchecked.length },
+    overlay: {
+      table: OVERLAY.table,
+      unlisted: 'prohibited',
+      why: 'Table 3.9.23 lists its uses category by category and marks every other use not permitted ("All other uses, not permitted", or a whole category "Not permitted"); Section 3.9.3: overlay regulations control where they conflict with the base district.',
+      not_permitted_categories: OVERLAY.not_permitted.map(({ category, label }) => ({ category, label })),
+    },
     tables,
   };
 }
