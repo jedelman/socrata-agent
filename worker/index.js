@@ -24,6 +24,7 @@ import { applyConfig, definePlugin, webSearchConfig } from '../src/plugins.js';
 import { verifyAccess } from './access.js';
 import { skins } from './skins.js';
 import { setting, askLimits, visitorId, spentToday, spendRecorder } from './limits.js';
+import { answerChecks } from './checks-config.js';
 import { currentInvite, redeem, joinWaitlist, sessionCookie, signSession } from './invites.js';
 import { currentUser, currentUserInfo, startLogin, finishLogin, memberInvite, bindInvite, loginConfigured, userCookie, clearUserCookie } from './accounts.js';
 import { addRequest, raiseResponse, publicRequests, requestByPublicId, requestKey, PUBLIC_ID_RE } from './requests.js';
@@ -468,6 +469,10 @@ function answerArgs(env, req, cityId) {
     // carrying the tool fails with a 400 if the Anthropic organization has
     // web search disabled in the Console (web search tool docs, 2026-11-10).
     ...(webSearch && String(env.WEB_SEARCH ?? '').trim().toLowerCase() !== 'off' ? { webSearch } : {}),
+    // The check stage (src/answer-checks.js, src/second-read.js), with CHECKS
+    // set: "on" runs the code checks, with SECOND_READ "shadow" (flags recorded
+    // and shown) or "rewrite" (flags sent back too). Off unless set.
+    ...(answerChecks(env) ? { checks: answerChecks(env) } : {}),
   };
 }
 

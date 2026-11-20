@@ -8,7 +8,9 @@ import { Socrata } from './socrata.js';
 import { Iqm2 } from './adapters/iqm2.js';
 import { toolsFor, runTool } from './tools.js';
 import { systemPrompt } from './prompt.js';
-import { voiceViolations, REWRITE_INSTRUCTION } from './voice.js';
+import { voiceViolations, REWRITE_INSTRUCTION, fixInstruction } from './voice.js';
+import { codeChecks, codeFindingsNote } from './answer-checks.js';
+import { secondRead, evidenceFor, secondReadNote, SECOND_READ_MODES } from './second-read.js';
 import { tracedHttp } from './plugins.js';
 import { openrouterProvider } from './providers/openrouter.js';
 import { worldClaimViolations, GAP_REWRITE_ADDENDUM } from './gaps/kinds.js';
@@ -151,7 +153,8 @@ export function budgetNote({ limit, refused }) {
  *       check, toolResults or the history sent back to the model (the API's
  *       own thinking blocks still go back unchanged, as it requires).
  *   { type: 'tool', step, name, args }  a tool about to run
- *   { type: 'rewrite', step, violations }  the voice rewrite call about to go
+ *   { type: 'check', step }  the check stage starting (with `checks`): "Checking my work"
+ *   { type: 'rewrite', step, violations }  the rewrite call about to go
  *   { type: 'refusal', step }  the model declined that step: its output,
  *       thinking included, is discarded
  *   { type: 'fallback', step }  (with thinkingEvents) the model declined
@@ -189,6 +192,10 @@ export async function ask({
   priorResearch = null,
   traceparent = null,
   watches = null,
+  // The check stage (src/answer-checks.js, src/second-read.js): { secondRead:
+  // 'off' | 'shadow' | 'rewrite' }, or null for none (the default, so answers
+  // without it read as before).
+  checks = null,
 }) {
   if (!apiKey) throw new Error(`No API key for ${model}. Set ${keyNameFor(model)}.`);
   // Checked whatever the model, so a bad list fails here; declared only for
@@ -233,16 +240,19 @@ export async function ask({
   let nextStep = 0;
   const onThinking = thinkingEvents ? (text) => onEvent({ type: 'thinking', step, text }) : undefined;
   const onFallback = thinkingEvents ? () => onEvent({ type: 'fallback', step }) : undefined;
-  const llm = providerOf(model) === 'anthropic'
-    ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, onThinking, onFallback, ...(searchOn ? { webSearch: searchSettings } : {}), ...(traceparent ? { traceparent } : {}) })
-    : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
+  const newProvider = (extra = {}) =>
+    providerOf(model) === 'anthropic'
+      ? anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl: budget.model, ...extra, ...(traceparent ? { traceparent } : {}) })
+      : openrouterProvider({ apiKey, model, maxTokens: maxTokens || 1500, fetchImpl: budget.model, referer });
+  const llm = newProvider({ onThinking, onFallback, ...(searchOn ? { webSearch: searchSettings } : {}) });
+  const secondReadMode = checks && SECOND_READ_MODES.includes(checks.secondRead) ? checks.secondRead : 'off';
   // Fetches one API call can take, and one complete() at worst (a cut-off
   // call's second try, each with its retry).
   const perCall = llm.fetchesPerCall || 1;
   const perComplete = llm.fetchesPerComplete || perCall;
   // Tool requests stop while enough is left for the model calls that finish
   // the answer: the final answer at its worst, and one voice rewrite call.
-  budget.setReserve(perComplete + perCall);
+  budget.setReserve(perComplete + perCall + (secondReadMode !== 'off' ? perCall : 0));
   // Research memory (src/prior-research.js): the Worker's search over the
   // scopes this answer may read. A public thread never reads an account's.
   const researchScopes = researchScopesFor(priorResearch, publicThread);
@@ -407,18 +417,58 @@ export async function ask({
     llm.appendToolResults(results, [stepNote, textBesideCards ? CARD_TEXT_NOTE : null].filter(Boolean).join(' ') || null);
   }
 
-  // Voice check: one rewrite, then report honestly if it still fails. The
-  // rewrite is one API call (no second try when cut off), sent only if it fits
-  // in what is left of the budget; otherwise the check fails honestly.
-  // With gaps on, world claims and predictions are caught in the same rewrite.
+  // The check stage (Jason, 2026-11-20: "Rewrite the way the voice check
+  // works"), with `checks`: code checks against the evidence (figures no tool
+  // returned, link text naming another record, contacts the card doesn't
+  // hold), and a fresh-context second read given the question, the answer and
+  // the tool results, never the reasoning. Code findings go into the one
+  // rewrite; second-read flags go in only with secondRead 'rewrite' and are
+  // otherwise recorded ('shadow'). Figures aren't sent back when web search
+  // ran: the pages it read aren't evidence code can see.
+  const evidence = () => {
+    const res = ctx.resources.toJSON();
+    return { res, text: [question, ...toolResults.map((r) => r.content), ...carried.map((c) => String(c.content ?? '')), JSON.stringify(res), ...ctx.trace.steps.map((st) => `${st.soql ?? ''} ${st.url ?? ''}`)].join('\n') };
+  };
+  let checked = null;
+  let checkNote = '';
+  if (checks && !refusal && !fallback && answer) {
+    onEvent({ type: 'check', step: nextStep });
+    const { res, text } = evidence();
+    const code = codeChecks(answer, { evidenceText: text, resources: res });
+    const figuresAdvisory = webResults.length > 0;
+    checked = { code, ...(figuresAdvisory && code.figures.length ? { figures_advisory: 'Web pages read by search are not evidence code can check, so these figures were not sent back to be fixed.' } : {}) };
+    if (secondReadMode !== 'off') {
+      if (budget.limit - budget.used < 2 * perCall) checked.second_read = { mode: secondReadMode, skipped: "this answer's request limit" };
+      else {
+        try {
+          const read = await secondRead(newProvider({ maxTokens: 2000 }), { question, answer, evidence: evidenceFor({ toolResults, carried, webPages: webResults }) });
+          spend(read.cost);
+          checked.second_read = { mode: secondReadMode, ...(read.flags ? { flags: read.flags } : { skipped: read.skipped }) };
+        } catch (err) {
+          if (Number.isFinite(err?.cost) && err.cost > 0) spend(err.cost);
+          checked.second_read = { mode: secondReadMode, skipped: 'the check could not run' };
+        }
+      }
+    }
+    checkNote = [codeFindingsNote(code, { figuresAdvisory }), secondReadMode === 'rewrite' ? secondReadNote(checked.second_read?.flags) : ''].filter(Boolean).join(' ');
+  }
+
+  // Voice check, and the check stage's findings: one rewrite, then report
+  // honestly if the voice still fails. The rewrite is one API call (no second
+  // try when cut off), sent only if it fits in what is left of the budget;
+  // otherwise the check fails honestly. With gaps on, world claims and
+  // predictions are caught in the same rewrite.
   const check = gapsOn ? (a) => [...voiceViolations(a), ...worldClaimViolations(a)] : voiceViolations;
   let violations = refusal ? [] : check(answer);
   let rewritten = false;
   let rewriteSkipped = false;
-  if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
-  else if (violations.length) {
+  const needsRewrite = violations.length > 0 || Boolean(checkNote);
+  if (needsRewrite && budget.limit - budget.used < perCall) rewriteSkipped = true;
+  else if (needsRewrite) {
     onEvent({ type: 'rewrite', step: nextStep, violations });
-    const instruction = gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION;
+    // Voice alone keeps the instruction it always had.
+    const base = checkNote ? fixInstruction({ voice: violations.length > 0, notes: checkNote }) : REWRITE_INSTRUCTION;
+    const instruction = gapsOn ? `${base} ${GAP_REWRITE_ADDENDUM}` : base;
     // An answer that ended beside cards: that turn is already in, and its tool
     // calls need their results ahead of the instruction.
     if (cardResults) llm.appendToolResults(cardResults, instruction);
@@ -434,6 +484,13 @@ export async function ask({
       answer = out.text;
       rewritten = true;
       violations = check(answer);
+      // What the code checks find in the rewritten answer, for the record.
+      if (checked) {
+        const { res, text } = evidence();
+        const after = codeChecks(answer, { evidenceText: text, resources: res });
+        checked.rewritten = true;
+        checked.after = after;
+      }
       // The rewrite rewords the same answer: its citations join the first's.
       answerCitations = [...answerCitations, ...(out.citations || [])];
     }
@@ -480,6 +537,8 @@ export async function ask({
     trace: ctx.trace.toJSON(),
     resources: ctx.resources.toJSON(),
     voice: { ok: violations.length === 0, rewritten, violations, ...(rewriteSkipped ? { rewriteSkipped } : {}) },
+    // The check stage's findings (with `checks` only), so answers without it read as before.
+    ...(checked ? { checks: checked } : {}),
     cost,
     model,
     steps,

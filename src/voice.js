@@ -27,6 +27,17 @@ export function voiceViolations(text) {
   return found;
 }
 
+// The voice rule as one fix among others (fixInstruction): the same words as
+// REWRITE_INSTRUCTION, which stays as it was for an answer with no other findings.
+export const VOICE_FIX =
+  'Every sentence that asserts something exists or does not exist ' +
+  '("there is", "there are", "there were", "there\'s", "nobody", "no one") must instead report what you found or saw: ' +
+  '"I found…", "I see…", "I found no…".';
+
+/** The rewrite instruction when the check stage found something: the voice fix if needed, then each finding. */
+export const fixInstruction = ({ voice = false, notes = '' } = {}) =>
+  ['Rewrite your last answer, fixing only what follows.', voice ? VOICE_FIX : '', notes, 'Keep everything else (every other fact, number, date and link) exactly as it was. Return only the rewritten answer.'].filter(Boolean).join(' ');
+
 export const REWRITE_INSTRUCTION =
   'Rewrite your last answer. Every sentence that asserts something exists or does not exist ' +
   '("there is", "there are", "there were", "there\'s", "nobody", "no one") must instead report what you found or saw: ' +

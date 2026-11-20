@@ -128,6 +128,26 @@ generic mode.
   past the cap isn't run. Web titles and URLs are escaped in markdown, and a
   web result never replaces a record. With it off, requests are byte-identical
   (`test/fixtures/web-search-off-snapshot.json`).
+- The check stage (`src/answer-checks.js`, `src/second-read.js`; behind
+  `CHECKS`, off unless set "on"; Jason, 2026-11-20: "Rewrite the way the
+  voice check works. Build 1 and 2."). After the loop and before the voice
+  rewrite, code checks the answer against what its tools returned: figures
+  (dollar amounts and numbers of four or more digits, not years, ids, house
+  numbers or link URLs) must be in the tool results, the hand-off or the
+  question, allowing the answer's own rounding; link text naming an
+  ordinance, table, section, work order or record must name the record it
+  links; a sentence sending the reader to the contacts card may name only
+  what the card holds. With web search on, figures are recorded but not sent
+  back (pages aren't in the evidence). `SECOND_READ` (`off`, `shadow`,
+  `rewrite`) adds a fresh model call given the question, the answer and the
+  tool results (never the reasoning, never web pages); in `shadow` its flags
+  are recorded and shown, in `rewrite` sent back too. Whatever is sent back
+  goes in the one rewrite with any voice fixes (`fixInstruction`; voice alone
+  keeps `REWRITE_INSTRUCTION` byte for byte), and the rewritten answer is
+  checked again and recorded (`checks.after`). Findings are never the trace:
+  they're kept in the turn's record (`checksRecord`) and shown under "Checks"
+  in the tools column; the stream shows "Checking my work…"; telemetry keeps
+  counts only. With `CHECKS` unset, `ask()` reads as before.
 - `worker/access.js` verifies Cloudflare Access JWTs for per-person limits.
   Never trust the plain email header.
 - `bin/socrata-agent.js` is the CLI (`ask` with your own key; `tool` with no key).

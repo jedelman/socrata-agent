@@ -82,7 +82,21 @@ const count = (v) => (Number.isFinite(Number(v)) ? Math.min(Math.max(Math.trunc(
 const MAX_TRACE_STEPS = 60;
 
 /** The record shown under an answer, kept with its turn: bounded, and only the fields the page renders. */
-export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget, gaps, followups, answerLinks, watchOffer } = {}) {
+const findings = (xs) => (Array.isArray(xs) ? xs.slice(0, 6).map((x) => clip(x, 300)) : []);
+const codeFindings = (c) => ({ figures: findings(c?.figures), links: findings(c?.links), contacts: findings(c?.contacts) });
+/** The check stage's findings, bounded (src/agent.js `checks`). */
+export function checksRecord(c) {
+  if (!c || typeof c !== 'object') return undefined;
+  const sr = c.second_read;
+  return {
+    code: codeFindings(c.code),
+    ...(c.figures_advisory ? { figures_advisory: clip(c.figures_advisory, 200) } : {}),
+    ...(sr && typeof sr === 'object' ? { second_read: { mode: clip(sr.mode, 10), ...(Array.isArray(sr.flags) ? { flags: sr.flags.slice(0, 5).map((f) => ({ claim: clip(f?.claim, 160), problem: clip(f?.problem, 220) })) } : {}), ...(sr.skipped ? { skipped: clip(sr.skipped, 120) } : {}) } } : {}),
+    ...(c.rewritten ? { rewritten: true, after: codeFindings(c.after) } : {}),
+  };
+}
+
+export function answerRecord({ trace, resources, voice, model, steps, cost, suggestions, requestBudget, gaps, followups, answerLinks, watchOffer, checks } = {}) {
   const r = resources || {};
   return {
     trace: (Array.isArray(trace) ? trace : []).slice(0, MAX_TRACE_STEPS).map((t) => ({
@@ -122,6 +136,8 @@ export function answerRecord({ trace, resources, voice, model, steps, cost, sugg
     ...(answerLinks && (answerLinks.kept || answerLinks.dropped)
       ? { answerLinks: { kept: count(answerLinks.kept), dropped: count(answerLinks.dropped) } }
       : {}),
+    // The check stage's findings (CHECKS on), only when there are some to keep.
+    ...(checks ? { checks: checksRecord(checks) } : {}),
     // Gaps on only (docs/gaps.md §8.5): the catalog's own text per gap shown,
     // at most three, and nothing else. No absence line (it can name the
     // person's street), no token, no draft. Gaps off adds no key at all.
