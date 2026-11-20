@@ -36,7 +36,7 @@ export const VOICE_FIX =
 
 /** The rewrite instruction when the check stage found something: the voice fix if needed, then each finding. */
 export const fixInstruction = ({ voice = false, notes = '' } = {}) =>
-  ['Rewrite your last answer, fixing only what follows.', voice ? VOICE_FIX : '', notes, 'Keep everything else (every other fact, number, date and link) exactly as it was. Return only the rewritten answer.'].filter(Boolean).join(' ');
+  ['Rewrite your last answer, fixing only what follows.', voice ? VOICE_FIX : '', notes, 'Keep everything else (every other fact, number, date and link) exactly as it was, and keep reporting what you found or saw ("I found…"), never "there is" or "there are". Return only the rewritten answer.'].filter(Boolean).join(' ');
 
 export const REWRITE_INSTRUCTION =
   'Rewrite your last answer. Every sentence that asserts something exists or does not exist ' +

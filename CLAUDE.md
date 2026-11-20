@@ -144,7 +144,14 @@ generic mode.
   are recorded and shown, in `rewrite` sent back too. Whatever is sent back
   goes in the one rewrite with any voice fixes (`fixInstruction`; voice alone
   keeps `REWRITE_INSTRUCTION` byte for byte), and the rewritten answer is
-  checked again and recorded (`checks.after`). Findings are never the trace:
+  checked again and recorded (`checks.after`); a rewrite for findings alone
+  that breaks the voice rule is dropped and the answer that passed stays
+  (`checks.rewrite`). A follow-up's evidence includes the earlier results it
+  carries (`historyFrom`'s `content`). The second read runs at low effort
+  (where the deployment sets one) with 4,000 tokens, told that cut evidence
+  is unseen; in `rewrite` only flags quoting the answer word for word go
+  back, links, emails and phone numbers scrubbed, wrapped as data. Public
+  question records leave `checks` out. Findings are never the trace:
   they're kept in the turn's record (`checksRecord`) and shown under "Checks"
   in the tools column; the stream shows "Checking my work…"; telemetry keeps
   counts only. With `CHECKS` unset, `ask()` reads as before.

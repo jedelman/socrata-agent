@@ -459,7 +459,8 @@ export async function handlePublicAsk(req, env, ctx, deps) {
       // The chain as history, as a private conversation carries its turns.
       const { history, carried } = thread ? historyFrom({ turns: thread.turns }) : { history: [], carried: [] };
       const out = await deps.answer({ question, cityId: rec.city, budget, onCost, history, carried, publicThread: Boolean(thread) });
-      const record = answerRecord(out);
+      // The check stage's findings and flags stay out of public records: unvetted model text the public page doesn't show.
+      const record = answerRecord({ ...out, checks: undefined });
       const answer = String(out.answer ?? '').slice(0, ANSWER_CHARS);
       const stored = await storeAnswer(env.SIREN_DB, claim.id, { answer, record, tools: out.toolResults, reply: thread?.reply || null, now: deps.now ?? Date.now() });
       if (stored === 'gone') return fail('withdrawn_meanwhile');

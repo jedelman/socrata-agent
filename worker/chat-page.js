@@ -420,6 +420,7 @@ function renderChecks(c) {
   const after = c.after ? [...(c.after.figures || []), ...(c.after.links || []), ...(c.after.contacts || [])].length : null;
   const lines = [
     found.length ? `<li>${found.length} finding${found.length === 1 ? '' : 's'} by code${c.rewritten ? (after === 0 ? ', fixed in a rewrite' : ', sent back in a rewrite') : ''}:<ul>${found.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></li>` : '<li>Figures, links and contacts: nothing found by code.</li>',
+    c.rewrite && c.rewrite !== 'kept' && found.length ? `<li>Rewrite: ${esc(c.rewrite)}.</li>` : '',
     c.figures_advisory && figures.length ? `<li>${esc(c.figures_advisory)}<ul>${figures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></li>` : '',
     sr ? (sr.skipped ? `<li>Second read: not run (${esc(sr.skipped)}).</li>` : flags.length ? `<li>Second read${sr.mode === 'shadow' ? ' (noted, not sent back)' : ''}: ${flags.length} flag${flags.length === 1 ? '' : 's'}<ul>${flags.map((f) => `<li>“${esc(f.claim)}”: ${esc(f.problem)}</li>`).join('')}</ul></li>` : '<li>Second read: every claim checked against the tool results held up.</li>') : '',
   ].filter(Boolean);

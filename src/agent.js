@@ -441,7 +441,9 @@ export async function ask({
       if (budget.limit - budget.used < 2 * perCall) checked.second_read = { mode: secondReadMode, skipped: "this answer's request limit" };
       else {
         try {
-          const read = await secondRead(newProvider({ maxTokens: 2000 }), { question, answer, evidence: evidenceFor({ toolResults, carried, webPages: webResults }) });
+          // Room to think within, and low effort where the deployment sets one (so the model takes it):
+          // at the answer's effort, thinking would crowd out the reply.
+          const read = await secondRead(newProvider({ maxTokens: 4000, ...(effort ? { effort: 'low' } : {}) }), { question, answer, evidence: evidenceFor({ toolResults, carried, webPages: webResults }) });
           spend(read.cost);
           checked.second_read = { mode: secondReadMode, ...(read.flags ? { flags: read.flags } : { skipped: read.skipped }) };
         } catch (err) {
@@ -450,7 +452,7 @@ export async function ask({
         }
       }
     }
-    checkNote = [codeFindingsNote(code, { figuresAdvisory }), secondReadMode === 'rewrite' ? secondReadNote(checked.second_read?.flags) : ''].filter(Boolean).join(' ');
+    checkNote = [codeFindingsNote(code, { figuresAdvisory }), secondReadMode === 'rewrite' ? secondReadNote(checked.second_read?.flags, answer) : ''].filter(Boolean).join(' ');
   }
 
   // Voice check, and the check stage's findings: one rewrite, then report
@@ -460,6 +462,7 @@ export async function ask({
   // predictions are caught in the same rewrite.
   const check = gapsOn ? (a) => [...voiceViolations(a), ...worldClaimViolations(a)] : voiceViolations;
   let violations = refusal ? [] : check(answer);
+  const voiceRewrite = violations.length > 0;
   let rewritten = false;
   let rewriteSkipped = false;
   const needsRewrite = violations.length > 0 || Boolean(checkNote);
@@ -480,21 +483,27 @@ export async function ask({
     spend(out.cost);
     await traceWeb(out);
     if (out.refusal) onEvent({ type: 'refusal', step });
-    if (out.text && !out.refusal && !out.truncated && !out.paused) {
+    const kept = out.text && !out.refusal && !out.truncated && !out.paused;
+    // A rewrite for the checks' findings alone that breaks the voice rule (or
+    // makes a world claim) is dropped: the answer that passed stays.
+    const broke = kept && !violations.length && check(out.text).length > 0;
+    if (kept && !broke) {
       answer = out.text;
       rewritten = true;
       violations = check(answer);
-      // What the code checks find in the rewritten answer, for the record.
-      if (checked) {
-        const { res, text } = evidence();
-        const after = codeChecks(answer, { evidenceText: text, resources: res });
-        checked.rewritten = true;
-        checked.after = after;
-      }
       // The rewrite rewords the same answer: its citations join the first's.
       answerCitations = [...answerCitations, ...(out.citations || [])];
     }
-  }
+    if (checked) {
+      checked.rewrite = broke ? 'dropped: it broke the voice rule' : kept ? 'kept' : 'no usable reply';
+      // What the code checks find in the rewritten answer, for the record.
+      if (kept && !broke) {
+        const { res, text } = evidence();
+        checked.rewritten = true;
+        checked.after = codeChecks(answer, { evidenceText: text, resources: res });
+      }
+    }
+  } else if (checkNote && checked) checked.rewrite = "skipped: this answer's request limit";
 
   // The web pages behind the answer, handed off by code from the API's blocks.
   if (searchOn && webResults.length) handOffWebPages(ctx.resources, webResults, answerCitations);
@@ -536,7 +545,8 @@ export async function ask({
     answer,
     trace: ctx.trace.toJSON(),
     resources: ctx.resources.toJSON(),
-    voice: { ok: violations.length === 0, rewritten, violations, ...(rewriteSkipped ? { rewriteSkipped } : {}) },
+    // voice.rewritten: rewritten for the voice rule (a rewrite for the checks' findings alone is checks.rewritten).
+    voice: { ok: violations.length === 0, rewritten: rewritten && voiceRewrite, violations, ...(rewriteSkipped && voiceRewrite ? { rewriteSkipped } : {}) },
     // The check stage's findings (with `checks` only), so answers without it read as before.
     ...(checked ? { checks: checked } : {}),
     cost,
