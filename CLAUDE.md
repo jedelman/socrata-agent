@@ -753,7 +753,10 @@ generic mode.
   unclear) and calls again with that exact name (`use`, or `names` for
   several, matched by `exactName`: case, spacing and punctuation aside) for
   the marks, a base name bringing its accessory or temporary twin as its own
-  row. The matcher below ranks those candidates. Plain-word uses ("Airbnb", "brewery", "church") through
+  row (in `names` too); several names asked come back with a note to say
+  which fits, and names past ten are returned as `dropped`. `choose` says
+  what `likely` is: a reading of the person's words, never a determination.
+  The matcher below ranks those candidates. Plain-word uses ("Airbnb", "brewery", "church") through
   `SAYINGS` to the table's own names, the person's own words ranked first,
   partial matches flagged; district codes, names or shorthand ("PCO-21st",
   "C-C (conditional)"), and every Table 3.1.2 district, so one with no column
@@ -791,14 +794,14 @@ generic mode.
   quoted (`home_occupation`), and Home occupation rows carry its rules
   (`rules`), quoted from the ordinance text (fifth review). Sixth review:
   where a use is ("near the airport", "in the park") is cut off before
-  matching, and a use named just before another describes it ("church
-  office", "warehouse apartments"); asked "in my house", a use 4.3.3 doesn't
-  bar gives way to Home occupation, which gives way to a use with its own
-  accessory or temporary row; galleries read as all three uses 4.2.3 names
-  them under; recreation sayings follow 4.2.3's own lists; a bar word adds
-  on-premises sales only beside a drink host. Measured on the sixth
-  reviewer's 795 phrasings: 445 right, 1 mixed, 0 wrong, 0 marks on a
-  partial. A name several
+  matching (everyday phrases are read on the whole question, so "apartment
+  behind my house" is still an ADU); galleries read as all three uses 4.2.3
+  names them under; recreation sayings follow 4.2.3's own lists, never with a
+  residential cue; a bar word adds on-premises sales only beside a drink
+  host. Two uses named together ("warehouse apartments", "office in my
+  house") are both candidates for Siren to choose between. Taking every
+  `likely` candidate on the reviewers' 795 and 362 phrasings: 0 wrong in
+  either. A name several
   districts share (the Ghent HC districts) is an error naming them, never
   the first; shorthand resolves
   only when it starts as the code does, so a neighborhood's name

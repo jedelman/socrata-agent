@@ -18,6 +18,7 @@ import { definePlugin } from '../src/plugins.js';
 import tables from '../data/documents/norfolk-zoning-use-tables.json' with { type: 'json' };
 
 const MAX_MATCHES = 8;
+const MAX_NAMES = 10;
 const MAX_LIST = 60;
 const PDF = tables.source.url;
 const pageUrl = (page) => `${PDF}#page=${page}`;
@@ -86,7 +87,7 @@ export const districtCode = (input) => districtOf(input)?.code ?? null;
 // words of a name it reached, count as explained.
 const SAYINGS = [
   [/\b(?:airbnbs?|vrbos?|vacation rentals?|short[- ]term rentals?|str)\b/, ['short-term rental unit']],
-  [/\b(?:(?:apartments?|units?|cottages?|suites?|studios?) (?:in|over|above|behind|under|on|to) (?:my|our|the|a) (?:house|home|garage|basement|back ?yard|yard|property|lot)|basement apartments?|adus?|granny flats?|in-law (?:suites?|apartments?|units?)|backyard cottages?|garage apartments?|accessory apartments?)\b/, ['accessory dwelling unit']],
+  [/\b(?:(?:apartments?|cottages?|in-law suites?|suites?) (?:in|over|above|behind|under|on|to) (?:my|our|the|a) (?:house|home|garage|basement|back ?yard|yard|property|lot)|basement apartments?|adus?|granny flats?|in-law (?:suites?|apartments?|units?)|backyard cottages?|garage apartments?|accessory apartments?)\b/, ['accessory dwelling unit']],
   [/\bduplex(?:es)?\b/, ['dwelling two-family']],
   [/\b(?:triplex(?:es)?|fourplex(?:es)?|quadplex(?:es)?|apartments?|apartment buildings?|multi-?family)\b/, ['dwelling multi-family']],
   [/\b(?:townhouses?|townhomes?|rowhouses?|row houses?)\b/, ['dwelling townhouse']],
@@ -405,15 +406,18 @@ export function matchUses(query) {
     }
   }
   // Asked at home: Home occupation gives way to a use 4.3.3 bars as one (and
-  // the answer says so), or to one with its own row (a short-term rental, a
-  // day care, an accessory or temporary use). Any other use asked "in my house"
-  // is what Home occupation answers ("office in my house"): related.
+  // the answer says so). Beside a use with its own row (a short-term rental, a
+  // day care, an ADU, an accessory or temporary use) it stays a candidate, unflagged.
   const atHome = /\b(?:home|house)\b/.test(q);
   const homeExcluded = atHome && [...chosen.keys()].some((n) => HOME_EXCLUDED.has(n));
   const home = chosen.get('Home occupation');
   if (home && !home.own) {
     const others = [...chosen.keys()].filter((n) => n !== 'Home occupation');
-    if (others.some((n) => HOME_EXCLUDED.has(n) || HOME_OWN_ROWS.test(n) || SUBORDINATE.has(n))) chosen.delete('Home occupation');
+    if (others.some((n) => HOME_EXCLUDED.has(n))) chosen.delete('Home occupation');
+    else if (others.some((n) => HOME_OWN_ROWS.test(n) || SUBORDINATE.has(n))) {
+      chosen.delete('Home occupation');
+      related.push('Home occupation');
+    }
   }
   const unexplained = asked.filter((w) => !explained.has(w));
   const partial = unexplained.length > 0 || !chosen.size || development;
@@ -494,7 +498,7 @@ const standardsOf = (name) => {
 };
 
 const HOW =
-  'Plain words get candidate use names, never marks: choose the use the person means (its definition decides; ask them when it isn\'t clear), then call again with that exact name. Say the district, the table and its page (link it), and what the mark means in plain words. The tables name uses their own way, and the use\'s definition in Article 4 (its standards reference, read with ordinance_lookup section) decides whether an activity is that use: read it before saying a use is prohibited, and before saying which of several matching uses applies. P/C means a Conditional Use Permit may be required: the cited performance standards decide when, so read them before saying whether one is needed. An overlay (PCO, IMU-O, STRL-O and others) can permit, prohibit or add standards on top of the base district, and the overlay controls where they conflict (Section 3.9.3). For a parcel in a PCO overlay, its PCO column decides, and a use Table 3.9.23 doesn\'t list is prohibited there (the table marks every other use not permitted), so check the parcel\'s overlays and call again with its PCO district. Other overlays set out their changes in their own sections. Conditional zoning (proffered conditions in the rezoning ordinance) and Planned Development terms can narrow these uses. A partial result has candidates and no marks: confirm which use is meant (the definition, or the person) and call again with its name before answering. A row\'s classification says whether it is the principal use or an accessory one. Give a row\'s note if it has one: the City\'s tables print that row inconsistently. These tables are read from the City\'s PDF, current through the date given; the PDF is the authority, and a Zoning Determination from the Department of City Planning is the binding answer for a property.';
+  'Plain words get candidate use names, never marks: choose the use the person means (its definition decides; ask them when it isn\'t clear), then call again with that exact name. Say the district, the table and its page (link it), and what the mark means in plain words. The tables name uses their own way, and the use\'s definition in Article 4 (its standards reference, read with ordinance_lookup section) decides whether an activity is that use: read it before saying a use is prohibited, and before saying which of several matching uses applies. P/C means a Conditional Use Permit may be required: the cited performance standards decide when, so read them before saying whether one is needed. An overlay (PCO, IMU-O, STRL-O and others) can permit, prohibit or add standards on top of the base district, and the overlay controls where they conflict (Section 3.9.3). For a parcel in a PCO overlay, its PCO column decides, and a use Table 3.9.23 doesn\'t list is prohibited there (the table marks every other use not permitted), so check the parcel\'s overlays and call again with its PCO district. Other overlays set out their changes in their own sections. Conditional zoning (proffered conditions in the rezoning ordinance) and Planned Development terms can narrow these uses. A row\'s classification says whether it is the principal use or an accessory one. Give a row\'s note if it has one: the City\'s tables print that row inconsistently. These tables are read from the City\'s PDF, current through the date given; the PDF is the authority, and a Zoning Determination from the Department of City Planning is the binding answer for a property.';
 
 export default definePlugin({
   name: 'zoning_uses',
@@ -504,7 +508,7 @@ export default definePlugin({
     type: 'object',
     properties: {
       use: { type: 'string', description: 'A use: in plain words for candidate names, or exactly as the table names it (as a candidate list gives it) for its marks.' },
-      names: { type: 'array', items: { type: 'string' }, maxItems: 6, description: 'Several uses, each exactly as the table names it, for their marks together.' },
+      names: { type: 'array', items: { type: 'string' }, maxItems: 10, description: 'Several uses, each exactly as the table names it, for their marks together.' },
       district: { type: 'string', description: 'A zoning district code, such as "C-C" or "MF-NS".' },
       mark: { type: 'string', enum: ['P', 'C', 'P/C'], description: 'With district only: list just the uses with this mark.' },
     },
@@ -543,7 +547,9 @@ export default definePlugin({
       };
     }
     const useIn = String(args.use ?? '').trim().slice(0, 120);
-    const namesIn = Array.isArray(args.names) ? args.names.slice(0, 6).map((x) => String(x ?? '').trim().slice(0, 120)).filter(Boolean) : [];
+    const namesAll = [...new Set((Array.isArray(args.names) ? args.names : typeof args.names === 'string' ? [args.names] : []).map((x) => String(x ?? '').trim().slice(0, 120)).filter(Boolean))];
+    const namesIn = namesAll.slice(0, MAX_NAMES);
+    const dropped = namesAll.slice(MAX_NAMES);
     if (useIn || namesIn.length) {
       // Marks only for uses named as the table names them. Plain words get
       // candidates: the tables name uses their own way, and which use an
@@ -553,10 +559,18 @@ export default definePlugin({
       const exact = asked.map(exactName);
       if (!exact.every(Boolean)) {
         const unknown = asked.filter((x, i) => !exact[i]);
-        const words = namesIn.length ? unknown.join('; ') : useIn;
-        const m = matchUses(words);
+        // Each unknown name matched on its own, the results merged.
+        const ms = (namesIn.length ? unknown : [useIn]).map(matchUses);
+        const m = {
+          names: [...new Set(ms.flatMap((x) => x.names))],
+          related: [...new Set(ms.flatMap((x) => x.related))],
+          partial: ms.some((x) => x.partial),
+          unexplained: ms.flatMap((x) => x.unexplained),
+          more: ms.reduce((n, x) => n + x.more, 0),
+          home_occupation: ms.find((x) => x.home_occupation)?.home_occupation,
+        };
         const list = [...new Set([...m.names, ...m.related])].slice(0, MAX_MATCHES + 2);
-        const likely = new Set(m.partial ? [] : m.names);
+        const likely = new Set(ms.filter((x) => !x.partial).flatMap((x) => x.names));
         const candidates = list.map((n) => ({ use: n, ...(likely.has(n) ? { likely: true } : {}), classification: classesOf(n), standards: standardsOf(n), in_tables: tablesOf(n) }));
         return {
           ...(namesIn.length ? { error: `Not use names in the tables: ${unknown.join('; ')}. Give each name exactly as a candidate list gives it.` } : { use: useIn }),
@@ -564,11 +578,11 @@ export default definePlugin({
           matches: [],
           candidates,
           ...(candidates.length
-            ? { choose: 'These are candidate uses, not answers: the tables name uses their own way, and a use\'s definition (Article 4: read its standards reference with ordinance_lookup) decides whether the activity is that use. Pick the one the person means, or several if they asked about several, asking them when it isn\'t clear; then call again with use set to that exact name (or names, for several) to get the marks. Don\'t call anything allowed or prohibited from this list.' }
+            ? { choose: `These are candidate uses, not answers: the tables name uses their own way, and a use's definition (Article 4: read its standards reference with ordinance_lookup) decides whether the activity is that use. "likely" marks the names the person's words most plainly point to: a reading of their words, not a determination, and it can hold more than one. Check each against what the person described and its definition, and pick the one they mean (several only if they asked about several), asking them when it isn't clear; then call again with use set to that exact name (or names, for several)${district ? ` and the same district, ${district},` : ''} to get the marks. Don't call anything allowed or prohibited from this list.` }
             : { note: 'No use in the tables is named with those words. The tables name uses their own way (a church is a "Religious institution", a salon a "Personal service business"): call again with the district alone to see its uses, or search the definitions in Article 4 with ordinance_lookup. Don\'t call the use prohibited until you know which use it is.' }),
-          ...(m.partial && m.unexplained.length ? { unexplained: m.unexplained } : {}),
+          ...(m.partial && m.unexplained.length ? { unexplained: { words: m.unexplained, note: 'No candidate holds these words: the person may mean a use none of these names, so ask before choosing.' } } : {}),
           ...(m.more ? { more: `${m.more} more use${m.more === 1 ? '' : 's'} hold these words: narrow the words to see them.` } : {}),
-          ...(m.home_occupation ? { home_occupation: { ...m.home_occupation, note: 'Not a home occupation: Section 4.3.3 prohibits these uses as one, so working from home doesn\'t make them allowed.' } } : {}),
+          ...(m.home_occupation ? { home_occupation: { ...m.home_occupation, note: 'Not a home occupation: Section 4.3.3 prohibits these uses as one, so working from home doesn\'t make them allowed as one. Whether the use is allowed as its own use there is its marks\' call: call again with its name.' } } : {}),
           ...(m.related.length ? { related: { uses: m.related, note: 'These names hold the words asked but name a narrower or different use.' } } : {}),
           ...conditional,
           how: HOW,
@@ -576,7 +590,8 @@ export default definePlugin({
         };
       }
       // A use asked by its name brings its accessory or temporary twin, as its own row.
-      const names = [...new Set(exact.flatMap((n) => [n, ...(namesIn.length ? [] : [...NAMES.keys()].filter((x) => x.startsWith(`${n} (as `)))]))];
+      const names = [...new Set(exact.flatMap((n) => [n, ...[...NAMES.keys()].filter((x) => x.startsWith(`${n} (as `))]))];
+      const several = new Set(exact).size > 1;
       const all = names.map((n) => ({ name: n, rows: rowsFor(n, district) }));
       const matches = all.filter((m) => m.rows.length);
       for (const m of matches) for (const r of m.rows) handOff(r.table.replace('Table ', ''), r.page);
@@ -591,9 +606,12 @@ export default definePlugin({
       // Use only: the tables that don't list the use at all.
       const absent = !district ? all.filter((m) => m.rows.length).map((m) => ({ use: m.name, not_in: tables.tables.filter((x) => !m.rows.some((r) => r.table === `Table ${x.section}`)).map((x) => `Table ${x.section}`) })).filter((x) => x.not_in.length) : [];
       return {
-        ...(namesIn.length ? { names: exact } : { use: useIn }),
+        ...(namesIn.length ? { names: [...new Set(exact)] } : { use: useIn }),
         ...(district ? { district } : {}),
         matches,
+        ...(several ? { several: 'You asked for several uses: these are the marks for each. Say which one fits what the person described (its definition decides), or give each with its name if they asked about several.' } : {}),
+        ...(dropped.length ? { dropped: { names: dropped, note: `At most ${MAX_NAMES} names a call: ask again for these.` } } : {}),
+        ...(namesIn.length && useIn ? { ignored_use: 'use was ignored: names was given.' } : {}),
         ...notListed,
         ...(absent.length ? { not_in_tables: { uses: absent, means: 'Not listed in these tables, so not allowed as this use in their districts (a PCO overlay marks unlisted uses not permitted); whether an activity is this use is its definition\'s call.' } } : {}),
 
@@ -605,7 +623,7 @@ export default definePlugin({
     if (district) {
       const t = TABLE_OF.get(district);
       const by = { P: [], C: [], 'P/C': [] };
-      for (const r of t.rows) if (r.cells[district]) by[r.cells[district]].push(r.use);
+      for (const r of t.rows) if (r.cells[district]) by[r.cells[district]].push(r.also || r.use);
       if (args.mark && !(args.mark in by)) return { error: 'mark is one of P, C or P/C.' };
       const marks = args.mark ? [args.mark] : ['P', 'P/C', 'C'];
       const cut = marks.filter((m) => by[m].length > MAX_LIST);

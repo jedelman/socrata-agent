@@ -12,6 +12,7 @@ import { parsePage, districtsOf, districtFor, categoryRefOf, AS_PRINTED } from '
 import { filterAnswerLinks, handoffUrls } from '../src/answer-links.js';
 import siren from '../deployments/siren.config.js';
 
+const NAMES_FOR_TEST = tables.tables.flatMap((t) => t.rows.map((r) => r.also || r.use));
 const row = (section, use) => tables.tables.find((t) => t.section === section).rows.find((r) => r.use === use);
 // Siren's two steps: plain words get candidates; it asks again by the likely names (as a model choosing them would).
 // The first call's notes (related, more, home_occupation, unexplained) ride along for the assertions.
@@ -134,12 +135,12 @@ test('zoning_uses: everyday words find the table\'s own use, and never a bare "p
   const shelter = await twoStep(ctx(), { use: 'homeless shelter', district: 'C-C' });
   assert.match(shelter.choose, /candidate uses, not answers/);
   assert.deepEqual(shelter.matches, []);
-  assert.deepEqual(shelter.unexplained, ['homeless']);
+  assert.deepEqual(shelter.unexplained.words, ['homeless']);
   // The prompt's own example: a brewery in C-C is a C as "Production of craft beverages".
   const brew = await twoStep(ctx(), { use: 'brewery', district: 'C-C' });
   const marks = Object.fromEntries(brew.matches.map((m) => [m.name, m.rows.map((r) => r.mark)]));
   assert.deepEqual(marks, { 'Production of craft beverages': ['C'], 'Brewery, cidery, distillery, or winery': ['blank (prohibited)'] });
-  assert.match(brew.first.choose, /Pick the one the person means/);
+  assert.match(brew.first.choose, /pick the one they mean/);
   assert.deepEqual(brew.first.matches, [], 'plain words never carry marks');
   // No name matched: where to look, not "prohibited".
   const none = await twoStep(ctx(), { use: 'zzz qqq', district: 'C-C' });
@@ -428,4 +429,31 @@ test('zoning_uses: marks only for a use named as the table names it; plain words
   assert.ok(!(await cands('swimming pool in my backyard', 'SF-6')).some((u) => /^Recreation facility/.test(u)));
   assert.ok((await cands('church in my house', 'SF-6')).includes('Religious institution'));
   assert.ok(!(await cands('can I open an office in a house', 'C-C')).includes('Home occupation'), '"a house" isn\'t the person\'s home');
+});
+
+test('zoning_uses: "likely" explained, twins either way, several names said so (eighth review of #74)', async () => {
+  const first = await plugin.run(ctx(), { use: 'office in my house', district: 'SF-6' });
+  assert.match(first.choose, /"likely" marks the names .* not a determination/);
+  assert.match(first.choose, /and the same district, SF-6,/);
+  // A base name brings its twin through names too.
+  const ev = await plugin.run(ctx(), { names: ['Electric vehicle charging station'], district: 'SF-6' });
+  assert.ok(ev.matches.some((m) => m.name === 'Electric vehicle charging station (as an accessory use)'));
+  // Several names: the answer says to pick, and extra names are returned, not dropped silently.
+  const two = await plugin.run(ctx(), { names: ['Office', 'Home occupation'], district: 'SF-6' });
+  assert.match(two.several, /Say which one fits what the person described/);
+  const many = Array.from(new Set([...NAMES_FOR_TEST])).slice(0, 12);
+  const lots = await plugin.run(ctx(), { names: many, district: 'C-C' });
+  assert.deepEqual(lots.dropped.names, many.slice(10));
+  // The district listing hands out names that work when asked again.
+  const list = await plugin.run(ctx(), { district: 'SF-6' });
+  for (const n of Object.values(list.uses).flat()) assert.ok(exactName(n), n);
+  // Home occupation stays a candidate beside an ADU; 4.3.3's uses still keep it out, with the marks pointed to.
+  const studio = await plugin.run(ctx(), { use: 'recording studio in my house', district: 'SF-6' });
+  assert.ok(!studio.candidates.some((x) => x.use === 'Accessory dwelling unit'));
+  const salon = await plugin.run(ctx(), { use: 'salon in my house', district: 'MF-AC' });
+  assert.match(salon.home_occupation.note, /call again with its name/);
+  // names as one string; unknown names matched each on its own.
+  assert.ok((await plugin.run(ctx(), { names: 'Restaurant', district: 'C-C' })).matches.length);
+  const mixed = await plugin.run(ctx(), { names: ['coffee shop near the park', 'hotel'], district: 'C-C' });
+  assert.ok(mixed.candidates.some((x) => x.use === 'Hotel or motel'));
 });
