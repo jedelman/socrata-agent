@@ -269,7 +269,7 @@ generic mode.
   cost, tool counts, partial or not, case files read, follow-ups, dropped
   links, and up to 8 topic words, taken only from topic tools' arguments
   (prior research, capital project, legislation, budget book, ordinance,
-  City news), only when that text passes the public-text checks, and only
+  City news, zoning uses), only when that text passes the public-text checks, and only
   words found in the adopted budget books and Zoning Ordinance (so a
   surname never gets through). Never the question, the answer, an account,
   invite, conversation, IP or address; the About panel says so when it's on
@@ -738,6 +738,78 @@ generic mode.
   far smaller. A copy from anywhere but the City's site goes to the
   git-ignored `data/documents/private/` until it's cleared for republishing.
   See `data/documents/README.md`.
+- `plugins/zoning-uses.js` (`zoning_uses`; Jason, 2026-11-20: "Can we make
+  that into a tool since it's such a weird custom way to do zoning?") answers
+  whether a use is allowed in a zoning district from the ordinance's use tables
+  (`data/documents/norfolk-zoning-use-tables.json`, built by
+  `scripts/build-use-tables.js` from the same PDF and CID as the ordinance text,
+  marks placed by word position and checked row by row against the text
+  extraction). **Marks only for a use named as the table names it** (seventh
+  review of #74, after six rounds of matcher fixes kept trading one confident
+  wrong mark for another): `use` in plain words returns candidate names with
+  their classification, standards reference and tables, ranked by the
+  matcher (`likely` where it is sure), and never a mark or a hand-off; Siren
+  chooses the use the person means (its definition decides; it asks when
+  unclear) and calls again with that exact name (`use`, or `names` for
+  several, matched by `exactName`: case, spacing and punctuation aside) for
+  the marks, a base name bringing its accessory or temporary twin as its own
+  row (in `names` too); several names asked come back with a note to say
+  which fits, and names past ten are returned as `dropped`. `choose` says
+  what `likely` is: a reading of the person's words, never a determination.
+  The matcher below ranks those candidates. Plain-word uses ("Airbnb", "brewery", "church") through
+  `SAYINGS` to the table's own names, the person's own words ranked first,
+  partial matches flagged; district codes, names or shorthand ("PCO-21st",
+  "C-C (conditional)"), and every Table 3.1.2 district, so one with no column
+  (IMU-O, PD, TOD) points to its own section. **It never calls a use
+  prohibited because no name matched** (fresh review of #74): a blank or a use
+  a base table doesn't list comes back with its definition to read first
+  (Article 4). In a PCO overlay the overlay's column controls (Section 3.9.3),
+  and a use Table 3.9.23 doesn't list is prohibited there: the table marks
+  every other use not permitted, and the build fails if a category it has no
+  rows for isn't one of the three it prints "Not permitted" (second review of
+  #74). **Every word asked must be accounted for before a mark is given**
+  (third review of #74, after "weed shop" read as Retail goods): by a use
+  name that holds them all, a name whose every word was asked, or an
+  everyday word (`SAYINGS`, `via`); a generic word (shop, store, bar, club,
+  house) counts beside an explained one, and alone reads only through its
+  generic names. A word nothing explains makes the match partial: candidates
+  with their definitions' references and no marks, for Siren to confirm
+  before answering. **And the words asked must name the use** (fourth review,
+  after "retail sales" in BC-O read as the industrial accessory row's P): a
+  name matches only when every word of it was asked (category words like
+  facility and dwelling aside) or one of its listed alternatives was
+  (`ALTERNATIVES`: "museum" names "Cultural facility, museum, or library"); a
+  longer name that merely holds the words asked comes back in `related`,
+  with no marks. The table's exact name returns that use alone; a longer
+  everyday phrase beats a word inside it ("home office" is Home occupation);
+  drink and club words beside another use add their own names; a cut list
+  says how many more. A name whose words another match's take in, and more,
+  is related ("Park" in "park and ride", the medical office in "vet
+  clinic"); a place word counts only after the use it names ("tattoo shop",
+  never "business park"); a place made of many uses ("office park",
+  "shopping center") is candidates only; an exact name brings its accessory
+  or temporary twin, its own row ("Farmer's market (as a temporary use)").
+  Asked at home, a use Section 4.3.3 bars as a home occupation (personal
+  service, tattoo, massage, vehicle service) answers as itself with 4.3.3
+  quoted (`home_occupation`), and Home occupation rows carry its rules
+  (`rules`), quoted from the ordinance text (fifth review). Sixth review:
+  where a use is ("near the airport", "in the park") is cut off before
+  matching (everyday phrases are read on the whole question, so "apartment
+  behind my house" is still an ADU); galleries read as all three uses 4.2.3
+  names them under; recreation sayings follow 4.2.3's own lists, never with a
+  residential cue; a bar word adds on-premises sales only beside a drink
+  host. Two uses named together ("warehouse apartments", "office in my
+  house") are both candidates for Siren to choose between. Taking every
+  `likely` candidate on the reviewers' 795 and 362 phrasings: 0 wrong in
+  either. A name several
+  districts share (the Ghent HC districts) is an error naming them, never
+  the first; shorthand resolves
+  only when it starts as the code does, so a neighborhood's name
+  ("Riverview") is never an overlay. P/C sends Siren to
+  the cited performance standards. Each table page joins the hand-off as
+  `kind: 'document'` with `#page=` (research memory keeps only its own topic
+  kinds, so these stay out of shared sources). Four rows the City prints
+  inconsistently keep what's printed, with a note.
 - **Wire new work into Siren in the same PR.** A new case file goes in `CASES`
   in `plugins/case-file.js`; a new plugin goes in `deployments/siren.config.js`
   with a prompt line saying when to use it. `test/plugins.test.js` fails if

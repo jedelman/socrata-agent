@@ -14,7 +14,7 @@ import { PARTIAL_PROMPT, LINK_LINE, FOLLOWUP_LINE } from '../../src/prompt.js';
 import { stripAddedCases, enumAtSnapshot } from './cases-at-snapshot.js';
 import { readFileSync } from 'node:fs';
 
-export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news', 'street_segment', 'housing_count', 'area_lookup', 'read_attachment']);
+export const ADDED_SINCE_SNAPSHOT = Object.freeze(['city_news', 'street_segment', 'housing_count', 'area_lookup', 'read_attachment', 'zoning_uses']);
 // Base-prompt lines added since the snapshot (each joins every deployment's
 // prompt, so it can't be left out by tool): stripped from the prompt and the
 // requests before comparing. Add the exported text here when one joins.
@@ -33,12 +33,24 @@ export const SNAPSHOT_TOOLS = new Map(
 );
 const atSnapshot = (t) => (PLUGIN_TOOLS_CHANGED_SINCE_SNAPSHOT.includes(t.name) ? SNAPSHOT_TOOLS.get(t.name) : t);
 
+// Siren prompt lines reworded since the snapshot, by how each now begins:
+// compared as the snapshot had them. Add one when a line changes.
+export const PROMPT_LINES_CHANGED_SINCE_SNAPSHOT = Object.freeze({
+  // The parcel lookup's line sends use questions to zoning_uses (fourth review of #74).
+  'For zoning, or for what map layers cover an address': 'For zoning, or for what map layers cover an address (district, overlays, flood zone, school zones, wards), use parcel_inventory. It reports the district only: for what a use such as a restaurant needs, read case_file "norfolk-zoning-restaurant-ghent" and say plainly that whether a use is allowed depends on the district\'s use table, with a Zoning Determination from City Planning as the binding answer.',
+});
+export const changedLine = (line) => Object.keys(PROMPT_LINES_CHANGED_SINCE_SNAPSHOT).find((start) => line.trimStart().startsWith(start));
+
 function sirenAtSnapshot(siren) {
   const added = (text) => ADDED_SINCE_SNAPSHOT.some((name) => text.includes(name));
+  const asWas = (line) => {
+    const start = changedLine(line);
+    return start ? line.slice(0, line.indexOf(start)) + PROMPT_LINES_CHANGED_SINCE_SNAPSHOT[start] : line;
+  };
   return {
     ...siren,
     plugins: siren.plugins.filter((p) => !ADDED_SINCE_SNAPSHOT.includes(p.name)),
-    prompt: siren.prompt.split('\n').filter((line) => !added(line)).join('\n'),
+    prompt: siren.prompt.split('\n').map(asWas).filter((line) => !added(line)).join('\n'),
   };
 }
 

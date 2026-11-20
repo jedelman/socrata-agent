@@ -65,6 +65,7 @@ export const TOOL_LABELS = Object.freeze({
   housing_count: 'Counting homes from the assessment roll and the 2020 Census',
   area_lookup: "Finding the area on the City's map",
   read_attachment: 'Reading a document attached to a City record',
+  zoning_uses: "Reading the Zoning Ordinance's use tables",
 });
 export const REWRITE_LABEL = 'Rewording the answer to say only what the records show';
 export const CHECK_LABEL = 'Checking my work…';
