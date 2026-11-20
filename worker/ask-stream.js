@@ -12,7 +12,8 @@
 //                                                 "reason":"fallback", another model
 //                                                 continues the step
 //   {"type":"tool","step":0,"name":"block_report","label":"..."}
-//   {"type":"rewrite","step":2,"label":"..."}     the voice check's rewrite
+//   {"type":"check","step":2,"label":"..."}       the check stage starting ("Checking my work…")
+//   {"type":"rewrite","step":2,"label":"..."}     the rewrite the checks asked for
 //   {"type":"final","body":{...}}                 exactly the body POST /api/ask
 //                                                 returns without streaming
 //   {"type":"error","status":502,"body":{...}}    exactly that path's error body
@@ -66,6 +67,7 @@ export const TOOL_LABELS = Object.freeze({
   read_attachment: 'Reading a document attached to a City record',
 });
 export const REWRITE_LABEL = 'Rewording the answer to say only what the records show';
+export const CHECK_LABEL = 'Checking my work…';
 
 export const toolLabel = (name) => TOOL_LABELS[name] || `Using the ${name} tool`;
 
@@ -92,6 +94,8 @@ export function noteEvents(send, { known, maxChars = MAX_NOTE_CHARS } = {}) {
     } else if (e.type === 'tool') {
       if (!known?.has(e.name)) return;
       send({ type: 'tool', step, name: e.name, label: toolLabel(e.name) });
+    } else if (e.type === 'check') {
+      send({ type: 'check', step, label: CHECK_LABEL });
     } else if (e.type === 'rewrite') {
       send({ type: 'rewrite', step, label: REWRITE_LABEL });
     } else if (e.type === 'refusal') {

@@ -407,6 +407,27 @@ function renderAnswer(answer, r, at) {
   const rb = r.requestBudget;
   return `<div class="answer">${answerMd(answer, r.resources)}</div>${r.voice && !r.voice.ok ? `<p class="notice">This answer states some things as fact rather than as what the records show. Check them against the trace.</p>` : ''}${rb?.note ? `<p class="notice">${esc(rb.note)}</p>` : ''}${renderFollowups(r.followups)}${renderWatchOffer(r.watchOffer)}${renderSuggestions(r.suggestions)}${renderToolsButton(r)}`;
 }
+// The check stage's findings (CHECKS on): what the code checks found, what the
+// second read flagged, and whether the answer was rewritten to fix them.
+function renderChecks(c) {
+  if (!c || typeof c !== 'object') return '';
+  const code = c.code || {};
+  // Figures from an answer that read web pages are noted, not sent back.
+  const figures = (code.figures || []).map((f) => `A figure not found in what the tools returned: ${f}`);
+  const found = [...(c.figures_advisory ? [] : figures), ...(code.links || []), ...(code.contacts || [])];
+  const sr = c.second_read;
+  const flags = Array.isArray(sr?.flags) ? sr.flags : [];
+  const after = c.after ? [...(c.after.figures || []), ...(c.after.links || []), ...(c.after.contacts || [])].length : null;
+  const lines = [
+    found.length ? `<li>${found.length} finding${found.length === 1 ? '' : 's'} by code${c.rewritten ? (after === 0 ? ', fixed in a rewrite' : ', sent back in a rewrite') : ''}:<ul>${found.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></li>` : '<li>Figures, links and contacts: nothing found by code.</li>',
+    c.rewrite && c.rewrite !== 'kept' && found.length ? `<li>Rewrite: ${esc(c.rewrite)}.</li>` : '',
+    c.figures_advisory && figures.length ? `<li>${esc(c.figures_advisory)}<ul>${figures.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></li>` : '',
+    sr ? (sr.skipped ? `<li>Second read: not run (${esc(sr.skipped)}).</li>` : flags.length ? `<li>Second read${sr.mode === 'shadow' ? ' (noted, not sent back)' : ''}: ${flags.length} flag${flags.length === 1 ? '' : 's'}<ul>${flags.map((f) => `<li>“${esc(f.claim)}”: ${esc(f.problem)}</li>`).join('')}</ul></li>` : '<li>Second read: every claim checked against the tool results held up.</li>') : '',
+  ].filter(Boolean);
+  const count = found.length + flags.length + (c.figures_advisory ? figures.length : 0);
+  return `<details class="checks"><summary>Checks${count ? ` <small>(${count})</small>` : ''}</summary><ul class="plain">${lines.join('')}</ul></details>`;
+}
+
 // What an answer was built from, for the tools column: what the records
 // couldn't answer (gaps on only), sharing its sources, the hand-off (contacts,
 // records, data, links), the trace and the model line.
@@ -415,7 +436,7 @@ function renderTools(r, at) {
   const rb = r.requestBudget;
   const how = r.model ? `${esc(r.model)} · ${r.steps} step${r.steps === 1 ? '' : 's'}${rb ? ` · ${rb.used} request${rb.used === 1 ? '' : 's'}${rb.limit ? ` of ${rb.limit}` : ''}` : ''}` : '';
   // What was found and how first; sharing those sources is a step after reading them.
-  return `${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}${renderShare(conversationId, at || r.at)}`;
+  return `${renderGaps(Array.isArray(r.gaps) ? { shown: r.gaps } : r.gaps)}${renderResources(r.resources || {})}${renderTrace(r.trace)}${renderChecks(r.checks)}${when || how ? `<p class="meta">${[when, how].filter(Boolean).join(' · ')}</p>` : ''}${renderShare(conversationId, at || r.at)}`;
 }
 // Under an answer, the one way to its tools: on a wide screen it selects the
 // answer in the column; narrower, it opens the column.
@@ -887,7 +908,7 @@ $('#f').addEventListener('submit', async (e) => {
       await readLines(res, (ev) => {
         if (ended) return;
         if (ev.type === 'thinking') notes.thinking(ev.step, String(ev.text ?? ''));
-        else if (ev.type === 'tool' || ev.type === 'rewrite') notes.step(String(ev.label ?? ''));
+        else if (ev.type === 'tool' || ev.type === 'check' || ev.type === 'rewrite') notes.step(String(ev.label ?? ''));
         else if (ev.type === 'discard') notes.discard(ev.step, ev.reason);
         else if (ev.type === 'notes_capped') notes.capped();
         else if (ev.type === 'start') started = typeof ev.conversation === 'string' ? ev.conversation : null;

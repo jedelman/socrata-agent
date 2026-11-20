@@ -104,6 +104,20 @@ export function topicTerms(toolResults = [], streets) {
   return out;
 }
 
+/** The check stage as counts only (never a finding's or flag's words). */
+const len = (a) => (Array.isArray(a) ? Math.min(a.length, 99) : 0);
+function checkCounts(c) {
+  const code = c.code || {};
+  const sr = c.second_read;
+  return {
+    figures: len(code.figures),
+    links: len(code.links),
+    contacts: len(code.contacts),
+    ...(sr ? { second_read: sr.skipped ? 'skipped' : len(sr.flags) } : {}),
+    rewritten: Boolean(c.rewritten),
+  };
+}
+
 /**
  * The line for one answer. `out` is ask()'s result (toolResults included);
  * `tier` is 'member', 'invite' or 'public'; `ms` how long the answer took.
@@ -133,6 +147,7 @@ export function answerEvent(out, { tier, ms, city, streets, trace } = {}) {
     budget_reached: Boolean(out?.requestBudget?.reached),
     refused: Boolean(out?.refusal),
     terms: topicTerms(out?.toolResults, streets),
+    ...(out?.checks ? { checks: checkCounts(out.checks) } : {}),
     ...(typeof trace === 'string' && TRACE_RE.test(trace) ? { trace } : {}),
   };
 }

@@ -222,6 +222,17 @@ PUBLIC_ORIGIN = "https://ask-siren.jason-edelman.org"
 # too. OTLP_WORKSPACE, once Jason gives the workspace id, keeps any other
 # workspace's spans out.
 TELEMETRY = "true"
+# The check stage (src/answer-checks.js, src/second-read.js; Jason,
+# 2026-11-20: "Rewrite the way the voice check works. Build 1 and 2."). With
+# CHECKS = "on", code checks each answer's figures, link names and contacts
+# claims against what its tools returned, and what they find goes back in the
+# one rewrite (with any voice fixes); the page shows "Checking my work…".
+# SECOND_READ = "shadow" adds a fresh-context read (question, answer and tool
+# results, never the reasoning) whose flags are recorded and shown under the
+# answer but not sent back; "rewrite" sends them back too, once a measurement
+# shows they help. Remove CHECKS to go back to the voice check alone.
+CHECKS = "on"
+SECOND_READ = "shadow"
 
 # Watches and civic-league feeds (worker/watches.js, docs/watches.md; Jason,
 # 2026-11-16). Both on since 2026-11-20 (Jason: "Let's switch on all 3
