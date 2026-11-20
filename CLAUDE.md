@@ -744,7 +744,16 @@ generic mode.
   (`data/documents/norfolk-zoning-use-tables.json`, built by
   `scripts/build-use-tables.js` from the same PDF and CID as the ordinance text,
   marks placed by word position and checked row by row against the text
-  extraction). Plain-word uses ("Airbnb", "brewery", "church") through
+  extraction). **Marks only for a use named as the table names it** (seventh
+  review of #74, after six rounds of matcher fixes kept trading one confident
+  wrong mark for another): `use` in plain words returns candidate names with
+  their classification, standards reference and tables, ranked by the
+  matcher (`likely` where it is sure), and never a mark or a hand-off; Siren
+  chooses the use the person means (its definition decides; it asks when
+  unclear) and calls again with that exact name (`use`, or `names` for
+  several, matched by `exactName`: case, spacing and punctuation aside) for
+  the marks, a base name bringing its accessory or temporary twin as its own
+  row. The matcher below ranks those candidates. Plain-word uses ("Airbnb", "brewery", "church") through
   `SAYINGS` to the table's own names, the person's own words ranked first,
   partial matches flagged; district codes, names or shorthand ("PCO-21st",
   "C-C (conditional)"), and every Table 3.1.2 district, so one with no column

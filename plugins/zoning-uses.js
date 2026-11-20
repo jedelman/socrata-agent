@@ -86,7 +86,7 @@ export const districtCode = (input) => districtOf(input)?.code ?? null;
 // words of a name it reached, count as explained.
 const SAYINGS = [
   [/\b(?:airbnbs?|vrbos?|vacation rentals?|short[- ]term rentals?|str)\b/, ['short-term rental unit']],
-  [/\b(?:apartments? (?:in|over|above|behind|under) (?:my|our|the|a) (?:house|home|garage)|basement apartments?|adus?|granny flats?|in-law (?:suites?|apartments?|units?)|backyard cottages?|garage apartments?|accessory apartments?)\b/, ['accessory dwelling unit']],
+  [/\b(?:(?:apartments?|units?|cottages?|suites?|studios?) (?:in|over|above|behind|under|on|to) (?:my|our|the|a) (?:house|home|garage|basement|back ?yard|yard|property|lot)|basement apartments?|adus?|granny flats?|in-law (?:suites?|apartments?|units?)|backyard cottages?|garage apartments?|accessory apartments?)\b/, ['accessory dwelling unit']],
   [/\bduplex(?:es)?\b/, ['dwelling two-family']],
   [/\b(?:triplex(?:es)?|fourplex(?:es)?|quadplex(?:es)?|apartments?|apartment buildings?|multi-?family)\b/, ['dwelling multi-family']],
   [/\b(?:townhouses?|townhomes?|rowhouses?|row houses?)\b/, ['dwelling townhouse']],
@@ -105,7 +105,7 @@ const SAYINGS = [
   // Section 4.2.3 names art galleries under retail goods and cultural facilities too.
   [/\b(?:art galler(?:y|ies)|galler(?:y|ies))\b/, ['artist studio school gallery', 'retail goods establishment', 'cultural facility museum library']],
   [/\b(?:art studios?|artist studios?)\b/, ['artist studio school gallery']],
-  [/\b(?:(?:beauty|barber(?:ing)?|cosmetology|massage|nail|tattoo|culinary|cooking|bartending|welding|hvac|truck driving|driving|trade|vocational|technical)\s+(?:schools?|colleges?|academ(?:y|ies)|institutes?))\b/, ['School, vocational or trade']],
+  [/\b(?:(?:beauty|barber(?:ing)?|cosmetology|massage|nail|tattoo|culinary|cooking|bartending|welding|hvac|truck driving|trade|vocational|technical)\s+(?:schools?|colleges?|academ(?:y|ies)|institutes?))\b/, ['School, vocational or trade']],
   [/\b(?:construction (?:trailers?|site (?:offices?|trailers?|storage))|job ?site (?:trailers?|offices?))\b/, ['Construction-related office/yard']],
   [/\b(?:(?<!used |vintage |second-?hand |thrift )(?:antique|bike|bicycle|gun|clothing|clothes|jewelry|furniture|hardware|gift|flower|record|mattress|appliance|shoe|toy|sporting goods)\s+(?:stores?|shops?|boutiques?)|pharmac(?:y|ies)|drug ?stores?|florists?|garden centers?)\b/, ['retail goods establishment']],
   // Recreation by the use types Section 4.2.3 lists for each.
@@ -147,7 +147,7 @@ const SAYINGS = [
   [/\b(?:home[- ](?:salons?|barber(?:shop)?s?|nail salons?|hair salons?|beauty salons?)|(?:salons?|barber(?:shop)?s?) (?:in|at|out of|from) (?:my|our|the|a) (?:home|house))\b/, ['personal service business']],
   [/\b(?:home[- ]massages?|massages? (?:in|at|out of|from) (?:my|our|the|a) (?:home|house))\b/, ['therapeutic massage facility']],
   [/\b(?:home[- ]tattoo(?:s|ing)?(?: (?:shops?|studios?|parlou?rs?))?|tattoo(?:s|ing)?(?: (?:shops?|studios?|parlou?rs?))? (?:in|at|out of|from) (?:my|our|the|a) (?:home|house))\b/, ['tattoo parlor']],
-  [/\b(?:home[- ](?:based|bakery|bakeries|kitchen|offices?|business(?:es)?)|work from home|(?:in|at|out of|from) (?:my|our|the|a) (?:home|house)|cottage food)\b/, ['home occupation']],
+  [/\b(?:home[- ](?:based|bakery|bakeries|kitchen|offices?|business(?:es)?)|work from home|(?:in|at|out of|from) (?:my|our) (?:home|house|apartment|condo|townhouse)|cottage food)\b/, ['home occupation']],
   [/\b(?:(?:cannabis|marijuana|weed|pot) (?:shops?|stores?|dispensar(?:y|ies))|dispensar(?:y|ies))\b/, ['cannabis dispensing facility']],
   [/\b(?:cannabis|marijuana)\b/, ['cannabis dispensing facility', 'cannabis cultivation or manufacturing facility']],
   [/\b(?:sex shops?|adult (?:stores?|shops?|book ?stores?|theat(?:er|re)s?|novelty|video stores?))\b/, ['novelty store or theater adult']],
@@ -192,7 +192,7 @@ const HOME_OCCUPATION_RULES = {
 };
 // Uses 4.3.3 bars as home occupations, and uses with their own rows: asked "in my house", these answer, not Home occupation.
 const HOME_EXCLUDED = new Set(['Personal service business', 'Nursing home', 'Hospice', 'Tattoo parlor', 'Therapeutic massage facility', 'Office, contractor', 'Automobile sales', 'Automobile repair and maintenance, major', 'Automobile repair and maintenance, minor', 'Commercial vehicle repair and maintenance', 'Commercial vehicle sales and rental', 'Recreational vehicle sale, rental, and maintenance', 'Tire sales and repair', 'Small engine repair shop', 'Boat sales, rental, service, or repair', 'Car wash', 'Automatic car wash', 'Gas station']);
-const HOME_OWN_ROWS = /^(?:Short-term rental unit|Family day home|Day care center|Accessory dwelling unit|Dwelling,|Bed and breakfast|Rooming house)/;
+const HOME_OWN_ROWS = /^(?:Short-term rental unit|Family day home|Day care center|Accessory dwelling unit|Bed and breakfast|Rooming house)/;
 // Names that list alternatives ("Hotel or motel"): each phrase here names the
 // use by itself, so asking "museum" is asking for "Cultural facility, museum,
 // or library". Any other name is the use asked for only when every word of it
@@ -231,12 +231,12 @@ const ALTERNATIVES = new Map(Object.entries({
 }));
 // Words a name carries for its category: "multi-family" names "Dwelling, multi-family".
 const FILLER = new Set(['facility', 'establishment', 'use', 'business', 'dwelling']);
-const STOP = new Set(['a', 'an', 'the', 'of', 'or', 'and', 'for', 'in', 'to', 'as', 'at', 'on', 'by', 'with', 'near', 'into', 'from', 'out', 'about', 'use', 'uses', 'is', 'are', 'be', 'can', 'could', 'would', 'should', 'do', 'does', 'i', 'we', 'me', 'my', 'our', 'you', 'your', 'it', 'this', 'that', 'what', 'where', 'how', 'allowed', 'permitted', 'open', 'opening', 'run', 'running', 'operate', 'operating', 'start', 'starting', 'have', 'build', 'put', 'want', 'like', 'new', 'sell', 'sells', 'selling', 'zone', 'zoned', 'zoning', 'district', 'here', 'there', 'other', 'all', 'any', 'kind', 'type', 'some', 'go', 'get', 'need', 'legal', 'built', 'developer', 'neighborhood', 'add', 'convert', 'converting', 'turn', 'turning', 'lot', 'backyard']);
+const STOP = new Set(['a', 'an', 'the', 'of', 'or', 'and', 'for', 'in', 'to', 'as', 'at', 'on', 'by', 'with', 'near', 'into', 'from', 'out', 'about', 'use', 'uses', 'is', 'are', 'be', 'can', 'could', 'would', 'should', 'do', 'does', 'i', 'we', 'me', 'my', 'our', 'you', 'your', 'it', 'this', 'that', 'what', 'where', 'how', 'allowed', 'permitted', 'open', 'opening', 'run', 'running', 'operate', 'operating', 'start', 'starting', 'have', 'build', 'put', 'want', 'like', 'new', 'sell', 'sells', 'selling', 'zone', 'zoned', 'zoning', 'district', 'here', 'there', 'other', 'all', 'any', 'kind', 'type', 'some', 'go', 'get', 'need', 'legal', 'built', 'developer', 'neighborhood', 'convert', 'converting', 'turn', 'turning']);
 const plain = (s) => String(s ?? '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
 // Common spellings, and "at home" as "at my home".
-const SPELLINGS = [[/\btheatres?\b/g, 'theater'], [/\bair ?b ?n ?b\b/g, 'airbnb'], [/\bcarwash(?:es)?\b/g, 'car wash'], [/\b(?:resturant|restaraunt|restraunt|resteraunt|restuarant)(s?)\b/g, 'restaurant$1'], [/\blaundry ?mat\b/g, 'laundromat'], [/\bchruch\b/g, 'church'], [/\b(at|from|out of) home\b/g, '$1 my home']];
+const SPELLINGS = [[/\btheatres?\b/g, 'theater'], [/\bair ?b ?n ?b\b/g, 'airbnb'], [/\bcarwash(?:es)?\b/g, 'car wash'], [/\b(?:resturant|restaraunt|restraunt|resteraunt|restuarant)(s?)\b/g, 'restaurant$1'], [/\blaundry ?mat\b/g, 'laundromat'], [/\bchruch\b/g, 'church'], [/\b(at|from|out of) home\b(?! depot)/g, '$1 my home']];
 // Where a use is ("near the airport", "in the park") isn't a second use: cut it off. "In my house" stays: it says the use is at home.
-const cutPlace = (q) => q.replace(/\s+(?:near|by|beside|next to|close to|across (?:the street )?from|behind|opposite|around)\b.*$/, '').replace(/\s+(?:in|at|inside|on)\s+(?:the|a|an)\s+(?!(?:home|house)\b).*$/, '');
+const cutPlace = (q) => q.replace(/\s+(?:near|by|beside|next to|close to|across (?:the street )?from|behind|opposite|around)\b.*$/, '').replace(/\s+(?:in|at|inside|on)\s+(?:the|a|an)\s+(?!(?:home|house|garage|basement|back ?yard|yard|attic|driveway|property|lot)\b).*$/, '');
 const stem = (w) => {
   if (w.length <= 3 || /(?:ss|us|is)$/.test(w)) return w;
   if (w.length > 4 && w.endsWith('ies')) return `${w.slice(0, -3)}y`;
@@ -307,7 +307,9 @@ function named(name, asked) {
  * be confirmed, never with marks.
  */
 export function matchUses(query) {
-  const q = cutPlace(SPELLINGS.reduce((t, [re, to]) => t.replace(re, to), plain(query)).trim());
+  // Everyday phrases are read on the whole question; table names on it with any place phrase cut off.
+  const whole = SPELLINGS.reduce((t, [re, to]) => t.replace(re, to), plain(query)).trim();
+  const q = cutPlace(whole);
   const own = meaningful(q);
   const asked = core(own);
   const ownSet = new Set(asked);
@@ -329,11 +331,14 @@ export function matchUses(query) {
   };
   // A saying whose every match lies inside a longer saying's ("apartment" in
   // "apartment in my house") gives way to it.
-  const found = SAYINGS.map(([re]) => [...q.matchAll(new RegExp(re.source, 'g'))].map((m) => [m.index, m.index + m[0].length]));
+  // A private pool or batting cage at home isn't a commercial recreation facility (4.2.3): those sayings wait for no residential cue.
+  const residential = /\b(?:back ?yard|my (?:house|home|yard|property|lot)|private|residential)\b/.test(whole);
+  const skip = (targets) => residential && targets.some((t) => /^recreation facility/.test(t));
+  const found = SAYINGS.map(([re, targets]) => (skip(targets) ? [] : [...whole.matchAll(new RegExp(re.source, 'g'))].map((m) => [m.index, m.index + m[0].length])));
   const inside = ([a, b], [c, d]) => c <= a && b <= d && d - c > b - a;
   const sayingTargets = new Set();
   SAYINGS.forEach(([re, targets], i) => {
-    const spans = [...q.matchAll(new RegExp(re.source, 'g'))];
+    const spans = skip(targets) ? [] : [...whole.matchAll(new RegExp(re.source, 'g'))];
     if (!spans.length) return;
     if (found[i].every((sp) => found.some((other, k) => k !== i && other.some((o) => inside(sp, o))))) return;
     const words = new Set(spans.flatMap((m) => core(meaningful(m[0]))));
@@ -399,17 +404,6 @@ export function matchUses(query) {
       related.push(name);
     }
   }
-  // A use named just before another, with nothing between, describes it ("church office", "warehouse apartments", "hospital parking"): related.
-  const tokens = (q.match(/[a-z0-9]+/g) || []).map(stem);
-  const at = (x) => tokens.flatMap((t, i) => (x.covered.has(t) ? [i] : []));
-  const named2 = [...chosen.values()].filter((x) => x.rank < 2);
-  for (const a of named2) {
-    const pa = at(a);
-    if (pa.length && named2.some((b) => b !== a && chosen.has(b.name) && at(b).length && Math.max(...pa) + 1 === Math.min(...at(b)))) {
-      chosen.delete(a.name);
-      related.push(a.name);
-    }
-  }
   // Asked at home: Home occupation gives way to a use 4.3.3 bars as one (and
   // the answer says so), or to one with its own row (a short-term rental, a
   // day care, an accessory or temporary use). Any other use asked "in my house"
@@ -420,7 +414,6 @@ export function matchUses(query) {
   if (home && !home.own) {
     const others = [...chosen.keys()].filter((n) => n !== 'Home occupation');
     if (others.some((n) => HOME_EXCLUDED.has(n) || HOME_OWN_ROWS.test(n) || SUBORDINATE.has(n))) chosen.delete('Home occupation');
-    else for (const n of others) { chosen.delete(n); related.push(n); }
   }
   const unexplained = asked.filter((w) => !explained.has(w));
   const partial = unexplained.length > 0 || !chosen.size || development;
@@ -489,22 +482,29 @@ function rowsFor(name, district = null) {
   }
   return out;
 }
+// A use named as the table names it (case, spacing and punctuation aside).
+const normName = (x) => plain(x).replace(/[^a-z0-9]+/g, ' ').trim();
+const BY_NAME = new Map([...NAMES.keys()].map((n) => [normName(n), n]));
+export const exactName = (x) => BY_NAME.get(normName(x)) ?? null;
+const classesOf = (name) => [...new Set(tables.tables.flatMap((t) => t.rows.filter((r) => (r.also || r.use) === name).map((r) => r.classification)))];
+const tablesOf = (name) => tables.tables.filter((x) => x.rows.some((r) => (r.also || r.use) === name)).map((x) => `Table ${x.section}`);
 const standardsOf = (name) => {
   for (const t of tables.tables) for (const r of t.rows) if ((r.also || r.use) === name) return r.standards;
   return null;
 };
 
 const HOW =
-  'Say the district, the table and its page (link it), and what the mark means in plain words. The tables name uses their own way, and the use\'s definition in Article 4 (its standards reference, read with ordinance_lookup section) decides whether an activity is that use: read it before saying a use is prohibited, and before saying which of several matching uses applies. P/C means a Conditional Use Permit may be required: the cited performance standards decide when, so read them before saying whether one is needed. An overlay (PCO, IMU-O, STRL-O and others) can permit, prohibit or add standards on top of the base district, and the overlay controls where they conflict (Section 3.9.3). For a parcel in a PCO overlay, its PCO column decides, and a use Table 3.9.23 doesn\'t list is prohibited there (the table marks every other use not permitted), so check the parcel\'s overlays and call again with its PCO district. Other overlays set out their changes in their own sections. Conditional zoning (proffered conditions in the rezoning ordinance) and Planned Development terms can narrow these uses. A partial result has candidates and no marks: confirm which use is meant (the definition, or the person) and call again with its name before answering. A row\'s classification says whether it is the principal use or an accessory one. Give a row\'s note if it has one: the City\'s tables print that row inconsistently. These tables are read from the City\'s PDF, current through the date given; the PDF is the authority, and a Zoning Determination from the Department of City Planning is the binding answer for a property.';
+  'Plain words get candidate use names, never marks: choose the use the person means (its definition decides; ask them when it isn\'t clear), then call again with that exact name. Say the district, the table and its page (link it), and what the mark means in plain words. The tables name uses their own way, and the use\'s definition in Article 4 (its standards reference, read with ordinance_lookup section) decides whether an activity is that use: read it before saying a use is prohibited, and before saying which of several matching uses applies. P/C means a Conditional Use Permit may be required: the cited performance standards decide when, so read them before saying whether one is needed. An overlay (PCO, IMU-O, STRL-O and others) can permit, prohibit or add standards on top of the base district, and the overlay controls where they conflict (Section 3.9.3). For a parcel in a PCO overlay, its PCO column decides, and a use Table 3.9.23 doesn\'t list is prohibited there (the table marks every other use not permitted), so check the parcel\'s overlays and call again with its PCO district. Other overlays set out their changes in their own sections. Conditional zoning (proffered conditions in the rezoning ordinance) and Planned Development terms can narrow these uses. A partial result has candidates and no marks: confirm which use is meant (the definition, or the person) and call again with its name before answering. A row\'s classification says whether it is the principal use or an accessory one. Give a row\'s note if it has one: the City\'s tables print that row inconsistently. These tables are read from the City\'s PDF, current through the date given; the PDF is the authority, and a Zoning Determination from the Department of City Planning is the binding answer for a property.';
 
 export default definePlugin({
   name: 'zoning_uses',
   cities: ['norfolk'],
-  description: `Norfolk's zoning use tables (Zoning Ordinance Tables 3.2.12 to 3.9.23, ${tables.current_through}): whether a use is permitted by right (P), needs a Conditional Use Permit (C), may need one depending on its performance standards (P/C), or is blank (prohibited as that use), in each zoning district. Give use, in plain words ("short-term rental", "live-work", "brewery", "day care", "church"), and/or district, a zoning district code (for example "C-C", "MF-NS", "SF-6", "PCO-Colley"; get an address's district and overlays from the address or parcel lookup first). Both: that use in that district. Use only: every district. District only: the uses it marks, by mark (filter with mark). Use it for "is X allowed here?" questions, then read the cited definition and performance standards with ordinance_lookup before saying a use is prohibited or whether a P/C needs a permit.`,
+  description: `Norfolk's zoning use tables (Zoning Ordinance Tables 3.2.12 to 3.9.23, ${tables.current_through}): whether a use is permitted by right (P), needs a Conditional Use Permit (C), may need one depending on its performance standards (P/C), or is blank (prohibited as that use), in each zoning district. Two steps: give use in plain words ("short-term rental", "brewery", "day care", "church") to get candidate use names as the tables name them, with no marks; pick the one the person means (read its definition, or ask), then call again with use set to that exact name, or names for several, to get the marks. district is a zoning district code (for example "C-C", "MF-NS", "SF-6", "PCO-Colley"; get an address's district and overlays from the address or parcel lookup first). With a use name and a district: that use there. A use name alone: every district. District only: the uses it marks, by mark (filter with mark). Read the cited definition and performance standards with ordinance_lookup before saying a use is prohibited or whether a P/C needs a permit.`,
   parameters: {
     type: 'object',
     properties: {
-      use: { type: 'string', description: 'The use, in plain words.' },
+      use: { type: 'string', description: 'A use: in plain words for candidate names, or exactly as the table names it (as a candidate list gives it) for its marks.' },
+      names: { type: 'array', items: { type: 'string' }, maxItems: 6, description: 'Several uses, each exactly as the table names it, for their marks together.' },
       district: { type: 'string', description: 'A zoning district code, such as "C-C" or "MF-NS".' },
       mark: { type: 'string', enum: ['P', 'C', 'P/C'], description: 'With district only: list just the uses with this mark.' },
     },
@@ -543,35 +543,40 @@ export default definePlugin({
       };
     }
     const useIn = String(args.use ?? '').trim().slice(0, 120);
-    if (useIn) {
-      const { names, related, partial, via, unexplained, more, home_occupation: homeRules } = matchUses(useIn);
-      const cut = more ? { more: `${more} more use${more === 1 ? '' : 's'} hold these words: narrow the words to see them.` } : {};
-      // Words no use name or everyday word accounts for: candidates to confirm, never marks.
-      if (partial) {
+    const namesIn = Array.isArray(args.names) ? args.names.slice(0, 6).map((x) => String(x ?? '').trim().slice(0, 120)).filter(Boolean) : [];
+    if (useIn || namesIn.length) {
+      // Marks only for uses named as the table names them. Plain words get
+      // candidates: the tables name uses their own way, and which use an
+      // activity is is its definition's call, so Siren confirms the use and
+      // asks again by its name.
+      const asked = namesIn.length ? namesIn : [useIn];
+      const exact = asked.map(exactName);
+      if (!exact.every(Boolean)) {
+        const unknown = asked.filter((x, i) => !exact[i]);
+        const words = namesIn.length ? unknown.join('; ') : useIn;
+        const m = matchUses(words);
+        const list = [...new Set([...m.names, ...m.related])].slice(0, MAX_MATCHES + 2);
+        const likely = new Set(m.partial ? [] : m.names);
+        const candidates = list.map((n) => ({ use: n, ...(likely.has(n) ? { likely: true } : {}), classification: classesOf(n), standards: standardsOf(n), in_tables: tablesOf(n) }));
         return {
-          use: useIn,
+          ...(namesIn.length ? { error: `Not use names in the tables: ${unknown.join('; ')}. Give each name exactly as a candidate list gives it.` } : { use: useIn }),
           ...(district ? { district } : {}),
           matches: [],
-          candidates: names.map((n) => ({ use: n, standards: standardsOf(n), in_tables: tables.tables.filter((x) => x.rows.some((r) => (r.also || r.use) === n)).map((x) => `Table ${x.section}`) })),
-          unexplained,
-          ...cut,
-          partial: `${unexplained.length ? `None of these uses holds "${unexplained.join('", "')}".` : 'No one use accounts for every word asked.'} These are candidates only, with no marks: read their definitions (the standards reference, with ordinance_lookup) or ask the person which one they mean, then call again with that use's name. Don't answer from a candidate, and don't call anything allowed or prohibited from this.`,
+          candidates,
+          ...(candidates.length
+            ? { choose: 'These are candidate uses, not answers: the tables name uses their own way, and a use\'s definition (Article 4: read its standards reference with ordinance_lookup) decides whether the activity is that use. Pick the one the person means, or several if they asked about several, asking them when it isn\'t clear; then call again with use set to that exact name (or names, for several) to get the marks. Don\'t call anything allowed or prohibited from this list.' }
+            : { note: 'No use in the tables is named with those words. The tables name uses their own way (a church is a "Religious institution", a salon a "Personal service business"): call again with the district alone to see its uses, or search the definitions in Article 4 with ordinance_lookup. Don\'t call the use prohibited until you know which use it is.' }),
+          ...(m.partial && m.unexplained.length ? { unexplained: m.unexplained } : {}),
+          ...(m.more ? { more: `${m.more} more use${m.more === 1 ? '' : 's'} hold these words: narrow the words to see them.` } : {}),
+          ...(m.home_occupation ? { home_occupation: { ...m.home_occupation, note: 'Not a home occupation: Section 4.3.3 prohibits these uses as one, so working from home doesn\'t make them allowed.' } } : {}),
+          ...(m.related.length ? { related: { uses: m.related, note: 'These names hold the words asked but name a narrower or different use.' } } : {}),
           ...conditional,
           how: HOW,
           ...about,
         };
       }
-      if (!names.length) {
-        return {
-          use: useIn,
-          ...(district ? { district } : {}),
-          matches: [],
-          note: 'No use in the tables is named with those words. The tables name uses their own way (a church is a "Religious institution", a salon a "Personal service business"): call again with the district alone to see its uses, or search the definitions in Article 4 with ordinance_lookup. Don\'t call the use prohibited until you know which use it is.',
-          ...conditional,
-          how: HOW,
-          ...about,
-        };
-      }
+      // A use asked by its name brings its accessory or temporary twin, as its own row.
+      const names = [...new Set(exact.flatMap((n) => [n, ...(namesIn.length ? [] : [...NAMES.keys()].filter((x) => x.startsWith(`${n} (as `)))]))];
       const all = names.map((n) => ({ name: n, rows: rowsFor(n, district) }));
       const matches = all.filter((m) => m.rows.length);
       for (const m of matches) for (const r of m.rows) handOff(r.table.replace('Table ', ''), r.page);
@@ -586,16 +591,12 @@ export default definePlugin({
       // Use only: the tables that don't list the use at all.
       const absent = !district ? all.filter((m) => m.rows.length).map((m) => ({ use: m.name, not_in: tables.tables.filter((x) => !m.rows.some((r) => r.table === `Table ${x.section}`)).map((x) => `Table ${x.section}`) })).filter((x) => x.not_in.length) : [];
       return {
-        use: useIn,
+        ...(namesIn.length ? { names: exact } : { use: useIn }),
         ...(district ? { district } : {}),
         matches,
         ...notListed,
         ...(absent.length ? { not_in_tables: { uses: absent, means: 'Not listed in these tables, so not allowed as this use in their districts (a PCO overlay marks unlisted uses not permitted); whether an activity is this use is its definition\'s call.' } } : {}),
-        ...(names.length > 1 ? { note: 'Several uses match: read their definitions to say which applies, or ask what the person means.' } : {}),
-        ...(homeRules ? { home_occupation: { ...homeRules, note: 'Not a home occupation: Section 4.3.3 prohibits this use as one, so working from home doesn\'t change the answer above.' } } : {}),
-        ...(related.length ? { related: { uses: related, note: 'These names hold the words asked but name a narrower or different use, so they aren\'t answered here. If the person means one, call again with its name.' } } : {}),
-        ...cut,
-        ...(via.length ? { via: { uses: via, note: 'Matched through an everyday word, not the table\'s own name: read the definition to confirm the activity is this use (a vendor park is a site for several food vendors, for example).' } } : {}),
+
         ...conditional,
         how: HOW,
         ...about,
