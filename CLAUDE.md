@@ -735,8 +735,18 @@ generic mode.
   with no marks. The table's exact name returns that use alone; a longer
   everyday phrase beats a word inside it ("home office" is Home occupation);
   drink and club words beside another use add their own names; a cut list
-  says how many more. A name several districts share (the Ghent HC
-  districts) is an error naming them, never the first; shorthand resolves
+  says how many more. A name whose words another match's take in, and more,
+  is related ("Park" in "park and ride", the medical office in "vet
+  clinic"); a place word counts only after the use it names ("tattoo shop",
+  never "business park"); a place made of many uses ("office park",
+  "shopping center") is candidates only; an exact name brings its accessory
+  or temporary twin, its own row ("Farmer's market (as a temporary use)").
+  Asked at home, a use Section 4.3.3 bars as a home occupation (personal
+  service, tattoo, massage, vehicle service) answers as itself with 4.3.3
+  quoted (`home_occupation`), and Home occupation rows carry its rules
+  (`rules`), quoted from the ordinance text (fifth review). A name several
+  districts share (the Ghent HC districts) is an error naming them, never
+  the first; shorthand resolves
   only when it starts as the code does, so a neighborhood's name
   ("Riverview") is never an overlay. P/C sends Siren to
   the cited performance standards. Each table page joins the hand-off as

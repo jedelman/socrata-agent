@@ -288,7 +288,7 @@ test('zoning_uses: a name with words of its own beyond those asked is a differen
   assert.deepEqual(names('live-work'), ['Dwelling, live-work']);
   // The table's exact name returns that use alone; a phrase beats a word inside it.
   assert.deepEqual(names('Office'), ['Office']);
-  assert.deepEqual(names('Day care center, child'), ['Day care center, child']);
+  assert.deepEqual(names('Day care center, child'), ['Day care center, child', 'Day care center, child (as an accessory use)'], 'with its accessory twin, its own row');
   assert.deepEqual(names('Dwelling, single-family detached'), ['Dwelling, single-family detached']);
   assert.deepEqual(names('home office'), ['Home occupation']);
   assert.deepEqual(names('art studio'), ['Artist studio/school/gallery']);
@@ -309,4 +309,38 @@ test('zoning_uses: a neighborhood\'s name or a stray word is never an overlay (f
   assert.equal(districtCode('pco riverview'), 'PCO-Riverview');
   assert.equal(districtCode('SF-6 district'), 'SF-6');
   assert.match((await plugin.run(ctx(), { use: 'ADU', district: 'Riverview' })).error, /isn't a zoning district/);
+});
+
+test('zoning_uses: home, park and twin rows answer the use asked (fifth review of #74)', async () => {
+  const run = (use, district) => plugin.run(ctx(), { use, district });
+  const marks = (out) => Object.fromEntries(out.matches.map((m) => [m.name, m.rows.map((r) => r.mark)[0]]));
+  // 4.3.3 bars these as home occupations: the use answers, with the rule quoted.
+  for (const [use, district] of [['home salon', 'HC-G2'], ['tattoo shop in my house', 'HC-G1'], ['auto repair at my house', 'SF-6'], ['massage out of my home', 'SF-6']]) {
+    const out = await run(use, district);
+    assert.ok(!('Home occupation' in marks(out)), use);
+    assert.match(out.home_occupation.excluded, /specifically prohibited as home occupations: \(A\) Personal service businesses/, use);
+    assert.equal(out.home_occupation.section, '4.3.3');
+  }
+  assert.ok(!('Home occupation' in marks(await run('airbnb in my house', 'HC-G3'))), 'a short-term rental has its own row');
+  assert.ok(!('Home occupation' in marks(await run('daycare in my home', 'HC-G2'))));
+  const ho = await run('home bakery', 'SF-6');
+  assert.equal(marks(ho)['Home occupation'], 'P/C');
+  assert.match(ho.matches[0].rows[0].rules.sales, /On-site sales of merchandise to the general public is prohibited/);
+  // A one-word name inside a longer phrase is related, never the answer.
+  for (const [use, district] of [['park and ride', 'SF-6'], ['food truck park', 'SF-6']]) assert.ok(!('Park' in marks(await run(use, district))), use);
+  for (const use of ['business park', 'office park', 'retail warehouse']) assert.deepEqual((await run(use, 'C-C')).matches, [], use);
+  assert.deepEqual(Object.keys(marks(await run('vet clinic', 'D-SP'))), ['Veterinary hospital or clinic']);
+  assert.deepEqual(Object.keys(marks(await run('martial arts studio', 'HC-G3'))), ['Music, dance, or martial arts studio/school']);
+  assert.ok(!('Warehouse' in marks(await run('warehouse store', 'C-R'))));
+  assert.ok(!('Nightclub' in marks(await run('fitness club', 'C-C'))));
+  assert.ok(!('Nightclub' in marks(await run('restaurant with a bar', 'C-N'))));
+  assert.deepEqual(Object.keys(marks(await run('beer and wine store', 'C-N'))), ['Sale of alcoholic beverages, off-premises']);
+  // The exact name brings its temporary or accessory twin, which can differ.
+  assert.deepEqual(marks(await run('farmers market', 'PCO-Colley')), { 'Farmer’s market': 'blank (prohibited)', 'Farmer’s market (as a temporary use)': 'P' });
+  assert.deepEqual(marks(await run('kennel', 'PCO-Colley')), { Kennel: 'blank (prohibited)', 'Kennel (as an accessory use)': 'C' });
+  // District framing words.
+  assert.equal(districtCode('the C-C district'), 'C-C');
+  assert.equal(districtCode('zoned C-C'), 'C-C');
+  assert.deepEqual(districtOf('(C) C-C'), { code: 'C-C', conditional: true });
+  assert.equal(districtCode('Lafayette Pedestrian Commercial Overlay'), 'PCO-Lafayette');
 });

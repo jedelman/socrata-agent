@@ -43,8 +43,9 @@ const firstPage = (t) => t.rows[0].page;
  */
 export function districtOf(input) {
   const raw = String(input ?? '').trim();
-  const conditional = /\bconditional\b|\(c\)\s*$/i.test(raw);
-  const bare = raw.replace(/\(\s*(?:conditional|c)\s*\)|\bconditional\b/gi, '');
+  const conditional = /\bconditional\b|\(\s*c\s*\)/i.test(raw);
+  // "the C-C district", "zoned C-C", "(C) C-C": the code with its framing words off.
+  const bare = raw.replace(/\(\s*(?:conditional|c)\s*\)|\bconditional\b/gi, '').replace(/^\s*(?:the|zoned|zone|zoning)\s+/i, '').replace(/\s+(?:district|zone|zoning)\s*$/i, '');
   const q = squash(bare);
   if (!q) return null;
   // Names as the parcel lookup gives them ("Colley Avenue Pedestrian Commercial Overlay"): the same words in any order.
@@ -53,7 +54,9 @@ export function districtOf(input) {
   const one = (list) => (list.length === 1 ? { code: list[0].code, conditional } : list.length > 1 ? { ambiguous: list.map((d) => d.code), conditional } : null);
   const exact = ALL.find((d) => squash(d.code) === q);
   if (exact) return { code: exact.code, conditional };
-  const named = one(ALL.filter((d) => squash(d.name) === q || squash(`${d.code} ${d.name}`) === q)) || (t.split(' ').length >= 2 ? one(ALL.filter((d) => tokens(d.name) === t)) : null);
+  // Its name's words, all of them in any order, or (three words or more) enough of them for one district ("Lafayette Pedestrian Commercial Overlay").
+  const nameWords = (d) => new Set(tokens(d.name).split(' '));
+  const named = one(ALL.filter((d) => squash(d.name) === q || squash(`${d.code} ${d.name}`) === q)) || (t.split(' ').length >= 2 ? one(ALL.filter((d) => tokens(d.name) === t)) : null) || (t.split(' ').length >= 3 ? one(ALL.filter((d) => t.split(' ').every((w) => nameWords(d).has(w)))) : null);
   if (named) return named;
   // A code and a word after it: "SF-6 district", or a street word after a longer code ("PCO Colley Ave").
   const prefixed = ALL.filter((d) => {
@@ -90,7 +93,8 @@ const SAYINGS = [
   [/\b(?:home daycares?|in-home daycares?|in-home day cares?|home day cares?|family daycares?|family day cares?)\b/, ['family day home']],
   [/\b(?:daycares?|day cares?|child ?care|preschools?)\b/, ['day care center child', 'family day home']],
   [/\b(?:brewery|breweries|brewpubs?|taprooms?|microbrewer(?:y|ies)|distiller(?:y|ies)|winer(?:y|ies)|ciderys?|cideries|craft beer)\b/, ['production of craft beverages', 'brewery cidery distillery winery']],
-  [/\b(?:liquor stores?|package stores?|abc stores?|beer and wine stores?|beer (?:stores?|shops?)|wine (?:stores?|shops?)|bottle shops?)\b/, ['establishment for the sale of distilled spirits for off-premises consumption', 'sale of alcoholic beverages off-premises']],
+  [/\b(?:liquor stores?|package stores?|abc stores?)\b/, ['establishment for the sale of distilled spirits for off-premises consumption', 'sale of alcoholic beverages off-premises']],
+  [/\b(?:beer and wine (?:stores?|shops?)|beer (?:stores?|shops?)|wine (?:stores?|shops?)|bottle shops?)\b/, ['sale of alcoholic beverages off-premises']],
   [/\b(?:pawn ?shops?|pawnbrokers?)\b/, ['pawnshop']],
   [/\b(?:thrift (?:stores?|shops?)|secondhand|second-hand|used goods|resale shops?|used (?:clothing|clothes)|vintage (?:clothing|clothes|stores?|shops?))\b/, ['used merchandise sales', 'consignment shop']],
   [/\b(?:used (?:book ?stores?|book ?shops?|books|records|cds|dvds|media))\b/, ['used books media']],
@@ -98,7 +102,15 @@ const SAYINGS = [
   [/\bfood trucks?\b/, ['vendor park food']],
   [/\b(?:art galler(?:y|ies)|galler(?:y|ies)|art studios?|artist studios?)\b/, ['artist studio school gallery']],
   [/\b(?:baker(?:y|ies))\b/, ['retail goods establishment', 'restaurant', 'artisanal production']],
-  [/\b(?:wine bars?|cocktail bars?|sports bars?|beer gardens?|beer halls?|brew ?pubs?)\b/, ['sale of alcoholic beverages on-premises', 'restaurant']],
+  [/\b(?:wine bars?|cocktail bars?|sports bars?|dive bars?|beer gardens?|beer halls?|brew ?pubs?|bar and grill|bar & grill)\b/, ['sale of alcoholic beverages on-premises', 'restaurant']],
+  [/\b(?:grills?|pizz(?:a|eria)s?|pizza (?:places?|shops?)|bistros?|taquerias?|delis?|delicatessens?|sandwich (?:shops?|places?)|bagel (?:shops?|places?)|ice cream (?:shops?|parlou?rs?|places?)|food halls?)\b/, ['restaurant']],
+  [/\b(?:pet (?:stores?|shops?|supply stores?))\b/, ['retail goods establishment']],
+  [/\b(?:auto parts|car parts)(?: (?:stores?|shops?))?\b/, ['auto supply sales and rental']],
+  [/\b(?:warehouse (?:stores?|clubs?)|wholesale clubs?|big[- ]box (?:stores?|retail))\b/, ['retail goods establishment', 'wholesale establishment']],
+  [/\b(?:(?:mobile|manufactured) home (?:parks?|communit(?:y|ies))|trailer parks?)\b/, ['manufactured home park']],
+  [/\bhomestays?\b/, ['Short-term rental unit (homestay)']],
+  [/\badult day ?cares?\b/, ['day care center adult']],
+  [/\b(?:(?:child(?:ren'?s)?|kids?'?|infant|toddler) (?:daycares?|day cares?|care(?: centers?)?))\b/, ['day care center child', 'family day home']],
   [/\b(?:church(?:es)?|temples?|mosques?|synagogues?|chapels?|places? of worship)\b/, ['religious institution']],
   [/\b(?:salons?|barber(?:shop)?s?|barbershops?|nail salons?|hair|beauty|tanning|laundromats?|tailors?|clothing alterations|shoe repair)\b/, ['personal service business']],
   [/\b(?:dry clean(?:ers?|ing))\b/, ['personal service business', 'laundry and dry cleaning plant']],
@@ -106,7 +118,7 @@ const SAYINGS = [
   [/\bspas?\b/, ['personal service business', 'therapeutic massage facility']],
   [/\b(?:gyms?|fitness|crossfit|yoga studios?)\b/, ['health and fitness facility']],
   [/\b(?:cafes?|coffee ?shops?|coffee ?houses?|coffeehouses?|diners?|eater(?:y|ies)|juice bars?|smoothies?|bakery cafes?)\b/, ['restaurant']],
-  [/\b(?:vets?|veterinarians?|animal hospitals?)\b/, ['veterinary hospital or clinic']],
+  [/\b(?:(?:vet|veterinary|animal) (?:clinics?|hospitals?|offices?)|vets?|veterinarians?)\b/, ['veterinary hospital or clinic']],
   [/\b(?:ev charg\w*|electric (?:car|vehicle) charg\w*|car chargers?)\b/, ['electric vehicle charging station']],
   [/\b(?:used car lots?|car dealerships?|car lots?|used cars?|auto dealer\w*|(?:auto|car|vehicle|automobile) sales)\b/, ['automobile sales']],
   [/\b(?:vehicle repair|vehicle maintenance)\b/, ['automobile repair and maintenance', 'commercial vehicle repair and maintenance']],
@@ -116,7 +128,11 @@ const SAYINGS = [
   [/\b(?:dentists?|doctor'?s? offices?|medical offices?|clinics?)\b/, ['office medical or dental']],
   [/\b(?:storage units?|self[- ]storage|mini[- ]storage)\b/, ['self-service storage units']],
   [/\b(?:outdoor (?:dining|seating)|patio (?:dining|seating)|sidewalk (?:cafes?|dining|seating))\b/, ['outdoor seating']],
-  [/\b(?:home[- ](?:based|bakery|bakeries|kitchen|salon|studio|gym|offices?|business(?:es)?)|work from home|(?:in|at|out of|from) (?:my|our|the|a) (?:home|house)|cottage food)\b/, ['home occupation']],
+  // At home, the use itself (4.3.3 bars these as home occupations).
+  [/\b(?:home[- ](?:salons?|barber(?:shop)?s?|nail salons?|hair salons?|beauty salons?)|(?:salons?|barber(?:shop)?s?) (?:in|at|out of|from) (?:my|our|the|a) (?:home|house))\b/, ['personal service business']],
+  [/\b(?:home[- ]massages?|massages? (?:in|at|out of|from) (?:my|our|the|a) (?:home|house))\b/, ['therapeutic massage facility']],
+  [/\b(?:home[- ]tattoo(?:s|ing)?(?: (?:shops?|studios?|parlou?rs?))?|tattoo(?:s|ing)?(?: (?:shops?|studios?|parlou?rs?))? (?:in|at|out of|from) (?:my|our|the|a) (?:home|house))\b/, ['tattoo parlor']],
+  [/\b(?:home[- ](?:based|bakery|bakeries|kitchen|offices?|business(?:es)?)|work from home|(?:in|at|out of|from) (?:my|our|the|a) (?:home|house)|cottage food)\b/, ['home occupation']],
   [/\b(?:(?:cannabis|marijuana|weed|pot) (?:shops?|stores?|dispensar(?:y|ies))|dispensar(?:y|ies))\b/, ['cannabis dispensing facility']],
   [/\b(?:cannabis|marijuana)\b/, ['cannabis dispensing facility', 'cannabis cultivation or manufacturing facility']],
   [/\b(?:sex shops?|adult (?:stores?|shops?|book ?stores?|theat(?:er|re)s?|novelty|video stores?))\b/, ['novelty store or theater adult']],
@@ -128,6 +144,7 @@ const SAYINGS = [
   [/\b(?:movie theat(?:er|re)s?|movie houses?|cinemas?|movies)\b/, ['cinema or theater']],
   [/\b(?:event (?:venues?|spaces?|halls?)|wedding venues?|reception halls?)\b/, ['banquet hall']],
 ];
+const HOME_SAYING = SAYINGS.findIndex(([, targets]) => targets.length === 1 && targets[0] === 'home occupation');
 // Words that name a kind of place, not a use. Shop, store and the like count as
 // explained beside an explained word ("tattoo shop"); a drink or club word adds
 // its own names beside one ("restaurant and bar" is also on-premises sales).
@@ -137,8 +154,22 @@ const GENERIC = [
   [/\b(?:shops?|stores?|boutiques?|retail)\b/, ['retail goods establishment']],
   [/\bclubs?\b/, ['nightclub', 'membership organization']],
 ];
-const ABSORB = new Set(['shop', 'store', 'boutique', 'retail', 'business', 'place', 'spot', 'venue', 'building', 'property', 'space']);
-const ADDING = new Set(['bar', 'pub', 'tavern', 'lounge', 'club']);
+// A place word counts only after the use it names ("tattoo shop", "office space"), never before one ("business park").
+const ABSORB = new Set(['shop', 'store', 'boutique', 'retail', 'business', 'place', 'spot', 'venue', 'building', 'property', 'space', 'club']);
+const ADDING = new Set(['bar', 'pub', 'tavern', 'lounge']);
+// Places made of many uses: never one use's marks.
+const DEVELOPMENT = /\b(?:(?:office|business|industrial|research|technology|tech|corporate|commerce|retail|shopping) (?:parks?|centers?|plazas?|complex(?:es)?|campus(?:es)?)|strip malls?|shopping malls?|mixed[- ]use (?:buildings?|developments?|projects?))\b/;
+// Home occupation (Section 4.3.3), quoted from the ordinance's text.
+const HOME_OCCUPATION_RULES = {
+  section: '4.3.3',
+  excluded: 'The following uses are specifically prohibited as home occupations: (A) Personal service businesses; (B) Nursing homes or hospices; (C) Tattoo parlors; (D) Therapeutic massage facilities; (E) Contractor\u2019s offices with outdoor storage; and (F) Vehicle sales and service uses.',
+  customers: 'On-site service to or consultation with customers or clients is prohibited.',
+  sales: 'On-site sales of merchandise to the general public is prohibited.',
+  exception: 'Except in the HC-G1, HC-G2, HC-G3, and HC-EF districts, a Conditional Use Permit may allow a use that does not conform with subsections (vi) or (vii), below.',
+};
+// Uses 4.3.3 bars as home occupations, and uses with their own rows: asked "in my house", these answer, not Home occupation.
+const HOME_EXCLUDED = new Set(['Personal service business', 'Nursing home', 'Hospice', 'Tattoo parlor', 'Therapeutic massage facility', 'Office, contractor', 'Automobile sales', 'Automobile repair and maintenance, major', 'Automobile repair and maintenance, minor', 'Commercial vehicle repair and maintenance', 'Commercial vehicle sales and rental', 'Recreational vehicle sale, rental, and maintenance', 'Tire sales and repair', 'Small engine repair shop', 'Boat sales, rental, service, or repair']);
+const HOME_OWN_ROWS = /^(?:Short-term rental unit|Family day home|Day care center|Accessory dwelling unit|Dwelling,|Bed and breakfast|Rooming house)/;
 // Names that list alternatives ("Hotel or motel"): each phrase here names the
 // use by itself, so asking "museum" is asking for "Cultural facility, museum,
 // or library". Any other name is the use asked for only when every word of it
@@ -178,7 +209,7 @@ const ALTERNATIVES = new Map(Object.entries({
 }));
 // Words a name carries for its category: "multi-family" names "Dwelling, multi-family".
 const FILLER = new Set(['facility', 'establishment', 'use', 'business', 'dwelling']);
-const STOP = new Set(['a', 'an', 'the', 'of', 'or', 'and', 'for', 'in', 'to', 'as', 'at', 'on', 'by', 'with', 'near', 'into', 'from', 'about', 'use', 'uses', 'is', 'are', 'be', 'can', 'could', 'would', 'should', 'do', 'does', 'i', 'we', 'me', 'my', 'our', 'you', 'your', 'it', 'this', 'that', 'what', 'where', 'how', 'allowed', 'permitted', 'open', 'opening', 'run', 'running', 'operate', 'operating', 'start', 'starting', 'have', 'build', 'put', 'want', 'like', 'new', 'sell', 'sells', 'selling', 'zone', 'zoned', 'zoning', 'district', 'here', 'there', 'other', 'all', 'any', 'kind', 'type', 'some']);
+const STOP = new Set(['a', 'an', 'the', 'of', 'or', 'and', 'for', 'in', 'to', 'as', 'at', 'on', 'by', 'with', 'near', 'into', 'from', 'out', 'about', 'use', 'uses', 'is', 'are', 'be', 'can', 'could', 'would', 'should', 'do', 'does', 'i', 'we', 'me', 'my', 'our', 'you', 'your', 'it', 'this', 'that', 'what', 'where', 'how', 'allowed', 'permitted', 'open', 'opening', 'run', 'running', 'operate', 'operating', 'start', 'starting', 'have', 'build', 'put', 'want', 'like', 'new', 'sell', 'sells', 'selling', 'zone', 'zoned', 'zoning', 'district', 'here', 'there', 'other', 'all', 'any', 'kind', 'type', 'some']);
 const plain = (s) => String(s ?? '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const stem = (w) => {
   if (w.length <= 3 || /(?:ss|us|is)$/.test(w)) return w;
@@ -241,8 +272,14 @@ export function matchUses(query) {
   const asked = core(own);
   const ownSet = new Set(asked);
   // The table's own name, asked exactly: that use alone.
+  // Its accessory or temporary twin ("Kennel (as an accessory use)") comes too, as its own row.
   const exact = [...NAMES].filter(([, have]) => { const w = core(have); return w.length === ownSet.size && w.every((x) => ownSet.has(x)); }).map(([name]) => name);
-  if (exact.length) return { names: exact, related: [], partial: false, via: [], unexplained: [], more: 0 };
+  if (exact.length) {
+    const twins = [...NAMES.keys()].filter((n) => !exact.includes(n) && exact.some((x) => n.startsWith(`${x} (as `)));
+    return { names: [...exact, ...twins], related: [], partial: false, via: twins, unexplained: [], more: 0 };
+  }
+  // A place made of many uses ("office park", "shopping center"): candidates only.
+  const development = DEVELOPMENT.test(q);
   const explained = new Set();
   const spanned = new Set();
   const chosen = new Map();
@@ -269,7 +306,8 @@ export function matchUses(query) {
         // The words of a name a saying reached count too ("daycare center").
         for (const w of asked) if (hit(w, have)) explained.add(w);
         sayingTargets.add(name);
-        choose(name, { name, own: false, cover: words.size, rank: 1 + i * 0.01 + j * 0.0001, score: weighted(own, have), size: have.size });
+        const covered = new Set([...words, ...asked.filter((w) => hit(w, have))]);
+        choose(name, { name, own: false, covered, cover: covered.size, rank: 1 + i * 0.01 + j * 0.0001, score: weighted(own, have), size: have.size, home: i === HOME_SAYING });
       }
     });
   });
@@ -284,30 +322,43 @@ export function matchUses(query) {
         continue;
       }
       for (const w of hits) explained.add(w);
-      choose(name, { name, own: true, cover: hits.length, rank: 0, score: weighted(own, have), size: have.size });
+      choose(name, { name, own: true, covered: new Set(hits), cover: hits.length, rank: 0, score: weighted(own, have), size: have.size });
     } else if (full(asked, have)) related.push(name);
   }
   // Generic words: alone, through their generic names; a drink or club word beside an explained one adds its names.
-  const genericNames = (pick) => GENERIC.forEach(([re, targets], i) => {
-    if (!pick(re)) return;
-    targets.forEach((target, j) => {
-      const want = meaningful(target);
-      for (const [name, have] of NAMES) if (full(want, have)) choose(name, { name, own: false, cover: 1, rank: 2 + i * 0.01 + j * 0.0001, score: 0, size: have.size });
-    });
+  const addNames = (targets, rank, words) => targets.forEach((target, j) => {
+    const want = meaningful(target);
+    for (const [name, have] of NAMES) if (full(want, have)) choose(name, { name, own: false, covered: new Set(words), cover: words.length, rank: rank + j * 0.0001, score: 0, size: have.size });
   });
   if (weakOnly && !chosen.size) {
-    genericNames((re) => re.test(q));
+    GENERIC.forEach(([re, targets], i) => re.test(q) && addNames(targets, 2 + i * 0.01, asked));
     if (chosen.size) for (const w of asked) explained.add(w);
-  } else if (asked.some((w) => explained.has(w) && !ABSORB.has(w) && !ADDING.has(w))) {
-    for (const w of asked) if (ABSORB.has(w)) explained.add(w);
+  } else {
+    // A place word after an explained use word; a drink word beside one adds on-premises sales (and Nightclub beside live entertainment).
+    asked.forEach((w, i) => {
+      if (ABSORB.has(w) && asked.slice(0, i).some((x) => explained.has(x) && !ABSORB.has(x) && !ADDING.has(x))) explained.add(w);
+    });
     const adding = asked.filter((w) => ADDING.has(w) && !spanned.has(w));
-    if (adding.length) {
-      genericNames((re) => adding.some((w) => re.test(w)));
+    if (adding.length && asked.some((w) => explained.has(w) && !ABSORB.has(w) && !ADDING.has(w))) {
+      addNames(['sale of alcoholic beverages on-premises', ...(chosen.has('Live entertainment') ? ['nightclub'] : [])], 2, adding);
       for (const w of adding) explained.add(w);
     }
   }
+  // A name whose covered words another chosen name's take in, and more ("Park" in "park and ride", "Office, medical" in "vet clinic"), is related.
+  for (const [name, x] of [...chosen]) {
+    if ([...chosen.values()].some((y) => y !== x && y.covered.size > x.covered.size && [...x.covered].every((w) => y.covered.has(w)))) {
+      chosen.delete(name);
+      related.push(name);
+    }
+  }
+  // Asked at home: Home occupation gives way to a use 4.3.3 bars as one (and
+  // the answer says so), or to one with its own row (a short-term rental, a day care).
+  const atHome = /\b(?:home|house)\b/.test(q);
+  const homeExcluded = atHome && [...chosen.keys()].some((n) => HOME_EXCLUDED.has(n));
+  const home = chosen.get('Home occupation');
+  if (home && !home.own && [...chosen.keys()].some((n) => n !== 'Home occupation' && (HOME_EXCLUDED.has(n) || HOME_OWN_ROWS.test(n)))) chosen.delete('Home occupation');
   const unexplained = asked.filter((w) => !explained.has(w));
-  const partial = unexplained.length > 0 || !chosen.size;
+  const partial = unexplained.length > 0 || !chosen.size || development;
   if (partial) {
     // Candidates by the rarity of the words they share, beside anything already chosen.
     for (const name of related) choose(name, { name, own: false, cover: 0, rank: 3, score: weighted(own, NAMES.get(name)), size: NAMES.get(name).size });
@@ -325,6 +376,7 @@ export function matchUses(query) {
     via: partial ? [] : names.filter((x) => !x.own).map((x) => x.name),
     unexplained: unheld,
     more: Math.max(0, sorted.length - MAX_MATCHES),
+    ...(homeExcluded && !partial ? { home_occupation: HOME_OCCUPATION_RULES } : {}),
   };
 }
 
@@ -357,6 +409,7 @@ function rowsFor(name, district = null) {
         standards: r.standards,
         category_standards: r.category_standards,
         ...(r.note ? { note: r.note } : {}),
+        ...(name === 'Home occupation' ? { rules: HOME_OCCUPATION_RULES } : {}),
       };
       if (district) {
         if (!t.districts.includes(district)) continue;
@@ -424,7 +477,7 @@ export default definePlugin({
     }
     const useIn = String(args.use ?? '').trim().slice(0, 120);
     if (useIn) {
-      const { names, related, partial, via, unexplained, more } = matchUses(useIn);
+      const { names, related, partial, via, unexplained, more, home_occupation: homeRules } = matchUses(useIn);
       const cut = more ? { more: `${more} more use${more === 1 ? '' : 's'} hold these words: narrow the words to see them.` } : {};
       // Words no use name or everyday word accounts for: candidates to confirm, never marks.
       if (partial) {
@@ -472,6 +525,7 @@ export default definePlugin({
         ...notListed,
         ...(absent.length ? { not_in_tables: { uses: absent, means: 'Not listed in these tables, so not allowed as this use in their districts (a PCO overlay marks unlisted uses not permitted); whether an activity is this use is its definition\'s call.' } } : {}),
         ...(names.length > 1 ? { note: 'Several uses match: read their definitions to say which applies, or ask what the person means.' } : {}),
+        ...(homeRules ? { home_occupation: { ...homeRules, note: 'Not a home occupation: Section 4.3.3 prohibits this use as one, so working from home doesn\'t change the answer above.' } } : {}),
         ...(related.length ? { related: { uses: related, note: 'These names hold the words asked but name a narrower or different use, so they aren\'t answered here. If the person means one, call again with its name.' } } : {}),
         ...cut,
         ...(via.length ? { via: { uses: via, note: 'Matched through an everyday word, not the table\'s own name: read the definition to confirm the activity is this use (a vendor park is a site for several food vendors, for example).' } } : {}),
