@@ -17,7 +17,7 @@ import { buildDate } from './gaps/measures.js';
 import { anthropicProvider, isClaudeModel } from './providers/anthropic.js';
 import { requestBudget } from './request-budget.js';
 import { webSearchSettings, checkWebSearchForCity, traceSearches, handOffWebPages } from './web-search.js';
-import { filterAnswerLinks, handoffUrls } from './answer-links.js';
+import { filterAnswerLinks, handoffUrls, unescapeMarkdown, normalizeUrl } from './answer-links.js';
 import { finalFollowups } from './followups.js';
 import { RESEARCH_SCOPES } from './prior-research.js';
 
@@ -32,6 +32,28 @@ export function researchScopesFor(priorResearch, publicThread = false) {
   return RESEARCH_SCOPES.filter((s) => (priorResearch.scopes || []).includes(s) && !(publicThread && s === 'account'));
 }
 const RESULT_CHARS = 16000;
+// Tools that only put a card under the answer (a follow-up button, a source
+// request) and return nothing the answer has to act on. offer_watch isn't one:
+// its result can carry notes the answer must say ("Say so.").
+export const CARD_TOOLS = new Set(['offer_followup', 'suggest_data_source']);
+// Sent with the results of a turn that wrote text beside a card tool and goes
+// on: that text isn't shown, so the final reply has to carry the whole answer.
+export const CARD_TEXT_NOTE = 'The person sees only your final reply, not the text you wrote alongside these tool calls: your final reply must carry your whole answer.';
+// Text that reads as a finished answer, not a step on the way ("Let me add a
+// button for the agreement."): long enough, and no opener or colon of a step.
+// Anything else goes on, with CARD_TEXT_NOTE, which costs one model call.
+// Measured on what a reader sees: link labels, not their URLs. Short text that
+// talks about the buttons is narration ("I've also offered to read ...").
+const ANSWER_CHARS = 200;
+const STEP_TEXT = /^(?:let me|let's|i'll|i will|i've|i have|i'm|i am|adding|also|now|next|first|okay|ok|sure|one moment|give me)\b/i;
+const ABOUT_CARDS = /\b(?:buttons?|follow-?ups?|(?:below|under) (?:this|the) answer)\b/i;
+const visibleText = (text) => text.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, '').trim();
+const readsAsAnswer = (text) => {
+  const v = visibleText(text);
+  return v.length >= ANSWER_CHARS && !STEP_TEXT.test(v) && !/:\s*$/.test(v) && !(ABOUT_CARDS.test(v) && v.length < 2 * ANSWER_CHARS);
+};
+// A card tool that made no card: refused, or an error.
+const cardRefused = (value, isError) => isError || !value || typeof value !== 'object' || value.offered === false || value.noted === false || value.ok === false || Boolean(value.error);
 
 /** Which API serves a model: "claude-..." ids go to Anthropic directly, the rest to OpenRouter. */
 export const providerOf = (model) => (isClaudeModel(model) ? 'anthropic' : 'openrouter');
@@ -250,6 +272,9 @@ export async function ask({
   // offer_followup may offer a page search returned before it's handed off.
   ctx.webResults = webResults;
   let answerCitations = [];
+  // An answer written beside card tools only (cardsOnly below): their results,
+  // still owed to the model if the voice rewrite asks it again.
+  let cardResults = null;
   // Every search a response shows gets a trace step, written from its blocks.
   const traceWeb = async (out) => {
     if (!searchOn || !out.searches?.length) return;
@@ -312,6 +337,18 @@ export async function ask({
       }
       break;
     }
+    // A response that writes its answer and asks only for cards is the answer
+    // (model trial, 2026-11-20: text beside offer_followup was dropped and the
+    // next reply, "I've added a button under the answer", kept instead). The
+    // cards are made and the loop ends, with no call to say so.
+    // Only when every card is made (below): a refused one goes back to the model
+    // with its note. Not while server-side work (web search's filtering) is
+    // still pending in the turn, and with gaps on a source request also wants
+    // note_unanswered.
+    const cards = out.calls.filter((c) => CARD_TOOLS.has(c.name)).length;
+    const textBesideCards = Boolean(out.text) && cards > 0;
+    const cardsOnly = textBesideCards && cards === out.calls.length && !out.truncated && !out.pendingServer && readsAsAnswer(out.text) && !(gapsOn && out.calls.some((c) => c.name === 'suggest_data_source'));
+    let cardsMade = true;
     steps++;
     llm.appendAssistant();
     const results = [];
@@ -353,16 +390,21 @@ export async function ask({
           absenceFor(ctx, call.name, value, gapDay);
         }
       }
+      if (CARD_TOOLS.has(call.name) && cardRefused(value, isError)) cardsMade = false;
       if (content.length > RESULT_CHARS) content = `${content.slice(0, RESULT_CHARS)}… [truncated; the sources are in the operator's links]`;
       results.push({ id: call.id, content, isError });
       // A result the budget cut short isn't kept for later turns: a follow-up
       // runs the tool again under its own budget.
       if (!isError && budget.refused === refusedBefore) toolResults.push({ name: call.name, args: call.args, content });
     }
-    llm.appendToolResults(
-      results,
-      !budget.roomForTools(perComplete) ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null
-    );
+    if (cardsOnly && cardsMade) {
+      answer = out.text;
+      answerCitations = out.citations || [];
+      cardResults = results;
+      break;
+    }
+    const stepNote = !budget.roomForTools(perComplete) ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null;
+    llm.appendToolResults(results, [stepNote, textBesideCards ? CARD_TEXT_NOTE : null].filter(Boolean).join(' ') || null);
   }
 
   // Voice check: one rewrite, then report honestly if it still fails. The
@@ -376,8 +418,14 @@ export async function ask({
   if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
   else if (violations.length) {
     onEvent({ type: 'rewrite', step: nextStep, violations });
-    llm.appendAssistant();
-    llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
+    const instruction = gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION;
+    // An answer that ended beside cards: that turn is already in, and its tool
+    // calls need their results ahead of the instruction.
+    if (cardResults) llm.appendToolResults(cardResults, instruction);
+    else {
+      llm.appendAssistant();
+      llm.appendUser(instruction);
+    }
     const out = await complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
     await traceWeb(out);
@@ -408,6 +456,15 @@ export async function ask({
   // Links in the answer's own words: kept only to what this answer handed
   // off (src/answer-links.js), after any rewrite and once the web pages are
   // handed off. Follow-up offers keep only sources still in the hand-off.
+  // Meeting pages the answer links join the hand-off; upcoming_meetings keeps
+  // them aside, so the ones it never used don't crowd the saved record. Only
+  // markdown links count (bare URLs and images don't survive the link check),
+  // compared whole, as the check compares them.
+  if (ctx.meetingPages?.size && answer) {
+    const linked = new Set();
+    for (const m of unescapeMarkdown(answer).matchAll(/(!?)\[[^\]]*\]\(\s*<?([^)\s>]+)/g)) if (!m[1]) linked.add(normalizeUrl(m[2]));
+    for (const [url, record] of ctx.meetingPages) if (linked.has(normalizeUrl(url))) ctx.resources.addRecord(record);
+  }
   const handedOff = ctx.resources.toJSON();
   const linked = filterAnswerLinks(answer, handoffUrls(handedOff));
   // Words a link held apart can meet once it's gone: the check reads the

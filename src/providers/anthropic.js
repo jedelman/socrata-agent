@@ -443,6 +443,8 @@ export function anthropicProvider({ apiKey, model, maxTokens, effort, fetchImpl,
     const calls = (allowTools || resumes) && res.stop_reason === 'tool_use'
       ? content.filter((b) => b.type === 'tool_use').map((b) => ({ id: b.id, name: b.name, args: b.input || {} }))
       : [];
-    return { text, calls, cost, refusal: null, searches, citations };
+    // Server-side work (code execution filtering a web search) the turn still
+    // has to finish: the agent doesn't end an answer on such a turn.
+    return { text, calls, cost, refusal: null, searches, citations, ...(calls.length && unpairedServerTool(turn) ? { pendingServer: true } : {}) };
   }
 }
