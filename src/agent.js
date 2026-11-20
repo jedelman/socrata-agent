@@ -32,6 +32,9 @@ export function researchScopesFor(priorResearch, publicThread = false) {
   return RESEARCH_SCOPES.filter((s) => (priorResearch.scopes || []).includes(s) && !(publicThread && s === 'account'));
 }
 const RESULT_CHARS = 16000;
+// Tools that only put a card under the answer (a follow-up button, a source
+// request, a watch): their results never change what the answer says.
+export const CARD_TOOLS = new Set(['offer_followup', 'suggest_data_source', 'offer_watch']);
 
 /** Which API serves a model: "claude-..." ids go to Anthropic directly, the rest to OpenRouter. */
 export const providerOf = (model) => (isClaudeModel(model) ? 'anthropic' : 'openrouter');
@@ -250,6 +253,12 @@ export async function ask({
   // offer_followup may offer a page search returned before it's handed off.
   ctx.webResults = webResults;
   let answerCitations = [];
+  // An answer written beside card tools only (cardsOnly below): their results,
+  // still owed to the model if the voice rewrite asks it again.
+  let cardResults = null;
+  // The text of the latest response that also asked for a card, for a next
+  // response that comes back with no text at all.
+  let cardText = null;
   // Every search a response shows gets a trace step, written from its blocks.
   const traceWeb = async (out) => {
     if (!searchOn || !out.searches?.length) return;
@@ -300,6 +309,8 @@ export async function ask({
       // its tools don't run and it ends with the step cap's fallback.
       answer = out.paused || out.calls.length ? '' : out.text;
       if (answer) answerCitations = out.citations || [];
+      // No text this time, but the answer was written beside a card earlier.
+      if (!answer && cardText) ({ text: answer, citations: answerCitations } = cardText);
       if (!answer) {
         fallback = true;
         answer = out.truncated
@@ -312,6 +323,13 @@ export async function ask({
       }
       break;
     }
+    // A response that writes its answer and asks only for cards is the answer
+    // (model trial, 2026-11-20: text beside offer_followup was dropped and the
+    // next reply, "I've added a button under the answer", kept instead). The
+    // cards are made and the loop ends, with no call to say so.
+    const cards = out.calls.filter((c) => CARD_TOOLS.has(c.name)).length;
+    const cardsOnly = Boolean(out.text) && !out.truncated && cards === out.calls.length;
+    if (out.text && cards) cardText = { text: out.text, citations: out.citations || [] };
     steps++;
     llm.appendAssistant();
     const results = [];
@@ -359,6 +377,12 @@ export async function ask({
       // runs the tool again under its own budget.
       if (!isError && budget.refused === refusedBefore) toolResults.push({ name: call.name, args: call.args, content });
     }
+    if (cardsOnly) {
+      answer = out.text;
+      answerCitations = out.citations || [];
+      cardResults = results;
+      break;
+    }
     llm.appendToolResults(
       results,
       !budget.roomForTools(perComplete) ? BUDGET_STOP_NOTE : steps >= maxSteps ? 'You have used all your tool steps. Answer now from what you found.' : null
@@ -376,8 +400,14 @@ export async function ask({
   if (violations.length && budget.limit - budget.used < perCall) rewriteSkipped = true;
   else if (violations.length) {
     onEvent({ type: 'rewrite', step: nextStep, violations });
-    llm.appendAssistant();
-    llm.appendUser(gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION);
+    const instruction = gapsOn ? `${REWRITE_INSTRUCTION} ${GAP_REWRITE_ADDENDUM}` : REWRITE_INSTRUCTION;
+    // An answer that ended beside cards: that turn is already in, and its tool
+    // calls need their results ahead of the instruction.
+    if (cardResults) llm.appendToolResults(cardResults, instruction);
+    else {
+      llm.appendAssistant();
+      llm.appendUser(instruction);
+    }
     const out = await complete({ allowTools: false, retryTruncated: false });
     spend(out.cost);
     await traceWeb(out);
