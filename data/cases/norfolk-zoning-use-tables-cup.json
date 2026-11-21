@@ -1,7 +1,7 @@
 {
   "id": "norfolk-zoning-use-tables-cup",
   "title": "How does Norfolk's Zoning Ordinance decide what's allowed where, and how does a Conditional Use Permit work?",
-  "summary": "General rules from the City's official Zoning Ordinance: how to read a use table (P, C, P/C, blank; unlisted uses are prohibited; an overlay district's column can allow or prohibit a use whatever the base district says), the standards a Conditional Use Permit is judged by and keeps being held to, when an approved permit lapses or can be revoked, how a conditional rezoning binds land only by the conditions City Council accepts, when a nonconforming use is abandoned, the Conditional Use Permit route for a Norfolk Historic Landmark outside the HC and HO districts, what the Official Zoning Map decides, and how to get a written interpretation. Which district an address is in comes from the City's open-data map layers (parcel_inventory), which Siren treats as a guide, not a legal determination; whether a particular use is allowed there needs that use's row, read in the district's column (and any overlay's column), from the ordinance itself (the zoning_uses tool reads the use tables). Who hears and decides a Conditional Use Permit (a Planning Commission hearing, then City Council) is in the norfolk-zoning-restaurant-ghent case file.",
+  "summary": "General rules from the City's official Zoning Ordinance: how to read a use table (P, C, P/C, blank; unlisted uses are prohibited; an overlay district's column can allow or prohibit a use whatever the base district says), the standards a Conditional Use Permit is judged by and keeps being held to, when an approved permit lapses or can be revoked, how only the conditions an applicant proffered and City Council accepted become part of a conditional zoning district, when a nonconforming use is abandoned, the Conditional Use Permit route for a Norfolk Historic Landmark outside the HC and HO districts, what the Official Zoning Map decides, and how to get a written interpretation. Which district an address is in comes from the City's open-data map layers (parcel_inventory), which Siren treats as a guide, not a legal determination; whether a particular use is allowed there needs that use's row, read in the district's column (and any overlay's column), from the ordinance itself (the zoning_uses tool reads the use tables). Who hears and decides a Conditional Use Permit (a Planning Commission hearing, then City Council) is in the norfolk-zoning-restaurant-ghent case file.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
   "reviewed": "2026-11-21",
@@ -684,7 +684,7 @@
     {
       "id": "nonconforming-abandoned-two-years",
       "stance": "rules",
-      "claim": "A legally established nonconforming use is considered abandoned if it stops for two years, or if its building is structurally altered, reconstructed, moved or destroyed; it can then continue only under the exceptions §6.2.4 lists (§6.2.4).",
+      "claim": "A legally established nonconforming use is considered abandoned if it stops for two years, or if its building is structurally altered, reconstructed, moved or destroyed; it can then continue only under the conditions §6.2.4 goes on to set (§6.2.4).",
       "source": {
         "title": "City of Norfolk Zoning Ordinance (official approved PDF, adopted January 23, 2018, updated October 13, 2026)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
@@ -781,7 +781,7 @@
     "How often Council approves or denies Conditional Use Permits: that would need the Council's legislation records, counted, not the ordinance.",
     "The vesting provisions of the Code of Virginia that an expiring Conditional Use Permit is subject to (§2.4.8) are state law, not yet a finding.",
     "Which conditional zoning districts exist and what their proffers say: the Conditional Zoning Index (§2.4.4) is kept in City Planning's offices and isn't published as a dataset the agent reads; each conditional rezoning's ordinance is a Council legislative record.",
-    "The exceptions under which an abandoned nonconforming use may continue (§6.2.4: historic or architecturally significant properties with a Conditional Use Permit, among others), and enlarging a nonconforming use by up to 50% with a Conditional Use Permit (§6.2.3), are not yet findings.",
+    "The one exception under which an abandoned nonconforming use may continue (§6.2.4: historic or architecturally significant properties, with a Conditional Use Permit), and enlarging a nonconforming use by up to 50% with a Conditional Use Permit (§6.2.3), are not yet findings.",
     "Which buildings are designated Norfolk Historic Landmarks: designations are marked on the Official Zoning Map (§2.4.7); whether the open-data layers parcel_inventory reads carry them hasn't been checked here."
   ]
 }
