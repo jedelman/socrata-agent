@@ -1,9 +1,10 @@
 {
   "id": "norfolk-litter",
   "title": "Does Norfolk prevent litter, or only pick it up?",
-  "summary": "Norfolk and Keep Norfolk Beautiful run some prevention (education, free cigarette receptacles, campaigns, a state litter-prevention grant, and the 2022 Litterati study meant to test prevention on commercial corridors). But prevention is small beside cleanup, no results of the 2022 prevention test were found, Norfolk has not adopted the 5-cent bag tax, and no record was found of enforcing the state rule requiring litter receptacles at gas stations, fast-food restaurants and shopping centers.",
+  "summary": "As of November 23, 2026: Norfolk and Keep Norfolk Beautiful (KNB, part of Public Works) run some prevention (education, free cigarette receptacles, litter tracking in the International Coastal Cleanup, a state litter-prevention grant, and the 2022 Litterati study meant to test prevention on commercial corridors), but most of what KNB’s Reduce Litter page offers residents is cleanup: pop-up cleanups, Adopt-a-Spot, the Green Bucket Brigade and annual cleanup events. The state grant is DEQ’s non-competitive Litter Prevention and Recycling Grant, awarded to localities that apply and meet DEQ’s eligibility requirements: the adopted Annual Grants Plans listed up to $60,000 for KNB in FY 2024 (Council added up to $69,257.93 in January 2024), $100,000 for FY 2025 and $80,000 for FY 2026; the much smaller FY 2027 plan doesn’t name KNB or any Public Works grant, and no FY 2027 award or ordinance was found. No results of the 2022 prevention test were found, Norfolk is still not among the localities with Virginia’s 5-cent bag tax, and no record was found of enforcing the state rule requiring litter receptacles at gas stations, fast-food restaurants and shopping centers.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
+  "reviewed": "2026-11-23",
   "findings": [
     {
       "id": "bag-tax",
@@ -15,13 +16,13 @@
       },
       "quote": "Localities where the disposable plastic bag tax currently applies",
       "absent": "Norfolk",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicclwb4rvqqbxise3ryv4eid3sljahzvrkvabe3tn4wvg4y7woo5e",
-        "bytes": 71579,
-        "read": "2026-11-09",
+        "cid": "bafkreid7dictbjovum76kja4dwai6nanjc6etxkcc2gy4db3hept34jsx4",
+        "bytes": 71189,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -40,13 +41,13 @@
         "url": "https://law.lis.virginia.gov/vacode/title58.1/chapter17/section58.1-1745/"
       },
       "quote": "environmental cleanup",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreignjom6jinr5f2udtumb3atfe5bsaaqo2y7ayriopc6epka2ye6bm",
-        "bytes": 31533,
-        "read": "2026-11-09",
+        "cid": "bafkreify47rl4akfuip7vuyrpznrp7k5hjwbvtgaozqhezj3wfu5esab3q",
+        "bytes": 31534,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -65,13 +66,13 @@
         "url": "https://law.lis.virginia.gov/admincode/title9/agency20/chapter190/section40/"
       },
       "quote": "Sidewalks in business districts",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreibvkd7sc6ebmlurytuasi7lzmstndjbdipsc3lr7iv6jqhszynbwm",
-        "bytes": 30461,
-        "read": "2026-11-09",
+        "cid": "bafkreidm4grgqbtzoq5f2fltdl6sdxpsiszxm46kx5mo7ovdmlftiz7lki",
+        "bytes": 30462,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -90,13 +91,13 @@
         "url": "https://norfolk.gov/6372"
       },
       "quote": "Request a FREE cigarette receptacle while supplies last",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiczpyn5sfdwfgyca2zkgcl5kpfcd3rrttf3ipbofag4t5zqumfi3a",
-        "bytes": 106728,
-        "read": "2026-11-09",
+        "cid": "bafkreiendpk437d7zksx6yay6m72vu5itvpljnkxknuuvckwth5t3ti4pm",
+        "bytes": 106721,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -115,13 +116,13 @@
         "url": "https://litterati.org/the-city-fingerprint-project"
       },
       "quote": "littering on commercial corridors",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvmql35txj37y4wrq3iydza6vje43ajldhhwva2ilr6n2qhceo74",
-        "bytes": 184993,
-        "read": "2026-11-09",
+        "cid": "bafkreifyjvf7cseqaldmsnlm47lhiom66zn5xd5pcfykygfafe3zbchbzi",
+        "bytes": 319860,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -140,13 +141,13 @@
         "url": "https://gohrt.com/adopt-a-stop"
       },
       "quote": "HRT can collect trash at only around 7%",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihyz3xphydyi2tukk6zxooc6k7cwucnvgyjt6ncewh3py4ldc7sdm",
-        "bytes": 46633,
-        "read": "2026-11-09",
+        "cid": "bafkreih6plvrcdadk4yc6nimpcy3f7oxfvioqupyludo74yfzuadkg5kpi",
+        "bytes": 46644,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -165,13 +166,13 @@
         "url": "https://public.websites.umich.edu/~prestos/Consumption/pdfs/Cialdinietal1990.pdf"
       },
       "quote": "41% vs. 11%",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreiaz7i4ft2p4ujztik2bhvbo33x7fjywwfjqqm3zz26pcws67l7p4m",
         "bytes": 2245855,
-        "read": "2026-11-09",
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -190,13 +191,13 @@
         "url": "https://wwals.net/pictures/2025-06-19--plastic-bag-ban-benefits-science/science.adp9274.pdf"
       },
       "quote": "lead to a 25 to 47% decrease",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
         "cid": "bafkreigeqydqz5cwcaoitymy6a7xpzkgfddn4vjginvgpnfd42kooy7hcq",
         "bytes": 3005187,
-        "read": "2026-11-09",
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -215,13 +216,13 @@
         "url": "https://kab.org/communities-report-prolonged-success-in-reducing-cigarette-butt-litter-2"
       },
       "quote": "reduce cigarette litter by half",
-      "checked": "2026-11-09",
+      "checked": "2026-11-23",
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreicvaopst2ro75oqxnxjm7n7ebhjed6qjmkrwdvvlexcojrsjcoebi",
-        "bytes": 351831,
-        "read": "2026-11-09",
+        "cid": "bafkreidcwzkdpjohsldk2oq6ysn2whzxlv2zqz7jlufucfoamabpe5qs5q",
+        "bytes": 342905,
+        "read": "2026-11-23",
         "via": "live"
       },
       "selector": {
@@ -229,6 +230,307 @@
         "exact": "reduce cigarette litter by half",
         "prefix": "Communities implementing the program ",
         "suffix": " based on local measurements taken in"
+      }
+    },
+    {
+      "id": "deq-grant-fy2024",
+      "stance": "weakens",
+      "claim": "On January 9, 2024, City Council amended the FY 2024 appropriation to accept up to $69,257.93 from the Virginia Department of Environmental Quality’s Litter Prevention and Recycling Grant for the Keep Norfolk Beautiful program.",
+      "source": {
+        "title": "City of Norfolk, Ordinance No. 49464 (adopted January 9, 2024), DEQ Litter Prevention and Recycling Grant for Keep Norfolk Beautiful",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4565"
+      },
+      "quote": "Accept, Appropriate And Authorize The Expenditure Of Grant Funds Up To The Sum Of $69,257.93 From The Virginia Department Of Environmental Quality Litter Prevention And Recycling Grant For The Keep Norfolk Beautiful Program",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihu67svu7ys4ltpl3mi6zp3z4qcne5kre4jluzx55oenxrx7ntvim",
+        "bytes": 34852,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Accept, Appropriate And Authorize The Expenditure Of Grant Funds Up To The Sum Of $69,257.93 From The Virginia Department Of Environmental Quality Litter Prevention And Recycling Grant For The Keep Norfolk Beautiful Program",
+        "prefix": "Ordinance (No. 49,220) So As To ",
+        "suffix": ". - City of Norfolk, VA &laquo;Back to"
+      }
+    },
+    {
+      "id": "deq-grant-use",
+      "stance": "weakens",
+      "claim": "The City's cover letter for that ordinance says the non-competitive grant is to be used for Norfolk's litter prevention and recycling program.",
+      "source": {
+        "title": "City of Norfolk, Ordinance No. 49464 (adopted January 9, 2024), DEQ Litter Prevention and Recycling Grant for Keep Norfolk Beautiful",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4565"
+      },
+      "quote": "This non-competitive grant shall be used for the City of Norfolk’s litter prevention and recycling program implementation, continuation, and/or expansion.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihu67svu7ys4ltpl3mi6zp3z4qcne5kre4jluzx55oenxrx7ntvim",
+        "bytes": 34852,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This non-competitive grant shall be used for the City of Norfolk’s litter prevention and recycling program implementation, continuation, and/or expansion.",
+        "prefix": "&#xa0; IV. &#xa0;&#xa0; Analysis: ",
+        "suffix": " Specifically, the grant funds are to"
+      }
+    },
+    {
+      "id": "deq-grant-staff",
+      "stance": "context",
+      "claim": "The same cover letter says the grant needs no City match and is administered using current Public Works staff.",
+      "source": {
+        "title": "City of Norfolk, Ordinance No. 49464 (adopted January 9, 2024), DEQ Litter Prevention and Recycling Grant for Keep Norfolk Beautiful",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4565"
+      },
+      "quote": "This grant does not require match funds and is administered utilizing current Public Works staff.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihu67svu7ys4ltpl3mi6zp3z4qcne5kre4jluzx55oenxrx7ntvim",
+        "bytes": 34852,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This grant does not require match funds and is administered utilizing current Public Works staff.",
+        "prefix": "Financial Impact: ",
+        "suffix": " &#xa0; VI. &#xa0;&#xa0; Environ"
+      }
+    },
+    {
+      "id": "grants-plan-fy2024",
+      "stance": "weakens",
+      "claim": "The adopted FY 2024 Annual Grants Plan lists up to $60,000 from the Virginia Department of Environmental Quality for Keep Norfolk Beautiful, with no match and no positions, before Council’s January 2024 amendment.",
+      "source": {
+        "title": "City of Norfolk, Adopted FY 2024 Budget Document: Annual Grants Plan (PDF)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/78212/08-Annual-Grants-Plan"
+      },
+      "quote": "Virginia Department of Keep Norfolk Keep Norfolk 60,000 0 0 60,000 0",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig46yf7eheycvckuincmu5amffpjmkork32sy2ubykyhgdgazwzna",
+        "bytes": 1156887,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Virginia Department of Keep Norfolk Keep Norfolk 60,000 0 0 60,000 0",
+        "prefix": "Protection Partnership Agency ",
+        "suffix": " Environmental Beautiful Beautiful"
+      }
+    },
+    {
+      "id": "grants-plan-fy2025",
+      "stance": "weakens",
+      "claim": "The adopted FY 2025 Annual Grants Plan lists up to $100,000 from the Virginia Department of Environmental Quality for Keep Norfolk Beautiful, under Public Works, with no match and no positions.",
+      "source": {
+        "title": "City of Norfolk, Adopted FY 2025 Budget Document: Annual Grants Plan (PDF)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/88685/07-Annual-Grants-Plan"
+      },
+      "quote": "Public Works Virginia Department of Keep Norfolk Keep Norfolk 100,000 0 0 100,000 0",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidubihoklog7ufgctkgnst5ilrzkea73rxkpwjriy42qhdaq5fwpe",
+        "bytes": 204791,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Public Works Virginia Department of Keep Norfolk Keep Norfolk 100,000 0 0 100,000 0",
+        "prefix": "2,149,250 256,250 580,000 2,985,500 0 ",
+        "suffix": " Environmental Beautiful Beautiful"
+      }
+    },
+    {
+      "id": "grants-plan-fy2026",
+      "stance": "weakens",
+      "claim": "The adopted FY 2026 Annual Grants Plan lists up to $80,000 from the Virginia Department of Environmental Quality for Keep Norfolk Beautiful, under Public Works, with no match and no positions.",
+      "source": {
+        "title": "City of Norfolk, Adopted FY 2026 Budget Document: Annual Grants Plan (PDF)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/102263/08-Annual-Grants-Plan"
+      },
+      "quote": "Public Works Virginia Department of Keep Norfolk Keep Norfolk 80,000 0 0 80,000 0",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiakf25bxq7xey54a6ssawht3qgiz4iiqgx72x3aqjlw7bnyj5bxny",
+        "bytes": 201258,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Public Works Virginia Department of Keep Norfolk Keep Norfolk 80,000 0 0 80,000 0",
+        "prefix": "Subtotal 6,012,285 0 0 6,012,285 10 ",
+        "suffix": " Environmental Quality Beautiful"
+      }
+    },
+    {
+      "id": "grants-plan-fy2027",
+      "stance": "context",
+      "claim": "The adopted FY 2027 Annual Grants Plan ($50,054,597 in expected grant awards, against $129,526,331 in FY 2026) doesn’t name Keep Norfolk Beautiful and lists no Public Works grant at all. The plan lists only the grants the City is confident it will receive, and Council can amend a year’s appropriation by ordinance to accept grant funds, so the absence may reflect what the plan covers; whether Norfolk applied for or received the FY 2027 grant wasn’t found.",
+      "source": {
+        "title": "City of Norfolk, Adopted FY 2027 Budget Document: Annual Grants Plan (PDF)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/114012/08-Annual-Grants-Plan"
+      },
+      "quote": "In FY 2027 the City expects to receive $50,054,597 in grant awards",
+      "absent": "Keep Norfolk",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreie63hxirp7rixo4fr4vxh3idd5rc45nxxtnmo5qc6hegso4bhm7zu",
+        "bytes": 157492,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "In FY 2027 the City expects to receive $50,054,597 in grant awards",
+        "prefix": "grant awards may vary year to year. ",
+        "suffix": ". The City of Norfolk will provide"
+      }
+    },
+    {
+      "id": "state-grant-on-application",
+      "stance": "rules",
+      "claim": "Under state law, DEQ's director awards local litter prevention and recycling grants to localities that apply for them and meet DEQ's eligibility guidelines.",
+      "source": {
+        "title": "Va. Code § 10.1-1422.04, Local litter prevention and recycling grants",
+        "url": "https://law.lis.virginia.gov/vacode/title10.1/chapter14/section10.1-1422.04/"
+      },
+      "quote": "The Director shall award local litter prevention and recycling grants to localities that apply for such grants and meet the eligibility requirements",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihfwnlbynwwyn2w6yrzytmjokkjxcnol4ygbz4pg7zygq2epmjg5q",
+        "bytes": 30222,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Director shall award local litter prevention and recycling grants to localities that apply for such grants and meet the eligibility requirements",
+        "prefix": "eligibility and funding process. ",
+        "suffix": " established in the Department's"
+      }
+    },
+    {
+      "id": "knb-programs-cleanup",
+      "stance": "confirms",
+      "claim": "Keep Norfolk Beautiful's \"Reduce Litter in Norfolk\" page offers residents cleanup programs (pop-up cleanups with supplies provided, Adopt-a-Spot, the Green Bucket Brigade) and annual cleanup events.",
+      "source": {
+        "title": "City of Norfolk, Keep Norfolk Beautiful: Reduce Litter in Norfolk",
+        "url": "https://www.norfolk.gov/6370"
+      },
+      "quote": "Pick the time and location and Keep Norfolk Beautiful will provide you with all of the supplies you need to lead a litter cleanup",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigbt47jcpy6rjogpol46jbmkaalt4hm47wgxpd3eoom5gojpmvcg4",
+        "bytes": 109977,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Pick the time and location and Keep Norfolk Beautiful will provide you with all of the supplies you need to lead a litter cleanup",
+        "prefix": "for you! Pop-Up Community Cleanup ",
+        "suffix": " by yourself or with friends, family"
+      }
+    },
+    {
+      "id": "icc-tracking",
+      "stance": "weakens",
+      "claim": "Among Keep Norfolk Beautiful’s annual events, the same page describes International Coastal Cleanup volunteers as recording the types and amount of litter they find, to help understand the root causes of litter.",
+      "source": {
+        "title": "City of Norfolk, Keep Norfolk Beautiful: Reduce Litter in Norfolk",
+        "url": "https://www.norfolk.gov/6370"
+      },
+      "quote": "Volunteers will use tracking sheets to record the types and amount of litter found to help understand the root causes of litter.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreigbt47jcpy6rjogpol46jbmkaalt4hm47wgxpd3eoom5gojpmvcg4",
+        "bytes": 109977,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Volunteers will use tracking sheets to record the types and amount of litter found to help understand the root causes of litter.",
+        "prefix": "these aren't your average cleanups! ",
+        "suffix": " Clean the Bay Day Each year, on the"
+      }
+    },
+    {
+      "id": "green-bucket-reporting",
+      "stance": "context",
+      "claim": "Keep Norfolk Beautiful's Green Bucket Brigade gives an organization a litter bucket and grabber and asks it to report how much litter it picks up.",
+      "source": {
+        "title": "City of Norfolk, Keep Norfolk Beautiful: Green Bucket Brigade",
+        "url": "https://www.norfolk.gov/5068"
+      },
+      "quote": "We will provide your organization with a litter bucket and grabber to keep onsite and ask that you report back the amount of litter you pick up.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidvruduk3qmhhgtl6xo2p7mozeyjtttkk6izd4jowui3gua6nu74q",
+        "bytes": 97790,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "We will provide your organization with a litter bucket and grabber to keep onsite and ask that you report back the amount of litter you pick up.",
+        "prefix": "Norfolk in the fight against litter. ",
+        "suffix": " Register by emailing us at"
+      }
+    },
+    {
+      "id": "parks-litter-control",
+      "stance": "context",
+      "claim": "In the adopted FY 2027 budget, litter control is one of the services of Parks and Recreation's Parks and Forestry Operations program, alongside mowing, landscaping and emptying refuse receptacles.",
+      "source": {
+        "title": "City of Norfolk, Adopted FY 2027 Budget Document: Department Budgets (PDF), Parks and Recreation",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/114013/09-Department-Budgets"
+      },
+      "quote": "The Parks and Forestry Operations program maintains the beautification of the city by providing mowing, landscape maintenance, litter control, turf installation, emptying refuse receptacles",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiarhcnarkmm3a5mnz3sqjf26e5gkc7ozztdopmany5pakdyj7ipsm",
+        "bytes": 4324999,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The Parks and Forestry Operations program maintains the beautification of the city by providing mowing, landscape maintenance, litter control, turf installation, emptying refuse receptacles",
+        "prefix": "Safe engaged and informed community ",
+        "suffix": ", applying fertilizer and herbicide,"
       }
     }
   ],
@@ -248,6 +550,10 @@
     {
       "text": "Publish the results of the 2022 Litterati prevention study and resume the Litter Index, last published for 2019.",
       "finding": "litterati-purpose"
+    },
+    {
+      "text": "Keep applying for DEQ's non-competitive litter grant each year and list it in the Annual Grants Plan, so residents can see what prevention it pays for.",
+      "finding": "grants-plan-fy2027"
     }
   ],
   "records_to_request": [
@@ -255,9 +561,14 @@
     "Keep Norfolk Beautiful's budget and staffing, FY2020 to now, and DEQ litter-prevention grant applications and reports.",
     "How many free cigarette receptacles were given out, and where.",
     "Any enforcement of 9VAC20-190, and littering, dumping and uncovered-load summonses since 2020, by location.",
-    "Any staff analysis or council briefing on the bag tax (Va. Code 58.1-1745)."
+    "Any staff analysis or council briefing on the bag tax (Va. Code 58.1-1745).",
+    "Norfolk's applications to DEQ for the non-competitive Litter Prevention and Recycling Grant for grant years 2025, 2026 and 2027, DEQ's award letters, and the year-end reports on how the money was spent.",
+    "Keep Norfolk Beautiful's cleanup totals (pop-up, Adopt-a-Spot, Green Bucket Brigade and International Coastal Cleanup tracking sheets) since 2022."
   ],
   "pending": [
-    "Keep Norfolk Beautiful's DEQ grant line in the Annual Grants Plans ($35,000 in FY2020-FY2021, $100,000 in FY2025, $80,000 in FY2026, per the researcher); not yet re-checked."
+    "Keep Norfolk Beautiful’s DEQ grant line in the FY2020 and FY2021 Annual Grants Plans ($35,000, per the original researcher); not yet re-checked. FY2024 ($60,000), FY2025 ($100,000) and FY2026 ($80,000) are now findings.",
+    "Whether Norfolk applied for and received DEQ's non-competitive litter grant for FY 2027 (grant year 2027): the FY 2027 Annual Grants Plan doesn't list it, Siren's legislation index has no acceptance ordinance after January 2024, and DEQ's grant pages refused this environment's requests.",
+    "The City's Litter Prevention page (norfolk.gov/5256) still advertises an International Coastal Cleanup \"20th anniversary\" focus day on Saturday, October 17, which looks years out of date; not used for findings.",
+    "The grants plans name the line \"Keep Norfolk Beautiful\" from DEQ, not the \"Litter Prevention and Recycling Grant\"; reading them as the same grant is an inference from Ordinance 49464."
   ]
 }
