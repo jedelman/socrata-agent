@@ -1,7 +1,7 @@
 {
   "id": "norfolk-litter",
   "title": "Does Norfolk prevent litter, or only pick it up?",
-  "summary": "As of November 23, 2026: Norfolk and Keep Norfolk Beautiful (KNB, part of Public Works) run some prevention (education, free cigarette receptacles, litter tracking in the International Coastal Cleanup, a state litter-prevention grant, and the 2022 Litterati study meant to test prevention on commercial corridors), but most of what KNB offers residents is cleanup: pop-up cleanups, Adopt-a-Spot, the Green Bucket Brigade and annual cleanup events. The state grant is DEQ's non-competitive Litter Prevention and Recycling Grant, awarded to localities that apply: Council accepted up to $69,257.93 of it for KNB in January 2024, and the adopted Annual Grants Plans listed $100,000 for FY 2025 and $80,000 for FY 2026; the FY 2027 plan doesn't name KNB, and no FY 2027 award or ordinance was found. No results of the 2022 prevention test were found, Norfolk is still not among the localities with Virginia's 5-cent bag tax, and no record was found of enforcing the state rule requiring litter receptacles at gas stations, fast-food restaurants and shopping centers.",
+  "summary": "As of November 23, 2026: Norfolk and Keep Norfolk Beautiful (KNB, part of Public Works) run some prevention (education, free cigarette receptacles, litter tracking in the International Coastal Cleanup, a state litter-prevention grant, and the 2022 Litterati study meant to test prevention on commercial corridors), but most of what KNB’s Reduce Litter page offers residents is cleanup: pop-up cleanups, Adopt-a-Spot, the Green Bucket Brigade and annual cleanup events. The state grant is DEQ’s non-competitive Litter Prevention and Recycling Grant, awarded to localities that apply and meet DEQ’s eligibility requirements: the adopted Annual Grants Plans listed up to $60,000 for KNB in FY 2024 (Council added up to $69,257.93 in January 2024), $100,000 for FY 2025 and $80,000 for FY 2026; the much smaller FY 2027 plan doesn’t name KNB or any Public Works grant, and no FY 2027 award or ordinance was found. No results of the 2022 prevention test were found, Norfolk is still not among the localities with Virginia’s 5-cent bag tax, and no record was found of enforcing the state rule requiring litter receptacles at gas stations, fast-food restaurants and shopping centers.",
   "steward": "Jason Edelman (Siren operator)",
   "license": "CC-BY-4.0",
   "reviewed": "2026-11-23",
@@ -145,7 +145,7 @@
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreihsmvsmzdhfosoppfaudgcnvmpalnv63q2r4bp23xkvpi6pw4ofe4",
+        "cid": "bafkreih6plvrcdadk4yc6nimpcy3f7oxfvioqupyludo74yfzuadkg5kpi",
         "bytes": 46644,
         "read": "2026-11-23",
         "via": "live"
@@ -220,7 +220,7 @@
       "found_by": "Claude research agent for Siren, 2026-11-04",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreigr5cyy3xojpw4fe4c3blkbqigb5famq42ma5hnwuy6gqtpdbivai",
+        "cid": "bafkreidcwzkdpjohsldk2oq6ysn2whzxlv2zqz7jlufucfoamabpe5qs5q",
         "bytes": 342905,
         "read": "2026-11-23",
         "via": "live"
@@ -235,7 +235,7 @@
     {
       "id": "deq-grant-fy2024",
       "stance": "weakens",
-      "claim": "On January 9, 2024, City Council accepted and appropriated up to $69,257.93 from the Virginia Department of Environmental Quality's Litter Prevention and Recycling Grant for the Keep Norfolk Beautiful program.",
+      "claim": "On January 9, 2024, City Council amended the FY 2024 appropriation to accept up to $69,257.93 from the Virginia Department of Environmental Quality’s Litter Prevention and Recycling Grant for the Keep Norfolk Beautiful program.",
       "source": {
         "title": "City of Norfolk, Ordinance No. 49464 (adopted January 9, 2024), DEQ Litter Prevention and Recycling Grant for Keep Norfolk Beautiful",
         "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=4565"
@@ -245,7 +245,7 @@
       "checked": "2026-11-23",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiaqbghwoqwy3an2jgebbfwjd5e4ygwnrbzqjwq7yj6ymz735y5qqi",
+        "cid": "bafkreihu67svu7ys4ltpl3mi6zp3z4qcne5kre4jluzx55oenxrx7ntvim",
         "bytes": 34852,
         "read": "2026-11-23",
         "via": "live"
@@ -270,7 +270,7 @@
       "checked": "2026-11-23",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiaqbghwoqwy3an2jgebbfwjd5e4ygwnrbzqjwq7yj6ymz735y5qqi",
+        "cid": "bafkreihu67svu7ys4ltpl3mi6zp3z4qcne5kre4jluzx55oenxrx7ntvim",
         "bytes": 34852,
         "read": "2026-11-23",
         "via": "live"
@@ -295,7 +295,7 @@
       "checked": "2026-11-23",
       "checked_via": "live",
       "evidence": {
-        "cid": "bafkreiaqbghwoqwy3an2jgebbfwjd5e4ygwnrbzqjwq7yj6ymz735y5qqi",
+        "cid": "bafkreihu67svu7ys4ltpl3mi6zp3z4qcne5kre4jluzx55oenxrx7ntvim",
         "bytes": 34852,
         "read": "2026-11-23",
         "via": "live"
@@ -308,9 +308,34 @@
       }
     },
     {
+      "id": "grants-plan-fy2024",
+      "stance": "weakens",
+      "claim": "The adopted FY 2024 Annual Grants Plan lists up to $60,000 from the Virginia Department of Environmental Quality for Keep Norfolk Beautiful, with no match and no positions, before Council’s January 2024 amendment.",
+      "source": {
+        "title": "City of Norfolk, Adopted FY 2024 Budget Document: Annual Grants Plan (PDF)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/78212/08-Annual-Grants-Plan"
+      },
+      "quote": "Virginia Department of Keep Norfolk Keep Norfolk 60,000 0 0 60,000 0",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-23",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreig46yf7eheycvckuincmu5amffpjmkork32sy2ubykyhgdgazwzna",
+        "bytes": 1156887,
+        "read": "2026-11-23",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Virginia Department of Keep Norfolk Keep Norfolk 60,000 0 0 60,000 0",
+        "prefix": "Protection Partnership Agency ",
+        "suffix": " Environmental Beautiful Beautiful"
+      }
+    },
+    {
       "id": "grants-plan-fy2025",
       "stance": "weakens",
-      "claim": "The adopted FY 2025 Annual Grants Plan lists a $100,000 Virginia Department of Environmental Quality grant for Keep Norfolk Beautiful, under Public Works, with no match and no positions.",
+      "claim": "The adopted FY 2025 Annual Grants Plan lists up to $100,000 from the Virginia Department of Environmental Quality for Keep Norfolk Beautiful, under Public Works, with no match and no positions.",
       "source": {
         "title": "City of Norfolk, Adopted FY 2025 Budget Document: Annual Grants Plan (PDF)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/88685/07-Annual-Grants-Plan"
@@ -335,7 +360,7 @@
     {
       "id": "grants-plan-fy2026",
       "stance": "weakens",
-      "claim": "The adopted FY 2026 Annual Grants Plan lists an $80,000 Virginia Department of Environmental Quality grant for Keep Norfolk Beautiful, under Public Works, with no match and no positions.",
+      "claim": "The adopted FY 2026 Annual Grants Plan lists up to $80,000 from the Virginia Department of Environmental Quality for Keep Norfolk Beautiful, under Public Works, with no match and no positions.",
       "source": {
         "title": "City of Norfolk, Adopted FY 2026 Budget Document: Annual Grants Plan (PDF)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/102263/08-Annual-Grants-Plan"
@@ -360,7 +385,7 @@
     {
       "id": "grants-plan-fy2027",
       "stance": "context",
-      "claim": "The adopted FY 2027 Annual Grants Plan ($50,054,597 in expected grant awards) doesn't name Keep Norfolk Beautiful. The plan lists the grants the City is confident it will receive; a grant can still be accepted later by its own ordinance, as Council did in January 2024, and whether Norfolk applied for or received the FY 2027 grant wasn't found.",
+      "claim": "The adopted FY 2027 Annual Grants Plan ($50,054,597 in expected grant awards, against $129,526,331 in FY 2026) doesn’t name Keep Norfolk Beautiful and lists no Public Works grant at all. The plan lists only the grants the City is confident it will receive, and Council can amend a year’s appropriation by ordinance to accept grant funds, so the absence may reflect what the plan covers; whether Norfolk applied for or received the FY 2027 grant wasn’t found.",
       "source": {
         "title": "City of Norfolk, Adopted FY 2027 Budget Document: Annual Grants Plan (PDF)",
         "url": "https://www.norfolk.gov/DocumentCenter/View/114012/08-Annual-Grants-Plan"
@@ -436,7 +461,7 @@
     {
       "id": "icc-tracking",
       "stance": "weakens",
-      "claim": "The same page says International Coastal Cleanup volunteers record the types and amount of litter they find, to help understand the root causes of litter.",
+      "claim": "Among Keep Norfolk Beautiful’s annual events, the same page describes International Coastal Cleanup volunteers as recording the types and amount of litter they find, to help understand the root causes of litter.",
       "source": {
         "title": "City of Norfolk, Keep Norfolk Beautiful: Reduce Litter in Norfolk",
         "url": "https://www.norfolk.gov/6370"
@@ -541,8 +566,9 @@
     "Keep Norfolk Beautiful's cleanup totals (pop-up, Adopt-a-Spot, Green Bucket Brigade and International Coastal Cleanup tracking sheets) since 2022."
   ],
   "pending": [
-    "Keep Norfolk Beautiful's DEQ grant line in the FY2020 and FY2021 Annual Grants Plans ($35,000, per the original researcher); not yet re-checked. FY2025 ($100,000) and FY2026 ($80,000) are now findings.",
+    "Keep Norfolk Beautiful’s DEQ grant line in the FY2020 and FY2021 Annual Grants Plans ($35,000, per the original researcher); not yet re-checked. FY2024 ($60,000), FY2025 ($100,000) and FY2026 ($80,000) are now findings.",
     "Whether Norfolk applied for and received DEQ's non-competitive litter grant for FY 2027 (grant year 2027): the FY 2027 Annual Grants Plan doesn't list it, Siren's legislation index has no acceptance ordinance after January 2024, and DEQ's grant pages refused this environment's requests.",
-    "The City's Litter Prevention page (norfolk.gov/5256) still advertises an International Coastal Cleanup \"20th anniversary\" focus day on Saturday, October 17, which looks years out of date; not used for findings."
+    "The City's Litter Prevention page (norfolk.gov/5256) still advertises an International Coastal Cleanup \"20th anniversary\" focus day on Saturday, October 17, which looks years out of date; not used for findings.",
+    "The grants plans name the line \"Keep Norfolk Beautiful\" from DEQ, not the \"Litter Prevention and Recycling Grant\"; reading them as the same grant is an inference from Ordinance 49464."
   ]
 }
