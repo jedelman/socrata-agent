@@ -1,7 +1,6 @@
 {
   "city": "norfolk",
-  "built": "2026-11-17",
-  "rebuilt": "2026-11-23",
+  "built": "2026-11-24",
   "note": "Every request the gap build made, in order, and each response as read (trimmed to the fields the build uses). build-gaps --check replays these.",
   "steps": [
     {
@@ -103,8 +102,8 @@
       "n": 12,
       "tool": "gap catalog: Complete removals since a year ago",
       "dataset": "qzfe-wj25",
-      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-17T00%3A00%3A00'%20LIMIT%20100",
-      "soql": "SELECT count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS part, sum(case(street IS NULL AND ward IS NULL AND civic_league IS NULL,1,true,0)) AS no_loc WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND created_datetime >= '2025-11-17T00:00:00' LIMIT 100",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-24T00%3A00%3A00'%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(street IS NULL,1,true,0)) AS part, sum(case(street IS NULL AND ward IS NULL AND civic_league IS NULL,1,true,0)) AS no_loc WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND created_datetime >= '2025-11-24T00:00:00' LIMIT 100",
       "ok": true,
       "rows": 1
     },
@@ -112,8 +111,8 @@
       "n": 13,
       "tool": "gap catalog: Complete removals ending in the last year: end date vs created",
       "dataset": "qzfe-wj25",
-      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-17T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-17T00%3A00%3A00'%20LIMIT%20100",
-      "soql": "SELECT count(*) AS whole, sum(case(date_trunc_ymd(end_date) < date_trunc_ymd(created_datetime),1,true,0)) AS before, sum(case(date_trunc_ymd(end_date) = date_trunc_ymd(created_datetime),1,true,0)) AS same WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND end_date >= '2025-11-17T00:00:00' AND end_date < '2026-11-17T00:00:00' LIMIT 100",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-24T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-24T00%3A00%3A00'%20LIMIT%20100",
+      "soql": "SELECT count(*) AS whole, sum(case(date_trunc_ymd(end_date) < date_trunc_ymd(created_datetime),1,true,0)) AS before, sum(case(date_trunc_ymd(end_date) = date_trunc_ymd(created_datetime),1,true,0)) AS same WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code = 999 AND end_date >= '2025-11-24T00:00:00' AND end_date < '2026-11-24T00:00:00' LIMIT 100",
       "ok": true,
       "rows": 1
     },
@@ -171,22 +170,13 @@
       "n": 20,
       "tool": "gap catalog: median created_datetime",
       "dataset": "qzfe-wj25",
-      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20174",
-      "soql": "SELECT created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) ORDER BY created_datetime, work_order_number LIMIT 1 OFFSET 174",
+      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20176",
+      "soql": "SELECT created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) ORDER BY created_datetime, work_order_number LIMIT 1 OFFSET 176",
       "ok": true,
       "rows": 1
     },
     {
       "n": 21,
-      "tool": "gap catalog: median created_datetime (second row)",
-      "dataset": "qzfe-wj25",
-      "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20175",
-      "soql": "SELECT created_datetime WHERE area = 'Forestry' AND primary_task_description = 'Removal' AND status_code in (2, 4) ORDER BY created_datetime, work_order_number LIMIT 1 OFFSET 175",
-      "ok": true,
-      "rows": 1
-    },
-    {
-      "n": 22,
       "tool": "gap catalog: Forestry problem codes",
       "dataset": "qzfe-wj25",
       "url": "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200",
@@ -195,7 +185,7 @@
       "rows": 18
     },
     {
-      "n": 23,
+      "n": 22,
       "tool": "gap catalog: city trees with no usable trunk size",
       "dataset": "cmvv-agyb",
       "url": "https://data.norfolk.gov/resource/cmvv-agyb.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_range%2C%20sum(case(trunk_diameter%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_dia%2C%20sum(case((trunk_diameter%20IS%20NULL%20OR%20trunk_diameter%20%3C%3D%200)%20AND%20trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_usable%20WHERE%20(common_name%20IS%20NULL%20OR%20common_name%20!%3D%20'PRIVATE%20TREES')%20LIMIT%20100",
@@ -204,7 +194,7 @@
       "rows": 1
     },
     {
-      "n": 24,
+      "n": 23,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=line+clearance",
       "soql": "q=line clearance",
@@ -212,7 +202,7 @@
       "rows": 0
     },
     {
-      "n": 25,
+      "n": 24,
       "tool": "search datasets (raw counts)",
       "url": "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=Dominion",
       "soql": "q=Dominion",
@@ -220,7 +210,7 @@
       "rows": 4
     },
     {
-      "n": 26,
+      "n": 25,
       "tool": "check dataset name",
       "dataset": "dszu-h9cf",
       "url": "https://data.norfolk.gov/api/views/dszu-h9cf.json",
@@ -228,18 +218,18 @@
       "rows": null
     },
     {
-      "n": 27,
+      "n": 26,
       "tool": "gap catalog: upcoming public meetings",
       "dataset": "dszu-h9cf",
-      "url": "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-17T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025",
-      "soql": "SELECT date_and_time, organization, type WHERE date_and_time >= '2026-11-17T00:00:00' ORDER BY date_and_time LIMIT 25",
+      "url": "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-24T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025",
+      "soql": "SELECT date_and_time, organization, type WHERE date_and_time >= '2026-11-24T00:00:00' ORDER BY date_and_time LIMIT 25",
       "ok": true,
       "rows": 25
     }
   ],
   "responses": {
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=Dominion": {
-      "read": "2026-11-17T19:40:01.307Z",
+      "read": "2026-11-24T20:46:05.298Z",
       "status": 200,
       "body": {
         "resultSetSize": 4,
@@ -272,7 +262,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=line+clearance": {
-      "read": "2026-11-17T19:40:01.031Z",
+      "read": "2026-11-24T20:46:05.262Z",
       "status": 200,
       "body": {
         "resultSetSize": 0,
@@ -280,7 +270,7 @@
       }
     },
     "https://api.us.socrata.com/api/catalog/v1?domains=data.norfolk.gov&only=dataset&limit=20&q=tree": {
-      "read": "2026-11-17T19:39:58.136Z",
+      "read": "2026-11-24T20:46:01.937Z",
       "status": 200,
       "body": {
         "resultSetSize": 5,
@@ -319,14 +309,14 @@
       }
     },
     "https://data.norfolk.gov/api/views/cmvv-agyb.json": {
-      "read": "2026-11-17T19:39:59.761Z",
+      "read": "2026-11-24T20:46:03.821Z",
       "status": 200,
       "body": {
         "id": "cmvv-agyb",
         "name": "City Tree Inventory",
         "description": "This dataset shows all city-managed trees, the majority of which are located on public property, lining streets, or in right of ways. The original inventory of these trees was conducted in the late 1990s/early 2000s by the Norfolk Master Gardeners. No official re-inventory has been conducted since then by City officials or ISA Certified Arborists, however, tree records in this dataset have been and are being updated over time by City Staff. This dataset will be updated in the Open Data Portal every weekday.",
         "attribution": "Parks & Recreation, Parks & Forestry Operations",
-        "rowsUpdatedAt": 1794918916,
+        "rowsUpdatedAt": 1795523671,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -413,14 +403,14 @@
       }
     },
     "https://data.norfolk.gov/api/views/dszu-h9cf.json": {
-      "read": "2026-11-17T19:40:01.423Z",
+      "read": "2026-11-24T20:46:05.391Z",
       "status": 200,
       "body": {
         "id": "dszu-h9cf",
         "name": "Public Meeting Notices",
         "description": "The public meeting notices dataset includes a listing of public meetings conducted by the City of Norfolk. The date, time, location, address, and links to the meeting video, agenda, and minutes are included. The meetings listed in this dataset include, but are not limited to, City Council Work Session and Formal Session, Planning Commission, Board of Zoning Appeals, and Architectural Review Board meetings. This dataset will be updated twice-daily on weekdays.",
         "attribution": "City Clerk",
-        "rowsUpdatedAt": 1794936743,
+        "rowsUpdatedAt": 1795541502,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -490,14 +480,14 @@
       }
     },
     "https://data.norfolk.gov/api/views/ere7-kake.json": {
-      "read": "2026-11-17T19:39:56.082Z",
+      "read": "2026-11-24T20:46:00.207Z",
       "status": 200,
       "body": {
         "id": "ere7-kake",
         "name": "Address Information",
         "description": "The Address Information Resource is a compilation of information related to active and pending addresses in the City of Norfolk.  It provides a consolidated source to allow for quick and easy access to information about an address including details related to school districts, municipal services, planning, public safety, and civic leadership.  It is one of the main data resources that provides content for the Norfolk AIR website (https://air.norfolk.gov/#/).",
         "attribution": "City of Norfolk's Information Technology Department",
-        "rowsUpdatedAt": 1794919295,
+        "rowsUpdatedAt": 1795524116,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -947,7 +937,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/jz6u-9g3c.json": {
-      "read": "2026-11-17T19:39:59.940Z",
+      "read": "2026-11-24T20:46:04.051Z",
       "status": 200,
       "body": {
         "id": "jz6u-9g3c",
@@ -1014,7 +1004,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/mrv3-rcpc.json": {
-      "read": "2026-11-17T19:39:58.261Z",
+      "read": "2026-11-24T20:46:02.058Z",
       "status": 200,
       "body": {
         "id": "mrv3-rcpc",
@@ -1135,14 +1125,14 @@
       }
     },
     "https://data.norfolk.gov/api/views/qzfe-wj25.json": {
-      "read": "2026-11-17T19:39:59.861Z",
+      "read": "2026-11-24T20:46:03.947Z",
       "status": 200,
       "body": {
         "id": "qzfe-wj25",
         "name": "Work Orders",
         "description": "This dataset contains data on Work Orders performed by field crews from the Department of Parks & Recreation, the Department of Transportation, and the Environmental Storm Water Management and Streets & Bridges Divisions of the Department of Public Works. The data comes from the city’s implementation of CentralSquare’s Enterprise Asset Management platform, also known as Lucity. This dataset is updated daily on weekdays.",
         "attribution": "Departments of Parks and Recreation, Public Works, and Transportation",
-        "rowsUpdatedAt": 1794918569,
+        "rowsUpdatedAt": 1795523579,
         "modifyingViewUid": null,
         "metadata": {
           "custom_fields": {
@@ -1317,7 +1307,7 @@
       }
     },
     "https://data.norfolk.gov/api/views/u85v-sad9.json": {
-      "read": "2026-11-17T19:40:00.034Z",
+      "read": "2026-11-24T20:46:04.161Z",
       "status": 200,
       "body": {
         "id": "u85v-sad9",
@@ -1396,81 +1386,21 @@
       }
     },
     "https://data.norfolk.gov/resource/cmvv-agyb.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_range%2C%20sum(case(trunk_diameter%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_dia%2C%20sum(case((trunk_diameter%20IS%20NULL%20OR%20trunk_diameter%20%3C%3D%200)%20AND%20trunk_diameter_range%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_usable%20WHERE%20(common_name%20IS%20NULL%20OR%20common_name%20!%3D%20'PRIVATE%20TREES')%20LIMIT%20100": {
-      "read": "2026-11-17T19:40:00.978Z",
+      "read": "2026-11-24T20:46:05.238Z",
       "status": 200,
       "body": [
         {
           "whole": "93998",
-          "no_range": "65860",
-          "no_dia": "25160",
+          "no_range": "65862",
+          "no_dia": "25124",
           "no_usable": "6909"
         }
       ]
     },
-    "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-17T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025": {
-      "read": "2026-11-17T19:40:01.622Z",
+    "https://data.norfolk.gov/resource/dszu-h9cf.json?$query=SELECT%20date_and_time%2C%20organization%2C%20type%20WHERE%20date_and_time%20%3E%3D%20'2026-11-24T00%3A00%3A00'%20ORDER%20BY%20date_and_time%20LIMIT%2025": {
+      "read": "2026-11-24T20:46:05.570Z",
       "status": 200,
       "body": [
-        {
-          "date_and_time": "2026-11-17T13:00:00.000",
-          "organization": "Norfolk Public Library Board",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-17T16:00:00.000",
-          "organization": "Tidewater Community College Board",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-17T17:30:00.000",
-          "organization": "Norfolk Environmental Commission",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-17T18:00:00.000",
-          "organization": "Mayor's Advisory Committee/St. Paul's Area",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-18T14:45:00.000",
-          "organization": "Community Policy and Management Team",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-19T10:30:00.000",
-          "organization": "Hampton Roads Transportation Planning Organization",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-19T12:00:00.000",
-          "organization": "Planning Commission",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-19T12:30:00.000",
-          "organization": "Hampton Roads Planning District Commission",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-19T13:00:00.000",
-          "organization": "Commission for Persons with Disabilities",
-          "type": "Regular Meeting"
-        },
-        {
-          "date_and_time": "2026-11-19T14:30:00.000",
-          "organization": "Planning Commission",
-          "type": "Public Hearing"
-        },
-        {
-          "date_and_time": "2026-11-19T15:00:00.000",
-          "organization": "East Side Task Force",
-          "type": "Regular"
-        },
-        {
-          "date_and_time": "2026-11-19T16:00:00.000",
-          "organization": "Chrysler Museum Board of Trustees",
-          "type": "Regular Meeting"
-        },
         {
           "date_and_time": "2026-11-24T17:30:00.000",
           "organization": "Southside Task Force",
@@ -1534,12 +1464,72 @@
         {
           "date_and_time": "2026-12-09T13:00:00.000",
           "organization": "Norfolk Wetlands Board",
+          "type": "Public Notice"
+        },
+        {
+          "date_and_time": "2026-12-09T14:45:00.000",
+          "organization": "Community Policy and Management Team",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-09T16:30:00.000",
+          "organization": "Norfolk Arts Commission",
+          "type": "Regular"
+        },
+        {
+          "date_and_time": "2026-12-09T17:15:00.000",
+          "organization": "Veterans Affairs Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-10T09:00:00.000",
+          "organization": "Norfolk Redevelopment and Housing Authority",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-10T12:00:00.000",
+          "organization": "Norfolk Recreation Commission",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-10T12:00:00.000",
+          "organization": "Norfolk Criminal Justice Board",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-11T13:00:00.000",
+          "organization": "Hampton Roads Disability Services Board",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-14T17:30:00.000",
+          "organization": "City Council",
+          "type": "Legislative Dinner"
+        },
+        {
+          "date_and_time": "2026-12-15T16:00:00.000",
+          "organization": "City Council",
+          "type": "Informal Session"
+        },
+        {
+          "date_and_time": "2026-12-15T18:00:00.000",
+          "organization": "City Council",
+          "type": "Formal Session"
+        },
+        {
+          "date_and_time": "2026-12-17T10:00:00.000",
+          "organization": "Board of Zoning Appeals",
+          "type": "Regular Meeting"
+        },
+        {
+          "date_and_time": "2026-12-17T13:00:00.000",
+          "organization": "Commission for Persons with Disabilities",
           "type": "Regular Meeting"
         }
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%200": {
-      "read": "2026-11-17T19:39:56.782Z",
+      "read": "2026-11-24T20:46:00.447Z",
       "status": 200,
       "body": [
         {
@@ -3045,7 +3035,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201000": {
-      "read": "2026-11-17T19:39:57.516Z",
+      "read": "2026-11-24T20:46:00.956Z",
       "status": 200,
       "body": [
         {
@@ -4551,7 +4541,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%201500": {
-      "read": "2026-11-17T19:39:57.660Z",
+      "read": "2026-11-24T20:46:01.600Z",
       "status": 200,
       "body": [
         {
@@ -5907,7 +5897,7 @@
       ]
     },
     "https://data.norfolk.gov/resource/ere7-kake.json?$query=SELECT%20street_name%20AS%20s%20WHERE%20street_name%20IS%20NOT%20NULL%20GROUP%20BY%20street_name%20ORDER%20BY%20street_name%20LIMIT%20500%20OFFSET%20500": {
-      "read": "2026-11-17T19:39:57.392Z",
+      "read": "2026-11-24T20:46:00.644Z",
       "status": 200,
       "body": [
         {
@@ -7412,69 +7402,60 @@
         }
       ]
     },
-    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-17T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-17T00%3A00%3A00'%20LIMIT%20100": {
-      "read": "2026-11-17T19:39:59.516Z",
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20%3E%3D%20'2025-11-24T00%3A00%3A00'%20AND%20end_date%20%3C%20'2026-11-24T00%3A00%3A00'%20LIMIT%20100": {
+      "read": "2026-11-24T20:46:03.547Z",
       "status": 200,
       "body": [
         {
           "whole": "366",
-          "before": "21",
-          "same": "91"
+          "before": "22",
+          "same": "90"
         }
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(date_trunc_ymd(end_date)%20%3C%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20before%2C%20sum(case(date_trunc_ymd(end_date)%20%3D%20date_trunc_ymd(created_datetime)%2C1%2Ctrue%2C0))%20AS%20same%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20end_date%20IS%20NOT%20NULL%20LIMIT%20100": {
-      "read": "2026-11-17T19:39:59.641Z",
+      "read": "2026-11-24T20:46:03.702Z",
       "status": 200,
       "body": [
         {
-          "whole": "2390",
-          "before": "628",
+          "whole": "2393",
+          "before": "629",
           "same": "241"
         }
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20with_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20LIMIT%20100": {
-      "read": "2026-11-17T19:40:00.211Z",
+      "read": "2026-11-24T20:46:04.295Z",
       "status": 200,
       "body": [
         {
-          "whole": "350",
+          "whole": "353",
           "with_end": "50"
         }
       ]
     },
-    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-17T00%3A00%3A00'%20LIMIT%20100": {
-      "read": "2026-11-17T19:39:59.393Z",
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%2C%20sum(case(street%20IS%20NULL%20AND%20ward%20IS%20NULL%20AND%20civic_league%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_loc%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20AND%20created_datetime%20%3E%3D%20'2025-11-24T00%3A00%3A00'%20LIMIT%20100": {
+      "read": "2026-11-24T20:46:03.352Z",
       "status": 200,
       "body": [
         {
-          "whole": "269",
-          "part": "24",
-          "no_loc": "22"
+          "whole": "265",
+          "part": "23",
+          "no_loc": "21"
         }
       ]
     },
-    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20174": {
-      "read": "2026-11-17T19:40:00.336Z",
+    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20176": {
+      "read": "2026-11-24T20:46:04.459Z",
       "status": 200,
       "body": [
         {
-          "created_datetime": "2024-04-09T11:13:00.000"
-        }
-      ]
-    },
-    "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20in%20(2%2C%204)%20ORDER%20BY%20created_datetime%2C%20work_order_number%20LIMIT%201%20OFFSET%20175": {
-      "read": "2026-11-17T19:40:00.435Z",
-      "status": 200,
-      "body": [
-        {
-          "created_datetime": "2024-04-09T11:28:45.000"
+          "created_datetime": "2024-06-07T13:49:49.000"
         }
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20date_extract_y(created_datetime)%20AS%20y%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20part%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20GROUP%20BY%20y%20ORDER%20BY%20y%20LIMIT%20100": {
-      "read": "2026-11-17T19:39:59.079Z",
+      "read": "2026-11-24T20:46:03.144Z",
       "status": 200,
       "body": [
         {
@@ -7484,7 +7465,7 @@
         },
         {
           "y": "2021",
-          "whole": "315",
+          "whole": "316",
           "part": "44"
         },
         {
@@ -7499,8 +7480,8 @@
         },
         {
           "y": "2024",
-          "whole": "349",
-          "part": "151"
+          "whole": "350",
+          "part": "152"
         },
         {
           "y": "2025",
@@ -7509,40 +7490,40 @@
         },
         {
           "y": "2026",
-          "whole": "250",
+          "whole": "251",
           "part": "21"
         }
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20min(created_datetime)%20AS%20min_created_datetime%2C%20max(created_datetime)%20AS%20max_created_datetime%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20AND%20status_code%20%3D%20999%20LIMIT%20100": {
-      "read": "2026-11-17T19:39:58.955Z",
+      "read": "2026-11-24T20:46:03.012Z",
       "status": 200,
       "body": [
         {
           "min_created_datetime": "2020-08-05T08:31:36.000",
-          "max_created_datetime": "2026-11-09T16:34:42.000"
+          "max_created_datetime": "2026-11-19T15:55:02.000"
         }
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20problem_description%20AS%20v%2C%20count(*)%20AS%20n%20WHERE%20area%20%3D%20'Forestry'%20GROUP%20BY%20problem_description%20ORDER%20BY%20n%20DESC%2C%20problem_description%20LIMIT%20200": {
-      "read": "2026-11-17T19:40:00.737Z",
+      "read": "2026-11-24T20:46:04.951Z",
       "status": 200,
       "body": [
         {
           "v": "General Maintenance",
-          "n": "4237"
+          "n": "4251"
         },
         {
           "v": "Stump",
-          "n": "2892"
+          "n": "2897"
         },
         {
           "v": "Limb / Tree Down",
-          "n": "827"
+          "n": "828"
         },
         {
           "v": "Dead Tree",
-          "n": "780"
+          "n": "785"
         },
         {
           "v": "Blocking Street",
@@ -7550,11 +7531,11 @@
         },
         {
           "v": "Routine Maintenance",
-          "n": "433"
+          "n": "434"
         },
         {
           "v": "Broken Hanging Limb",
-          "n": "354"
+          "n": "355"
         },
         {
           "v": "Damaged Tree",
@@ -7562,11 +7543,11 @@
         },
         {
           "v": "Diseased",
-          "n": "128"
+          "n": "126"
         },
         {
           "v": "Damaging Curb/Sidewalk",
-          "n": "79"
+          "n": "81"
         },
         {
           "v": "Raised",
@@ -7603,13 +7584,13 @@
       ]
     },
     "https://data.norfolk.gov/resource/qzfe-wj25.json?$query=SELECT%20status_code%2C%20status_description%2C%20count(*)%20AS%20whole%2C%20sum(case(street%20IS%20NULL%2C1%2Ctrue%2C0))%20AS%20no_street%2C%20sum(case(contractor_cost%20%3E%200%2C1%2Ctrue%2C0))%20AS%20cc%2C%20sum(case(end_date%20IS%20NOT%20NULL%2C1%2Ctrue%2C0))%20AS%20has_end%20WHERE%20area%20%3D%20'Forestry'%20AND%20primary_task_description%20%3D%20'Removal'%20GROUP%20BY%20status_code%2C%20status_description%20ORDER%20BY%20status_code%2C%20status_description%20LIMIT%20100": {
-      "read": "2026-11-17T19:39:58.728Z",
+      "read": "2026-11-24T20:46:02.563Z",
       "status": 200,
       "body": [
         {
           "status_code": "2",
           "status_description": "New Work Order",
-          "whole": "334",
+          "whole": "336",
           "no_street": "78",
           "cc": "12",
           "has_end": "41"
@@ -7617,8 +7598,8 @@
         {
           "status_code": "4",
           "status_description": "On-Going",
-          "whole": "16",
-          "no_street": "6",
+          "whole": "17",
+          "no_street": "7",
           "cc": "4",
           "has_end": "9"
         },
@@ -7673,10 +7654,10 @@
         {
           "status_code": "999",
           "status_description": "Complete",
-          "whole": "2390",
-          "no_street": "584",
-          "cc": "564",
-          "has_end": "2390"
+          "whole": "2393",
+          "no_street": "585",
+          "cc": "565",
+          "has_end": "2393"
         }
       ]
     }
