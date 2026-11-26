@@ -1,0 +1,664 @@
+{
+  "id": "norfolk-young-terrace-calvert-square",
+  "title": "What's the plan to redevelop Young Terrace and Calvert Square, and who decides?",
+  "summary": "Young Terrace (746 units, built 1953) and Calvert Square (310 units, built 1957) are two Norfolk Redevelopment and Housing Authority (NRHA) public housing communities near Downtown; with Tidewater Gardens (now Kindred) they are the three neighborhoods of the St. Paul's redevelopment. As of November 26, 2026 the records show: a \"first build\" building of 95 apartments at 711 and 755 Church Street, which the City says is being considered as the first build to begin their redevelopment, won a unanimous Planning Commission recommendation for its Conditional Use Permit on November 19, 2026, and goes to City Council, which decides; the Commission also recommended permits the City asked for on its own land at 930 E. Virginia Beach Boulevard. The timeline the City showed Council on January 30, 2026 targeted a HUD Section 18 demolition application in January 2027, demolition of a first phase in fall 2027, and the first build's lease-up around 2030, with the funding approach (Choice Neighborhoods or Section 18) undecided and the master plan and updated guiding principles still to be approved. WHRO reported in November 2026 that the plans are not fully funded and the redevelopment is years away, while nearly 200 Young Terrace units sit vacant. State law makes a housing authority's redevelopment plan effective only on City Council's approval, and bars it from contracting to build additional housing Council hasn't authorized, subject to the statute's exceptions.",
+  "steward": "Jason Edelman (Siren operator)",
+  "license": "CC-BY-4.0",
+  "reviewed": "2026-11-26",
+  "findings": [
+    {
+      "id": "first-build-church-street",
+      "stance": "confirms",
+      "claim": "The City's transmittal letter for a 95-unit apartment building at 711 and 755 Church Street says the development is in conjunction with NRHA and is being considered a \"first build\" location to begin redeveloping Young Terrace and Calvert Square.",
+      "source": {
+        "title": "Norfolk City Council and Planning Commission records: Gilbane Development Company, Conditional Use Permit at 711 and 755 Church Street (Planning Commission, November 19, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6053"
+      },
+      "quote": "This development is in conjunction with NRHA and is being considered a first build location for housing to begin the redevelopment of the Young Terrace and Calvert Square properties.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqgyj7qwaalatexg5wfucrdtprzouq5ejtrzoljckzt4usnlffly",
+        "bytes": 44371,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This development is in conjunction with NRHA and is being considered a first build location for housing to begin the redevelopment of the Young Terrace and Calvert Square properties.",
+        "prefix": "",
+        "suffix": " ·"
+      }
+    },
+    {
+      "id": "first-build-units",
+      "stance": "context",
+      "claim": "The first-build project at 711 and 755 Church Street has 95 dwelling units, according to the City's transmittal letter.",
+      "source": {
+        "title": "Norfolk City Council and Planning Commission records: Gilbane Development Company, Conditional Use Permit at 711 and 755 Church Street (Planning Commission, November 19, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6053"
+      },
+      "quote": "95 dwelling units",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqgyj7qwaalatexg5wfucrdtprzouq5ejtrzoljckzt4usnlffly",
+        "bytes": 44371,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "95 dwelling units",
+        "prefix": "o &#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0; ",
+        "suffix": ": §"
+      }
+    },
+    {
+      "id": "first-build-site",
+      "stance": "context",
+      "claim": "The first-build site lies just north of the St. Paul's project area, outside it; the City says the same purpose and goals apply.",
+      "source": {
+        "title": "Norfolk City Council and Planning Commission records: Gilbane Development Company, Conditional Use Permit at 711 and 755 Church Street (Planning Commission, November 19, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6053"
+      },
+      "quote": "Although this site in not included in the St. Paul’s project area, it is just to the north and the same purpose and goals apply.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqgyj7qwaalatexg5wfucrdtprzouq5ejtrzoljckzt4usnlffly",
+        "bytes": 44371,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Although this site in not included in the St. Paul’s project area, it is just to the north and the same purpose and goals apply.",
+        "prefix": "",
+        "suffix": " ·"
+      }
+    },
+    {
+      "id": "planning-commission-vote",
+      "stance": "confirms",
+      "claim": "On November 19, 2026 the Planning Commission voted 6 to 0 to recommend approval of the first-build Conditional Use Permit. It is a recommendation; City Council decides.",
+      "source": {
+        "title": "Norfolk City Council and Planning Commission records: Gilbane Development Company, Conditional Use Permit at 711 and 755 Church Street (Planning Commission, November 19, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6053"
+      },
+      "quote": "By a vote of 6 to 0 , the Planning Commission recommended approval of the application.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreidqgyj7qwaalatexg5wfucrdtprzouq5ejtrzoljckzt4usnlffly",
+        "bytes": 44371,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "By a vote of 6 to 0 , the Planning Commission recommended approval of the application.",
+        "prefix": "Planning Commission Recommendation: ",
+        "suffix": " &#xa0; II."
+      }
+    },
+    {
+      "id": "city-site-930-vb-blvd",
+      "stance": "context",
+      "claim": "The same night, the Planning Commission recommended Conditional Use Permits the City itself requested for City-owned land at 930 E. Virginia Beach Boulevard, so that a future developer could build there as in the rest of the St. Paul's area. No developer is named.",
+      "source": {
+        "title": "Norfolk City Council and Planning Commission records: City of Norfolk, Conditional Use Permits at 930 E. Virginia Beach Boulevard (Planning Commission, November 19, 2026)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=6054"
+      },
+      "quote": "Approval of the CUPs would allow a potential developer to develop the property in a similar fashion as other projects in the St. Paul’s area.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreify45ydufacznadzlsw2pvmuveyi42gjjifvxwv2rihuvwel47b4a",
+        "bytes": 40295,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Approval of the CUPs would allow a potential developer to develop the property in a similar fashion as other projects in the St. Paul’s area.",
+        "prefix": "",
+        "suffix": " ·"
+      }
+    },
+    {
+      "id": "council-approves-cups",
+      "stance": "who_decides",
+      "claim": "City Council decides Conditional Use Permits: under the Norfolk Zoning Ordinance (§2.4.8) staff recommend to Council that it approve or deny the request, and Council reviews and decides.",
+      "source": {
+        "title": "City of Norfolk: Norfolk Zoning Ordinance (PDF)",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/35581"
+      },
+      "quote": "shall make a recommendation to the City Council to either approve or deny the request",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreifa66yp7iuyjspev4jyfmduoc5el6lavlc454j33rqnkema2aroxe",
+        "bytes": 18274064,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "shall make a recommendation to the City Council to either approve or deny the request",
+        "prefix": "of City and state code and ",
+        "suffix": ". Upon completion of the staff report,"
+      }
+    },
+    {
+      "id": "va-redevelopment-plan-approval",
+      "stance": "who_decides",
+      "claim": "Under state law, a housing authority's redevelopment plan doesn't take effect until the local governing body (here, City Council) approves it and the owners of record have been notified (Va. Code § 36-49 B).",
+      "source": {
+        "title": "Code of Virginia § 36-49. Adoption of Redevelopment Plans",
+        "url": "https://law.lis.virginia.gov/vacode/title36/chapter1/section36-49/"
+      },
+      "quote": "No redevelopment plan shall be effective until notice has been sent to the property owner or owners of record in accordance with subsection B of § 36-27 and the redevelopment plan has been approved by the local governing body.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreie5jqrzxognvi2yrrwler3omfuu2e3to7wdr5xxk26eqrla5n7ciy",
+        "bytes": 32417,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "No redevelopment plan shall be effective until notice has been sent to the property owner or owners of record in accordance with subsection B of § 36-27 and the redevelopment plan has been approved by the local governing body.",
+        "prefix": "powers as are authorized by law. B. ",
+        "suffix": " 1946, p. 278; Michie Suppl. 1946, §"
+      }
+    },
+    {
+      "id": "va-additional-housing-approval",
+      "stance": "who_decides",
+      "claim": "State law also bars a housing authority from contracting to build additional housing until the locality's governing body has authorized or approved it (Va. Code § 36-19.2 A).",
+      "source": {
+        "title": "Code of Virginia § 36-19.2. Powers limited by necessity for authority from or approval by governing body",
+        "url": "https://law.lis.virginia.gov/vacode/title36/chapter1/section36-19.2/"
+      },
+      "quote": "unless and until such additional housing has been authorized or approved by the governing body of the locality",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreie3hhvj7psj5w4jiosbiso7jvxznncnpsqajnu5tg4wndb7b7qyqq",
+        "bytes": 31049,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "unless and until such additional housing has been authorized or approved by the governing body of the locality",
+        "prefix": "authorized or approved on such date, ",
+        "suffix": " in which the authority is authorized"
+      }
+    },
+    {
+      "id": "three-neighborhoods",
+      "stance": "context",
+      "claim": "WTKR reported on March 4, 2026 that the St. Paul's project seeks to tear down low-income housing in three neighborhoods near Downtown: Tidewater Gardens, Young Terrace and Calvert Square.",
+      "source": {
+        "title": "WTKR, March 4, 2026: 'People first': Norfolk finalizing master plan for redeveloping Young Terrace, Calvert Square",
+        "url": "https://www.wtkr.com/news/in-the-community/norfolk/people-first-norfolk-finalizing-master-plan-for-redeveloping-young-terrace-calvert-square"
+      },
+      "quote": "The project seeks to tear down low-income housing in three neighborhoods near Downtown: Tidewater Gardens, Young Terrace and Calvert Square.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicymqo35ugw4lftevym45r2sknlcg3hvdgwjche7wi3fqq24pmozi",
+        "bytes": 114951,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The project seeks to tear down low-income housing in three neighborhoods near Downtown: Tidewater Gardens, Young Terrace and Calvert Square.",
+        "prefix": "Update - January 30, 2026 ",
+        "suffix": " Built in the 1950s, the communities"
+      }
+    },
+    {
+      "id": "scale",
+      "stance": "context",
+      "claim": "The City's January 2026 presentation to Council gives Young Terrace as 746 units on 36 acres, built in 1953, and Calvert Square as 310 units (19 acres, built 1957).",
+      "source": {
+        "title": "City of Norfolk: St. Paul's Area Transformation Update, City Council Retreat, January 30, 2026",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108546"
+      },
+      "quote": "Young Terrace: • 746 Units • 36 acres • Built 1953",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyc3oyq2rhjn5q5xejswgdy5hkbbnkrloq4hbsalgveo3oqxiw4i",
+        "bytes": 8684572,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Young Terrace: • 746 Units • 36 acres • Built 1953",
+        "prefix": "modern mixed-income neighborhoods. ",
+        "suffix": " Calvert Square: • 310 Units ​ • 19"
+      }
+    },
+    {
+      "id": "timeline-target",
+      "stance": "confirms",
+      "claim": "As presented to Council on January 30, 2026, the target dates were a Section 18 (HUD demolition and disposition) application in January 2027 and demolition of the first phase in fall 2027.",
+      "source": {
+        "title": "City of Norfolk: St. Paul's Area Transformation Update, City Council Retreat, January 30, 2026",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108546"
+      },
+      "quote": "Target date for Section 18 Application January 2027 Demo First Phase Fall 2027",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyc3oyq2rhjn5q5xejswgdy5hkbbnkrloq4hbsalgveo3oqxiw4i",
+        "bytes": 8684572,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Target date for Section 18 Application January 2027 Demo First Phase Fall 2027",
+        "prefix": "Review January 2026 - January 2027 ",
+        "suffix": " MP Refinement - Q1 2026 - Q4 2026"
+      }
+    },
+    {
+      "id": "first-lease-up",
+      "stance": "weakens",
+      "claim": "On the same timeline, in its \"Build 1st\" row, the first build's tax credit submittal was \"TBD\", dependent on the Virginia Housing Development Authority's calendar, and its first lease-up was around 2030.",
+      "source": {
+        "title": "City of Norfolk: St. Paul's Area Transformation Update, City Council Retreat, January 30, 2026",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108546"
+      },
+      "quote": "Tax Credit Submittal TBD Reliant on VHDA Calendar ~First Lease up 2030",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyc3oyq2rhjn5q5xejswgdy5hkbbnkrloq4hbsalgveo3oqxiw4i",
+        "bytes": 8684572,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Tax Credit Submittal TBD Reliant on VHDA Calendar ~First Lease up 2030",
+        "prefix": "2026 - Q1 2027 Today, January 30, 2026 ",
+        "suffix": " *NRHA provides monthly updates on the"
+      }
+    },
+    {
+      "id": "steps-not-done",
+      "stance": "weakens",
+      "claim": "In January 2026 the path the City laid out still began with Council adopting updated guiding principles by resolution and approving a draft master plan: neither was done then.",
+      "source": {
+        "title": "City of Norfolk: St. Paul's Area Transformation Update, City Council Retreat, January 30, 2026",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108546"
+      },
+      "quote": "Update, Refine and Adopt Guiding Principles (via Council resolution) • Refine & Approve Draft Master Plan",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyc3oyq2rhjn5q5xejswgdy5hkbbnkrloq4hbsalgveo3oqxiw4i",
+        "bytes": 8684572,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Update, Refine and Adopt Guiding Principles (via Council resolution) • Refine & Approve Draft Master Plan",
+        "prefix": "Vision Plan Recommended Path Forward • ",
+        "suffix": " • Incorporates housing mix, land use,"
+      }
+    },
+    {
+      "id": "funding-unsettled",
+      "stance": "weakens",
+      "claim": "The City named funding as an open challenge: federal and state sources, a choice between HUD's Choice Neighborhoods program and Section 18, and limited City debt capacity.",
+      "source": {
+        "title": "City of Norfolk: St. Paul's Area Transformation Update, City Council Retreat, January 30, 2026",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108546"
+      },
+      "quote": "Funding Sources to Achieve Goals (Federal and State) • CNI vs. Section 18 (and/or) • Limited City Debt Capacity",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyc3oyq2rhjn5q5xejswgdy5hkbbnkrloq4hbsalgveo3oqxiw4i",
+        "bytes": 8684572,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Funding Sources to Achieve Goals (Federal and State) • CNI vs. Section 18 (and/or) • Limited City Debt Capacity",
+        "prefix": "Changing Federal Landscape • ",
+        "suffix": " 41 July 2025 Charrette Vision Plan"
+      }
+    },
+    {
+      "id": "cni-if-available",
+      "stance": "weakens",
+      "claim": "A Choice Neighborhoods application appears on the January 2026 timeline only as \"potential\", if the program is available.",
+      "source": {
+        "title": "City of Norfolk: St. Paul's Area Transformation Update, City Council Retreat, January 30, 2026",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108546"
+      },
+      "quote": "Potential CNI Application if available",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibyc3oyq2rhjn5q5xejswgdy5hkbbnkrloq4hbsalgveo3oqxiw4i",
+        "bytes": 8684572,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Potential CNI Application if available",
+        "prefix": "October January April July October ",
+        "suffix": " Redevelopment March 2027 Environmental"
+      }
+    },
+    {
+      "id": "kindred-cni-funding",
+      "stance": "context",
+      "claim": "For comparison, the transformation of Tidewater Gardens (now Kindred) was funded in part by a $30 million HUD Choice Neighborhoods Implementation Grant awarded in 2019, plus later supplements.",
+      "source": {
+        "title": "Norfolk City Council and Planning Commission records: Ordinance No. 49808, HUD Choice Neighborhoods supplemental grant for Tidewater Gardens (adopted December 10, 2024)",
+        "url": "https://norfolkcityva.iqm2.com/Citizens/Detail_LegiFile.aspx?ID=5014"
+      },
+      "quote": "This award is in addition to the $30,000,000.00 FY18 CNI Implementation Grant awarded in 2019",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreihgcvj433vs6ihukp3jf4bzine5ku7xgkuzmft7smxvsnie4xtku4",
+        "bytes": 37790,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "This award is in addition to the $30,000,000.00 FY18 CNI Implementation Grant awarded in 2019",
+        "prefix": "",
+        "suffix": " and the $10,000,000.00 FY22 CNI"
+      }
+    },
+    {
+      "id": "lihtc-target-march-2026",
+      "stance": "context",
+      "claim": "In November 2025 NRHA told the Mayor's St. Paul's Advisory Committee the first build was targeted for a low-income housing tax credit (LIHTC) application in March 2026.",
+      "source": {
+        "title": "City of Norfolk: Mayor's St. Paul's Advisory Committee, November 2025 meeting minutes",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108673/November-2025-SPAC-Meeting-Minutes"
+      },
+      "quote": "He noted that the 'first build' phase is targeted for March 2026 for LIHTC application submission.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiakt7rzya3aewnsr6d3evqr5kxwiajq5xloqwsmae2vyxlz2cbhty",
+        "bytes": 1843202,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "He noted that the 'first build' phase is targeted for March 2026 for LIHTC application submission.",
+        "prefix": "and spatial configurations. ",
+        "suffix": " Preparations for the Section 18"
+      }
+    },
+    {
+      "id": "section-18-vouchers",
+      "stance": "context",
+      "claim": "NRHA described the Section 18 demolition and disposition application as essential to getting new housing vouchers, and said it typically takes 6 to 12 months.",
+      "source": {
+        "title": "City of Norfolk: Mayor's St. Paul's Advisory Committee, November 2025 meeting minutes",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108673/November-2025-SPAC-Meeting-Minutes"
+      },
+      "quote": "Preparations for the Section 18 Demolition and Disposition Application are also underway, a process essential for securing new housing vouchers and typically requiring 6–12 months.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiakt7rzya3aewnsr6d3evqr5kxwiajq5xloqwsmae2vyxlz2cbhty",
+        "bytes": 1843202,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Preparations for the Section 18 Demolition and Disposition Application are also underway, a process essential for securing new housing vouchers and typically requiring 6–12 months.",
+        "prefix": "2026 for LIHTC application submission. ",
+        "suffix": " The next steps include finalizing"
+      }
+    },
+    {
+      "id": "right-to-return-draft",
+      "stance": "context",
+      "claim": "As of November 2025 NRHA's right-to-return preference policy for Young Terrace and Calvert Square was still being finalized, meant to copy the approach used for Tidewater Gardens under Choice Neighborhoods.",
+      "source": {
+        "title": "City of Norfolk: Mayor's St. Paul's Advisory Committee, November 2025 meeting minutes",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108673/November-2025-SPAC-Meeting-Minutes"
+      },
+      "quote": "the Right to Return preference policy is being finalized, with the intention of replicating the Choice Neighborhoods Initiative (CNI) approach.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiakt7rzya3aewnsr6d3evqr5kxwiajq5xloqwsmae2vyxlz2cbhty",
+        "bytes": 1843202,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "the Right to Return preference policy is being finalized, with the intention of replicating the Choice Neighborhoods Initiative (CNI) approach.",
+        "prefix": "• Mr. Morales explained that ",
+        "suffix": " Most families from Young Terrace and"
+      }
+    },
+    {
+      "id": "vouchers-not-guaranteed",
+      "stance": "weakens",
+      "claim": "NRHA also told the committee that returning depends on vouchers and project-based units, and that vouchers are limited and not guaranteed for every resident.",
+      "source": {
+        "title": "City of Norfolk: Mayor's St. Paul's Advisory Committee, November 2025 meeting minutes",
+        "url": "https://www.norfolk.gov/DocumentCenter/View/108673/November-2025-SPAC-Meeting-Minutes"
+      },
+      "quote": "He emphasized that vouchers are limited and not guaranteed for all residents.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreiakt7rzya3aewnsr6d3evqr5kxwiajq5xloqwsmae2vyxlz2cbhty",
+        "bytes": 1843202,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "He emphasized that vouchers are limited and not guaranteed for all residents.",
+        "prefix": "the presence of project-based units. ",
+        "suffix": " Reflecting on the Tidewater Gardens"
+      }
+    },
+    {
+      "id": "master-plan-not-final",
+      "stance": "weakens",
+      "claim": "WTKR reported on March 4, 2026 that NRHA's chief development officer said the master plan for Young Terrace and Calvert Square was still being finalized.",
+      "source": {
+        "title": "WTKR, March 4, 2026: 'People first': Norfolk finalizing master plan for redeveloping Young Terrace, Calvert Square",
+        "url": "https://www.wtkr.com/news/in-the-community/norfolk/people-first-norfolk-finalizing-master-plan-for-redeveloping-young-terrace-calvert-square"
+      },
+      "quote": "Morales says the Master Plan for that part of the St. Paul's project is still being finalized.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreicymqo35ugw4lftevym45r2sknlcg3hvdgwjche7wi3fqq24pmozi",
+        "bytes": 114951,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Morales says the Master Plan for that part of the St. Paul's project is still being finalized.",
+        "prefix": "Calvert Square neighborhood ",
+        "suffix": " \"We probably have four to six months"
+      }
+    },
+    {
+      "id": "not-fully-funded",
+      "stance": "weakens",
+      "claim": "WHRO reported on November 6, 2026 that the plans to tear down Young Terrace and Calvert Square and build mixed-income housing are not yet fully funded.",
+      "source": {
+        "title": "WHRO, November 6, 2026: Norfolk's cash-strapped housing authority can't keep up with maintenance, leaving residents in dangerous conditions",
+        "url": "https://www.whro.org/local-government/2026-11-06/norfolks-cash-strapped-housing-authority-cant-keep-up-with-maintenance-leaving-residents-in-dangerous-conditions"
+      },
+      "quote": "There are plans, not yet fully funded, to tear down Young Terrace and Calvert Square and build mixed-income housing starting in the next few years.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreif45ssdiz5osajyc6qago3vasjj2f7u4pyfkprerss3sjpincvf3u",
+        "bytes": 186824,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "There are plans, not yet fully funded, to tear down Young Terrace and Calvert Square and build mixed-income housing starting in the next few years.",
+        "prefix": "have been ongoing for years. ",
+        "suffix": " While those plans slowly move forward,"
+      }
+    },
+    {
+      "id": "vacancies",
+      "stance": "context",
+      "claim": "WHRO reported on November 6, 2026 that nearly 200 of Young Terrace's 746 units were vacant.",
+      "source": {
+        "title": "WHRO, November 6, 2026: Norfolk's cash-strapped housing authority can't keep up with maintenance, leaving residents in dangerous conditions",
+        "url": "https://www.whro.org/local-government/2026-11-06/norfolks-cash-strapped-housing-authority-cant-keep-up-with-maintenance-leaving-residents-in-dangerous-conditions"
+      },
+      "quote": "Nearly 200 of the 746 units in Young Terrace are vacant",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreif45ssdiz5osajyc6qago3vasjj2f7u4pyfkprerss3sjpincvf3u",
+        "bytes": 186824,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Nearly 200 of the 746 units in Young Terrace are vacant",
+        "prefix": "letters before NRHA makes repairs. ",
+        "suffix": ", an increase of 30 since The"
+      }
+    },
+    {
+      "id": "years-away",
+      "stance": "weakens",
+      "claim": "WHRO reported on November 9, 2026 that the redevelopment of Young Terrace and Calvert Square is years away.",
+      "source": {
+        "title": "WHRO, November 9, 2026: NRHA claims it doesn't have money to renovate its units. Leaving them vacant may cost federal funding",
+        "url": "https://www.whro.org/business-growth/2026-11-09/nrha-claims-it-doesnt-have-money-to-renovate-its-units-leaving-them-vacant-may-cost-federal-funding"
+      },
+      "quote": "But the redevelopment of Young Terrace and Calvert Square is years away.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreibu475w2zorjm2d5uv5dfhqwle2gfjnmopau42ikqz4at6gcnfsu4",
+        "bytes": 190067,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "But the redevelopment of Young Terrace and Calvert Square is years away.",
+        "prefix": "new housing starting in late 2020. ",
+        "suffix": " So, the authority is spending millions"
+      }
+    },
+    {
+      "id": "settlement-review",
+      "stance": "who_decides",
+      "claim": "WHRO reported in February 2025 that the 2021 settlement of the Tidewater Gardens residents' lawsuit gave the plaintiffs the right to review the plans to redevelop Calvert Square and Young Terrace for discriminatory effects.",
+      "source": {
+        "title": "WHRO, February 26, 2025: Build first, build dense: how Norfolk plans to redevelop two more public housing communities",
+        "url": "https://www.whro.org/business-growth/2025-02-26/build-first-build-dense-how-norfolk-plans-to-redevelop-two-more-public-housing-communities"
+      },
+      "quote": "The settlement also gave the plaintiffs the right to review plans to redevelop Calvert and Young to ensure those efforts are avoiding discriminatory effects.",
+      "found_by": "Claude Code routine (Siren: compile and update case files), run by Jason Edelman",
+      "checked": "2026-11-26",
+      "checked_via": "live",
+      "evidence": {
+        "cid": "bafkreieksj3qttailyb2dvfetit4pobrefarau7br5v36ykfbae4u3qcsi",
+        "bytes": 158435,
+        "read": "2026-11-26",
+        "via": "live"
+      },
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "The settlement also gave the plaintiffs the right to review plans to redevelop Calvert and Young to ensure those efforts are avoiding discriminatory effects.",
+        "prefix": "return to the rebuilt neighborhood. ",
+        "suffix": " Simms said that review is built into"
+      }
+    }
+  ],
+  "what_would_help": [
+    {
+      "text": "Watch City Council's agendas for the first-build Conditional Use Permit at 711 and 755 Church Street (Planning Commission, November 19, 2026): Council's vote is the decision, and anyone may speak at that hearing.",
+      "finding": "planning-commission-vote"
+    },
+    {
+      "text": "Watch for a Council resolution adopting updated guiding principles and for the master plan: the City named both as steps before the redevelopment proceeds.",
+      "finding": "va-redevelopment-plan-approval"
+    },
+    {
+      "text": "NRHA's annual plan and any Section 18 demolition and disposition application to HUD are where demolition, relocation and replacement housing are formally proposed; the January 2026 timeline targeted January 2027 for the application.",
+      "finding": "timeline-target"
+    }
+  ],
+  "records_to_request": [
+    "From NRHA: the current draft master plan for Young Terrace and Calvert Square, with its phasing and the number of replacement and affordable units by income level.",
+    "From NRHA: any development agreement between NRHA and Gilbane Development Company for the first build or the wider Young Terrace and Calvert Square redevelopment, with any amendments.",
+    "From NRHA: the draft right-to-return preference policy and the draft HUD relocation plan for Young Terrace and Calvert Square residents.",
+    "From NRHA: any Section 18 demolition and disposition application, Choice Neighborhoods application, or low-income housing tax credit application filed for Young Terrace, Calvert Square or the first-build site at 711 and 755 Church Street, with its submission date.",
+    "From the City: the staff report to the Planning Commission dated November 19, 2026 for the Conditional Use Permits at 711 and 755 Church Street and at 930 E. Virginia Beach Boulevard."
+  ],
+  "pending": [
+    "When City Council hears the first-build Conditional Use Permit (711 and 755 Church Street) and the City's permits for 930 E. Virginia Beach Boulevard, and how it votes: the December 1, 2026 Council agenda wasn't readable on the meeting portal on November 26.",
+    "Whether the first build's low-income housing tax credit application has been filed (targeted for March 2026 in November 2025, shown as \"TBD\" on the January 30, 2026 timeline) and whether Virginia Housing awarded credits: no record found yet.",
+    "Whether Council has adopted the updated guiding principles or approved a master plan: none found in Siren's legislation index (built November 23, 2026).",
+    "Whether a redevelopment plan approved under Va. Code § 36-49 already covers these sites (the first-build letter says the site is in an NRHA-identified redevelopment area, and WHRO reported Council gave the go-ahead to redevelop all three St. Paul's communities in 2018), whether NRHA's master plan will go to Council as one, and whether a Section 18 application has been filed with HUD.",
+    "NRHA's own St. Paul's Area Transformation housing page (nrha.us) refused this environment's automated requests, so nothing from it is a finding.",
+    "The 2021 Tidewater Gardens settlement itself (only WHRO's account of its review right is a finding)."
+  ]
+}
